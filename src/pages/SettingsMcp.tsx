@@ -12,6 +12,7 @@ import {
 import { api, qk, type McpConnection, type McpTool } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -30,14 +31,14 @@ const CLIENTS: { value: Client; label: string }[] = [
   { value: 'claude', label: 'Claude.ai & Desktop' },
   { value: 'cursor', label: 'Cursor' },
   { value: 'codex', label: 'Codex' },
-  { value: 'other', label: 'Other clients' },
+  { value: 'other', label: t('Other clients') },
 ];
 
 function Snippet({ text, label }: { text: string; label?: string }) {
   return (
     <div className="snippet">
       <div className="snippet-head">
-        <span className="mono muted">{label ?? 'Terminal'}</span>
+        <span className="mono muted">{label ?? t('Terminal')}</span>
         <CopyButton text={text} className="btn small quiet" />
       </div>
       <pre className="mono">{text}</pre>
@@ -59,14 +60,20 @@ function SetupSteps({
   if (client === 'claude-code')
     return (
       <>
-        <p>Add the server from your terminal:</p>
+        <p>{t('Add the server from your terminal:')}</p>
         <Snippet
           text={`claude mcp add --transport http ${serverName} ${url}`}
         />
         <p>
-          Then start Claude Code, run <code>/mcp</code>, choose{' '}
-          <b>{serverName}</b>, and select <b>Authenticate</b>. Your browser
-          opens {appName}: sign in and allow access.
+          {tx(
+            'Then start Claude Code, run {command}, choose {server}, and select {auth}. Your browser opens {app}: sign in and allow access.',
+            {
+              command: <code>/mcp</code>,
+              server: <b>{serverName}</b>,
+              auth: <b>{t('Authenticate')}</b>,
+              app: appName,
+            }
+          )}
         </p>
       </>
     );
@@ -74,22 +81,29 @@ function SetupSteps({
     return (
       <ol>
         <li>
-          Open{' '}
-          <a
-            href="https://claude.ai/customize/connectors?modal=add-custom-connector"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Settings → Connectors → Add custom connector
-          </a>{' '}
-          (in Claude.ai or the Claude desktop app).
+          {tx('Open {link} (in Claude.ai or the Claude desktop app).', {
+            link: (
+              <a
+                href="https://claude.ai/customize/connectors?modal=add-custom-connector"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Settings → Connectors → Add custom connector
+              </a>
+            ),
+          })}
         </li>
         <li>
-          Name it <b>{appName}</b> and paste the server URL <code>{url}</code>.
+          {tx('Name it {name} and paste the server URL {url}.', {
+            name: <b>{appName}</b>,
+            url: <code>{url}</code>,
+          })}
         </li>
         <li>
-          Select <b>Connect</b>, sign in to {appName}, and allow access. The
-          connector then works in Claude on the web, desktop, and mobile.
+          {tx(
+            'Select {connect}, sign in to {app}, and allow access. The connector then works in Claude on the web, desktop, and mobile.',
+            { connect: <b>{t('Connect')}</b>, app: appName }
+          )}
         </li>
       </ol>
     );
@@ -102,12 +116,14 @@ function SetupSteps({
             className="btn small primary"
             href={`cursor://anysphere.cursor-deeplink/mcp/install?name=${serverName}&config=${encodeURIComponent(config)}`}
           >
-            Add to Cursor
+            {t('Add to Cursor')}
           </a>
         </p>
         <p>
-          Or add it to <code>~/.cursor/mcp.json</code> (or a project&apos;s{' '}
-          <code>.cursor/mcp.json</code>):
+          {tx("Or add it to {user} (or a project's {project}):", {
+            user: <code>~/.cursor/mcp.json</code>,
+            project: <code>.cursor/mcp.json</code>,
+          })}
         </p>
         <Snippet
           label="mcp.json"
@@ -118,8 +134,10 @@ function SetupSteps({
           )}
         />
         <p>
-          Cursor shows <b>Needs login</b> next to the server in Settings → MCP;
-          select it to sign in to {appName}.
+          {tx(
+            'Cursor shows {needsLogin} next to the server in Settings → MCP; select it to sign in to {app}.',
+            { needsLogin: <b>{t('Needs login')}</b>, app: appName }
+          )}
         </p>
       </>
     );
@@ -127,24 +145,29 @@ function SetupSteps({
   if (client === 'codex')
     return (
       <>
-        <p>Add the server from your terminal, then sign in:</p>
+        <p>{t('Add the server from your terminal, then sign in:')}</p>
         <Snippet
           text={`codex mcp add ${serverName} --url ${url}\ncodex mcp login ${serverName}`}
         />
         <p>
-          Or add it to <code>~/.codex/config.toml</code> under{' '}
-          <code>[mcp_servers.{serverName}]</code> with{' '}
-          <code>url = &quot;{url}&quot;</code>.
+          {tx('Or add it to {file} under {section} with {setting}.', {
+            file: <code>~/.codex/config.toml</code>,
+            section: <code>[mcp_servers.{serverName}]</code>,
+            setting: <code>url = &quot;{url}&quot;</code>,
+          })}
         </p>
       </>
     );
   return (
     <p>
-      Any MCP client that supports remote servers works. Add a{' '}
-      <b>Streamable HTTP</b> server with the URL <code>{url}</code>. The client
-      discovers {appName}&apos;s sign-in automatically (OAuth 2.1 with PKCE and
-      dynamic client registration), so there&apos;s no token to copy: you sign
-      in and approve access in your browser.
+      {tx(
+        "Any MCP client that supports remote servers works. Add a {transport} server with the URL {url}. The client discovers {app}'s sign-in automatically (OAuth 2.1 with PKCE and dynamic client registration), so there's no token to copy: you sign in and approve access in your browser.",
+        {
+          transport: <b>Streamable HTTP</b>,
+          url: <code>{url}</code>,
+          app: appName,
+        }
+      )}
     </p>
   );
 }
@@ -159,11 +182,11 @@ function ToolRow({ tool }: { tool: McpTool }) {
         <code className="muted">{tool.name}</code>
         {tool.annotations.readOnlyHint ? (
           <Chip tone="off" icon={<EyeIcon size={12} />}>
-            Read-only
+            {t('Read-only')}
           </Chip>
         ) : (
           <Chip tone="warn" icon={<PencilIcon size={12} />}>
-            Makes changes
+            {t('Makes changes')}
           </Chip>
         )}
       </div>
@@ -173,8 +196,10 @@ function ToolRow({ tool }: { tool: McpTool }) {
           {params.map(([name, p]) => (
             <li key={name}>
               <code>{name}</code>
-              {required.has(name) ? ' (required)' : ''}
-              {p.enum ? ` — one of ${p.enum.join(', ')}` : ''}
+              {required.has(name) ? t(' (required)') : ''}
+              {p.enum
+                ? t(' — one of {values}', { values: p.enum.join(', ') })
+                : ''}
               {p.description ? `: ${p.description}` : ''}
             </li>
           ))}
@@ -191,7 +216,9 @@ function AppIdentity({ app }: { app: McpConnection }) {
       <span className="mono" title={app.clientId}>
         {app.clientId.slice(0, 8)}
       </span>
-      {app.redirectHost && <>, redirects to {app.redirectHost}</>}
+      {app.redirectHost && (
+        <>{t(', redirects to {host}', { host: app.redirectHost })}</>
+      )}
     </>
   );
 }
@@ -237,14 +264,17 @@ export default function SettingsMcp() {
       <PageHead
         icon="plug"
         crumbs={[
-          { label: 'Settings', to: '/settings/tokens' },
-          { label: 'MCP server' },
+          { label: t('Settings'), to: '/settings/tokens' },
+          { label: t('MCP server') },
         ]}
-        title="MCP server"
-        lede={`Connect Claude, Cursor and other AI tools to ${appName} through the Model Context Protocol. They act as you, so they see the repositories you can see, and they can create repositories for you.`}
+        title={t('MCP server')}
+        lede={t(
+          'Connect Claude, Cursor and other AI tools to {app} through the Model Context Protocol. They act as you, so they see the repositories you can see, and they can create repositories for you.',
+          { app: appName }
+        )}
       />
       <SettingsFrame>
-        <Section title="Connected apps" className="mcp-apps">
+        <Section title={t('Connected apps')} className="mcp-apps">
           {error && <Notice tone="bad">{error}</Notice>}
           <div className="panel">
             {connections.isPending ? (
@@ -254,7 +284,7 @@ export default function SettingsMcp() {
             ) : connections.isError ? (
               <div className="pad">
                 <LoadError
-                  what="your connected apps"
+                  what={t('your connected apps')}
                   error={connections.error}
                   onRetry={() => connections.refetch()}
                 />
@@ -262,8 +292,10 @@ export default function SettingsMcp() {
             ) : connections.data.length === 0 ? (
               <EmptyState
                 picture={<PlugIcon size={20} />}
-                title="No apps are connected yet."
-                body="Apps appear here after you allow them access. Set one up below."
+                title={t('No apps are connected yet.')}
+                body={t(
+                  'Apps appear here after you allow them access. Set one up below.'
+                )}
               />
             ) : (
               <ul className="rowlist">
@@ -281,27 +313,31 @@ export default function SettingsMcp() {
                         {c.moderator && (
                           <>
                             {' '}
-                            <Chip tone="warn">Moderator</Chip>
+                            <Chip tone="warn">{t('Moderator')}</Chip>
                           </>
                         )}
                       </b>
                       <span className="muted small">
                         {c.connectedAt
-                          ? `Connected ${timeAgo(c.connectedAt)}`
-                          : 'Connected'}
+                          ? t('Connected {when}', {
+                              when: timeAgo(c.connectedAt),
+                            })
+                          : t('Connected')}
                         {' · '}
                         <AppIdentity app={c} />
                       </span>
                     </div>
                     <div className="ctl">
                       <label className="tgl">
-                        <span className="small">Moderator</span>
+                        <span className="small">{t('Moderator')}</span>
                         <input
                           type="checkbox"
                           role="switch"
                           checked={c.moderator}
                           disabled={moderator.isPending}
-                          aria-label={`${c.name} is a moderator`}
+                          aria-label={t('{app} is a moderator', {
+                            app: c.name,
+                          })}
                           onChange={(e) => {
                             if (e.target.checked) setConfirming(c.clientId);
                             else {
@@ -315,10 +351,12 @@ export default function SettingsMcp() {
                         />
                       </label>
                       <InlineConfirm
-                        label="Disconnect"
-                        confirmLabel={`Disconnect ${c.name}`}
-                        pendingLabel="Disconnecting…"
-                        accessibleName={`Disconnect ${c.name}`}
+                        label={t('Disconnect')}
+                        confirmLabel={t('Disconnect {app}', { app: c.name })}
+                        pendingLabel={t('Disconnecting…')}
+                        accessibleName={t('Disconnect {app}', {
+                          app: c.name,
+                        })}
                         pending={
                           disconnect.isPending &&
                           disconnect.variables === c.clientId
@@ -328,14 +366,16 @@ export default function SettingsMcp() {
                     </div>
                     {c.moderator && enabled === c.clientId && (
                       <p className="sub small muted" role="status">
-                        Reconnect the app to see the moderator tools.
+                        {t('Reconnect the app to see the moderator tools.')}
                       </p>
                     )}
                     {confirming === c.clientId && !c.moderator && (
                       <div
                         className="sub"
                         role="group"
-                        aria-label={`Make ${c.name} a moderator`}
+                        aria-label={t('Make {app} a moderator', {
+                          app: c.name,
+                        })}
                         aria-describedby={`moderator-confirm-${c.clientId}`}
                       >
                         <Notice
@@ -347,7 +387,7 @@ export default function SettingsMcp() {
                                 // Moves focus into the confirmation as it opens.
                                 autoFocus
                                 pending={moderator.isPending}
-                                pendingLabel="Making moderator…"
+                                pendingLabel={t('Making moderator…')}
                                 onClick={() =>
                                   moderator.mutate({
                                     clientId: c.clientId,
@@ -355,22 +395,26 @@ export default function SettingsMcp() {
                                   })
                                 }
                               >
-                                Make moderator
+                                {t('Make moderator')}
                               </PendingButton>
                               <button
                                 type="button"
                                 className="btn small"
                                 onClick={() => setConfirming(null)}
                               >
-                                Cancel
+                                {t('Cancel')}
                               </button>
                             </span>
                           }
                         >
                           <span id={`moderator-confirm-${c.clientId}`}>
-                            Make <b>{c.name}</b> (<AppIdentity app={c} />) a
-                            moderator? A moderator can approve agent findings
-                            and pull requests as you.
+                            {tx(
+                              'Make {app} ({identity}) a moderator? A moderator can approve agent findings and pull requests as you.',
+                              {
+                                app: <b>{c.name}</b>,
+                                identity: <AppIdentity app={c} />,
+                              }
+                            )}
                           </span>
                         </Notice>
                       </div>
@@ -381,44 +425,54 @@ export default function SettingsMcp() {
             )}
           </div>
           <p className="foot small muted">
-            <ShieldCheckIcon size={14} /> Disconnecting stops an app
-            immediately; it has to ask for your approval again to reconnect.
+            <ShieldCheckIcon size={14} />{' '}
+            {t(
+              'Disconnecting stops an app immediately; it has to ask for your approval again to reconnect.'
+            )}
           </p>
           <p className="foot small attention">
-            <AlertIcon size={14} /> A moderator can approve agent findings and
-            pull requests as you.
+            <AlertIcon size={14} />{' '}
+            {t(
+              'A moderator can approve agent findings and pull requests as you.'
+            )}
           </p>
         </Section>
 
         <section className="panel pad delegate" aria-labelledby="mcp-delegate">
           <h2 id="mcp-delegate">
-            <SparkleFillIcon size={16} /> Letting Claude answer for you
+            <SparkleFillIcon size={16} /> {t('Letting Claude answer for you')}
           </h2>
           <p>
-            A <b>moderator app</b> (above) is a tool you connected, such as
-            Claude Code. It can approve agent findings and pull requests as you.
-            Findings from Security and Data need your own written reason, so the
-            app has to ask you for it.
+            {tx(
+              'A {moderatorApp} (above) is a tool you connected, such as Claude Code. It can approve agent findings and pull requests as you. Findings from Security and Data need your own written reason, so the app has to ask you for it.',
+              { moderatorApp: <b>{t('moderator app')}</b> }
+            )}
           </p>
           <p>
-            <b>Let Claude decide</b> is different: {appName}&apos;s own AI can
-            answer reviewer findings on your pull requests for you, one reviewer
-            at a time, and you can undo any answer while the pull request is
-            open. <b>Security and Data always come to you.</b>
+            {tx(
+              "{letClaudeDecide} is different: {app}'s own AI can answer reviewer findings on your pull requests for you, one reviewer at a time, and you can undo any answer while the pull request is open. {securityAndData}",
+              {
+                letClaudeDecide: <b>{t('Let Claude decide')}</b>,
+                app: appName,
+                securityAndData: (
+                  <b>{t('Security and Data always come to you.')}</b>
+                ),
+              }
+            )}
           </p>
           <div className="actions">
             <Link to="/approvals" className="btn small">
-              Turn it on in Approvals
+              {t('Turn it on in Approvals')}
             </Link>
           </div>
         </section>
 
-        <Section title="Set it up">
+        <Section title={t('Set it up')}>
           {info.isPending ? (
             <RowsSkeleton rows={2} />
           ) : info.isError ? (
             <LoadError
-              what="the server details"
+              what={t('the server details')}
               error={info.error}
               onRetry={() => info.refetch()}
             />
@@ -426,7 +480,7 @@ export default function SettingsMcp() {
             <div className="panel">
               <div className="pad">
                 <label className="lbl" htmlFor="mcp-url">
-                  Server URL
+                  {t('Server URL')}
                 </label>
                 <div className="copyrow">
                   <input
@@ -439,14 +493,14 @@ export default function SettingsMcp() {
                   <CopyButton
                     text={info.data.serverUrl}
                     className="btn small"
-                    label="Copy the server URL"
+                    label={t('Copy the server URL')}
                   />
                 </div>
               </div>
               <div className="pad topline">
                 <div className="segscroll">
                   <Seg<Client>
-                    label="MCP client"
+                    label={t('MCP client')}
                     options={CLIENTS}
                     value={client}
                     onChange={setClient}
@@ -462,12 +516,22 @@ export default function SettingsMcp() {
                 </div>
               </div>
               <div className="pad topline small muted">
-                To check it works, ask:{' '}
-                <em>
-                  &ldquo;Which repositories do I have on {appName}? Use the{' '}
-                  {info.data.serverName} MCP server.&rdquo;
-                </em>{' '}
-                Naming the server makes the AI call it instead of guessing.
+                {tx(
+                  'To check it works, ask: {question} Naming the server makes the AI call it instead of guessing.',
+                  {
+                    question: (
+                      <em>
+                        {t(
+                          '“Which repositories do I have on {app}? Use the {server} MCP server.”',
+                          {
+                            app: appName,
+                            server: info.data.serverName,
+                          }
+                        )}
+                      </em>
+                    ),
+                  }
+                )}
               </div>
             </div>
           )}
@@ -475,23 +539,23 @@ export default function SettingsMcp() {
 
         {info.data && (
           <>
-            <Section title="Tools">
+            <Section title={t('Tools')}>
               <div className="panel">
                 <ul className="rowlist">
-                  {info.data.tools.map((t) => (
-                    <ToolRow key={t.name} tool={t} />
+                  {info.data.tools.map((tool) => (
+                    <ToolRow key={tool.name} tool={tool} />
                   ))}
                 </ul>
               </div>
             </Section>
-            <Section title="Moderator tools">
+            <Section title={t('Moderator tools')}>
               <p className="small muted">
-                Only apps you mark as a moderator above see these.
+                {t('Only apps you mark as a moderator above see these.')}
               </p>
               <div className="panel">
                 <ul className="rowlist">
-                  {info.data.moderatorTools.map((t) => (
-                    <ToolRow key={t.name} tool={t} />
+                  {info.data.moderatorTools.map((tool) => (
+                    <ToolRow key={tool.name} tool={tool} />
                   ))}
                 </ul>
               </div>

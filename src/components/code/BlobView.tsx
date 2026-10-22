@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, type Contents, type RepoDetail } from '@/lib/uiApi';
 import { formatBytes } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import {
   inLineRange,
   isMarkdownPath,
@@ -57,7 +58,7 @@ function CodeTable({
                 <td className="ln">
                   <a
                     href={`#L${n}`}
-                    aria-label={`Line ${n}`}
+                    aria-label={t('Line {n}', { n })}
                     // A long file has thousands of these; they are for the pointer, and the URL for everyone else.
                     tabIndex={-1}
                     onClick={(e) => {
@@ -113,8 +114,8 @@ export function BlobView({ repo, data }: { repo: RepoDetail; data: Contents }) {
         <span className="small fb-stat">
           {f.text !== null && (
             <>
-              <b>{lines.length}</b> {lines.length === 1 ? 'line' : 'lines'}{' '}
-              ·{' '}
+              <b>{lines.length}</b>{' '}
+              {lines.length === 1 ? t('line') : t('lines')} ·{' '}
             </>
           )}
           {formatBytes(f.size)}
@@ -122,25 +123,25 @@ export function BlobView({ repo, data }: { repo: RepoDetail; data: Contents }) {
         <span className="grow" />
         {isMarkdown && (
           <Seg<'preview' | 'code'>
-            label="View"
+            label={t('View')}
             value={view}
             onChange={setView}
             options={[
-              { value: 'preview', label: 'Preview' },
-              { value: 'code', label: 'Code' },
+              { value: 'preview', label: t('Preview') },
+              { value: 'code', label: t('Code') },
             ]}
           />
         )}
         <a href={raw} className="btn small" target="_blank" rel="noreferrer">
-          Raw
+          {t('Raw')}
         </a>
         {f.text !== null && (
           <CopyButton
             text={f.text}
             className="btn small"
-            label="Copy raw content"
+            label={t('Copy raw content')}
           >
-            Copy
+            {t('Copy')}
           </CopyButton>
         )}
       </div>
@@ -157,19 +158,19 @@ export function BlobView({ repo, data }: { repo: RepoDetail; data: Contents }) {
             RAW_IMAGE_RE.test(f.path) ? (
               <img src={raw} alt={f.path} className="fb-image" />
             ) : (
-              <>
-                Binary file not shown. <a href={raw}>View raw</a>
-              </>
+              tx('Binary file not shown. {link}', {
+                link: <a href={raw}>{t('View raw')}</a>,
+              })
             )
           ) : (
-            <>
-              (Sorry about that, but we can't show files that are this big right
-              now.) <a href={raw}>View raw</a>
-            </>
+            tx(
+              "(Sorry about that, but we can't show files that are this big right now.) {link}",
+              { link: <a href={raw}>{t('View raw')}</a> }
+            )
           )}
         </div>
       ) : lines.length === 0 ? (
-        <div className="fb-note">This file is empty.</div>
+        <div className="fb-note">{t('This file is empty.')}</div>
       ) : (
         <CodeTable lines={lines} highlighted={highlighted} />
       )}
@@ -197,29 +198,27 @@ export function LfsFileView({
       <div className="fb-bar">
         <span className="small fb-stat">
           {formatBytes(lfs.size)}
-          <span className="lfs-label">Stored with Git LFS</span>
+          <span className="lfs-label">{t('Stored with Git LFS')}</span>
         </span>
         <span className="grow" />
         {lfs.stored && (
           <a href={download} className="btn small">
-            Download
+            {t('Download')}
           </a>
         )}
       </div>
       <div className="fb-note">
         {!lfs.stored ? (
-          <>
-            This file is tracked with Git LFS, but its content hasn't been
-            uploaded to this server. Push it with{' '}
-            <code>git lfs push --all origin</code>.
-          </>
+          tx(
+            "This file is tracked with Git LFS, but its content hasn't been uploaded to this server. Push it with {command}.",
+            { command: <code>git lfs push --all origin</code> }
+          )
         ) : IMAGE_RE.test(name) ? (
           <img src={preview} alt={name} className="fb-image" />
         ) : (
-          <>
-            This file is stored with Git LFS. <a href={download}>Download it</a>{' '}
-            to view it.
-          </>
+          tx('This file is stored with Git LFS. {link} to view it.', {
+            link: <a href={download}>{t('Download it')}</a>,
+          })
         )}
       </div>
     </div>

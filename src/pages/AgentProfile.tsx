@@ -10,6 +10,7 @@ import {
 } from '@primer/octicons-react';
 import { api, qk, type Namespace } from '@/lib/uiApi';
 import { fullDate, timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import {
   avatarStatusOf,
   engineText,
@@ -29,10 +30,10 @@ import { CrewIcon } from '@/components/shell/icons';
 import { Chip } from '@/components/ui/Chip';
 
 const TAB_LABEL: Record<ProfileTab, string> = {
-  overview: 'Overview',
-  reviews: 'Reviews',
-  rules: 'Rules learned',
-  config: 'Configuration',
+  overview: t('Overview'),
+  reviews: t('Reviews'),
+  rules: t('Rules learned'),
+  config: t('Configuration'),
 };
 
 /**
@@ -79,7 +80,10 @@ export default function AgentProfile({
       className="profile"
       style={{ '--agent': agent.color } as CSSProperties}
     >
-      <aside className="pf-side" aria-label={`About ${agent.name}`}>
+      <aside
+        className="pf-side"
+        aria-label={t('About {name}', { name: agent.name })}
+      >
         <div className="pf-portrait">
           <AgentAvatar
             handle={handle}
@@ -95,20 +99,22 @@ export default function AgentProfile({
             tone={agent.deletedAt ? 'off' : 'info'}
             icon={<CrewIcon size={12} />}
           >
-            {agent.deletedAt ? 'Deleted agent' : 'Reviewer agent'}
+            {agent.deletedAt ? t('Deleted agent') : t('Reviewer agent')}
           </Chip>
           {known && !agent.deletedAt && (
             <Chip status={status}>
-              {status === 'off' ? 'Not on a repository' : undefined}
+              {status === 'off' ? t('Not on a repository') : undefined}
             </Chip>
           )}
           {agent.guarded && (
             <Chip
               tone="warn"
               icon={<ShieldIcon size={12} />}
-              title="Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason"
+              title={t(
+                'Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason'
+              )}
             >
-              Guarded
+              {t('Guarded')}
             </Chip>
           )}
         </p>
@@ -118,13 +124,18 @@ export default function AgentProfile({
             <RepoIcon />
             {agent.repository ? (
               <span>
-                Defined in{' '}
-                <Link className="mono" to={`/${agent.repository}`}>
-                  {agent.repository}
-                </Link>
+                {tx('Defined in {repo}', {
+                  repo: (
+                    <Link className="mono" to={`/${agent.repository}`}>
+                      {agent.repository}
+                    </Link>
+                  ),
+                })}
               </span>
             ) : (
-              <span>Its repository was deleted, or you can’t read it</span>
+              <span>
+                {t('Its repository was deleted, or you can’t read it')}
+              </span>
             )}
           </li>
           <li>
@@ -138,23 +149,26 @@ export default function AgentProfile({
           <li>
             <ClockIcon />
             <span title={fullDate(agent.createdAt)}>
-              Joined {timeAgo(agent.createdAt)}
+              {t('Joined {when}', { when: timeAgo(agent.createdAt) })}
             </span>
           </li>
         </ul>
       </aside>
 
       <div className="pf-main">
-        <nav className="subtabs" aria-label={`${agent.name} sections`}>
-          {PROFILE_TABS.map((t) => (
+        <nav
+          className="subtabs"
+          aria-label={t('{name} sections', { name: agent.name })}
+        >
+          {PROFILE_TABS.map((tabKey) => (
             <Link
-              key={t}
-              to={{ search: t === 'overview' ? '' : `?tab=${t}` }}
-              aria-current={t === tab ? 'page' : undefined}
+              key={tabKey}
+              to={{ search: tabKey === 'overview' ? '' : `?tab=${tabKey}` }}
+              aria-current={tabKey === tab ? 'page' : undefined}
             >
-              {TAB_LABEL[t]}
-              {counts[t] !== undefined && (
-                <span className="count">{counts[t]}</span>
+              {TAB_LABEL[tabKey]}
+              {counts[tabKey] !== undefined && (
+                <span className="count">{counts[tabKey]}</span>
               )}
             </Link>
           ))}
@@ -162,14 +176,17 @@ export default function AgentProfile({
 
         {agent.deletedAt && (
           <Notice tone="warn">
-            This agent was deleted. It is off every repository, and its past
-            reviews keep its name.
+            {t(
+              'This agent was deleted. It is off every repository, and its past reviews keep its name.'
+            )}
           </Notice>
         )}
         {agent.configError && (
           <Notice tone="warn">
-            AGENT.md has an error, so this shows its last valid version:{' '}
-            {agent.configError}
+            {t(
+              'AGENT.md has an error, so this shows its last valid version: {error}',
+              { error: agent.configError }
+            )}
           </Notice>
         )}
 

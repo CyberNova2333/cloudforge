@@ -11,6 +11,7 @@ import { api, qk, type RepoDetail, type SessionSummary } from '@/lib/uiApi';
 import { ApiError } from '@/lib/api';
 import { coderOf } from '@/lib/coder';
 import { fullDate, timeAgo } from '@/lib/format';
+import { locale, t, tx } from '@/lib/i18n';
 import {
   sessionLede,
   sessionName,
@@ -43,7 +44,7 @@ function SessionTile({ s }: { s: SessionSummary }) {
 }
 
 const when = (at: number) =>
-  new Date(at).toLocaleString('en', {
+  new Date(at).toLocaleString(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -78,18 +79,20 @@ function TimelineRow({ e, base }: { e: SessionEvent; base: string }) {
       </span>
       <span className="ses-step">
         {e.kind === 'opened' ? (
-          <span>Opened {pr}</span>
+          <span>{tx('Opened {pull}', { pull: pr })}</span>
         ) : e.kind === 'merged' ? (
           <span>
-            Merged {pr}
             {e.automatic
-              ? ' automatically, by GitOrange'
+              ? tx('Merged {pull} automatically, by GitOrange', { pull: pr })
               : e.actor
-                ? ` (by ${e.actor})`
-                : ''}
+                ? tx('Merged {pull} (by {actor})', {
+                    pull: pr,
+                    actor: e.actor,
+                  })
+                : tx('Merged {pull}', { pull: pr })}
           </span>
         ) : (
-          <span>Closed {pr} without merging</span>
+          <span>{tx('Closed {pull} without merging', { pull: pr })}</span>
         )}
       </span>
     </li>
@@ -110,12 +113,12 @@ function SessionTimeline({ repo, s }: { repo: RepoDetail; s: SessionSummary }) {
   const failed =
     (open.isError && !open.data) || (closed.isError && !closed.data);
   return (
-    <Section title="Timeline">
+    <Section title={t('Timeline')}>
       {failed ? (
         <div className="panel">
           <QueryError
             error={open.error ?? closed.error}
-            title="The timeline did not load"
+            title={t('The timeline did not load')}
             onRetry={() => {
               void open.refetch();
               void closed.refetch();
@@ -142,7 +145,9 @@ function SessionTimeline({ repo, s }: { repo: RepoDetail; s: SessionSummary }) {
             </ol>
           ) : (
             <div className="panel">
-              <EmptyState title="Nothing has happened in this session yet" />
+              <EmptyState
+                title={t('Nothing has happened in this session yet')}
+              />
             </div>
           );
         })()
@@ -167,11 +172,18 @@ export default function Session() {
   });
   const s = q.data;
   const missing = q.error instanceof ApiError && q.error.status === 404;
-  const name = s ? sessionName(s) : missing ? 'Session not found' : 'Session';
+  const name = s
+    ? sessionName(s)
+    : missing
+      ? t('Session not found')
+      : t('Session');
   const entering = useEnter(!!s);
   usePageHead({
     icon: 'pull',
-    crumbs: [{ label: 'Pull requests', to: `${base}/pulls` }, { label: name }],
+    crumbs: [
+      { label: t('Pull requests'), to: `${base}/pulls` },
+      { label: name },
+    ],
     title: name,
     tab: 'pulls',
   });
@@ -181,11 +193,13 @@ export default function Session() {
         <div className="panel">
           <EmptyState
             picture={<GitPullRequestIcon size={20} />}
-            title="Session not found"
-            body="No pull requests in this repository belong to it. It may have been from another repository."
+            title={t('Session not found')}
+            body={t(
+              'No pull requests in this repository belong to it. It may have been from another repository.'
+            )}
             action={
               <Link to={`${base}/pulls`} className="btn small">
-                Back to pull requests
+                {t('Back to pull requests')}
               </Link>
             }
           />
@@ -195,7 +209,7 @@ export default function Session() {
   if (q.isError && !s)
     return (
       <LoadError
-        what="this session"
+        what={t('this session')}
         error={q.error}
         onRetry={() => void q.refetch()}
         retrying={q.isFetching}
@@ -213,7 +227,7 @@ export default function Session() {
               {name}
             </h2>
             <p className="lede">
-              {sessionLede(s)} · last active{' '}
+              {sessionLede(s)} · {t('last active')}{' '}
               <time title={fullDate(s.lastActivity / 1000)}>
                 {timeAgo(s.lastActivity / 1000)}
               </time>
@@ -223,7 +237,7 @@ export default function Session() {
       </header>
       <div className="cols">
         <div className="col">
-          <Section title="Requests">
+          <Section title={t('Requests')}>
             {s.requests.length ? (
               <ul className="plain ses-requests">
                 {s.requests.map((r) => (
@@ -231,7 +245,7 @@ export default function Session() {
                     <p className="why">
                       <SparkleFillIcon />
                       <span>
-                        <b>{author} asked:</b> {r.text}{' '}
+                        <b>{t('{author} asked:', { author })}</b> {r.text}{' '}
                         <Link
                           to={`${base}/pull/${r.number}`}
                           className="mono small"
@@ -248,17 +262,25 @@ export default function Session() {
                 <CommentIcon />
                 <span>
                   {s.client
-                    ? `${s.client} didn’t send the requests that started these pull requests. Their descriptions say what they do.`
-                    : 'Pull requests opened by hand carry no request from a coding session. Their descriptions say why.'}
+                    ? t(
+                        '{client} didn’t send the requests that started these pull requests. Their descriptions say what they do.',
+                        { client: s.client }
+                      )
+                    : t(
+                        'Pull requests opened by hand carry no request from a coding session. Their descriptions say why.'
+                      )}
                 </span>
               </p>
             )}
           </Section>
           <SessionTimeline repo={repo} s={s} />
         </div>
-        <aside className="col side ses-side" aria-label="About this session">
+        <aside
+          className="col side ses-side"
+          aria-label={t('About this session')}
+        >
           <section className="panel pad" aria-labelledby="ses-pulls-title">
-            <h2 id="ses-pulls-title">Pull requests</h2>
+            <h2 id="ses-pulls-title">{t('Pull requests')}</h2>
             <ul className="plain ses-pulls">
               {s.pulls.map((p) => (
                 <li key={p.number}>
@@ -273,7 +295,7 @@ export default function Session() {
             </ul>
           </section>
           <section className="panel pad" aria-labelledby="ses-who-title">
-            <h2 id="ses-who-title">Who</h2>
+            <h2 id="ses-who-title">{t('Who')}</h2>
             <p className="ses-who">
               <Avatar user={{ username: s.author.login }} size={24} />
               <Link to={`/${s.author.login}`}>{author}</Link>
@@ -282,27 +304,25 @@ export default function Session() {
               )}
             </p>
             <p className="small">
-              {s.client ? (
-                <>
-                  Opened with <b>{s.client}</b>
-                  {s.label && (
-                    <>
-                      , which named the session <b>{s.label}</b>
-                    </>
-                  )}
-                  .
-                </>
-              ) : (
-                'Opened by hand, on the web or with git push.'
-              )}
+              {s.client
+                ? s.label
+                  ? tx(
+                      'Opened with {client}, which named the session {session}.',
+                      {
+                        client: <b>{s.client}</b>,
+                        session: <b>{s.label}</b>,
+                      }
+                    )
+                  : tx('Opened with {client}.', { client: <b>{s.client}</b> })
+                : t('Opened by hand, on the web or with git push.')}
             </p>
           </section>
           <section className="panel pad">
-            <h2>About sessions</h2>
+            <h2>{t('About sessions')}</h2>
             <p className="small muted">
-              A session is the pull requests one app opened for one person, as
-              the app reported them over MCP, with what the person asked for.
-              Each pull request shows its request under “Why this change”.
+              {t(
+                'A session is the pull requests one app opened for one person, as the app reported them over MCP, with what the person asked for. Each pull request shows its request under “Why this change”.'
+              )}
             </p>
           </section>
         </aside>

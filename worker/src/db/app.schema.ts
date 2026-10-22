@@ -29,7 +29,8 @@ export const repositories = sqliteTable(
     // Set ⇒ a team repository.
     teamId: text('team_id').references(() => teams.id),
     // private: owner, collaborators, and site admins only. internal: every member can read.
-    visibility: text('visibility', { enum: ['private', 'internal'] })
+    // public: internal, plus anyone without an account can read (web, API reads, clone).
+    visibility: text('visibility', { enum: ['private', 'internal', 'public'] })
       .notNull()
       .default('internal'),
     name: text('name').notNull(),

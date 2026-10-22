@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SparkleFillIcon } from '@primer/octicons-react';
+import { t, tx } from '@/lib/i18n';
 import type { RepoDetail } from '@/lib/uiApi';
 import { AgentPrompt } from '@/components/AgentPrompt';
 import { CopyButton } from '@/components/CopyButton';
@@ -15,7 +16,7 @@ function Commands({ lines }: { lines: string[] }) {
       <CopyButton
         text={text}
         className="btn small quiet"
-        label="Copy these commands"
+        label={t('Copy these commands')}
       />
     </div>
   );
@@ -32,40 +33,49 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
     <div className="setup-steps">
       <section className="panel setup-step setup-agent">
         <h2>
-          <SparkleFillIcon /> Set up with an AI agent
+          <SparkleFillIcon /> {t('Set up with an AI agent')}
         </h2>
         <Seg<'work' | 'import'>
-          label="What to set up"
+          label={t('What to set up')}
           value={kind}
           onChange={setKind}
           options={[
-            { value: 'work', label: 'Start a new project' },
-            { value: 'import', label: 'Import from GitHub' },
+            { value: 'work', label: t('Start a new project') },
+            { value: 'import', label: t('Import from GitHub') },
           ]}
         />
         <AgentPrompt repo={repo} kind={kind} />
       </section>
       <section className="panel setup-step">
-        <h2>Quick setup — if you've done this kind of thing before</h2>
+        <h2>{t("Quick setup — if you've done this kind of thing before")}</h2>
         <div className="clone-url">
           <span className="chip">HTTPS</span>
           <input
             className="form-control input-monospace input-sm"
             readOnly
-            aria-label="HTTPS clone URL"
+            aria-label={t('HTTPS clone URL')}
             value={url}
             onFocus={(e) => e.target.select()}
           />
-          <CopyButton text={url} className="btn small" label="Copy clone URL" />
+          <CopyButton
+            text={url}
+            className="btn small"
+            label={t('Copy clone URL')}
+          />
         </div>
         <p className="small muted">
-          Authenticate with your username and a{' '}
-          <Link to="/settings/tokens">personal access token</Link> as the
-          password.
+          {tx(
+            'Authenticate with your username and a {token} as the password.',
+            {
+              token: (
+                <Link to="/settings/tokens">{t('personal access token')}</Link>
+              ),
+            }
+          )}
         </p>
       </section>
       <section className="panel setup-step">
-        <h2>…or create a new repository on the command line</h2>
+        <h2>{t('…or create a new repository on the command line')}</h2>
         <Commands
           lines={[
             `echo "# ${repo.name}" >> README.md`,
@@ -81,7 +91,7 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
         />
       </section>
       <section className="panel setup-step">
-        <h2>…or push an existing repository from the command line</h2>
+        <h2>{t('…or push an existing repository from the command line')}</h2>
         <Commands
           lines={[
             `git remote add origin ${url}`,
@@ -91,7 +101,7 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
         />
       </section>
       <section className="panel setup-step">
-        <h2>…or import a repository from GitHub on the command line</h2>
+        <h2>{t('…or import a repository from GitHub on the command line')}</h2>
         <Commands
           lines={[
             'git clone --mirror https://github.com/OWNER/REPO.git github-mirror.git',
@@ -103,14 +113,17 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
           ]}
         />
         <p className="small muted">
-          Copies every branch, tag, and Git LFS file. To sync again later, run{' '}
-          <code>git fetch --prune origin</code> and{' '}
-          <code>git lfs fetch --all origin</code> in the same folder, then the
-          three push commands.
+          {tx(
+            'Copies every branch, tag, and Git LFS file. To sync again later, run {fetch} and {lfsFetch} in the same folder, then the three push commands.',
+            {
+              fetch: <code>git fetch --prune origin</code>,
+              lfsFetch: <code>git lfs fetch --all origin</code>,
+            }
+          )}
         </p>
       </section>
       <section className="panel setup-step">
-        <h2>…and store large files with Git LFS</h2>
+        <h2>{t('…and store large files with Git LFS')}</h2>
         <Commands
           lines={[
             'git lfs install',
@@ -121,12 +134,16 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
           ]}
         />
         <p className="small muted">
-          Tracked files are stored outside the repository (up to 5 GB each) and
-          shown here with their real size. Requires{' '}
-          <a href="https://git-lfs.com" target="_blank" rel="noreferrer">
-            Git LFS
-          </a>
-          .
+          {tx(
+            'Tracked files are stored outside the repository (up to 5 GB each) and shown here with their real size. Requires {lfs}.',
+            {
+              lfs: (
+                <a href="https://git-lfs.com" target="_blank" rel="noreferrer">
+                  Git LFS
+                </a>
+              ),
+            }
+          )}
         </p>
       </section>
     </div>

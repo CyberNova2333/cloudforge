@@ -9,6 +9,7 @@ import {
   type WorkflowRun,
 } from '@/lib/uiApi';
 import { duration } from '@/lib/format';
+import { lang, t, tn } from '@/lib/i18n';
 import { RunStatusIcon } from './RunStatusIcon';
 import { Dropdown } from './Dropdown';
 import { RunChip } from './actions/RunChip';
@@ -106,20 +107,31 @@ export function ChecksBadge({
 }
 
 export const STATE_LABEL: Record<NonNullable<CommitRuns['state']>, string> = {
-  success: 'All checks have passed',
-  failure: 'Some checks were not successful',
-  pending: "Some checks haven't completed yet",
+  success: t('All checks have passed'),
+  failure: t('Some checks were not successful'),
+  pending: t("Some checks haven't completed yet"),
 };
 
 /** "(pull_request) · Successful in 1m 2s": what started a run, and how it went. */
 function runLine(r: WorkflowRun): string {
-  return `(${r.event === 'pull_request' ? 'pull_request' : 'push'})${
+  const event = r.event === 'pull_request' ? 'pull_request' : 'push';
+  const how =
     r.status === 'completed' && r.startedAt
-      ? ` · ${r.conclusion === 'success' ? 'Successful' : r.conclusion === 'failure' ? 'Failing' : r.conclusion === 'skipped' ? 'Skipped' : 'Cancelled'} in ${duration(r.startedAt, r.completedAt)}`
+      ? t('{result} in {time}', {
+          result:
+            r.conclusion === 'success'
+              ? t('Successful')
+              : r.conclusion === 'failure'
+                ? t('Failing')
+                : r.conclusion === 'skipped'
+                  ? t('Skipped')
+                  : t('Cancelled'),
+          time: duration(r.startedAt, r.completedAt),
+        })
       : r.status === 'in_progress'
-        ? ' · In progress'
-        : ' · Queued'
-  }`;
+        ? t('In progress')
+        : t('Queued');
+  return `(${event}) · ${how}`;
 }
 
 /** "1 failing, 2 successful checks". */
@@ -128,15 +140,15 @@ export function checksDetail(data: CommitRuns): string {
     (r) => r.conclusion === 'failure' || r.conclusion === 'cancelled'
   ).length;
   const pending = data.runs.filter((r) => r.status !== 'completed').length;
+  const passed = data.runs.length - failed - pending;
   const detail = [
-    failed && `${failed} failing`,
-    pending && `${pending} in progress`,
-    data.runs.length - failed - pending &&
-      `${data.runs.length - failed - pending} successful`,
+    failed && t('{n} failing', { n: failed }),
+    pending && t('{n} in progress', { n: pending }),
+    passed && t('{n} successful', { n: passed }),
   ]
     .filter(Boolean)
-    .join(', ');
-  return `${detail} check${data.runs.length === 1 ? '' : 's'}`;
+    .join(lang === 'zh' ? '，' : ', ');
+  return tn(data.runs.length, '{detail} check', '{detail} checks', { detail });
 }
 
 /** The summary of a commit's checks (the badge's popover): the overall result, then one row per workflow run. */
@@ -169,7 +181,7 @@ function ChecksSummary({ repo, data }: { repo: RepoDetail; data: CommitRuns }) {
             to={`${base}/actions/runs/${r.runNumber}`}
             className="flex-shrink-0"
           >
-            Details
+            {t('Details')}
           </Link>
         </div>
       ))}
@@ -196,8 +208,8 @@ export function ChecksBox({
       <div className="panel">
         <EmptyState
           picture={<CheckCircleIcon size={20} />}
-          title="No commit to check"
-          body="The branch is gone, so there are no checks to show."
+          title={t('No commit to check')}
+          body={t('The branch is gone, so there are no checks to show.')}
         />
       </div>
     );
@@ -206,7 +218,7 @@ export function ChecksBox({
       <div className="panel">
         <QueryError
           error={q.error}
-          title="The checks did not load"
+          title={t('The checks did not load')}
           onRetry={() => void q.refetch()}
         />
       </div>
@@ -217,13 +229,15 @@ export function ChecksBox({
       <div className="panel">
         <EmptyState
           picture={<CheckCircleIcon size={20} />}
-          title="No checks ran on this commit"
-          body="Workflows in .github/workflows run on every push and show up here."
+          title={t('No checks ran on this commit')}
+          body={t(
+            'Workflows in .github/workflows run on every push and show up here.'
+          )}
         />
       </div>
     );
   return (
-    <section className="panel checks-box" aria-label="Checks">
+    <section className="panel checks-box" aria-label={t('Checks')}>
       <div className="checks-head">
         <RunStatusIcon {...STATE_ICON[data.state]} size={20} />
         <div>
@@ -239,7 +253,7 @@ export function ChecksBox({
               <b>{r.name}</b> <span className="muted small">{runLine(r)}</span>
             </span>
             <Link to={`${base}/actions/runs/${r.runNumber}`} className="small">
-              Details
+              {t('Details')}
             </Link>
           </li>
         ))}

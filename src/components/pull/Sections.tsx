@@ -11,6 +11,7 @@ import {
   type RepoDetail,
 } from '@/lib/uiApi';
 import { fullDate, timeAgo } from '@/lib/format';
+import { t, tServer, tx } from '@/lib/i18n';
 import { fixerAttempts, queueLine, type QueueSpot } from '@/lib/pullPage';
 import { runAvatarStatus, runStatusLook } from '@/lib/agentRuns';
 import { AgentAvatar } from '@/components/AgentAvatar';
@@ -26,12 +27,12 @@ export function WhySection({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
   const session = `/${repo.fullName}/session/${encodeURIComponent(pr.sessionId)}`;
   const author = pr.author.name || pr.author.username;
   return (
-    <Section title="Why this change">
+    <Section title={t('Why this change')}>
       {pr.request ? (
         <p className="why">
           <SparkleFillIcon />
           <span>
-            <b>{author} asked:</b> {pr.request}
+            <b>{t('{author} asked:', { author })}</b> {pr.request}
           </span>
         </p>
       ) : (
@@ -39,25 +40,41 @@ export function WhySection({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
           <CommentIcon />
           <span>
             {pr.createdVia
-              ? `${pr.createdVia} didn’t send the request that started this change. The description below says what it does.`
-              : 'Opened by hand, so no coding session sent a request with it. The description below says why.'}
+              ? t(
+                  '{client} didn’t send the request that started this change. The description below says what it does.',
+                  { client: pr.createdVia }
+                )
+              : t(
+                  'Opened by hand, so no coding session sent a request with it. The description below says why.'
+                )}
           </span>
         </p>
       )}
       <p className="muted small">
-        {pr.createdVia ? (
-          <>
-            {pr.createdVia}
-            {pr.sessionLabel && <> · session {pr.sessionLabel}</>} ·{' '}
-            <Link to={session}>Everything in this session</Link>
-          </>
-        ) : (
-          <>
-            Written by hand by {author} ·{' '}
-            <Link to={session}>Their pull requests opened by hand</Link>
-          </>
-        )}{' '}
-        · opened{' '}
+        {pr.createdVia
+          ? pr.sessionLabel
+            ? tx('{client} · session {session} · {link}', {
+                client: pr.createdVia,
+                session: pr.sessionLabel,
+                link: (
+                  <Link to={session}>{t('Everything in this session')}</Link>
+                ),
+              })
+            : tx('{client} · {link}', {
+                client: pr.createdVia,
+                link: (
+                  <Link to={session}>{t('Everything in this session')}</Link>
+                ),
+              })
+          : tx('Written by hand by {author} · {link}', {
+              author,
+              link: (
+                <Link to={session}>
+                  {t('Their pull requests opened by hand')}
+                </Link>
+              ),
+            })}{' '}
+        · {t('opened')}{' '}
         <time dateTime={pr.createdAt} title={fullDate(pr.createdAt)}>
           {timeAgo(pr.createdAt)}
         </time>
@@ -87,14 +104,14 @@ export function OrderSection({
       : [];
   const base = `/${repo.fullName}`;
   return (
-    <Section title="Order">
+    <Section title={t('Order')}>
       {spot ? (
         <p>{queueLine(spot)}</p>
       ) : (
-        <p className="muted">It isn&apos;t in the merge queue yet.</p>
+        <p className="muted">{t("It isn't in the merge queue yet.")}</p>
       )}
       {ahead.length > 0 && (
-        <ol className="pr-ahead" aria-label="Ahead of it in line">
+        <ol className="pr-ahead" aria-label={t('Ahead of it in line')}>
           {ahead.slice(0, 5).map((e) => (
             <li key={e.number}>
               <span className="mono muted">{e.position}</span>
@@ -102,13 +119,13 @@ export function OrderSection({
                 <span className="mono muted">#{e.number}</span> {e.title}
               </Link>
               <span className="muted small">
-                {e.blockers[0] ?? 'Ready to merge'}
+                {tServer(e.blockers[0] ?? '') || t('Ready to merge')}
               </span>
             </li>
           ))}
           {ahead.length > 5 && (
             <li className="muted small">
-              and {ahead.length - 5} more ahead of it
+              {t('and {n} more ahead of it', { n: ahead.length - 5 })}
             </li>
           )}
         </ol>
@@ -144,7 +161,7 @@ export function ClefRead({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
             status={summarizing ? 'running' : 'idle'}
             size={24}
           />
-          What Clef read
+          {t('What Clef read')}
         </>
       }
       actions={
@@ -157,18 +174,25 @@ export function ClefRead({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
       }
     >
       <p className="muted small">
-        A one-line summary of each changed file. Clef decides from these which
-        reviewers to ask
-        {review.summaryModel ? `; ${review.summaryModel} wrote them` : ''}
-        {review.durationMs !== null
-          ? `, and the review took ${Math.max(1, Math.round(review.durationMs / 1000))} s`
-          : ''}
-        .
+        {t(
+          'A one-line summary of each changed file. Clef decides from these which reviewers to ask{model}{duration}.',
+          {
+            model: review.summaryModel
+              ? t('; {model} wrote them', { model: review.summaryModel })
+              : '',
+            duration:
+              review.durationMs !== null
+                ? t(', and the review took {seconds} s', {
+                    seconds: Math.max(1, Math.round(review.durationMs / 1000)),
+                  })
+                : '',
+          }
+        )}
       </p>
       {summarizing && !files.length ? (
         <p className="pr-progress">
-          <span className="spinner" aria-hidden="true" /> Summarizing each
-          changed file…
+          <span className="spinner" aria-hidden="true" />{' '}
+          {t('Summarizing each changed file…')}
         </p>
       ) : (
         <ul className="pr-summaries">
@@ -198,7 +222,7 @@ export function ClefRead({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
           aria-expanded={all}
           onClick={() => setAll(!all)}
         >
-          {all ? 'Show fewer' : `Show all ${files.length} files`}
+          {all ? t('Show fewer') : t('Show all {n} files', { n: files.length })}
         </button>
       )}
     </Section>
@@ -248,15 +272,16 @@ export function FixerSection({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
       }
     >
       <p className="muted small">
-        Fixer rebases this branch onto {d.rebase?.onto ?? d.pull.baseRef} when
-        it falls behind, and combines clashing changes with AI, one commit at a
-        time.
+        {t(
+          'Fixer rebases this branch onto {onto} when it falls behind, and combines clashing changes with AI, one commit at a time.',
+          { onto: d.rebase?.onto ?? d.pull.baseRef }
+        )}
       </p>
       {failed && (
         <div className="panel">
           <QueryError
             error={rebases.error ?? older.error}
-            title="Fixer’s attempts did not load"
+            title={t('Fixer’s attempts did not load')}
             onRetry={() => {
               void rebases.refetch();
               void older.refetch();
@@ -306,8 +331,8 @@ export function FixerSection({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
         !failed && (
           <p className="muted">
             {d.rebase?.status === 'resolving'
-              ? 'Fixer is working on it now.'
-              : 'Fixer has no recorded attempt on this pull request.'}
+              ? t('Fixer is working on it now.')
+              : t('Fixer has no recorded attempt on this pull request.')}
           </p>
         )
       )}

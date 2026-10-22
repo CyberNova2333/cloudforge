@@ -5,6 +5,7 @@ import {
   type ButtonHTMLAttributes,
 } from 'react';
 import { AlertIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 
 /**
  * A button that shows a spinner while its action runs and keeps its width, so nothing around it moves. On
@@ -60,7 +61,7 @@ export function PendingButton({
       ) : error ? (
         <>
           <AlertIcon size={14} />
-          {error} · Retry
+          {error} · {t('Retry')}
         </>
       ) : (
         children

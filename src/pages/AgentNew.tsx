@@ -12,6 +12,7 @@ import {
 } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { useCurrentUser } from '@/lib/auth';
+import { t, tn, tx } from '@/lib/i18n';
 import {
   crewResultText,
   engineText,
@@ -60,7 +61,11 @@ function PresetCard({
     mutationFn: () => api.createAgent({ preset: preset.facet as PresetFacet }),
     onSuccess: async ({ agent }) => {
       await refresh();
-      toast(`Created @${agent.username}. Add it to a repository to start.`);
+      toast(
+        t('Created @{handle}. Add it to a repository to start.', {
+          handle: agent.username,
+        })
+      );
     },
   });
   return (
@@ -74,50 +79,56 @@ function PresetCard({
         status={state === 'created' ? 'idle' : 'off'}
         foot={
           <>
-            {state === 'created' && <Chip tone="good">Created</Chip>}
-            {preset.recommended && <Chip tone="info">Recommended</Chip>}
+            {state === 'created' && <Chip tone="good">{t('Created')}</Chip>}
+            {preset.recommended && <Chip tone="info">{t('Recommended')}</Chip>}
             {preset.guarded && (
               <Chip
                 tone="warn"
                 icon={<ShieldIcon size={12} />}
-                title="Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason"
+                title={t(
+                  'Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason'
+                )}
               >
-                Guarded
+                {t('Guarded')}
               </Chip>
             )}
           </>
         }
       >
         <div className="acard-ask">
-          <b>What it looks at</b>
-          Clef asks: {preset.triggerAsk}
+          <b>{t('What it looks at')}</b>
+          {t('Clef asks: {ask}', { ask: preset.triggerAsk })}
         </div>
         <span className="muted small">
-          {wakeText({ above: preset.triggerAbove })}.{' '}
-          {engineText(preset.engine)}.
+          {t('{wake}. {engine}.', {
+            wake: wakeText({ above: preset.triggerAbove }),
+            engine: engineText(preset.engine),
+          })}
         </span>
         <div className="acard-actions">
           {state === 'created' ? (
             <Link className="btn small" to={`/${preset.handle}`}>
-              Open profile
+              {t('Open profile')}
             </Link>
           ) : state === 'taken' ? (
             <span className="muted small">
-              Someone else already uses the handle @{preset.handle}.
+              {t('Someone else already uses the handle @{handle}.', {
+                handle: preset.handle,
+              })}
             </span>
           ) : admin ? (
             <PendingButton
               className="small primary"
               pending={create.isPending}
-              pendingLabel="Creating…"
+              pendingLabel={t('Creating…')}
               error={create.isError ? errorMessage(create.error) : null}
               onClick={() => create.mutate()}
             >
-              Create {preset.name}
+              {t('Create {name}', { name: preset.name })}
             </PendingButton>
           ) : (
             <span className="muted small">
-              A site admin can create this reviewer.
+              {t('A site admin can create this reviewer.')}
             </span>
           )}
         </div>
@@ -163,41 +174,57 @@ function CrewPanel({
         <div className="ag-crew-text">
           <b>
             {missing.length === 0
-              ? 'The recommended crew is all here'
+              ? t('The recommended crew is all here')
               : missing.length === crew.length
-                ? 'Start with the recommended crew'
-                : `${missing.length} of the recommended crew ${missing.length === 1 ? 'is' : 'are'} missing`}
+                ? t('Start with the recommended crew')
+                : tn(
+                    missing.length,
+                    '{n} of the recommended crew is missing',
+                    '{n} of the recommended crew are missing'
+                  )}
           </b>
           <span className="muted small">
             {missing.length === 0
-              ? 'Every recommended reviewer already exists. Invite them to a repository from their profiles.'
-              : `Adds ${listNames(missing.map((p) => p.name))}, each with its own repository of instructions. Run it again later and it adds only the ones still missing.`}
+              ? t(
+                  'Every recommended reviewer already exists. Invite them to a repository from their profiles.'
+                )
+              : t(
+                  'Adds {names}, each with its own repository of instructions. Run it again later and it adds only the ones still missing.',
+                  { names: listNames(missing.map((p) => p.name)) }
+                )}
           </span>
         </div>
         {missing.length > 0 && (
           <PendingButton
             className="primary"
             pending={add.isPending}
-            pendingLabel="Adding…"
+            pendingLabel={t('Adding…')}
             error={add.isError ? errorMessage(add.error) : null}
             onClick={() => add.mutate()}
           >
-            Add the recommended crew
+            {t('Add the recommended crew')}
           </PendingButton>
         )}
         {missing.length === 0 && (
           <Link className="btn" to="/agents">
-            See the agents
+            {t('See the agents')}
           </Link>
         )}
       </div>
       {text && (
         <Notice tone={text.added ? 'ok' : 'info'}>
-          {text.added ?? 'Nothing was added.'}
+          {text.added ?? t('Nothing was added.')}
           {text.skipped.length > 0 && (
-            <> Skipped: {text.skipped.join('; ')}.</>
+            <>
+              {' '}
+              {t('Skipped: {list}.', {
+                list: text.skipped.join(t('; ')),
+              })}
+            </>
           )}{' '}
-          {text.added && <Link to="/agents">See them on the Agents page.</Link>}
+          {text.added && (
+            <Link to="/agents">{t('See them on the Agents page.')}</Link>
+          )}
         </Notice>
       )}
     </>
@@ -232,23 +259,26 @@ function BlankForm() {
     <>
       {made && (
         <Notice tone="ok">
-          Created <Link to={`/${made.username}`}>@{made.username}</Link>. Edit
-          AGENT.md in{' '}
-          {made.repository ? (
-            <Link
-              to={
-                madeRepo.data
-                  ? `/${made.repository}/blob/${madeRepo.data.defaultBranch}/AGENT.md`
-                  : `/${made.repository}`
-              }
-              className="mono"
-            >
-              {made.repository}
-            </Link>
-          ) : (
-            'its repository'
-          )}{' '}
-          to say what it reviews, then invite it to a repository.
+          {tx(
+            'Created {agent}. Edit AGENT.md in {repo} to say what it reviews, then invite it to a repository.',
+            {
+              agent: <Link to={`/${made.username}`}>@{made.username}</Link>,
+              repo: made.repository ? (
+                <Link
+                  to={
+                    madeRepo.data
+                      ? `/${made.repository}/blob/${madeRepo.data.defaultBranch}/AGENT.md`
+                      : `/${made.repository}`
+                  }
+                  className="mono"
+                >
+                  {made.repository}
+                </Link>
+              ) : (
+                t('its repository')
+              ),
+            }
+          )}
         </Notice>
       )}
       <div className="panel ag-blank">
@@ -261,7 +291,7 @@ function BlankForm() {
           }}
         >
           <div className="fld">
-            <label htmlFor="blank-handle">Handle</label>
+            <label htmlFor="blank-handle">{t('Handle')}</label>
             <input
               id="blank-handle"
               className="form-control input-monospace"
@@ -277,11 +307,11 @@ function BlankForm() {
               id="blank-handle-hint"
               className={`hint${problem ? ' attention' : ''}`}
             >
-              {problem ?? 'Its username, and the name of its repository.'}
+              {problem ?? t('Its username, and the name of its repository.')}
             </span>
           </div>
           <div className="fld">
-            <label htmlFor="blank-name">Display name</label>
+            <label htmlFor="blank-name">{t('Display name')}</label>
             <input
               id="blank-name"
               className="form-control"
@@ -293,23 +323,28 @@ function BlankForm() {
             />
           </div>
           <p className="small muted">
-            Creates @{shown} and its repository{' '}
-            <code>
-              {shown}/{shown}
-            </code>{' '}
-            with a starter AGENT.md (a general correctness reviewer), an avatar
-            and a knowledge folder. You become a collaborator on it.
+            {tx(
+              'Creates {agent} and its repository {repo} with a starter AGENT.md (a general correctness reviewer), an avatar and a knowledge folder. You become a collaborator on it.',
+              {
+                agent: `@${shown}`,
+                repo: (
+                  <code>
+                    {shown}/{shown}
+                  </code>
+                ),
+              }
+            )}
           </p>
           <div>
             <PendingButton
               type="submit"
               className="primary"
               pending={create.isPending}
-              pendingLabel="Creating…"
+              pendingLabel={t('Creating…')}
               disabled={!handle || !name.trim() || !!problem}
               error={create.isError ? errorMessage(create.error) : null}
             >
-              Create reviewer
+              {t('Create reviewer')}
             </PendingButton>
           </div>
         </form>
@@ -321,13 +356,14 @@ function BlankForm() {
               size={72}
             />
             <span>
-              <b>{name.trim() || 'New reviewer'}</b>
+              <b>{name.trim() || t('New reviewer')}</b>
               <span className="mono muted small">@{shown}</span>
             </span>
           </div>
           <p className="small muted">
-            Its colour comes from its handle until AGENT.md names one. Changes
-            to its instructions are pull requests like any other.
+            {t(
+              'Its colour comes from its handle until AGENT.md names one. Changes to its instructions are pull requests like any other.'
+            )}
           </p>
         </div>
       </div>
@@ -340,15 +376,16 @@ function WhoCanAdd() {
   const members = useQuery({ queryKey: qk.members, queryFn: api.members });
   const admins = (members.data ?? []).filter((m) => m.role === 'admin');
   return (
-    <Section title="Who can add reviewers">
+    <Section title={t('Who can add reviewers')}>
       <div className="panel pad">
         <p>
-          Only site admins can create reviewers. Ask one of them to add the
-          reviewer you need; once it exists you can read its profile here.
+          {t(
+            'Only site admins can create reviewers. Ask one of them to add the reviewer you need; once it exists you can read its profile here.'
+          )}
         </p>
         {members.isError ? (
           <LoadError
-            what="the site admins"
+            what={t('the site admins')}
             error={members.error}
             onRetry={() => void members.refetch()}
           />
@@ -357,12 +394,12 @@ function WhoCanAdd() {
             className="sk-rows"
             role="status"
             aria-busy="true"
-            aria-label="Loading"
+            aria-label={t('Loading')}
           >
             <div className="sk sk-row" />
           </div>
         ) : admins.length === 0 ? (
-          <p className="muted small">No site admin was found.</p>
+          <p className="muted small">{t('No site admin was found.')}</p>
         ) : (
           <ul className="ag-admins">
             {admins.map((m) => (
@@ -404,18 +441,23 @@ export default function AgentNew() {
     <div className={`ag-page ${entering}`}>
       <PageHead
         icon="plus"
-        crumbs={[{ label: 'Agents', to: '/agents' }, { label: 'New reviewer' }]}
-        title="New reviewer"
-        lede="A reviewer is an account with its own repository of instructions. Clef wakes it when a change concerns it."
+        crumbs={[
+          { label: t('Agents'), to: '/agents' },
+          { label: t('New reviewer') },
+        ]}
+        title={t('New reviewer')}
+        lede={t(
+          'A reviewer is an account with its own repository of instructions. Clef wakes it when a change concerns it.'
+        )}
       />
       {!admin && <WhoCanAdd />}
       {admin && ready && (
         <CrewPanel presets={presets.data!} handles={handles} />
       )}
-      <Section title="Presets">
+      <Section title={t('Presets')}>
         {presets.isError || agents.isError ? (
           <LoadError
-            what="the reviewer presets"
+            what={t('the reviewer presets')}
             error={presets.error ?? agents.error}
             onRetry={() => {
               void presets.refetch();
@@ -427,7 +469,7 @@ export default function AgentNew() {
             className="sk-grid"
             role="status"
             aria-busy="true"
-            aria-label="Loading"
+            aria-label={t('Loading')}
           >
             {Array.from({ length: 6 }, (_, i) => (
               <div key={i} className="sk sk-card" />
@@ -447,7 +489,7 @@ export default function AgentNew() {
         )}
       </Section>
       {admin && (
-        <Section title="Start blank">
+        <Section title={t('Start blank')}>
           <BlankForm />
         </Section>
       )}

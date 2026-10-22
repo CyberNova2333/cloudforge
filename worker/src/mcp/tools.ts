@@ -449,10 +449,11 @@ const createRepositoryTool: ToolModule = {
         },
         visibility: {
           type: 'string',
-          enum: ['private', 'internal'],
+          enum: ['private', 'internal', 'public'],
           description:
-            'Personal repositories only. "private" (default): only the owner, collaborators, and site admins. ' +
-            '"internal": every member can read it.',
+            '"private" (default, personal repositories only): only the owner, collaborators, and site admins. ' +
+            '"internal" (team repositories always at least this): every member can read it. ' +
+            '"public": anyone can read it, including people without an account.',
         },
         add_readme: {
           type: 'boolean',
@@ -477,6 +478,7 @@ const createRepositoryTool: ToolModule = {
       visibility: optionalEnum(args, 'visibility', [
         'private',
         'internal',
+        'public',
       ] as const),
       addReadme: optionalBoolean(args, 'add_readme') ?? false,
     });

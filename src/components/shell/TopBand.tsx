@@ -1,5 +1,8 @@
 import { Fragment, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
+import { useSignInHref } from '@/lib/signIn';
+import { lang, setLang, t, tn } from '@/lib/i18n';
+import { LANGUAGES } from './AccountMenu';
 import {
   AlertFillIcon,
   InboxIcon,
@@ -20,13 +23,13 @@ import { PageIcon } from './icons';
 function SetupErrors() {
   const errors = useSetupChecks().data?.counts.error ?? 0;
   if (!errors) return null;
-  const label = `${errors} setup error${errors === 1 ? '' : 's'}`;
+  const label = tn(errors, '{n} setup error', '{n} setup errors');
   return (
     <Link
       to="/admin#setup"
       className="tool tool-alert"
-      aria-label={`${label}: open Site admin, Setup`}
-      title="This deployment is misconfigured. Open Site admin → Setup"
+      aria-label={t('{label}: open Site admin, Setup', { label })}
+      title={t('This deployment is misconfigured. Open Site admin → Setup')}
     >
       <AlertFillIcon />
       <span className="tool-label">{label}</span>
@@ -41,8 +44,12 @@ function ApprovalsTool() {
     <Link
       to="/approvals"
       className="tool"
-      aria-label={count ? `Approvals, ${count} waiting on you` : 'Approvals'}
-      title="Approvals waiting on you"
+      aria-label={
+        count
+          ? t('Approvals, {count} waiting on you', { count })
+          : t('Approvals')
+      }
+      title={t('Approvals waiting on you')}
     >
       <InboxIcon />
       {count > 0 && (
@@ -54,9 +61,30 @@ function ApprovalsTool() {
   );
 }
 
+/** Signed out (home, a public repository): the language (members pick it in the account menu) and sign in. */
+function SignInTool() {
+  const other = LANGUAGES.find((l) => l.value !== lang)!;
+  return (
+    <>
+      <button
+        type="button"
+        className="btn small"
+        lang={other.value === 'zh' ? 'zh-CN' : 'en'}
+        onClick={() => setLang(other.value)}
+      >
+        {other.label}
+      </button>
+      <Link to={useSignInHref()} className="btn primary small">
+        {t('Sign in')}
+      </Link>
+    </>
+  );
+}
+
 /**
  * The top band: the drawer button (phones), the page's icon, trail and name (the page's `<h1>`, focused on
- * navigation), search, the create menu, setup errors (site admins), Approvals and the account menu.
+ * navigation), search, the create menu, setup errors (site admins), Approvals and the account menu. Signed out,
+ * only the trail and a sign-in button: search and the menus are for members.
  */
 export function TopBand({
   head,
@@ -86,7 +114,7 @@ export function TopBand({
         <button
           type="button"
           className="drawer-btn"
-          aria-label="Open navigation"
+          aria-label={t('Open navigation')}
           aria-expanded={navOpen}
           onClick={onDrawer}
         >
@@ -117,19 +145,27 @@ export function TopBand({
           </h1>
         </div>
         <span className="ph-grow" />
-        <GlobalSearch
-          open={menu === 'search'}
-          onOpen={() => setMenu('search')}
-          onClose={() => setMenu(null)}
-          repo={repo}
-          recent={recent}
-        />
-        <div className="ph-tools">
-          {admin && <SetupErrors />}
-          <CreateMenu open={menu === 'create'} setMenu={setMenu} />
-          <ApprovalsTool />
-          <AccountMenu open={menu === 'acct'} setMenu={setMenu} />
-        </div>
+        {user ? (
+          <>
+            <GlobalSearch
+              open={menu === 'search'}
+              onOpen={() => setMenu('search')}
+              onClose={() => setMenu(null)}
+              repo={repo}
+              recent={recent}
+            />
+            <div className="ph-tools">
+              {admin && <SetupErrors />}
+              <CreateMenu open={menu === 'create'} setMenu={setMenu} />
+              <ApprovalsTool />
+              <AccountMenu open={menu === 'acct'} setMenu={setMenu} />
+            </div>
+          </>
+        ) : (
+          <div className="ph-tools">
+            <SignInTool />
+          </div>
+        )}
       </div>
     </header>
   );

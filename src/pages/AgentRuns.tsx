@@ -17,6 +17,7 @@ import {
   type RepoDetail,
 } from '@/lib/uiApi';
 import { duration, timeAgo } from '@/lib/format';
+import { t, tn } from '@/lib/i18n';
 import {
   actorRole,
   agentKindLabel,
@@ -124,13 +125,15 @@ export function AgentRunList({
   });
   const now = useNow(!!q.data?.runs.some((r) => r.status === 'running'));
   const lookup = useAgentDirectory();
-  const label = kind ? agentKindLabel(kind) : 'All';
+  const label = kind ? agentKindLabel(kind) : t('All');
 
   return (
     <>
       <Section
-        title={kind ? label : 'All agent runs'}
-        actions={kind ? <span className="muted small">Agent runs</span> : null}
+        title={kind ? label : t('All agent runs')}
+        actions={
+          kind ? <span className="muted small">{t('Agent runs')}</span> : null
+        }
       >
         <KindFilter base={base} current={kind} />
         {q.isError && !q.data ? (
@@ -138,7 +141,7 @@ export function AgentRunList({
             <QueryError
               error={q.error}
               onRetry={() => void q.refetch()}
-              title="Agent runs did not load"
+              title={t('Agent runs did not load')}
             />
           </div>
         ) : !q.data ? (
@@ -149,10 +152,12 @@ export function AgentRunList({
               picture={<HubotIcon size={24} />}
               title={
                 kind
-                  ? `No ${label.toLowerCase()} runs yet`
-                  : 'No agent runs yet'
+                  ? t('No {kind} runs yet', { kind: label.toLowerCase() })
+                  : t('No agent runs yet')
               }
-              body="Each time GitOrange's AI works on this repository, the run shows here with its steps, models, tokens and decisions."
+              body={t(
+                "Each time GitOrange's AI works on this repository, the run shows here with its steps, models, tokens and decisions."
+              )}
             />
           </div>
         ) : (
@@ -170,8 +175,8 @@ export function AgentRunList({
             </ul>
             {(cursors.length > 0 || q.data.nextCursor) && (
               <Pager
-                prevLabel="Newer"
-                nextLabel="Older"
+                prevLabel={t('Newer')}
+                nextLabel={t('Older')}
                 onPrev={
                   cursors.length > 0
                     ? () => setCursors((c) => c.slice(0, -1))
@@ -188,9 +193,10 @@ export function AgentRunList({
         )}
       </Section>
       <p className="small muted">
-        Costs are estimates at Cloudflare list prices. Prompts, diffs and model
-        output are not kept; only metadata and short decisions.{' '}
-        <Link to={`${base}/actions`}>Back to workflows</Link>
+        {t(
+          'Costs are estimates at Cloudflare list prices. Prompts, diffs and model output are not kept; only metadata and short decisions.'
+        )}{' '}
+        <Link to={`${base}/actions`}>{t('Back to workflows')}</Link>
       </p>
     </>
   );
@@ -257,7 +263,10 @@ function StepRow({
 }) {
   const tokens =
     step.tokensIn !== null || step.tokensOut !== null
-      ? `${formatTokens(step.tokensIn ?? 0)} in · ${formatTokens(step.tokensOut ?? 0)} out`
+      ? t('{in} in · {out} out', {
+          in: formatTokens(step.tokensIn ?? 0),
+          out: formatTokens(step.tokensOut ?? 0),
+        })
       : null;
   return (
     <li className={`act-step ${step.status}`}>
@@ -269,7 +278,9 @@ function StepRow({
         <div className="act-step-head">
           <b title={step.name}>{step.displayName}</b>
           {step.attempts > 1 && (
-            <Chip tone="warn">{step.attempts} attempts</Chip>
+            <Chip tone="warn">
+              {tn(step.attempts, '{n} attempt', '{n} attempts')}
+            </Chip>
           )}
           <span className="act-step-time small muted">
             {duration(step.startedAt, step.finishedAt, now)}
@@ -283,7 +294,7 @@ function StepRow({
             </span>
             {tokens && <span>{tokens}</span>}
             {step.costEstimate !== null && (
-              <span title="Estimate at Cloudflare list prices">
+              <span title={t('Estimate at Cloudflare list prices')}>
                 {formatCost(step.costEstimate)}
               </span>
             )}
@@ -316,16 +327,18 @@ export default function AgentRunView() {
   usePageHead({
     icon: 'crew',
     crumbs: [
-      { label: 'Actions', to: `${base}/actions` },
+      { label: t('Actions'), to: `${base}/actions` },
       {
-        label: run ? `${agentKindLabel(run.kind)} runs` : 'Agent runs',
+        label: run
+          ? t('{kind} runs', { kind: agentKindLabel(run.kind) })
+          : t('Agent runs'),
         to: `${base}/actions?agent=${run?.kind ?? 'all'}`,
       },
-      { label: run?.title ?? 'Agent run' },
+      { label: run?.title ?? t('Agent run') },
     ],
-    title: run?.title ?? 'Agent run',
+    title: run?.title ?? t('Agent run'),
     tab: 'actions',
-    documentTitle: 'Agent run',
+    documentTitle: t('Agent run'),
   });
 
   if (q.isError && !q.data)
@@ -333,7 +346,7 @@ export default function AgentRunView() {
       <QueryError
         error={q.error}
         onRetry={() => void q.refetch()}
-        title="This agent run did not load"
+        title={t('This agent run did not load')}
       />
     );
   if (!q.data || !run) return <Skeleton kind="detail" />;
@@ -353,8 +366,8 @@ export default function AgentRunView() {
         lede={
           <>
             {actor ? `${actor.name} · ` : ''}
-            {actorRole(run)} · {agentKindLabel(run.kind)} · started{' '}
-            {timeAgo(run.startedAt)} ·{' '}
+            {actorRole(run)} · {agentKindLabel(run.kind)} ·{' '}
+            {t('started {when}', { when: timeAgo(run.startedAt) })} ·{' '}
             {duration(run.startedAt, run.finishedAt, now)}
           </>
         }
@@ -370,9 +383,9 @@ export default function AgentRunView() {
         <div className="col">
           <section className="section">
             <div className="section-head">
-              <h2>Steps</h2>
+              <h2>{t('Steps')}</h2>
               <span className="muted small">
-                {steps.length} {steps.length === 1 ? 'step' : 'steps'}
+                {tn(steps.length, '{n} step', '{n} steps')}
               </span>
             </div>
             {steps.length ? (
@@ -384,7 +397,9 @@ export default function AgentRunView() {
             ) : (
               <div className="panel">
                 <EmptyState
-                  title={running ? 'Starting…' : 'No steps were recorded.'}
+                  title={
+                    running ? t('Starting…') : t('No steps were recorded.')
+                  }
                 />
               </div>
             )}
@@ -392,7 +407,7 @@ export default function AgentRunView() {
         </div>
         <aside className="col side">
           <section className="panel pad">
-            <h2>Outcome</h2>
+            <h2>{t('Outcome')}</h2>
             <RunStatusChip status={run.status} />
             {outcome && (
               <p
@@ -404,7 +419,7 @@ export default function AgentRunView() {
             <div className="act-links">
               {actor && (
                 <Link className="btn small" to={actor.href}>
-                  About {actor.name}
+                  {t('About {name}', { name: actor.name })}
                 </Link>
               )}
               {run.pullRequest && (
@@ -419,18 +434,20 @@ export default function AgentRunView() {
             </div>
           </section>
           <section className="panel pad">
-            <h2>Model usage</h2>
+            <h2>{t('Model usage')}</h2>
             <dl className="act-facts">
               <div>
-                <dt>Tokens</dt>
+                <dt>{t('Tokens')}</dt>
                 <dd>
-                  {formatTokens(run.tokensIn)} in ·{' '}
-                  {formatTokens(run.tokensOut)} out
+                  {t('{in} in · {out} out', {
+                    in: formatTokens(run.tokensIn),
+                    out: formatTokens(run.tokensOut),
+                  })}
                 </dd>
               </div>
               <div>
-                <dt>Estimated cost</dt>
-                <dd title="Estimate at Cloudflare list prices">
+                <dt>{t('Estimated cost')}</dt>
+                <dd title={t('Estimate at Cloudflare list prices')}>
                   {run.costEstimate === null
                     ? '–'
                     : formatCost(run.costEstimate)}
@@ -438,7 +455,7 @@ export default function AgentRunView() {
               </div>
               {models.length > 0 && (
                 <div>
-                  <dt>Models</dt>
+                  <dt>{t('Models')}</dt>
                   <dd>
                     {models.map((m) => (
                       <code key={m} className="act-model">
@@ -451,34 +468,35 @@ export default function AgentRunView() {
             </dl>
           </section>
           <section className="panel pad">
-            <h2>Details</h2>
+            <h2>{t('Details')}</h2>
             <dl className="act-facts">
               <div>
-                <dt>Started</dt>
+                <dt>{t('Started')}</dt>
                 <dd>{timeAgo(run.startedAt)}</dd>
               </div>
               <div>
-                <dt>Status</dt>
+                <dt>{t('Status')}</dt>
                 <dd>{look.label}</dd>
               </div>
               <div>
-                <dt>Total duration</dt>
+                <dt>{t('Total duration')}</dt>
                 <dd>{duration(run.startedAt, run.finishedAt, now)}</dd>
               </div>
               <div>
-                <dt>Workflow instance</dt>
+                <dt>{t('Workflow instance')}</dt>
                 <dd className="act-instance">
                   <code>{run.id}</code>
                   <CopyButton
                     text={run.id}
-                    label="Copy workflow instance id"
+                    label={t('Copy workflow instance id')}
                     className="btn small quiet"
                   />
                 </dd>
               </div>
             </dl>
             <Link className="small" to={`${base}/actions?agent=${run.kind}`}>
-              <PlayIcon size={12} /> All {agentKindLabel(run.kind)} runs
+              <PlayIcon size={12} />{' '}
+              {t('All {kind} runs', { kind: agentKindLabel(run.kind) })}
             </Link>
           </section>
         </aside>

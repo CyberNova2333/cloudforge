@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 
 /** Paths one per line, like GitHub's conflicting-files list; long directories truncate. */
 export function FileList({
@@ -36,7 +37,9 @@ export function FileList({
             className="btn-link f6"
             onClick={() => setAll(!all)}
           >
-            {all ? 'Show fewer' : `Show ${paths.length - max} more`}
+            {all
+              ? t('Show fewer')
+              : t('Show {n} more', { n: paths.length - max })}
           </button>
         </li>
       )}

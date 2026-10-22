@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { t } from '@/lib/i18n';
 import { Markdown } from './Markdown';
 
 export function MarkdownEditor({
   value,
   onChange,
-  placeholder = 'Leave a comment',
+  placeholder = t('Leave a comment'),
   minHeight = 100,
 }: {
   value: string;
@@ -19,26 +20,29 @@ export function MarkdownEditor({
         className="d-flex border-bottom color-bg-subtle px-2 pt-2"
         style={{ gap: 4 }}
       >
-        {(['write', 'preview'] as const).map((t) => (
+        {(['write', 'preview'] as const).map((mode) => (
           <button
-            key={t}
+            key={mode}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(mode)}
             className="btn-link f6 px-3 py-2"
             style={{
               border: '1px solid',
               borderColor:
-                tab === t ? 'var(--borderColor-default)' : 'transparent',
+                tab === mode ? 'var(--borderColor-default)' : 'transparent',
               borderBottom: 0,
               borderRadius: '6px 6px 0 0',
               marginBottom: -1,
-              background: tab === t ? 'var(--bgColor-default)' : 'transparent',
+              background:
+                tab === mode ? 'var(--bgColor-default)' : 'transparent',
               color:
-                tab === t ? 'var(--fgColor-default)' : 'var(--fgColor-muted)',
+                tab === mode
+                  ? 'var(--fgColor-default)'
+                  : 'var(--fgColor-muted)',
               textDecoration: 'none',
             }}
           >
-            {t === 'write' ? 'Write' : 'Preview'}
+            {mode === 'write' ? t('Write') : t('Preview')}
           </button>
         ))}
       </div>
@@ -56,11 +60,13 @@ export function MarkdownEditor({
             {value.trim() ? (
               <Markdown source={value} />
             ) : (
-              <p className="color-fg-muted">Nothing to preview</p>
+              <p className="color-fg-muted">{t('Nothing to preview')}</p>
             )}
           </div>
         )}
-        <p className="f6 color-fg-muted mt-1 mb-0">Markdown is supported</p>
+        <p className="f6 color-fg-muted mt-1 mb-0">
+          {t('Markdown is supported')}
+        </p>
       </div>
     </div>
   );

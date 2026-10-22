@@ -17,6 +17,7 @@ import {
   rangeText,
   span,
 } from '@/lib/insights';
+import { t, tn } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHead } from '@/components/ui/PageHead';
@@ -79,7 +80,10 @@ function MergeSplit({ data }: { data: Insights }) {
       <span
         className="ins-split"
         role="img"
-        aria-label={`${autoMerged} auto-merged, ${mergedByPerson} merged by a person`}
+        aria-label={t('{auto} auto-merged, {person} merged by a person', {
+          auto: autoMerged,
+          person: mergedByPerson,
+        })}
       >
         <span
           className="ins-split-auto"
@@ -92,10 +96,12 @@ function MergeSplit({ data }: { data: Insights }) {
       </span>
       <div className="ins-legend small muted">
         <span>
-          <i className="ins-key auto" /> Auto-merged {autoMerged}
+          <i className="ins-key auto" />{' '}
+          {t('Auto-merged {n}', { n: autoMerged })}
         </span>
         <span>
-          <i className="ins-key person" /> By a person {mergedByPerson}
+          <i className="ins-key person" />{' '}
+          {t('By a person {n}', { n: mergedByPerson })}
         </span>
       </div>
     </>
@@ -131,8 +137,10 @@ function Report({
       <div className="panel">
         <EmptyState
           picture={<GraphIcon size={24} />}
-          title="Nothing happened in this period"
-          body="No pull requests, reviews or test runs. Try a longer period."
+          title={t('Nothing happened in this period')}
+          body={t(
+            'No pull requests, reviews or test runs. Try a longer period.'
+          )}
         />
       </div>
     );
@@ -143,31 +151,45 @@ function Report({
       <div className="stats">
         <Stat
           value={String(pulls.merged)}
-          label="pull requests merged"
-          detail={`${pulls.opened} opened · ${pulls.openNow} open now`}
+          label={t('pull requests merged')}
+          detail={t('{opened} opened · {open} open now', {
+            opened: pulls.opened,
+            open: pulls.openNow,
+          })}
         />
         <Stat
           value={pct(pulls.autoMergeShare)}
-          label="auto-merged"
-          detail={`${pulls.autoMerged} of ${pulls.merged} merged`}
+          label={t('auto-merged')}
+          detail={t('{auto} of {merged} merged', {
+            auto: pulls.autoMerged,
+            merged: pulls.merged,
+          })}
         />
         <Stat
           value={pct(of(reviews.pullsNeedingHuman, reviews.pullsReviewed))}
-          label="needed a person"
-          detail={`${reviews.pullsNeedingHuman} of ${reviews.pullsReviewed} reviewed`}
+          label={t('needed a person')}
+          detail={t('{needing} of {reviewed} reviewed', {
+            needing: reviews.pullsNeedingHuman,
+            reviewed: reviews.pullsReviewed,
+          })}
         />
         <Stat
           value={pct(ci.passRate)}
-          label="CI pass rate"
-          detail={`${ci.succeeded} of ${ciFinished} finished runs`}
+          label={t('CI pass rate')}
+          detail={t('{passed} of {finished} finished runs', {
+            passed: ci.succeeded,
+            finished: ciFinished,
+          })}
         />
       </div>
 
       <Section
-        title="Flags by kind"
+        title={t('Flags by kind')}
         actions={
           <span className="muted small">
-            Findings raised by each reviewer; the darker part a person approved
+            {t(
+              'Findings raised by each reviewer; the darker part a person approved'
+            )}
           </span>
         }
       >
@@ -205,7 +227,10 @@ function Report({
                     </span>
                   </span>
                   <span className="ins-val mono">
-                    {f.raised} raised · {f.approved} approved
+                    {t('{raised} raised · {approved} approved', {
+                      raised: f.raised,
+                      approved: f.approved,
+                    })}
                   </span>
                 </li>
               );
@@ -213,68 +238,91 @@ function Report({
           </ul>
         ) : (
           <div className="panel">
-            <EmptyState title="No flags raised in this period." />
+            <EmptyState title={t('No flags raised in this period.')} />
           </div>
         )}
       </Section>
 
       <div className="ins-grid">
-        <Section title="Pull requests">
+        <Section title={t('Pull requests')}>
           <div className="panel ins-rows">
-            <Row label="Opened" value={pulls.opened} />
-            <Row label="Merged" value={pulls.merged}>
+            <Row label={t('Opened')} value={pulls.opened} />
+            <Row label={t('Merged')} value={pulls.merged}>
               <MergeSplit data={data} />
             </Row>
             <Row
-              label="Merged with no one involved"
-              hint="Auto-merged, and the review never asked a person anything"
+              label={t('Merged with no one involved')}
+              hint={t(
+                'Auto-merged, and the review never asked a person anything'
+              )}
               value={pulls.mergedHandsOff}
             />
             <Row
-              label="Merged after human review"
-              hint="The review raised at least one flag for a person"
+              label={t('Merged after human review')}
+              hint={t('The review raised at least one flag for a person')}
               value={pulls.mergedAfterHumanReview}
             />
-            <Row label="Closed without merging" value={pulls.closedUnmerged} />
             <Row
-              label={<Link to={`${base}/pulls`}>Open now</Link>}
+              label={t('Closed without merging')}
+              value={pulls.closedUnmerged}
+            />
+            <Row
+              label={<Link to={`${base}/pulls`}>{t('Open now')}</Link>}
               value={pulls.openNow}
             />
-            <Row label="Median time to merge" value={span(timeToMerge.all)} />
-            <Row label="… when auto-merged" value={span(timeToMerge.auto)} />
             <Row
-              label="… when merged by a person"
+              label={t('Median time to merge')}
+              value={span(timeToMerge.all)}
+            />
+            <Row
+              label={t('… when auto-merged')}
+              value={span(timeToMerge.auto)}
+            />
+            <Row
+              label={t('… when merged by a person')}
               value={span(timeToMerge.person)}
             />
           </div>
         </Section>
 
-        <Section title="Auto-merge review">
+        <Section title={t('Auto-merge review')}>
           <div className="panel ins-rows">
             <Row
-              label="Reviews run"
-              hint="One per head commit"
+              label={t('Reviews run')}
+              hint={t('One per head commit')}
               value={reviews.runs}
             />
-            <Row label="Cleared for auto-merge" value={reviews.autoVerdicts} />
-            <Row label="Asked a person" value={reviews.humanVerdicts} />
-            <Row label="Failed" value={reviews.failed} />
             <Row
-              label="Pull requests that needed human review"
-              value={`${reviews.pullsNeedingHuman} of ${reviews.pullsReviewed}`}
+              label={t('Cleared for auto-merge')}
+              value={reviews.autoVerdicts}
             />
-            <Row label="Flags raised" value={flags.raised} />
-            <Row label="Flags approved" value={flags.approved} />
+            <Row label={t('Asked a person')} value={reviews.humanVerdicts} />
+            <Row label={t('Failed')} value={reviews.failed} />
             <Row
-              label="Median time to approval"
-              hint="From a flag being raised to a person approving it"
+              label={t('Pull requests that needed human review')}
+              value={t('{needing} of {reviewed}', {
+                needing: reviews.pullsNeedingHuman,
+                reviewed: reviews.pullsReviewed,
+              })}
+            />
+            <Row label={t('Flags raised')} value={flags.raised} />
+            <Row label={t('Flags approved')} value={flags.approved} />
+            <Row
+              label={t('Median time to approval')}
+              hint={t('From a flag being raised to a person approving it')}
               value={span(flags.medianTimeToApproval)}
             />
             <Row
-              label={<Link to="/approvals">Waiting on a person now</Link>}
+              label={
+                <Link to="/approvals">{t('Waiting on a person now')}</Link>
+              }
               hint={
                 flags.pendingNow
-                  ? `On ${flags.pendingPullsNow} open pull request${flags.pendingPullsNow === 1 ? '' : 's'}`
+                  ? tn(
+                      flags.pendingPullsNow,
+                      'On {n} open pull request',
+                      'On {n} open pull requests'
+                    )
                   : undefined
               }
               value={flags.pendingNow}
@@ -282,18 +330,18 @@ function Report({
           </div>
         </Section>
 
-        <Section title="Agents learning">
+        <Section title={t('Agents learning')}>
           {learning.length ? (
             <div className="table-wrap">
               <table className="table ins-learning">
                 <thead>
                   <tr>
-                    <th scope="col">Agent</th>
+                    <th scope="col">{t('Agent')}</th>
                     <th scope="col" className="ins-num">
-                      Dismissed
+                      {t('Dismissed')}
                     </th>
                     <th scope="col" className="ins-num">
-                      Lessons
+                      {t('Lessons')}
                     </th>
                   </tr>
                 </thead>
@@ -334,7 +382,9 @@ function Report({
             </div>
           ) : (
             <div className="panel">
-              <EmptyState title="No change requests were dismissed in this period." />
+              <EmptyState
+                title={t('No change requests were dismissed in this period.')}
+              />
             </div>
           )}
         </Section>
@@ -343,50 +393,53 @@ function Report({
           title={
             <>
               <AgentAvatar handle="fixer" status="idle" size={24} />
-              AI conflict resolution
+              {t('AI conflict resolution')}
             </>
           }
         >
           <div className="panel ins-rows">
-            <Row label="Attempts" value={resolutions.attempts} />
+            <Row label={t('Attempts')} value={resolutions.attempts} />
             <Row
-              label="Resolved"
-              hint="Proposed a resolution, or it was merged"
-              value={`${resolutions.succeeded} (${pct(of(resolutions.succeeded, resolutions.attempts))})`}
+              label={t('Resolved')}
+              hint={t('Proposed a resolution, or it was merged')}
+              value={t('{n} ({pct})', {
+                n: resolutions.succeeded,
+                pct: pct(of(resolutions.succeeded, resolutions.attempts)),
+              })}
             />
             <Row
-              label="Merged with the resolution"
+              label={t('Merged with the resolution')}
               value={resolutions.applied}
             />
-            <Row label="Failed" value={resolutions.failed} />
-            <Row label="Discarded" value={resolutions.rejected} />
+            <Row label={t('Failed')} value={resolutions.failed} />
+            <Row label={t('Discarded')} value={resolutions.rejected} />
             {resolutions.inProgress > 0 && (
-              <Row label="Running" value={resolutions.inProgress} />
+              <Row label={t('Running')} value={resolutions.inProgress} />
             )}
             <Row
-              label="Pull requests with conflicts"
+              label={t('Pull requests with conflicts')}
               value={resolutions.pulls}
             />
           </div>
         </Section>
 
-        <Section title="CI on pull requests">
+        <Section title={t('CI on pull requests')}>
           <div className="panel ins-rows">
             <Row
-              label={<Link to={`${base}/actions`}>Runs</Link>}
+              label={<Link to={`${base}/actions`}>{t('Runs')}</Link>}
               value={ci.runs}
             />
-            <Row label="Passed" value={ci.succeeded} />
-            <Row label="Failed" value={ci.failed} />
-            <Row label="Cancelled" value={ci.cancelled} />
+            <Row label={t('Passed')} value={ci.succeeded} />
+            <Row label={t('Failed')} value={ci.failed} />
+            <Row label={t('Cancelled')} value={ci.cancelled} />
             <Row
-              label="Pass rate"
-              hint="Of runs that passed or failed"
+              label={t('Pass rate')}
+              hint={t('Of runs that passed or failed')}
               value={pct(ci.passRate)}
             />
             <Row
-              label="Median time to green"
-              hint="From opening a pull request to its first passing run"
+              label={t('Median time to green')}
+              hint={t('From opening a pull request to its first passing run')}
               value={span(ci.medianTimeToGreen)}
             />
           </div>
@@ -413,13 +466,22 @@ export default function RepoInsights() {
     <>
       <PageHead
         icon="graph"
-        crumbs={[{ label: 'Insights' }]}
-        title="Insights"
+        crumbs={[{ label: t('Insights') }]}
+        title={t('Insights')}
         tab="insights"
-        lede={`How well agents land changes in ${repo.fullName}.${range ? ` ${range}.` : ''}`}
+        lede={
+          range
+            ? t('How well agents land changes in {repo}. {range}', {
+                repo: repo.fullName,
+                range,
+              })
+            : t('How well agents land changes in {repo}.', {
+                repo: repo.fullName,
+              })
+        }
         actions={
           <Seg
-            label="Period"
+            label={t('Period')}
             options={PERIOD_OPTIONS}
             value={String(days)}
             onChange={(v) =>
@@ -433,7 +495,7 @@ export default function RepoInsights() {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="Insights did not load"
+            title={t('Insights did not load')}
             picture={<GraphIcon size={24} />}
           />
         </div>

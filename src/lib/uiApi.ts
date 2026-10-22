@@ -51,7 +51,7 @@ export type Agent = User & {
 };
 export type RepoAgent = Agent & { invitedAt: string };
 export type Perms = { read: boolean; write: boolean; admin: boolean };
-export type Visibility = 'private' | 'internal';
+export type Visibility = 'private' | 'internal' | 'public';
 export type Repo = {
   id: string;
   /** The user or the team the repository lives under (`owner.username` is the URL segment). */
@@ -1237,13 +1237,13 @@ const q = (params: Record<string, string | number>) =>
     Object.entries(params).map(([k, v]) => [k, String(v)])
   ).toString();
 /** The body of a decision on a finding: only what was given (empty text counts as nothing), or no body at all. */
-const decisionText = (t: {
+const decisionText = (body: {
   reason?: string | null;
   teach?: string | null;
 }): { reason?: string; teach?: string } | undefined => {
   const out: { reason?: string; teach?: string } = {};
-  const reason = t.reason?.trim();
-  const teach = t.teach?.trim();
+  const reason = body.reason?.trim();
+  const teach = body.teach?.trim();
   if (reason) out.reason = reason;
   if (teach) out.teach = teach;
   return Object.keys(out).length ? out : undefined;

@@ -1,4 +1,5 @@
 import { AlertIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import { errorMessage } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 
@@ -18,7 +19,7 @@ export function LoadError({
     <div className="panel" role="alert">
       <EmptyState
         picture={<AlertIcon size={20} />}
-        title={`We couldn't load ${what}`}
+        title={t("We couldn't load {what}", { what })}
         body={errorMessage(error)}
         action={
           <button
@@ -27,7 +28,7 @@ export function LoadError({
             onClick={onRetry}
             disabled={retrying}
           >
-            Retry
+            {t('Retry')}
           </button>
         }
       />

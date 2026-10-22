@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { CheckIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 
 export interface ToastOptions {
   /** Offers Undo; called when the person presses it. Only for actions that can really be undone. */
@@ -81,7 +82,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 onClick={undo}
                 tabIndex={shown ? 0 : -1}
               >
-                Undo
+                {t('Undo')}
               </button>
             )}
           </>

@@ -5,6 +5,7 @@ import {
   STATE_LOOK,
   type AgentStatus,
 } from '@/lib/agentLook';
+import { t } from '@/lib/i18n';
 import { STATE_ICON } from './Chip';
 
 /** An agent's verdict in dense developer views: coloured dot (identity), name, then the state in words. */
@@ -29,7 +30,15 @@ export function Verdict({
     <span
       className={`verdict ${tone}`}
       style={{ '--agent': agentColor(handle, color) } as CSSProperties}
-      title={title ? `${name}: ${label}. ${title}` : `${name}: ${label}`}
+      title={
+        title
+          ? t('{name}: {state}. {detail}', {
+              name,
+              state: label,
+              detail: title,
+            })
+          : t('{name}: {state}', { name, state: label })
+      }
     >
       <i aria-hidden="true" />
       {name}

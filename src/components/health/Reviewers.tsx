@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import { errorMessage } from '@/lib/api';
 import { agentColor } from '@/lib/agentLook';
+import { t, tServer } from '@/lib/i18n';
 import {
   api,
   qk,
@@ -77,8 +78,9 @@ function Row({
   );
 }
 
-const KEPT_TITLE =
-  'The share of its findings a person kept, across every repository it reviews';
+const KEPT_TITLE = t(
+  'The share of its findings a person kept, across every repository it reviews'
+);
 
 /**
  * The reviewers on this project, each with what it raised this week, its record overall and what it is doing here
@@ -117,7 +119,9 @@ export function Reviewers({
         qc.invalidateQueries({ queryKey: qk.agents }),
         qc.invalidateQueries({ queryKey: qk.repos }),
       ]);
-      toast(`Added ${agent.name} to ${repo.fullName}`);
+      toast(
+        t('Added {name} to {repo}', { name: agent.name, repo: repo.fullName })
+      );
     },
   });
 
@@ -129,10 +133,10 @@ export function Reviewers({
 
   return (
     <Section
-      title="Reviewers"
+      title={t('Reviewers')}
       actions={
         <Link className="small" to="/agents">
-          All agents
+          {t('All agents')}
         </Link>
       }
     >
@@ -141,7 +145,7 @@ export function Reviewers({
           <QueryError
             error={invited.error}
             onRetry={() => void invited.refetch()}
-            title="Reviewers did not load"
+            title={t('Reviewers did not load')}
             picture={<CrewIcon size={24} />}
           />
         </div>
@@ -152,7 +156,7 @@ export function Reviewers({
           {on.length === 0 && (
             <EmptyState
               picture={<CrewIcon size={24} />}
-              title="No reviewers on this project yet"
+              title={t('No reviewers on this project yet')}
               body={noReviewersBody({ admin, available: off.length })}
             />
           )}
@@ -198,7 +202,7 @@ export function Reviewers({
               }
               name={<Link to={`/${a.username}`}>{a.name}</Link>}
               job={a.bio}
-              record="Not on this project"
+              record={t('Not on this project')}
               end={
                 admin ? (
                   <PendingButton
@@ -206,19 +210,22 @@ export function Reviewers({
                     pending={
                       add.isPending && add.variables?.username === a.username
                     }
-                    pendingLabel="Adding…"
+                    pendingLabel={t('Adding…')}
                     disabled={add.isPending}
                     error={
                       add.isError && add.variables?.username === a.username
                         ? errorMessage(add.error)
                         : null
                     }
-                    aria-label={`Add ${a.name} to ${repo.fullName}`}
+                    aria-label={t('Add {name} to {repo}', {
+                      name: a.name,
+                      repo: repo.fullName,
+                    })}
                     onClick={() =>
                       add.mutate({ username: a.username, name: a.name })
                     }
                   >
-                    Add
+                    {t('Add')}
                   </PendingButton>
                 ) : (
                   <Chip status="off" />
@@ -239,13 +246,13 @@ export function BuiltIn() {
     queryFn: api.agentsBuiltin,
   });
   return (
-    <Section title="Built in">
+    <Section title={t('Built in')}>
       {q.isError && !q.data ? (
         <div className="panel">
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="The built-in agents did not load"
+            title={t('The built-in agents did not load')}
             picture={<CrewIcon size={24} />}
           />
         </div>
@@ -260,8 +267,10 @@ export function BuiltIn() {
               color={agentColor(b.id)}
               avatar={<AgentAvatar handle={b.id} status="idle" size={40} />}
               name={b.name}
-              job={b.job}
-              record={b.stats.map((s) => `${s.value} ${s.label}`).join(' · ')}
+              job={tServer(b.job)}
+              record={b.stats
+                .map((s) => `${s.value} ${tServer(s.label)}`)
+                .join(' · ')}
             />
           ))}
         </div>

@@ -11,6 +11,7 @@ import {
   type RepoDetail,
 } from '@/lib/uiApi';
 import { WATCH_REFETCH_MS } from '@/lib/live';
+import { t, tx } from '@/lib/i18n';
 import {
   decodeEntities,
   ICON_SLOT,
@@ -28,16 +29,19 @@ import { RunStatusIcon } from '@/components/RunStatusIcon';
 
 // The red is the one the diagram itself draws "must change for" with (src/lib/pullGraph.ts).
 const LEGEND: { label: string; dash?: string; color?: string }[] = [
-  { label: 'stacked on' },
-  { label: 'waits on', dash: '6 4' },
-  { label: 'lands after', dash: '2 3' },
-  { label: 'must change for', color: '#cf222e' },
-  { label: 'accounted for', dash: '6 4' },
+  { label: t('stacked on') },
+  { label: t('waits on'), dash: '6 4' },
+  { label: t('lands after'), dash: '2 3' },
+  { label: t('must change for'), color: '#cf222e' },
+  { label: t('accounted for'), dash: '6 4' },
 ];
 
 function Legend() {
   return (
-    <div className="pg-legend small muted" aria-label="How to read the arrows">
+    <div
+      className="pg-legend small muted"
+      aria-label={t('How to read the arrows')}
+    >
       {LEGEND.map((l) => (
         <span key={l.label} className="pg-key">
           <svg width="28" height="8" aria-hidden>
@@ -54,7 +58,7 @@ function Legend() {
           {l.label}
         </span>
       ))}
-      <span>Arrows point at what lands first.</span>
+      <span>{t('Arrows point at what lands first.')}</span>
     </div>
   );
 }
@@ -62,8 +66,8 @@ function Legend() {
 /** Decodes the labels' entity codes, as text: no markup is parsed. */
 function decodeLabels(root: Element) {
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let t = walk.nextNode(); t; t = walk.nextNode())
-    if (t.nodeValue) t.nodeValue = decodeEntities(t.nodeValue);
+  for (let node = walk.nextNode(); node; node = walk.nextNode())
+    if (node.nodeValue) node.nodeValue = decodeEntities(node.nodeValue);
 }
 
 /** The node id pullGraph gave a rendered node (`pr12`, `m9`, `land`). */
@@ -102,7 +106,7 @@ function IconRow({ icons }: { icons: NodeIcons }) {
   return (
     <span className="pg-icons">
       {icons.checks && (
-        <span title={`Checks: ${icons.checks}`}>
+        <span title={t('Checks: {state}', { state: icons.checks })}>
           <RunStatusIcon {...STATE_ICON[icons.checks]} size={14} />
         </span>
       )}
@@ -124,7 +128,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 function iconHost(node: Element): HTMLElement | null {
   const rows = [...node.querySelectorAll('text tspan')].filter(
-    (t) => t.textContent && new RegExp(`^(${ICON_SLOT})+$`).test(t.textContent)
+    (span) =>
+      span.textContent && new RegExp(`^(${ICON_SLOT})+$`).test(span.textContent)
   );
   const row = rows[rows.length - 1] as SVGTextContentElement | undefined;
   const text = row?.closest('text');
@@ -204,7 +209,7 @@ function TargetGraph({
           // The state and its reasons, which sighted mouse users get as hover text, for keyboard and screen readers.
           el.setAttribute(
             'aria-label',
-            tip ? tip.replace(/\n/g, '. ') : `Pull request #${n}`
+            tip ? tip.replace(/\n/g, '. ') : t('Pull request #{n}', { n })
           );
           (el as SVGElement).style.cursor = 'pointer';
           el.addEventListener('click', go);
@@ -224,14 +229,14 @@ function TargetGraph({
   return (
     <section
       className="panel pg-target"
-      aria-label={`Landing on ${graph.target}`}
+      aria-label={t('Landing on {branch}', { branch: graph.target })}
     >
       <header className="pg-head">
         <GitBranchIcon size={16} />
         <strong className="pg-branch">{graph.target}</strong>
         {graph.landed.length > 0 && (
           <span className="small muted">
-            recently landed:{' '}
+            {t('recently landed:')}{' '}
             {graph.landed.map((l, i) => (
               <span key={l.number}>
                 {i > 0 && ', '}
@@ -247,17 +252,20 @@ function TargetGraph({
         <div className="callout pg-cycle" role="status">
           <AlertIcon size={16} />
           <span>
-            {graph.cycles.map((c) => `#${c}`).join(', ')} depend on each other
-            in a circle (outlined in red), so none of them can land until one of
-            those dependencies is dismissed.
+            {tx(
+              '{prs} depend on each other in a circle (outlined in red), so none of them can land until one of those dependencies is dismissed.',
+              { prs: graph.cycles.map((c) => `#${c}`).join(', ') }
+            )}
           </span>
         </div>
       )}
       {status === 'failed' && (
-        <p className="pg-note small muted">This graph couldn't be drawn.</p>
+        <p className="pg-note small muted">
+          {t("This graph couldn't be drawn.")}
+        </p>
       )}
       {status === 'drawing' && (
-        <div className="sk sk-block" role="status" aria-label="Drawing" />
+        <div className="sk sk-block" role="status" aria-label={t('Drawing')} />
       )}
       <div ref={ref} className="pull-graph" hidden={status !== 'drawn'} />
       {hosts.map(([n, host]) => {
@@ -307,13 +315,18 @@ export function PullGraph({ repo }: { repo: RepoDetail }) {
         <QueryError
           error={q.error}
           onRetry={() => void q.refetch()}
-          title="The graph did not load"
+          title={t('The graph did not load')}
         />
       </div>
     );
   if (!graphs)
     return (
-      <div className="pg" role="status" aria-busy="true" aria-label="Loading">
+      <div
+        className="pg"
+        role="status"
+        aria-busy="true"
+        aria-label={t('Loading')}
+      >
         <div className="sk sk-line w50" />
         <div className="sk sk-block" />
       </div>
@@ -323,8 +336,10 @@ export function PullGraph({ repo }: { repo: RepoDetail }) {
       <div className="panel">
         <EmptyState
           picture={<GitBranchIcon size={24} />}
-          title="Nothing is slated to land."
-          body="Open pull requests show up here, flowing into their target branch."
+          title={t('Nothing is slated to land.')}
+          body={t(
+            'Open pull requests show up here, flowing into their target branch.'
+          )}
         />
       </div>
     );

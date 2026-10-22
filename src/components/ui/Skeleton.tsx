@@ -1,3 +1,5 @@
+import { t } from '@/lib/i18n';
+
 /** Page-shaped placeholders for the first visit to a route; revisits paint at once. */
 export type SkeletonKind = 'list' | 'detail' | 'graph' | 'overview';
 
@@ -13,7 +15,7 @@ export function Skeleton({ kind = 'overview' }: { kind?: SkeletonKind }) {
       className="sk-page"
       role="status"
       aria-busy="true"
-      aria-label="Loading"
+      aria-label={t('Loading')}
     >
       {sk('sk-line w20')}
       {sk('sk-title')}

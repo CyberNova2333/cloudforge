@@ -2,6 +2,7 @@
  * Global search (top band): what is asked of `GET /api/search`, how results group, and what the keys do. Pure, so
  * the rules are unit-tested; `src/components/shell/GlobalSearch.tsx` draws it and fetches with `api.search(q, repo)`.
  */
+import { lang, t } from './i18n';
 import type { SearchResults } from './uiApi';
 
 export type { SearchResults };
@@ -44,13 +45,13 @@ export interface SearchHit {
 
 /** Group order in the results (spec: Repositories, Pull requests, Agents, People, Branches, Files), then Pages. */
 export const SEARCH_GROUPS: readonly { kind: SearchKind; title: string }[] = [
-  { kind: 'repo', title: 'Repositories' },
-  { kind: 'pull', title: 'Pull requests' },
-  { kind: 'agent', title: 'Agents' },
-  { kind: 'person', title: 'People' },
-  { kind: 'branch', title: 'Branches' },
-  { kind: 'file', title: 'Files' },
-  { kind: 'page', title: 'Pages' },
+  { kind: 'repo', title: t('Repositories') },
+  { kind: 'pull', title: t('Pull requests') },
+  { kind: 'agent', title: t('Agents') },
+  { kind: 'person', title: t('People') },
+  { kind: 'branch', title: t('Branches') },
+  { kind: 'file', title: t('Files') },
+  { kind: 'page', title: t('Pages') },
 ];
 
 export interface SearchSection {
@@ -71,7 +72,7 @@ export function searchSections(
 ): SearchSection[] {
   if (!q.trim())
     return hits.length
-      ? [{ title: 'Jump to', hits: hits.slice(0, JUMP_MAX) }]
+      ? [{ title: t('Jump to'), hits: hits.slice(0, JUMP_MAX) }]
       : [];
   const per = opts.perGroup ?? PER_GROUP;
   return SEARCH_GROUPS.map((g) => ({
@@ -178,10 +179,10 @@ function rank(
     if (r >= 0 && (best < 0 || r < best)) best = r;
   }
   if (best >= 0) return best;
-  const startsAWord = (t: string | null | undefined) =>
-    !!t &&
-    (t.toLowerCase().startsWith(q) ||
-      t
+  const startsAWord = (text: string | null | undefined) =>
+    !!text &&
+    (text.toLowerCase().startsWith(q) ||
+      text
         .toLowerCase()
         .split(WORD_BREAK)
         .some((w) => w.startsWith(q)));
@@ -279,7 +280,10 @@ export function jumpHits(
 /* ---------- Pages ---------- */
 
 interface PageDef {
+  /** Shown, in the UI language. */
   label: string;
+  /** The English name, also matched, so English works whatever the language. */
+  en: string;
   to: string;
   keywords?: string;
   /** Site admins only. */
@@ -287,36 +291,61 @@ interface PageDef {
 }
 
 const PAGES: PageDef[] = [
-  { label: 'Home', to: '/', keywords: 'dashboard' },
-  { label: 'Repositories', to: '/repos' },
-  { label: 'New repository', to: '/new', keywords: 'create' },
-  { label: 'Approvals', to: '/approvals', keywords: 'inbox findings' },
-  { label: 'Agents', to: '/agents', keywords: 'reviewers crew clef fixer' },
+  { label: t('Home'), en: 'Home', to: '/', keywords: 'dashboard' },
+  { label: t('Repositories'), en: 'Repositories', to: '/repos' },
   {
-    label: 'New reviewer',
+    label: t('New repository'),
+    en: 'New repository',
+    to: '/new',
+    keywords: 'create',
+  },
+  {
+    label: t('Approvals'),
+    en: 'Approvals',
+    to: '/approvals',
+    keywords: 'inbox findings',
+  },
+  {
+    label: t('Agents'),
+    en: 'Agents',
+    to: '/agents',
+    keywords: 'reviewers crew clef fixer',
+  },
+  {
+    label: t('New reviewer'),
+    en: 'New reviewer',
     to: '/agents/new',
     keywords: 'create agent presets recommended crew',
     admin: true,
   },
   {
-    label: 'Personal access tokens',
+    label: t('Personal access tokens'),
+    en: 'Personal access tokens',
     to: '/settings/tokens',
     keywords: 'settings git password',
   },
   {
-    label: 'MCP server',
+    label: t('MCP server'),
+    en: 'MCP server',
     to: '/settings/mcp',
     keywords: 'settings connected apps claude cursor codex',
   },
-  { label: 'Emails', to: '/settings/emails', keywords: 'settings addresses' },
   {
-    label: 'Site admin',
+    label: t('Emails'),
+    en: 'Emails',
+    to: '/settings/emails',
+    keywords: 'settings addresses',
+  },
+  {
+    label: t('Site admin'),
+    en: 'Site admin',
     to: '/admin',
     keywords: 'people team members invite setup instance settings',
     admin: true,
   },
   {
-    label: 'Usage and cost',
+    label: t('Usage and cost'),
+    en: 'Usage and cost',
     to: '/admin/usage',
     keywords: 'billing',
     admin: true,
@@ -325,6 +354,7 @@ const PAGES: PageDef[] = [
 
 interface RepoPageDef {
   label: string;
+  en: string;
   path: string;
   keywords?: string;
   /** Needs admin rights on the repository. */
@@ -332,14 +362,25 @@ interface RepoPageDef {
 }
 
 const REPO_PAGES: RepoPageDef[] = [
-  { label: 'Code', path: '', keywords: 'files' },
-  { label: 'Pull requests', path: 'pulls' },
-  { label: 'New pull request', path: 'compare', keywords: 'compare' },
-  { label: 'Commits', path: 'commits', keywords: 'history' },
-  { label: 'Actions', path: 'actions', keywords: 'runs workflows ci' },
-  { label: 'Insights', path: 'insights' },
+  { label: t('Code'), en: 'Code', path: '', keywords: 'files' },
+  { label: t('Pull requests'), en: 'Pull requests', path: 'pulls' },
   {
-    label: 'Settings',
+    label: t('New pull request'),
+    en: 'New pull request',
+    path: 'compare',
+    keywords: 'compare',
+  },
+  { label: t('Commits'), en: 'Commits', path: 'commits', keywords: 'history' },
+  {
+    label: t('Actions'),
+    en: 'Actions',
+    path: 'actions',
+    keywords: 'runs workflows ci',
+  },
+  { label: t('Insights'), en: 'Insights', path: 'insights' },
+  {
+    label: t('Settings'),
+    en: 'Settings',
     path: 'settings',
     keywords: 'collaborators visibility',
     repoAdmin: true,
@@ -353,20 +394,22 @@ export function pageHits(
 ): SearchHit[] {
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
-  const repoPages: (SearchHit & { keywords?: string })[] = ctx.repo
+  const repoPages: (SearchHit & { en: string; keywords?: string })[] = ctx.repo
     ? REPO_PAGES.filter((p) => !p.repoAdmin || ctx.repoAdmin).map((p) => ({
         kind: 'page',
         label: p.label,
+        en: p.en,
         sub: ctx.repo,
         to: p.path ? `/${ctx.repo}/${p.path}` : `/${ctx.repo}`,
         keywords: p.keywords,
       }))
     : [];
-  const pages: (SearchHit & { keywords?: string })[] = PAGES.filter(
+  const pages: (SearchHit & { en: string; keywords?: string })[] = PAGES.filter(
     (p) => !p.admin || ctx.admin
   ).map((p) => ({
     kind: 'page',
     label: p.label,
+    en: p.en,
     sub: null,
     to: p.to,
     keywords: p.keywords,
@@ -374,7 +417,7 @@ export function pageHits(
   return pick(
     [...repoPages, ...pages],
     needle,
-    (p) => rank(needle, [p.label], [p.keywords]),
+    (p) => rank(needle, [p.label, p.en], [p.keywords]),
     Infinity
   ).map(({ kind, label, sub, to }) => ({ kind, label, sub, to }));
 }

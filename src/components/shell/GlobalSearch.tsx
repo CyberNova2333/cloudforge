@@ -33,6 +33,7 @@ import { searchQueryOptions } from '@/lib/searchQuery';
 import { api, qk } from '@/lib/uiApi';
 import type { ShellRepo } from './AppShell';
 import { CrewIcon } from './icons';
+import { t } from '@/lib/i18n';
 
 /** `value`, once it has stopped changing for `ms`. */
 function useDebounced<T>(value: T, ms: number): T {
@@ -227,7 +228,7 @@ export function GlobalSearch({
       }}
     >
       <label className="sr" htmlFor="gsearch">
-        Search {appName}
+        {t('Search {name}', { name: appName })}
       </label>
       <SearchIcon className="gs-ic" />
       <input
@@ -236,7 +237,7 @@ export function GlobalSearch({
         type="search"
         autoComplete="off"
         spellCheck={false}
-        placeholder="Type / to search"
+        placeholder={t('Type / to search')}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={showMenu}
@@ -262,15 +263,15 @@ export function GlobalSearch({
           className="ws-menu gs-menu"
           id="gsearch-results"
           role="listbox"
-          aria-label="Search results"
+          aria-label={t('Search results')}
         >
           {sections.length === 0 ? (
             <p className="gs-empty" role="status">
               {pending
-                ? 'Searching…'
+                ? t('Searching…')
                 : failed
-                  ? 'Search isn’t available right now.'
-                  : `No results for “${state.q.trim()}”.`}
+                  ? t('Search isn’t available right now.')
+                  : t('No results for “{q}”.', { q: state.q.trim() })}
             </p>
           ) : (
             sections.map((s) => (

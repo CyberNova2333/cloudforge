@@ -5,6 +5,7 @@ import {
   StopIcon,
   XCircleFillIcon,
 } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import type { RunConclusion, RunStatus } from '@/lib/uiApi';
 
 /** The status glyph GitHub uses for runs, jobs, and steps. */
@@ -19,7 +20,7 @@ export function RunStatusIcon({
 }) {
   if (status === 'queued')
     return (
-      <span className="color-fg-attention" aria-label="Queued">
+      <span className="color-fg-attention" aria-label={t('Queued')}>
         <CircleIcon size={size} />
       </span>
     );
@@ -28,43 +29,43 @@ export function RunStatusIcon({
       <span
         className="run-spinner color-fg-attention"
         style={{ width: size, height: size }}
-        aria-label="In progress"
+        aria-label={t('In progress')}
       />
     );
   if (conclusion === 'success')
     return (
-      <span className="color-fg-success" aria-label="Success">
+      <span className="color-fg-success" aria-label={t('Success')}>
         <CheckCircleFillIcon size={size} />
       </span>
     );
   if (conclusion === 'failure')
     return (
-      <span className="color-fg-danger" aria-label="Failure">
+      <span className="color-fg-danger" aria-label={t('Failure')}>
         <XCircleFillIcon size={size} />
       </span>
     );
   if (conclusion === 'cancelled')
     return (
-      <span className="color-fg-muted" aria-label="Cancelled">
+      <span className="color-fg-muted" aria-label={t('Cancelled')}>
         <StopIcon size={size} />
       </span>
     );
   return (
-    <span className="color-fg-muted" aria-label="Skipped">
+    <span className="color-fg-muted" aria-label={t('Skipped')}>
       <SkipIcon size={size} />
     </span>
   );
 }
 
 export function runStatusLabel(status: RunStatus, conclusion: RunConclusion) {
-  if (status === 'queued') return 'Queued';
-  if (status === 'in_progress') return 'In progress';
+  if (status === 'queued') return t('Queued');
+  if (status === 'in_progress') return t('In progress');
   return (
     {
-      success: 'Success',
-      failure: 'Failure',
-      cancelled: 'Cancelled',
-      skipped: 'Skipped',
-    }[conclusion ?? 'skipped'] ?? 'Completed'
+      success: t('Success'),
+      failure: t('Failure'),
+      cancelled: t('Cancelled'),
+      skipped: t('Skipped'),
+    }[conclusion ?? 'skipped'] ?? t('Completed')
   );
 }

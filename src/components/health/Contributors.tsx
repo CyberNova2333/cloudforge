@@ -8,6 +8,7 @@ import {
 } from '@primer/octicons-react';
 import type { HealthReport, HealthTrend } from '@/lib/uiApi';
 import { clientMark, contributorLine } from '@/lib/health';
+import { t, tn } from '@/lib/i18n';
 import { Identicon } from '@/components/Identicon';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Section } from '@/components/ui/Section';
@@ -47,8 +48,13 @@ function Coder({
         {who.label}{' '}
         <span className="muted">
           {session
-            ? `${who.client && who.client !== who.label ? `${who.client} ` : ''}for ${who.login}`
-            : 'by hand'}
+            ? who.client && who.client !== who.label
+              ? t('{client} for {login}', {
+                  client: who.client,
+                  login: who.login,
+                })
+              : t('for {login}', { login: who.login })
+            : t('by hand')}
         </span>
       </span>
     </span>
@@ -76,15 +82,17 @@ export function Contributors({
 }) {
   return (
     <Section
-      title="Who made things better or worse"
-      actions={<span className="muted small">This week</span>}
+      title={t('Who made things better or worse')}
+      actions={<span className="muted small">{t('This week')}</span>}
     >
       {contributors.length === 0 ? (
         <div className="panel">
           <EmptyState
             picture={<PersonIcon size={24} />}
-            title="Nothing has merged this week"
-            body="When changes merge, you will see who made them and whether your reviewers found anything."
+            title={t('Nothing has merged this week')}
+            body={t(
+              'When changes merge, you will see who made them and whether your reviewers found anything.'
+            )}
           />
         </div>
       ) : (
@@ -99,18 +107,16 @@ export function Contributors({
               <li key={c.who.sessionId}>
                 <Coder who={c.who} to={to} />
                 <span className="muted small hl-merged">
-                  {c.merged === 1
-                    ? '1 change merged'
-                    : `${c.merged} changes merged`}
+                  {tn(c.merged, '{n} change merged', '{n} changes merged')}
                 </span>
                 <span className={`hl-mover ${line.dir}`}>
                   {DIR_ICON[line.dir]}
                   <span>
                     <span className="sr">
                       {line.dir === 'better'
-                        ? 'Better: '
+                        ? t('Better: ')
                         : line.dir === 'worse'
-                          ? 'Worse: '
+                          ? t('Worse: ')
                           : ''}
                     </span>
                     {line.text}

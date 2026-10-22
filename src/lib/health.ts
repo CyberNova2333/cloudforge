@@ -7,6 +7,7 @@
  * week without runs), "Merging" reverts. Every row counts problems, so lower is better.
  */
 import type { Tone } from './agentLook';
+import { lang, t, tn } from './i18n';
 import {
   dedupeItems,
   findingSentence,
@@ -27,9 +28,6 @@ import type {
 
 export type Contributor = HealthReport['contributors'][number];
 
-const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
-
 export type AreaKind = 'agent' | 'tests' | 'merging';
 
 /** An agent's row, the tests row (`tests`) or the merging row (`merging`). */
@@ -40,9 +38,9 @@ export function areaKind(area: Pick<HealthArea, 'id' | 'agent'>): AreaKind {
 
 /** What the Change chip says for a trend, and its tone. */
 export const TREND_LOOK: Record<HealthTrend, { label: string; tone: Tone }> = {
-  better: { label: 'Better', tone: 'good' },
-  same: { label: 'Same', tone: 'off' },
-  worse: { label: 'Worse', tone: 'serious' },
+  better: { label: t('Better'), tone: 'good' },
+  same: { label: t('Same'), tone: 'off' },
+  worse: { label: t('Worse'), tone: 'serious' },
 };
 
 /** Names for `count` weeks, oldest first: "7 weeks ago" … "Last week", "This week". */
@@ -50,10 +48,10 @@ export function weekLabels(count: number): string[] {
   return Array.from({ length: count }, (_, i) => {
     const ago = count - 1 - i;
     return ago === 0
-      ? 'This week'
+      ? t('This week')
       : ago === 1
-        ? 'Last week'
-        : `${ago} weeks ago`;
+        ? t('Last week')
+        : t('{n} weeks ago', { n: ago });
   });
 }
 
@@ -74,16 +72,16 @@ export function areaSpark(area: HealthArea): {
   const kind = areaKind(area);
   const unit =
     kind === 'tests'
-      ? '% of runs failed'
+      ? t('% of runs failed')
       : kind === 'merging'
-        ? ' reverted'
-        : ' raised';
+        ? t(' reverted')
+        : t(' raised');
   const what =
     kind === 'tests'
-      ? 'share of runs that failed'
+      ? t('share of runs that failed')
       : kind === 'merging'
-        ? 'reverts'
-        : 'findings raised';
+        ? t('reverts')
+        : t('findings raised');
   const gaps =
     kind === 'tests' &&
     area.noRuns?.length === area.weeks.length &&
@@ -93,11 +91,16 @@ export function areaSpark(area: HealthArea): {
   return {
     values: area.weeks,
     unit,
-    label: `${area.label}, ${what}, last ${area.weeks.length} weeks${gaps ? '; weeks with no test runs are gaps' : ''}`,
+    label:
+      t('{label}, {what}, last {n} weeks', {
+        label: area.label,
+        what,
+        n: area.weeks.length,
+      }) + (gaps ? t('; weeks with no test runs are gaps') : ''),
     labels: weekLabels(area.weeks.length),
     trend: area.trend,
     missing: gaps,
-    missingText: 'no test runs',
+    missingText: t('no test runs'),
   };
 }
 
@@ -106,16 +109,18 @@ export function healthLede(report: HealthReport, openPulls: number): string {
   const parts = [report.summary];
   if (report.decisionsWaiting)
     parts.push(
-      report.decisionsWaiting === 1
-        ? '1 decision needs you.'
-        : `${report.decisionsWaiting} decisions need you.`
+      tn(
+        report.decisionsWaiting,
+        '1 decision needs you.',
+        '{n} decisions need you.'
+      )
     );
   parts.push(
     openPulls === 0
-      ? 'No pull requests open.'
-      : `${plural(openPulls, 'pull request')} open.`
+      ? t('No pull requests open.')
+      : tn(openPulls, '{n} pull request open.', '{n} pull requests open.')
   );
-  return parts.join(' ');
+  return parts.join(lang === 'zh' ? '' : ' ');
 }
 
 /**
@@ -146,7 +151,9 @@ export function decisionCopy(row: FindingRow): {
   const agent = row.agent.name || `@${row.agent.username}`;
   const question = row.flag.question?.trim();
   return {
-    from: question ? `${agent} is asking` : `${agent} wants a person to decide`,
+    from: question
+      ? t('{agent} is asking', { agent })
+      : t('{agent} wants a person to decide', { agent }),
     title: question || row.flag.title,
     body: findingSentence(row.flag),
   };
@@ -164,21 +171,21 @@ export function contributorLine(c: Contributor): {
   if (c.findings === 0)
     return c.trend === 'better'
       ? {
-          text: 'Nothing got worse',
-          detail: 'No findings this week, fewer than last week',
+          text: t('Nothing got worse'),
+          detail: t('No findings this week, fewer than last week'),
           dir: 'better',
         }
       : {
-          text: 'Nothing got worse',
-          detail: 'No findings from your reviewers',
+          text: t('Nothing got worse'),
+          detail: t('No findings from your reviewers'),
           dir: 'same',
         };
   return {
-    text: c.note ?? plural(c.findings, 'finding'),
+    text: c.note ?? tn(c.findings, '{n} finding', '{n} findings'),
     detail: {
-      worse: 'More than last week',
-      better: 'Fewer than last week',
-      same: 'Same as last week',
+      worse: t('More than last week'),
+      better: t('Fewer than last week'),
+      same: t('Same as last week'),
     }[c.trend],
     dir: c.trend,
   };
@@ -207,13 +214,16 @@ export function reviewerRecord(
   if (area)
     parts.push(
       area.thisWeek === 0
-        ? 'Nothing raised this week'
-        : `${area.thisWeek} raised this week`
+        ? t('Nothing raised this week')
+        : t('{n} raised this week', { n: area.thisWeek })
     );
   if (stats) {
-    if (stats.keptPct !== null) parts.push(`${stats.keptPct}% kept overall`);
+    if (stats.keptPct !== null)
+      parts.push(t('{pct}% kept overall', { pct: stats.keptPct }));
     if (stats.rules > 0)
-      parts.push(`${plural(stats.rules, 'rule')} learned overall`);
+      parts.push(
+        tn(stats.rules, '{n} rule learned overall', '{n} rules learned overall')
+      );
   }
   return parts.length ? parts.join(' · ') : null;
 }
@@ -249,10 +259,10 @@ export function noReviewersBody(o: {
   /** Reviewers that exist but are not on this repository. */
   available: number;
 }): string {
-  const what = 'Reviewers look at each change before it merges.';
+  const what = t('Reviewers look at each change before it merges.');
   if (o.available === 0)
-    return `${what} A site admin can create them from Agents.`;
+    return t('{what} A site admin can create them from Agents.', { what });
   return o.admin
-    ? `${what} Add one below.`
-    : `${what} An admin of this repository can add one.`;
+    ? t('{what} Add one below.', { what })
+    : t('{what} An admin of this repository can add one.', { what });
 }

@@ -1,6 +1,8 @@
 // The New repository form's rules, the same ones the server enforces (worker/src/lib/repos.ts and repo-create.ts),
 // so a bad name is explained as it is typed rather than after pressing Create.
 
+import { t } from './i18n';
+
 export const REPO_NAME_MAX = 100;
 export const DESCRIPTION_MAX = 350;
 
@@ -16,11 +18,13 @@ export function normalizeRepoName(name: string): string {
 export function repoNameProblem(name: string): string | null {
   if (!name.trim()) return null;
   if (name.length > REPO_NAME_MAX)
-    return `A name can be at most ${REPO_NAME_MAX} characters.`;
+    return t('A name can be at most {max} characters.', {
+      max: REPO_NAME_MAX,
+    });
   const normalized = normalizeRepoName(name);
   if (normalized === '.' || normalized === '..')
-    return 'A name can’t be only dots.';
-  if (normalized.endsWith('.git')) return 'A name can’t end in .git.';
+    return t('A name can’t be only dots.');
+  if (normalized.endsWith('.git')) return t('A name can’t end in .git.');
   return null;
 }
 
@@ -33,8 +37,20 @@ export function inviteFailureMessage(
   const who =
     names.length === 1
       ? names[0]
-      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  const as = names.length === 1 ? 'a reviewer' : 'reviewers';
-  const reason = failed[0].reason.trim();
-  return `The repository was created, but ${who} could not be added as ${as}. ${/[.!?]$/.test(reason) ? reason : `${reason}.`} You can add reviewers in the repository's settings.`;
+      : t('{names} and {last}', {
+          names: names.slice(0, -1).join(t(', ')),
+          last: names[names.length - 1],
+        });
+  const trimmed = failed[0].reason.trim();
+  // Already ends a sentence (in English or Chinese punctuation): no full stop added.
+  const reason = /[.!?。！？]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  return names.length === 1
+    ? t(
+        "The repository was created, but {who} could not be added as a reviewer. {reason} You can add reviewers in the repository's settings.",
+        { who, reason }
+      )
+    : t(
+        "The repository was created, but {who} could not be added as reviewers. {reason} You can add reviewers in the repository's settings.",
+        { who, reason }
+      );
 }

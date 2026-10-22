@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookIcon, ClockIcon, GitBranchIcon } from '@primer/octicons-react';
 import { timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { encodeRepoPath } from '@/lib/codeView';
 import { api, qk, type Agent, type RepoDetail } from '@/lib/uiApi';
 import { AgentAvatar } from '@/components/AgentAvatar';
@@ -21,28 +22,33 @@ export function AboutCard({
 }) {
   const base = `/${repo.fullName}`;
   const count = repo.branches.length;
+  const branchParts = {
+    n: count,
+    branch: <span className="mono">{repo.defaultBranch}</span>,
+  };
   return (
     <section className="panel pad about">
-      <h2>About</h2>
+      <h2>{t('About')}</h2>
       <ul className="ticks small">
         {readmePath && (
           <li>
             <BookIcon />
             <Link to={`${base}/blob/${refName}/${encodeRepoPath(readmePath)}`}>
-              Readme
+              {t('Readme')}
             </Link>
           </li>
         )}
         <li>
           <GitBranchIcon />
           <span>
-            {count} {count === 1 ? 'branch' : 'branches'}, default{' '}
-            <span className="mono">{repo.defaultBranch}</span>
+            {count === 1
+              ? tx('{n} branch, default {branch}', branchParts)
+              : tx('{n} branches, default {branch}', branchParts)}
           </span>
         </li>
         <li>
           <ClockIcon />
-          <span>Created {timeAgo(repo.createdAt)}</span>
+          <span>{t('Created {when}', { when: timeAgo(repo.createdAt) })}</span>
         </li>
       </ul>
     </section>
@@ -56,23 +62,24 @@ export function AboutCard({
 export function AgentAboutCard({ agent }: { agent: Agent }) {
   return (
     <section className="panel pad about">
-      <h2>About</h2>
+      <h2>{t('About')}</h2>
       <Link to={`/${agent.username}`} className="about-agent">
         <AgentAvatar
           handle={agent.username}
           color={colorOf(agent)}
           size={40}
-          label={`${agent.name}, a reviewer agent`}
+          label={t('{name}, a reviewer agent', { name: agent.name })}
         />
         <span>
           <b>{agent.name}</b>
-          <span className="muted small">Reviewer agent</span>
+          <span className="muted small">{t('Reviewer agent')}</span>
         </span>
       </Link>
       <p className="small muted">
-        Changes to these files change how {agent.name} reviews. They go through
-        pull requests like any other change, and dismissals add rules here
-        automatically.
+        {t(
+          'Changes to these files change how {name} reviews. They go through pull requests like any other change, and dismissals add rules here automatically.',
+          { name: agent.name }
+        )}
       </p>
     </section>
   );
@@ -89,8 +96,8 @@ export function ReviewersCard({ repo }: { repo: RepoDetail }) {
   if (agents.isError) return null;
   const list = (agents.data ?? []).filter((a) => !a.deletedAt);
   return (
-    <section className="panel pad reviewers" aria-label="Reviewer agents">
-      <h2>Reviewer agents</h2>
+    <section className="panel pad reviewers" aria-label={t('Reviewer agents')}>
+      <h2>{t('Reviewer agents')}</h2>
       {agents.isPending ? (
         <div className="sk sk-row" aria-hidden="true" />
       ) : list.length ? (
@@ -100,7 +107,7 @@ export function ReviewersCard({ repo }: { repo: RepoDetail }) {
               <Link
                 to={`/${a.username}`}
                 title={a.name}
-                aria-label={`${a.name}, reviewer agent`}
+                aria-label={t('{name}, reviewer agent', { name: a.name })}
               >
                 <AgentAvatar handle={a.username} color={colorOf(a)} size={44} />
               </Link>
@@ -109,12 +116,12 @@ export function ReviewersCard({ repo }: { repo: RepoDetail }) {
         </ul>
       ) : (
         <p className="small muted">
-          No reviewer agents yet, so pull requests wait for a person.
+          {t('No reviewer agents yet, so pull requests wait for a person.')}
         </p>
       )}
       {repo.permissions.admin && (
         <Link className="small" to={`/${repo.fullName}/settings`}>
-          {list.length ? 'Manage' : 'Invite a reviewer'}
+          {list.length ? t('Manage') : t('Invite a reviewer')}
         </Link>
       )}
     </section>

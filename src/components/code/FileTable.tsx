@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { t } from '@/lib/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { FileDirectoryFillIcon, FileIcon } from '@primer/octicons-react';
 import { api, qk, type Contents, type RepoDetail } from '@/lib/uiApi';
@@ -42,7 +43,7 @@ export function FileTable({
                 <Link
                   to={`${base}/tree/${data.ref}${parent ? '/' + encodeRepoPath(parent) : ''}`}
                   className="ft-name"
-                  aria-label="Up to the parent directory"
+                  aria-label={t('Up to the parent directory')}
                 >
                   ..
                 </Link>
@@ -52,7 +53,7 @@ export function FileTable({
           {entries.length === 0 && (
             <tr>
               <td colSpan={3} className="ft-empty">
-                This directory is empty.
+                {t('This directory is empty.')}
               </td>
             </tr>
           )}

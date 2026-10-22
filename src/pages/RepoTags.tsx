@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { TagIcon } from '@primer/octicons-react';
 import { api, qk, type RepoDetail } from '@/lib/uiApi';
 import { shortSha } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { QueryError, RowsSkeleton } from '@/components/actions/states';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHead } from '@/components/ui/PageHead';
@@ -25,15 +26,17 @@ export default function RepoTags() {
       <PageHead
         icon="tag"
         crumbs={[
-          { label: 'Releases', to: `${base}/releases` },
-          { label: 'Tags' },
+          { label: t('Releases'), to: `${base}/releases` },
+          { label: t('Tags') },
         ]}
-        title="Tags"
+        title={t('Tags')}
         tab="releases"
-        lede="Every tag in the repository. A tag pushed with git is listed too, but only a release GitOrange cut counts as a version."
+        lede={t(
+          'Every tag in the repository. A tag pushed with git is listed too, but only a release GitOrange cut counts as a version.'
+        )}
         actions={
           <Link to={`${base}/releases`} className="btn">
-            Releases
+            {t('Releases')}
           </Link>
         }
       />
@@ -42,7 +45,7 @@ export default function RepoTags() {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="The tags did not load"
+            title={t('The tags did not load')}
           />
         </div>
       ) : !tags ? (
@@ -51,44 +54,48 @@ export default function RepoTags() {
         <div className="panel">
           <EmptyState
             picture={<TagIcon size={24} />}
-            title="No tags yet"
-            body="Cutting a release tags the default branch; tags pushed with git show up here too."
+            title={t('No tags yet')}
+            body={t(
+              'Cutting a release tags the default branch; tags pushed with git show up here too.'
+            )}
           />
         </div>
       ) : (
         <div className="table-wrap">
           <table className="table rel-tags">
-            <caption className="sr">Tags</caption>
+            <caption className="sr">{t('Tags')}</caption>
             <thead>
               <tr>
-                <th scope="col">Tag</th>
-                <th scope="col">Commit</th>
-                <th scope="col">Release</th>
+                <th scope="col">{t('Tag')}</th>
+                <th scope="col">{t('Commit')}</th>
+                <th scope="col">{t('Release')}</th>
               </tr>
             </thead>
             <tbody>
-              {tags.map((t) => (
-                <tr key={t.name}>
+              {tags.map((tag) => (
+                <tr key={tag.name}>
                   <td>
                     <span className="rel-tag-name mono">
                       <TagIcon size={14} />
-                      {t.name}
+                      {tag.name}
                     </span>
                   </td>
                   <td>
-                    <Link to={`${base}/commit/${t.sha}`} className="mono">
-                      {shortSha(t.sha)}
+                    <Link to={`${base}/commit/${tag.sha}`} className="mono">
+                      {shortSha(tag.sha)}
                     </Link>
                   </td>
                   <td>
-                    {t.release ? (
+                    {tag.release ? (
                       <Link
-                        to={`${base}/releases/${encodeURIComponent(t.release)}`}
+                        to={`${base}/releases/${encodeURIComponent(tag.release)}`}
                       >
-                        {t.release}
+                        {tag.release}
                       </Link>
                     ) : (
-                      <span className="muted small">Pushed with git</span>
+                      <span className="muted small">
+                        {t('Pushed with git')}
+                      </span>
                     )}
                   </td>
                 </tr>

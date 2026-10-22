@@ -16,6 +16,7 @@ import {
   type BoardView,
 } from '@/lib/board';
 import { useAgentList, useRepoStats } from '@/lib/boardQueries';
+import { t } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Section } from '@/components/ui/Section';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -41,9 +42,9 @@ export default function Repositories() {
   // the repositories and the agents (a failure to load either is an error with Retry, never a half-sorted list).
   const failure =
     !stats.data && stats.isError
-      ? { what: 'the repositories', error: stats.error }
+      ? { what: t('the repositories'), error: stats.error }
       : !agents.data && agents.isError
-        ? { what: 'the reviewer agents', error: agents.error }
+        ? { what: t('the reviewer agents'), error: agents.error }
         : null;
   const loading = !stats.data || !agents.data;
   const rows = useMemo(
@@ -75,20 +76,21 @@ export default function Repositories() {
       .filter((r) => r.repo.stats.agents.some((a) => a.handle === handle))
       .map((r) => r.repo.fullName);
 
-  const lede =
-    'Everything you can see on this instance: your code, and the repositories where each reviewer agent keeps its instructions.';
+  const lede = t(
+    'Everything you can see on this instance: your code, and the repositories where each reviewer agent keeps its instructions.'
+  );
 
   return (
     <>
       <PageHead
         icon="repo"
-        crumbs={[{ label: 'Repositories' }]}
-        title="Repositories"
+        crumbs={[{ label: t('Repositories') }]}
+        title={t('Repositories')}
         lede={lede}
         actions={
           <Link className="btn primary" to="/new">
             <PlusIcon size={14} />
-            New repository
+            {t('New repository')}
           </Link>
         }
       />
@@ -107,7 +109,7 @@ export default function Repositories() {
           className="sk-rows"
           role="status"
           aria-busy="true"
-          aria-label="Loading repositories"
+          aria-label={t('Loading repositories')}
         >
           <div className="sk sk-row" />
           <div className="sk sk-row tall" />
@@ -117,11 +119,13 @@ export default function Repositories() {
         <section className="panel">
           <EmptyState
             picture={<RepoIcon size={24} />}
-            title="No repositories yet"
-            body="Repositories created by anyone on this instance, and shared with you, show up here."
+            title={t('No repositories yet')}
+            body={t(
+              'Repositories created by anyone on this instance, and shared with you, show up here.'
+            )}
             action={
               <Link className="btn primary" to="/new">
-                Create repository
+                {t('Create repository')}
               </Link>
             }
           />
@@ -140,36 +144,38 @@ export default function Repositories() {
                     void agents.refetch();
                   }}
                 >
-                  Retry
+                  {t('Retry')}
                 </button>
               }
             >
-              Could not refresh the numbers. These are from earlier.
+              {t('Could not refresh the numbers. These are from earlier.')}
             </Notice>
           )}
           <div className="stats board-stats">
             <Link className="stat link" to="/approvals">
               <b>{needYou.data ?? '…'}</b>
-              <span>{needYou.data === 1 ? 'needs you' : 'need you'}</span>
+              <span>{needYou.data === 1 ? t('needs you') : t('need you')}</span>
             </Link>
             <div className="stat">
               <b>{totals.open}</b>
-              <span>open pull requests</span>
+              <span>{t('open pull requests')}</span>
             </div>
             <div className="stat">
               <b>{totals.merged7d}</b>
-              <span>merged in 7 days</span>
+              <span>{t('merged in 7 days')}</span>
             </div>
             <div className="stat">
               <b>
                 {totals.automaticPct === null ? '–' : `${totals.automaticPct}%`}
               </b>
-              <span>merged with no merge click</span>
+              <span>{t('merged with no merge click')}</span>
             </div>
             <div className="stat">
               <b>{totals.repositories}</b>
               <span>
-                {totals.repositories === 1 ? 'repository' : 'repositories'}
+                {totals.repositories === 1
+                  ? t('repository')
+                  : t('repositories')}
               </span>
             </div>
           </div>
@@ -178,15 +184,15 @@ export default function Repositories() {
             <input
               id="repo-q"
               type="search"
-              aria-label="Find a repository"
-              placeholder="Find a repository…"
+              aria-label={t('Find a repository')}
+              placeholder={t('Find a repository…')}
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 change({ query: e.target.value });
               }}
             />
-            <span className="board-pills" role="group" aria-label="Filter">
+            <span className="board-pills" role="group" aria-label={t('Filter')}>
               {BOARD_FILTERS.map((f) => (
                 <button
                   key={f.id}
@@ -201,7 +207,7 @@ export default function Repositories() {
             </span>
             <select
               id="repo-sort"
-              aria-label="Sort"
+              aria-label={t('Sort')}
               value={sort}
               onChange={(e) => change({ sort: e.target.value as BoardSort })}
             >
@@ -214,7 +220,7 @@ export default function Repositories() {
           </div>
 
           {code.length > 0 && (
-            <Section title="Code">
+            <Section title={t('Code')}>
               <ul className="board-list panel">
                 {code.map((r) => (
                   <CodeRow key={r.repo.id} row={r} />
@@ -224,11 +230,12 @@ export default function Repositories() {
           )}
           {agentRows.length > 0 && (
             <Section
-              title="Reviewer instructions"
+              title={t('Reviewer instructions')}
               actions={
                 <span className="muted small">
-                  Each reviewer agent reads its instructions from its own
-                  repository. Dismissing one of its requests adds a rule here.
+                  {t(
+                    'Each reviewer agent reads its instructions from its own repository. Dismissing one of its requests adds a rule here.'
+                  )}
                 </span>
               }
             >
@@ -250,8 +257,8 @@ export default function Repositories() {
           {code.length === 0 && agentRows.length === 0 && (
             <section className="panel">
               <EmptyState
-                title="No repositories match."
-                body="Try a different search or filter."
+                title={t('No repositories match.')}
+                body={t('Try a different search or filter.')}
                 action={
                   <button
                     type="button"
@@ -261,7 +268,7 @@ export default function Repositories() {
                       setParams(new URLSearchParams(), { replace: true });
                     }}
                   >
-                    Clear search and filters
+                    {t('Clear search and filters')}
                   </button>
                 }
               />

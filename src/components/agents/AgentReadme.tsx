@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import { api, qk } from '@/lib/uiApi';
 import { splitFrontmatter } from '@/lib/codeView';
 import { Markdown } from '@/components/Markdown';
@@ -47,10 +48,12 @@ export function AgentReadme({
       <div className="panel">
         <EmptyState
           picture={<BookIcon size={20} />}
-          title="Its instructions are not available"
+          title={t('Its instructions are not available')}
           body={
             fallback ||
-            'Its repository was deleted, or you can’t read it, so AGENT.md can’t be shown.'
+            t(
+              'Its repository was deleted, or you can’t read it, so AGENT.md can’t be shown.'
+            )
           }
         />
       </div>
@@ -72,7 +75,7 @@ export function AgentReadme({
         </span>
         <span style={{ flex: 1 }} />
         <Link className="btn small quiet" to={`/${repository}`}>
-          Open repository
+          {t('Open repository')}
         </Link>
       </div>
       {file.isPending ? (
@@ -80,7 +83,7 @@ export function AgentReadme({
           className="sk-rows"
           role="status"
           aria-busy="true"
-          aria-label="Loading AGENT.md"
+          aria-label={t('Loading AGENT.md')}
           style={{ padding: 16 }}
         >
           <div className="sk sk-row" />
@@ -95,8 +98,8 @@ export function AgentReadme({
         </div>
       ) : (
         <EmptyState
-          title="AGENT.md has no text yet"
-          body="Add instructions below its settings and they show here."
+          title={t('AGENT.md has no text yet')}
+          body={t('Add instructions below its settings and they show here.')}
         />
       )}
     </section>

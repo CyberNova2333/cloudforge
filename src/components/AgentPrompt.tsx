@@ -3,6 +3,13 @@ import type { RepoDetail } from '@/lib/uiApi';
 import { agentPrompt, importFromGitHubPrompt } from '@/lib/agentPrompt';
 import { CopyButton } from './CopyButton';
 import { useAppName } from '@/lib/appName';
+import { t, tx } from '@/lib/i18n';
+
+const claudeLink = (
+  <a href="https://claude.com/claude-code" target="_blank" rel="noreferrer">
+    Claude Code
+  </a>
+);
 
 /** Copy-paste coding-agent prompt: `work` on the repository, or `import` one from GitHub. */
 export function AgentPrompt({
@@ -24,26 +31,23 @@ export function AgentPrompt({
     <div className="agent-prompt">
       {!compact && (
         <p className="small muted">
-          No command line needed. Paste this into{' '}
-          <a
-            href="https://claude.com/claude-code"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Claude Code
-          </a>{' '}
-          or another coding agent,{' '}
           {kind === 'import'
-            ? 'and it will copy your GitHub repository here — every branch, tag, and Git LFS file — then either keep it in sync with GitHub or switch your everyday work over.'
-            : 'and it will set up the repository on your computer, including Git LFS for large files, then help you make changes and open pull requests.'}
+            ? tx(
+                'No command line needed. Paste this into {claude} or another coding agent, and it will copy your GitHub repository here — every branch, tag, and Git LFS file — then either keep it in sync with GitHub or switch your everyday work over.',
+                { claude: claudeLink }
+              )
+            : tx(
+                'No command line needed. Paste this into {claude} or another coding agent, and it will set up the repository on your computer, including Git LFS for large files, then help you make changes and open pull requests.',
+                { claude: claudeLink }
+              )}
         </p>
       )}
       <div className="promptbox">
         <div className="promptbox-head">
-          <span className="small muted mono">Prompt</span>
+          <span className="small muted mono">{t('Prompt')}</span>
           <CopyButton
             text={prompt}
-            label="Copy prompt"
+            label={t('Copy prompt')}
             className="btn small quiet"
           />
         </div>
@@ -56,8 +60,8 @@ export function AgentPrompt({
       </div>
       {compact && (
         <p className="small muted agent-prompt-hint">
-          <SparkleFillIcon size={12} /> Paste into Claude Code or another coding
-          agent.
+          <SparkleFillIcon size={12} />{' '}
+          {t('Paste into Claude Code or another coding agent.')}
         </p>
       )}
     </div>

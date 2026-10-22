@@ -7,6 +7,7 @@ import {
   repoLinkHref,
   type RepoMarkdownContext,
 } from '@/lib/repoUrls';
+import { t } from '@/lib/i18n';
 import { renderMermaid } from '@/lib/mermaid';
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -30,7 +31,9 @@ async function renderDiagrams(root: HTMLElement) {
     } catch {
       const note = document.createElement('div');
       note.className = 'f6 color-fg-muted mt-n2 mb-3';
-      note.textContent = "This diagram couldn't be drawn; showing its source.";
+      note.textContent = t(
+        "This diagram couldn't be drawn; showing its source."
+      );
       pre.after(note);
     }
   }

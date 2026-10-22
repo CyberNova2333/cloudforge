@@ -1,12 +1,16 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useCurrentUser } from './auth';
 import { api, qk } from './uiApi';
 
 /** How many things wait on the current user, for the header's badge (a one-item page carries `count`). */
 export function useApprovalCount() {
+  // Signed out (a public repository): nothing waits on nobody.
+  const signedIn = !!useCurrentUser();
   return useQuery({
     queryKey: [...qk.approvals, 'count'],
     queryFn: () => api.approvals({ limit: 1 }),
     select: (page) => page.count,
+    enabled: signedIn,
   });
 }
 

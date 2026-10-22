@@ -34,6 +34,7 @@ import {
   possessive,
 } from '@/lib/claudeLog';
 import { shortSha, timeAgo } from '@/lib/format';
+import { lang, t, tx } from '@/lib/i18n';
 import { agentColor, type AgentStatus } from '@/lib/agentLook';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Markdown } from '@/components/Markdown';
@@ -59,8 +60,10 @@ import {
   useAskCandidates,
 } from '@/components/approvals/Panels';
 
-const nameOf = (f: FindingData) => f.agent?.name ?? 'A removed agent';
+const nameOf = (f: FindingData) => f.agent?.name ?? t('A removed agent');
 const handleOf = (f: FindingData) => f.agent?.login ?? 'agent';
+/** An agent's name as the owner of its finding: "Security's" in English; Chinese says "Security 的" in the sentence. */
+const whose = (name: string) => (lang === 'zh' ? name : possessive(name));
 /** An owner question: a plain yes/no for the person, answered with Yes / No, fix it / Ask someone. */
 const isQuestion = (f: FindingData) =>
   f.kind === 'needs_person' && !!f.question;
@@ -85,13 +88,13 @@ export default function Finding() {
   usePageHead({
     icon: 'inbox',
     crumbs: [
-      { label: 'Approvals', to: '/approvals' },
+      { label: t('Approvals'), to: '/approvals' },
       {
         label: f
-          ? `${nameOf(f)} on #${f.pull.number}`
+          ? t('{agent} on #{n}', { agent: nameOf(f), n: f.pull.number })
           : notFound
-            ? 'Not found'
-            : 'Finding',
+            ? t('Not found')
+            : t('Finding'),
       },
     ],
     title: f
@@ -99,9 +102,11 @@ export default function Finding() {
         ? f.question!
         : f.title
       : notFound
-        ? 'Finding not found'
-        : 'Finding',
-    documentTitle: f ? `${nameOf(f)} on #${f.pull.number}` : undefined,
+        ? t('Finding not found')
+        : t('Finding'),
+    documentTitle: f
+      ? t('{agent} on #{n}', { agent: nameOf(f), n: f.pull.number })
+      : undefined,
   });
 
   if (notFound)
@@ -110,11 +115,13 @@ export default function Finding() {
         <div className="panel">
           <EmptyState
             picture={<InboxIcon size={24} />}
-            title="Finding not found"
-            body="This finding doesn’t exist, or you can’t see its repository."
+            title={t('Finding not found')}
+            body={t(
+              'This finding doesn’t exist, or you can’t see its repository.'
+            )}
             action={
               <Link className="btn small" to="/approvals">
-                Back to Approvals
+                {t('Back to Approvals')}
               </Link>
             }
           />
@@ -128,7 +135,7 @@ export default function Finding() {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="This finding did not load"
+            title={t('This finding did not load')}
           />
         </div>
       </div>
@@ -168,22 +175,28 @@ function FindingView({ f }: { f: FindingData }) {
         <div className="ap-fhead-main">
           <span className="eyebrow">
             {f.kind === 'change_requested'
-              ? `${name} asked for a change`
-              : `${name} is asking`}{' '}
+              ? t('{agent} asked for a change', { agent: name })
+              : t('{agent} is asking', { agent: name })}{' '}
             · {repo} · #{n}
           </span>
           <h2 className="ph-title">{question ? f.question : f.title}</h2>
           <p className="lede">
-            {question ? (
-              <>
-                {name} is asking about {prLink} {f.pull.title}. You’re answering
-                for commit {sha}.
-              </>
-            ) : (
-              <>
-                {name} raised this on {prLink} {f.pull.title}, at commit {sha}.
-              </>
-            )}
+            {question
+              ? tx(
+                  '{agent} is asking about {pr} {title}. You’re answering for commit {sha}.',
+                  {
+                    agent: name,
+                    pr: prLink,
+                    title: f.pull.title,
+                    sha,
+                  }
+                )
+              : tx('{agent} raised this on {pr} {title}, at commit {sha}.', {
+                  agent: name,
+                  pr: prLink,
+                  title: f.pull.title,
+                  sha,
+                })}
           </p>
         </div>
       </header>
@@ -198,19 +211,34 @@ function FindingView({ f }: { f: FindingData }) {
             <span>
               {question ? (
                 <>
-                  <b>{possessive(name)} finding.</b> {f.title}
+                  <b>{t('{whose} finding.', { whose: whose(name) })}</b>{' '}
+                  {f.title}
                 </>
               ) : f.kind === 'change_requested' ? (
                 <>
-                  <b>{name} asked for a change.</b>
-                  {waiting &&
-                    ' The pull request’s author makes it, or you can dismiss it.'}
+                  <b>{t('{agent} asked for a change.', { agent: name })}</b>
+                  {waiting && (
+                    <>
+                      {' '}
+                      {t(
+                        'The pull request’s author makes it, or you can dismiss it.'
+                      )}
+                    </>
+                  )}
                 </>
               ) : (
                 <>
-                  <b>{name} wants a person to decide.</b>
-                  {waiting &&
-                    ' Approve it if this is intended. Otherwise request changes.'}
+                  <b>
+                    {t('{agent} wants a person to decide.', { agent: name })}
+                  </b>
+                  {waiting && (
+                    <>
+                      {' '}
+                      {t(
+                        'Approve it if this is intended. Otherwise request changes.'
+                      )}
+                    </>
+                  )}
                 </>
               )}
             </span>
@@ -225,7 +253,7 @@ function FindingView({ f }: { f: FindingData }) {
           {md(parts.rest)}
           {!f.detail && (
             <p className="ap-small">
-              No further detail: the review model didn’t answer.
+              {t('No further detail: the review model didn’t answer.')}
             </p>
           )}
           {f.state !== 'open' && <Outcome f={f} me={me} />}
@@ -239,15 +267,25 @@ function FindingView({ f }: { f: FindingData }) {
             <p className="ap-small ap-cant">
               <ShieldIcon size={13} />
               {f.pull.state !== 'open'
-                ? `#${n} is ${f.pull.state}, so its findings can’t be decided any more.`
-                : `Only people who can push to ${repo} decide its findings.`}
+                ? f.pull.state === 'merged'
+                  ? t(
+                      '#{n} is merged, so its findings can’t be decided any more.',
+                      { n }
+                    )
+                  : t(
+                      '#{n} is closed, so its findings can’t be decided any more.',
+                      { n }
+                    )
+                : t('Only people who can push to {repo} decide its findings.', {
+                    repo,
+                  })}
             </p>
           ) : null}
         </div>
-        <aside className="ap-col ap-aside" aria-label="About this finding">
+        <aside className="ap-col ap-aside" aria-label={t('About this finding')}>
           <Facts f={f} me={me} />
           <details className="ap-box ap-tech" open={!question}>
-            <summary>Technical details</summary>
+            <summary>{t('Technical details')}</summary>
             <div className="ap-tech-body">
               {f.agent && (
                 <p>
@@ -262,7 +300,7 @@ function FindingView({ f }: { f: FindingData }) {
               {question &&
                 parts.excerpts.map((x, i) => <div key={i}>{md(x)}</div>)}
               {f.paths.length > 0 && (
-                <ul className="ap-files" aria-label="Files">
+                <ul className="ap-files" aria-label={t('Files')}>
                   {f.paths.map((p) => (
                     <li key={p}>
                       <FileIcon size={14} />
@@ -275,27 +313,32 @@ function FindingView({ f }: { f: FindingData }) {
                 <p className="ap-small">
                   <BookIcon size={13} />
                   <span>
-                    {name} reviewed with its instructions at{' '}
-                    <Link
-                      className="mono"
-                      to={`/${f.agent.repository}/commit/${f.agentSha}`}
-                    >
-                      {shortSha(f.agentSha)}
-                    </Link>
-                    .
+                    {tx('{agent} reviewed with its instructions at {sha}.', {
+                      agent: name,
+                      sha: (
+                        <Link
+                          className="mono"
+                          to={`/${f.agent.repository}/commit/${f.agentSha}`}
+                        >
+                          {shortSha(f.agentSha)}
+                        </Link>
+                      ),
+                    })}
                   </span>
                 </p>
               )}
               {f.detailModel && (
-                <p className="ap-small">Written by {f.detailModel}.</p>
+                <p className="ap-small">
+                  {t('Written by {model}.', { model: f.detailModel })}
+                </p>
               )}
               <div className="ap-actions">
                 <Link className="btn small" to={`/${repo}/pull/${n}`}>
-                  Open #{n}
+                  {t('Open #{n}', { n })}
                 </Link>
                 {f.agent && (
                   <Link className="btn small quiet" to={`/${handle}`}>
-                    About {name}
+                    {t('About {agent}', { agent: name })}
                   </Link>
                 )}
               </div>
@@ -317,23 +360,29 @@ function Facts({ f, me }: { f: FindingData; me: string | null }) {
   const items: [ReactNode, ReactNode][] = [
     [
       <GitPullRequestIcon size={14} />,
-      <>
-        <Link to={`/${f.repo.fullName}/pull/${n}`}>
-          #{n} {f.pull.title}
-        </Link>{' '}
-        by {f.pull.author.login === me ? 'you' : author}, in {f.repo.fullName}
-        {f.pull.state !== 'open' ? ` (${f.pull.state})` : ''}.
-      </>,
+      tx('{pr} by {author}, in {repo}{state}.', {
+        pr: (
+          <Link to={`/${f.repo.fullName}/pull/${n}`}>
+            #{n} {f.pull.title}
+          </Link>
+        ),
+        author: f.pull.author.login === me ? t('you') : author,
+        repo: f.repo.fullName,
+        state: f.pull.state !== 'open' ? ` (${f.pull.state})` : '',
+      }),
     ],
     [
       <GitCommitIcon size={14} />,
       <>
-        Raised on commit <span className="mono">{shortSha(f.headSha)}</span>.
+        {tx('Raised on commit {sha}.', {
+          sha: <span className="mono">{shortSha(f.headSha)}</span>,
+        })}
         {moved && (
           <>
             {' '}
-            The branch has moved on to{' '}
-            <span className="mono">{shortSha(f.pull.headSha!)}</span> since.
+            {tx('The branch has moved on to {sha} since.', {
+              sha: <span className="mono">{shortSha(f.pull.headSha!)}</span>,
+            })}
           </>
         )}
       </>,
@@ -342,32 +391,56 @@ function Facts({ f, me }: { f: FindingData; me: string | null }) {
   if (f.guarded)
     items.push([
       <ShieldIcon size={14} />,
-      `${f.kind === 'change_requested' ? 'Dismissing' : 'Approving'} needs a reason. It goes in the audit log with your name. ${AI_NAME} never decides ${name} findings.`,
+      f.kind === 'change_requested'
+        ? t(
+            'Dismissing needs a reason. It goes in the audit log with your name. {ai} never decides {agent} findings.',
+            { ai: AI_NAME, agent: name }
+          )
+        : t(
+            'Approving needs a reason. It goes in the audit log with your name. {ai} never decides {agent} findings.',
+            { ai: AI_NAME, agent: name }
+          ),
     ]);
-  if (f.assignee)
+  if (f.assignee) {
+    const who =
+      f.assignee.login === me
+        ? t('you')
+        : f.assignee.name || `@${f.assignee.login}`;
+    const by = f.assignedBy
+      ? f.assignedBy.login === me
+        ? t('you')
+        : f.assignedBy.name || `@${f.assignedBy.login}`
+      : null;
+    const when = f.assignedAt ? timeAgo(new Date(f.assignedAt)) : null;
     items.push([
       <PeopleIcon size={14} />,
-      `Assigned to ${f.assignee.login === me ? 'you' : f.assignee.name || `@${f.assignee.login}`}${
-        f.assignedBy
-          ? ` by ${f.assignedBy.login === me ? 'you' : f.assignedBy.name || `@${f.assignedBy.login}`}`
-          : ''
-      }${f.assignedAt ? `, ${timeAgo(new Date(f.assignedAt))}` : ''}.`,
+      by && when
+        ? t('Assigned to {who} by {by}, {when}.', { who, by, when })
+        : by
+          ? t('Assigned to {who} by {by}.', { who, by })
+          : when
+            ? t('Assigned to {who}, {when}.', { who, when })
+            : t('Assigned to {who}.', { who }),
     ]);
+  }
   if (f.delegated)
     items.push([
       <ClaudeTile />,
-      `You let ${AI_NAME} decide ${possessive(name)} findings on your pull requests.`,
+      t('You let {ai} decide {whose} findings on your pull requests.', {
+        ai: AI_NAME,
+        whose: whose(name),
+      }),
     ]);
   if (f.pull.state === 'open' && waiting)
     items.push([
       <UndoIcon size={14} />,
-      `You can change your answer while #${n} is open.`,
+      t('You can change your answer while #{n} is open.', { n }),
     ]);
   return (
     <section className="ap-box" aria-labelledby="ap-facts-h">
       <div className="ap-box-head">
         <h2 id="ap-facts-h">
-          {waiting ? 'Before you answer' : 'About this finding'}
+          {waiting ? t('Before you answer') : t('About this finding')}
         </h2>
       </div>
       <ul className="ap-facts">
@@ -386,7 +459,7 @@ function History({ f, me }: { f: FindingData; me: string | null }) {
   return (
     <section className="ap-box" aria-labelledby="ap-hist-h">
       <div className="ap-box-head">
-        <h2 id="ap-hist-h">History</h2>
+        <h2 id="ap-hist-h">{t('History')}</h2>
       </div>
       <ol className="ap-log">
         <li>
@@ -397,7 +470,7 @@ function History({ f, me }: { f: FindingData; me: string | null }) {
             {timeAgo(new Date(f.createdAt))}
           </time>
           <div className="ap-log-body">
-            <p>{nameOf(f)} raised it.</p>
+            <p>{t('{agent} raised it.', { agent: nameOf(f) })}</p>
           </div>
         </li>
         {f.history.map((e) => (
@@ -424,7 +497,10 @@ function useNextFinding(id: string) {
   return next && next.type === 'finding'
     ? {
         to: `/approvals/${encodeURIComponent(next.flag.id)}`,
-        label: `Next: ${userAgentName(next.agent)} on #${next.pull.number}`,
+        label: t('Next: {agent} on #{n}', {
+          agent: userAgentName(next.agent),
+          n: next.pull.number,
+        }),
       }
     : null;
 }
@@ -438,7 +514,7 @@ function NextLink({ id }: { id: string }) {
     </Link>
   ) : (
     <Link className="btn primary small" to="/approvals">
-      Back to Approvals
+      {t('Back to Approvals')}
     </Link>
   );
 }
@@ -517,7 +593,9 @@ function useAnswer(f: FindingData) {
       const message = failure(e, opts);
       if (opts.show && before) {
         qc.setQueryData(queryKey, before);
-        toast(`Not saved: ${message}`, { icon: <AlertIcon size={16} /> });
+        toast(t('Not saved: {error}', { error: message }), {
+          icon: <AlertIcon size={16} />,
+        });
       }
       setError(message);
       return false;
@@ -542,7 +620,7 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
     setError(null);
     try {
       await api.undoFlag(owner, repo, f.pull.number, f.id);
-      toast('Answer withdrawn. The finding is open again.', {
+      toast(t('Answer withdrawn. The finding is open again.'), {
         icon: <UndoIcon size={16} />,
       });
     } catch (e) {
@@ -556,20 +634,33 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
   const n = f.pull.number;
   const by = decidedByText(f.decidedBy, f.decidedVia, me);
   const ai = by.startsWith(AI_NAME);
+  const when = f.decidedAt ? timeAgo(new Date(f.decidedAt)) : null;
   const head =
     f.state === 'approved'
-      ? 'Approved'
+      ? when
+        ? t('Approved by {by}, {when}', { by, when })
+        : t('Approved by {by}', { by })
       : f.state === 'dismissed'
-        ? 'Dismissed'
-        : 'Changes requested';
+        ? when
+          ? t('Dismissed by {by}, {when}', { by, when })
+          : t('Dismissed by {by}', { by })
+        : when
+          ? t('Changes requested by {by}, {when}', { by, when })
+          : t('Changes requested by {by}', { by });
   const next =
     f.state === 'changes_requested'
-      ? `The pull request’s author makes the change, and ${name} reviews the new commit.`
+      ? t(
+          'The pull request’s author makes the change, and {agent} reviews the new commit.',
+          { agent: name }
+        )
       : f.pull.state === 'open'
-        ? `#${n} no longer waits for this finding.`
+        ? t('#{n} no longer waits for this finding.', { n })
         : f.pull.state === 'merged'
-          ? `#${n} merged, so this decision stays. Revert it from the pull request if you need to.`
-          : `#${n} is closed, so this decision stays.`;
+          ? t(
+              '#{n} merged, so this decision stays. Revert it from the pull request if you need to.',
+              { n }
+            )
+          : t('#{n} is closed, so this decision stays.', { n });
   return (
     <section
       className={`panel ap-outcome ap-${f.state}`}
@@ -583,26 +674,32 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
         <CheckIcon size={16} />
       )}
       <div>
-        <h2 id="ap-out-h">
-          {head} by {by}
-          {f.decidedAt ? `, ${timeAgo(new Date(f.decidedAt))}` : ''}
-        </h2>
+        <h2 id="ap-out-h">{head}</h2>
         {ai && (
           <p className="ap-small">
             <ClaudeTile />
-            {AI_NAME} answered this for{' '}
-            {f.decidedBy?.login === me ? 'you' : f.decidedBy?.name || 'them'}.
+            {t('{ai} answered this for {who}.', {
+              ai: AI_NAME,
+              who:
+                f.decidedBy?.login === me
+                  ? t('you')
+                  : f.decidedBy?.name || t('them'),
+            })}
           </p>
         )}
         {f.reason && (
           <p>
-            <b>{ai ? `${possessive(AI_NAME)} reason.` : 'Reason.'}</b>{' '}
+            <b>
+              {ai
+                ? t('{whose} reason.', { whose: whose(AI_NAME) })
+                : t('Reason.')}
+            </b>{' '}
             {f.reason}
           </p>
         )}
         {f.note && (
           <p>
-            <b>Note.</b> “{f.note}”
+            <b>{t('Note.')}</b> “{f.note}”
           </p>
         )}
         {f.teach && (
@@ -615,17 +712,25 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
               <div className="ap-line ap-add">
                 <span aria-hidden="true">+</span>
                 <span>
-                  <span className="sr">Rule: </span>
+                  <span className="sr">{t('Rule:')} </span>
                   {f.teach}
                 </span>
               </div>
             </figure>
             <p className="ap-small">
-              {name} learns this when #{n} closes
               {f.teachBy
-                ? `, from ${f.teachBy.login === me ? 'you' : f.teachBy.name || `@${f.teachBy.login}`}`
-                : ''}
-              .
+                ? t('{agent} learns this when #{n} closes, from {who}.', {
+                    agent: name,
+                    n,
+                    who:
+                      f.teachBy.login === me
+                        ? t('you')
+                        : f.teachBy.name || `@${f.teachBy.login}`,
+                  })
+                : t('{agent} learns this when #{n} closes.', {
+                    agent: name,
+                    n,
+                  })}
             </p>
           </>
         )}
@@ -636,11 +741,11 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
             <PendingButton
               className="small"
               pending={undoing}
-              pendingLabel="Reopening…"
+              pendingLabel={t('Reopening…')}
               onClick={() => void undo()}
             >
               <UndoIcon size={14} />
-              Change answer
+              {t('Change answer')}
             </PendingButton>
           )}
         </div>
@@ -668,8 +773,8 @@ function DelegateOne({ f }: { f: FindingData }) {
       else
         toast(
           r.decision === 'approve'
-            ? `${AI_NAME} approved it for you`
-            : `${AI_NAME} requested changes for you`,
+            ? t('{ai} approved it for you', { ai: AI_NAME })
+            : t('{ai} requested changes for you', { ai: AI_NAME }),
           {
             icon: <ClaudeTile />,
             // A failed undo (the pull request closed, the network) says why instead of failing silently.
@@ -677,7 +782,7 @@ function DelegateOne({ f }: { f: FindingData }) {
               void api
                 .undoFlag(owner, repo, n, f.id)
                 .then(() =>
-                  toast('Answer withdrawn. The finding is open again.', {
+                  toast(t('Answer withdrawn. The finding is open again.'), {
                     icon: <UndoIcon size={16} />,
                   })
                 )
@@ -697,19 +802,25 @@ function DelegateOne({ f }: { f: FindingData }) {
       <PendingButton
         className="quiet small"
         pending={pending}
-        pendingLabel={`${AI_NAME} is deciding…`}
+        pendingLabel={t('{ai} is deciding…', { ai: AI_NAME })}
         onClick={() => void go()}
       >
         <ClaudeTile />
-        Let {AI_NAME} decide this one
+        {t('Let {ai} decide this one', { ai: AI_NAME })}
       </PendingButton>
       <span className="ap-small">
-        {AI_NAME} answers as you, and you can undo it while #{n} is open.
+        {t('{ai} answers as you, and you can undo it while #{n} is open.', {
+          ai: AI_NAME,
+          n,
+        })}
       </span>
       {left && (
         <p className="ap-small ap-left" role="status">
           <ClaudeTile />
-          {AI_NAME} left this for you: {left}
+          {t('{ai} left this for you: {reason}', {
+            ai: AI_NAME,
+            reason: left,
+          })}
         </p>
       )}
       <PanelError error={error} />
@@ -721,21 +832,28 @@ function DelegateOne({ f }: { f: FindingData }) {
 function AssignedLine({ f, me }: { f: FindingData; me: string | null }) {
   if (!f.assignee) return null;
   const who = (p: { login: string; name: string | null } | null) =>
-    !p ? null : p.login === me ? 'you' : p.name || `@${p.login}`;
+    !p ? null : p.login === me ? t('you') : p.name || `@${p.login}`;
   const by = who(f.assignedBy);
   return (
     <p className="ap-assigned">
       <PeopleIcon size={14} />
       {f.assignee.login === me ? (
         <span>
-          {by && by !== 'you'
-            ? `${by} asked you to decide this.`
-            : 'You have this one.'}
+          {by && by !== t('you')
+            ? t('{who} asked you to decide this.', { who: by })
+            : t('You have this one.')}
         </span>
       ) : (
         <span>
-          {who(f.assignee)} has this question now
-          {by ? `, asked by ${by}` : ''}. You can still answer it yourself.
+          {by
+            ? t(
+                '{who} has this question now, asked by {by}. You can still answer it yourself.',
+                { who: who(f.assignee) ?? '', by }
+              )
+            : t(
+                '{who} has this question now. You can still answer it yourself.',
+                { who: who(f.assignee) ?? '' }
+              )}
         </span>
       )}
     </p>
@@ -762,24 +880,32 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
   const opts: [Choice, string, string][] = [
     [
       'yes',
-      'Yes',
+      t('Yes'),
       f.guarded
-        ? `Approve it. ${name} findings need your reason, recorded in the audit log.`
-        : `Approve it. #${n} can merge when nothing else holds it up.`,
+        ? t(
+            'Approve it. {agent} findings need your reason, recorded in the audit log.',
+            { agent: name }
+          )
+        : t('Approve it. #{n} can merge when nothing else holds it up.', { n }),
     ],
     ...(asked
       ? []
       : ([
           [
             'no',
-            'No, fix it',
-            `Ask for a change before #${n} merges. Its author gets your note.`,
+            t('No, fix it'),
+            t(
+              'Ask for a change before #{n} merges. Its author gets your note.',
+              { n }
+            ),
           ],
         ] as [Choice, string, string][])),
     [
       'ask',
-      'Ask someone',
-      `Pass the question to someone who can push to ${f.repo.fullName}.`,
+      t('Ask someone'),
+      t('Pass the question to someone who can push to {repo}.', {
+        repo: f.repo.fullName,
+      }),
     ],
   ];
   const missing =
@@ -789,42 +915,42 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
     (choice !== 'ask' && teachOn && !teach.trim());
   const submit = () => {
     if (!choice || missing) return;
-    const t = teachText(teachOn, teach);
+    const rule = teachText(teachOn, teach);
     if (choice === 'yes')
       void act(
         'submit',
         () =>
           api.approveFlag(owner, repo, n, f.id, {
             reason: f.guarded ? reason : null,
-            teach: t,
+            teach: rule,
           }),
-        { toast: 'Approved', undo: undoDecision },
+        { toast: t('Approved'), undo: undoDecision },
         {
           show: {
             state: 'approved',
             reason: f.guarded ? reason.trim() || null : null,
-            teach: t,
+            teach: rule,
           },
         }
       );
     else if (choice === 'no')
       void act(
         'submit',
-        () => api.requestFlagChanges(owner, repo, n, f.id, note, t),
-        { toast: 'Sent back for a change', undo: undoDecision },
+        () => api.requestFlagChanges(owner, repo, n, f.id, note, rule),
+        { toast: t('Sent back for a change'), undo: undoDecision },
         {
           sendingNote: true,
           show: {
             state: 'changes_requested',
             note: note.trim() || null,
-            teach: t,
+            teach: rule,
           },
         }
       );
     else {
       const before = f.assignee?.login ?? null;
       void act('submit', () => api.assignFlag(owner, repo, n, f.id, ask), {
-        toast: `Asked ${askName}`,
+        toast: t('Asked {name}', { name: askName }),
         undo: () => api.assignFlag(owner, repo, n, f.id, before),
       }).then((ok) => {
         if (!ok) return;
@@ -835,10 +961,12 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
   };
   return (
     <section className="panel ap-answer" aria-labelledby="ap-ans-h">
-      <h2 id="ap-ans-h">{asked ? 'Change your answer' : 'Your answer'}</h2>
+      <h2 id="ap-ans-h">
+        {asked ? t('Change your answer') : t('Your answer')}
+      </h2>
       <AssignedLine f={f} me={me} />
       <fieldset className="ap-choices">
-        <legend className="sr">Your answer</legend>
+        <legend className="sr">{t('Your answer')}</legend>
         {opts.map(([v, label, sub]) => (
           <label className={`ap-choice${choice === v ? ' on' : ''}`} key={v}>
             <input
@@ -861,7 +989,9 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
       {choice === 'yes' && f.guarded && (
         <div className="ap-teach">
           <label className="ap-label" htmlFor="ap-owner-reason">
-            Why is this right? <span className="muted">(required)</span>
+            {tx('Why is this right? {required}', {
+              required: <span className="muted">{t('(required)')}</span>,
+            })}
           </label>
           <textarea
             id="ap-owner-reason"
@@ -874,15 +1004,19 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
           />
           <p className="ap-small">
             <ShieldIcon size={13} />
-            {name} findings need a reason. It goes in the audit log with your
-            name.
+            {t(
+              '{agent} findings need a reason. It goes in the audit log with your name.',
+              { agent: name }
+            )}
           </p>
         </div>
       )}
       {choice === 'no' && (
         <div className="ap-teach">
           <label className="ap-label" htmlFor="ap-owner-note">
-            What should change? <span className="muted">(optional)</span>
+            {tx('What should change? {optional}', {
+              optional: <span className="muted">{t('(optional)')}</span>,
+            })}
           </label>
           <textarea
             id="ap-owner-note"
@@ -897,28 +1031,30 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
       {choice === 'ask' && (
         <div className="ap-teach">
           <label className="ap-label" htmlFor="ap-owner-ask">
-            Who should answer?
+            {t('Who should answer?')}
           </label>
           {people.error ? (
             <p className="ap-error" role="alert">
-              The people who can answer did not load.{' '}
+              {t('The people who can answer did not load.')}{' '}
               <button
                 type="button"
                 className="btn quiet small"
                 onClick={people.retry}
               >
-                Retry
+                {t('Retry')}
               </button>
             </p>
           ) : !people.people ? (
             <div
               className="sk sk-row"
               role="status"
-              aria-label="Loading people"
+              aria-label={t('Loading people')}
             />
           ) : !people.people.length ? (
             <p className="ap-small">
-              Nobody else can push to {f.repo.fullName}.
+              {t('Nobody else can push to {repo}.', {
+                repo: f.repo.fullName,
+              })}
             </p>
           ) : (
             <select
@@ -927,7 +1063,7 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
               value={ask}
               onChange={(e) => setAsk(e.target.value)}
             >
-              <option value="">Choose someone</option>
+              <option value="">{t('Choose someone')}</option>
               {people.people.map((p) => (
                 <option key={p.login} value={p.login}>
                   {p.name} (@{p.login})
@@ -945,7 +1081,7 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
           text={teach}
           onToggle={setTeachOn}
           onText={setTeach}
-          label="Remember this for next time"
+          label={t('Remember this for next time')}
         />
       )}
       <div className="ap-actions">
@@ -954,21 +1090,21 @@ function OwnerAnswer({ f, me }: { f: FindingData; me: string | null }) {
           pending={pending === 'submit'}
           pendingLabel={
             choice === 'no'
-              ? 'Sending…'
+              ? t('Sending…')
               : choice === 'ask'
-                ? 'Asking…'
-                : 'Approving…'
+                ? t('Asking…')
+                : t('Approving…')
           }
           disabled={missing}
           onClick={submit}
         >
           {choice === 'no'
-            ? 'Send'
+            ? t('Send')
             : choice === 'ask'
               ? askName
-                ? `Ask ${askName}`
-                : 'Ask'
-              : 'Approve'}
+                ? t('Ask {name}', { name: askName })
+                : t('Ask')
+              : t('Approve')}
         </PendingButton>
       </div>
       <PanelError error={error} />
@@ -1010,25 +1146,25 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
     <PendingButton
       className="small primary"
       pending={pending === 'approve'}
-      pendingLabel="Approving…"
+      pendingLabel={t('Approving…')}
       onClick={() =>
         void act(
           'approve',
           () => api.approveFlag(owner, repo, n, f.id),
-          { toast: `Approved #${n}`, undo: undoDecision },
+          { toast: t('Approved #{n}', { n }), undo: undoDecision },
           { show: { state: change ? 'dismissed' : 'approved' } }
         )
       }
     >
       <CheckIcon size={14} />
-      {asked ? 'Approve instead' : 'Approve'}
+      {asked ? t('Approve instead') : t('Approve')}
     </PendingButton>
   );
   const changesBtn = toggle(
     'changes',
     <>
       <SyncIcon size={14} />
-      Request changes
+      {t('Request changes')}
     </>,
     f.guarded
   );
@@ -1036,7 +1172,7 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
     'dismiss',
     <>
       <XIcon size={14} />
-      Dismiss
+      {t('Dismiss')}
     </>,
     change
   );
@@ -1044,20 +1180,27 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
     'ask',
     <>
       <PeopleIcon size={14} />
-      Ask someone
+      {t('Ask someone')}
     </>
   );
   return (
     <section className="panel ap-answer" aria-labelledby="ap-ans-h">
-      <h2 id="ap-ans-h">{asked ? 'Change your answer' : 'Your answer'}</h2>
+      <h2 id="ap-ans-h">
+        {asked ? t('Change your answer') : t('Your answer')}
+      </h2>
       <AssignedLine f={f} me={me} />
       {f.guarded && (
         <p className="ap-small">
           <ShieldIcon size={13} />
           <span>
             {change
-              ? `Dismissing a ${possessive(name)} change request needs a reason.`
-              : `${name} findings can’t be approved in bulk. Approving needs a reason.`}
+              ? t('Dismissing a {whose} change request needs a reason.', {
+                  whose: whose(name),
+                })
+              : t(
+                  '{agent} findings can’t be approved in bulk. Approving needs a reason.',
+                  { agent: name }
+                )}
           </span>
         </p>
       )}
@@ -1074,7 +1217,7 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
               'approve',
               <>
                 <CheckIcon size={14} />
-                Approve with a reason
+                {t('Approve with a reason')}
               </>,
               asked
             )}
@@ -1102,7 +1245,10 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
               act(
                 'changes',
                 () => api.requestFlagChanges(owner, repo, n, f.id, note, teach),
-                { toast: `Changes requested on #${n}`, undo: undoDecision },
+                {
+                  toast: t('Changes requested on #{n}', { n }),
+                  undo: undoDecision,
+                },
                 {
                   sendingNote: true,
                   show: {
@@ -1131,8 +1277,8 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
                 () => api.approveFlag(owner, repo, n, f.id, { reason, teach }),
                 {
                   toast: teach
-                    ? `Dismissed. ${name} learns your rule`
-                    : 'Dismissed',
+                    ? t('Dismissed. {agent} learns your rule', { agent: name })
+                    : t('Dismissed'),
                   undo: undoDecision,
                 },
                 {
@@ -1160,7 +1306,7 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
                 'approve-reason',
                 () => api.approveFlag(owner, repo, n, f.id, { reason, teach }),
                 {
-                  toast: 'Approved. Reason recorded in the audit log.',
+                  toast: t('Approved. Reason recorded in the audit log.'),
                   undo: undoDecision,
                 },
                 {
@@ -1188,7 +1334,7 @@ function DevAnswer({ f, me }: { f: FindingData; me: string | null }) {
             const before = f.assignee?.login ?? null;
             // Asking someone isn't a decision: the panel waits for it to be saved.
             void act('ask', () => api.assignFlag(owner, repo, n, f.id, login), {
-              toast: login ? `Asked @${login}` : 'Taken back',
+              toast: login ? t('Asked @{login}', { login }) : t('Taken back'),
               undo: () => api.assignFlag(owner, repo, n, f.id, before),
             }).then((ok) => ok && setMode(null));
           }}

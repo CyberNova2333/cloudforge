@@ -4,6 +4,7 @@
  * are tested here and the page only draws them.
  */
 import type { Tone } from './agentLook';
+import { lang, t, tServer } from './i18n';
 import { blocking, reasonText, stateLabel } from './pullState';
 import type {
   AgentRun,
@@ -41,9 +42,9 @@ export function pullChip(
   state: Pull['state'],
   pullState: PullState | null
 ): { tone: Tone | 'merged'; label: string } {
-  if (state === 'merged') return { tone: 'merged', label: 'Merged' };
-  if (state === 'closed') return { tone: 'off', label: 'Closed' };
-  if (!pullState) return { tone: 'info', label: 'Open' };
+  if (state === 'merged') return { tone: 'merged', label: t('Merged') };
+  if (state === 'closed') return { tone: 'off', label: t('Closed') };
+  if (!pullState) return { tone: 'info', label: t('Open') };
   return { tone: STATE_TONE[pullState.state], label: stateLabel(pullState) };
 }
 
@@ -55,17 +56,19 @@ export function queueSpot(
   queue: QueueTarget[] | undefined,
   number: number
 ): QueueSpot | null {
-  for (const t of queue ?? []) {
-    const entry = t.entries.find((e) => e.number === number);
-    if (entry) return { target: t.target, entry, total: t.entries.length };
+  for (const target of queue ?? []) {
+    const entry = target.entries.find((e) => e.number === number);
+    if (entry)
+      return { target: target.target, entry, total: target.entries.length };
   }
   return null;
 }
 
 const SUFFIX: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd' };
 
-/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st. */
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st; Chinese has no ordinal suffix. */
 export function ordinal(n: number): string {
+  if (lang === 'zh') return String(n);
   const teen = n % 100 >= 11 && n % 100 <= 13;
   return `${n}${teen ? 'th' : (SUFFIX[n % 10] ?? 'th')}`;
 }
@@ -73,17 +76,23 @@ export function ordinal(n: number): string {
 /** Minutes until it is expected to land, in plain words; null without run or review history. */
 export function etaText(minutes: number | null): string | null {
   if (minutes === null) return null;
-  if (minutes <= 0) return 'any minute now';
-  if (minutes < 60) return `about ${minutes} min`;
+  if (minutes <= 0) return t('any minute now');
+  if (minutes < 60) return t('about {minutes} min', { minutes });
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m ? `about ${h} h ${m} min` : `about ${h} h`;
+  return m
+    ? t('about {hours} h {minutes} min', { hours: h, minutes: m })
+    : t('about {hours} h', { hours: h });
 }
 
 export function queueLine(spot: QueueSpot): string {
   return spot.entry.position === 1
-    ? `First in line to land on ${spot.target}.`
-    : `${ordinal(spot.entry.position)} of ${spot.total} in line to land on ${spot.target}.`;
+    ? t('First in line to land on {target}.', { target: spot.target })
+    : t('{position} of {total} in line to land on {target}.', {
+        position: ordinal(spot.entry.position),
+        total: spot.total,
+        target: spot.target,
+      });
 }
 
 /**
@@ -115,7 +124,7 @@ export function pullBlockers(
   pullState: PullState | null,
   queueBlockers: string[] | undefined
 ): string[] {
-  if (queueBlockers) return queueBlockers;
+  if (queueBlockers) return queueBlockers.map(tServer);
   return (pullState?.reasons ?? [])
     .filter(blocking)
     .map((r) => capital(reasonText(r)));
@@ -170,92 +179,134 @@ export function nextStep(
   ): NextStep => ({ tone, headline, detail, listed });
   const rest = blockers.slice(1);
   if (d.state === 'merged')
-    return step('good', `Merged into ${d.baseRef}.`, null, []);
+    return step(
+      'good',
+      t('Merged into {base}.', { base: d.baseRef }),
+      null,
+      []
+    );
   if (d.state === 'closed')
-    return step('off', 'Closed without merging.', null, []);
+    return step('off', t('Closed without merging.'), null, []);
   if (!d.headBranchExists)
     return step(
       'critical',
-      `The ${d.headRef} branch is gone, so this can’t merge.`,
-      'Push the branch again, or close this pull request.',
+      t('The {branch} branch is gone, so this can’t merge.', {
+        branch: d.headRef,
+      }),
+      t('Push the branch again, or close this pull request.'),
       []
     );
   const r = d.rebase;
-  // A clash or Fixer at work is the headline, so its own blocker is not listed again.
-  const others = blockers.filter((b) => !REBASE_BLOCKER.test(b));
+  // A clash or Fixer at work is the headline, so its own blocker is not listed again. The state's own
+  // blocker is the translated reasonText (queue blockers stay the server's English, matched by the regex).
+  const rebaseReasons = new Set(
+    (d.pullState?.reasons ?? [])
+      .filter(
+        (x) => x.kind === 'rebase_conflict' || x.kind === 'resolution_running'
+      )
+      .map((x) => capital(reasonText(x)))
+  );
+  const others = blockers.filter(
+    (b) => !REBASE_BLOCKER.test(b) && !rebaseReasons.has(b)
+  );
   if (r?.status === 'conflict') {
     if (r.error?.startsWith('Not rebased:'))
       return step(
         'serious',
-        `GitOrange doesn’t rebase this branch, and it is behind ${r.onto}.`,
+        t('GitOrange doesn’t rebase this branch, and it is behind {onto}.', {
+          onto: r.onto,
+        }),
         r.error,
         others
       );
     return step(
       'serious',
-      `It clashes with newer changes on ${r.onto}, and Fixer couldn’t combine them.`,
-      'Someone needs to update the branch, or try the rebase again.',
+      t(
+        'It clashes with newer changes on {onto}, and Fixer couldn’t combine them.',
+        { onto: r.onto }
+      ),
+      t('Someone needs to update the branch, or try the rebase again.'),
       others
     );
   }
   if (r?.status === 'resolving')
     return step(
       'info',
-      `Fixer is combining it with newer changes on ${r.onto}.`,
-      'It carries on by itself once the clash is resolved.',
+      t('Fixer is combining it with newer changes on {onto}.', {
+        onto: r.onto,
+      }),
+      t('It carries on by itself once the clash is resolved.'),
       others
     );
   const ps = d.pullState;
-  if (!ps) return step('info', 'Checking where it stands.');
+  if (!ps) return step('info', t('Checking where it stands.'));
   switch (ps.state) {
     case 'ready':
       return d.autoMerge === 'ready'
-        ? step('good', 'Ready. GitOrange is merging it now.')
+        ? step('good', t('Ready. GitOrange is merging it now.'))
         : d.autoMerge === 'disabled'
           ? step(
               'good',
-              'Ready to merge. Auto-merge is off, so it waits for someone to merge it.'
+              t(
+                'Ready to merge. Auto-merge is off, so it waits for someone to merge it.'
+              )
             )
-          : step('good', 'Ready to merge.');
+          : step('good', t('Ready to merge.'));
     case 'waiting': {
       const holding = ps.reasons.filter(blocking);
-      if (holding.some((x) => x.kind === 'merging_paused'))
+      if (holding.some((x) => x.kind === 'merging_paused')) {
+        // The pause's own blocker is the headline in the first case; translate it like reasonText.
+        const pausedText = capital(t('merging is paused'));
         return holding.length === 1
           ? step(
               'warn',
-              'Ready, but merging is paused. Someone needs to resume merging before this can land.',
+              t(
+                'Ready, but merging is paused. Someone needs to resume merging before this can land.'
+              ),
               null,
               []
             )
           : step(
               'warn',
-              'Merging is paused, and it is still waiting on other things.',
+              t('Merging is paused, and it is still waiting on other things.'),
               null,
-              blockers.filter((b) => !/^merging is paused$/i.test(b))
+              blockers.filter(
+                (b) => b !== pausedText && !/^merging is paused$/i.test(b)
+              )
             );
+      }
       return blockers.length
-        ? step('info', `Waiting. ${blockers[0]}.`, null, rest)
-        : step('info', 'Waiting.');
+        ? step(
+            'info',
+            t('Waiting. {reason}.', { reason: blockers[0] }),
+            null,
+            rest
+          )
+        : step('info', t('Waiting.'));
     }
     case 'human_review': {
       const q = ctx.question;
       if (q)
         return step(
           'warn',
-          `${q.agent} asks${q.assignee ? ` ${q.assignee}` : ''}: ${q.text}`,
+          t('{agent} asks{assignee}: {question}', {
+            agent: q.agent,
+            assignee: q.assignee ? ` ${q.assignee}` : '',
+            question: q.text,
+          }),
           null,
           // The question already says what that agent waits on.
           blockers.filter((b) => !b.startsWith(`${q.agent} `))
         );
       return blockers.length
-        ? step('warn', `${blockers[0]}.`, null, rest)
-        : step('warn', 'Needs a person before it can merge.');
+        ? step('warn', t('{reason}.', { reason: blockers[0] }), null, rest)
+        : step('warn', t('Needs a person before it can merge.'));
     }
     case 'agent_followup':
       return step(
         'serious',
-        `Waiting for ${ctx.coder} to make changes.`,
-        blockers.length ? `${blockers[0]}.` : null,
+        t('Waiting for {coder} to make changes.', { coder: ctx.coder }),
+        blockers.length ? t('{reason}.', { reason: blockers[0] }) : null,
         rest
       );
   }

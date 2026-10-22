@@ -186,7 +186,8 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
       (await call(s.t, '/api/repos/octocat/secret/branches', { cookie: bob }))
         .status
     ).toBe(404);
-    expect((await call(s.t, `${BASE}/branches`)).status).toBe(401);
+    // Signed out, a repository that is not public does not exist (only public ones are readable).
+    expect((await call(s.t, `${BASE}/branches`)).status).toBe(404);
     expect((await call(s.t, `${BASE}/branches`, { cookie: bob })).status).toBe(
       200
     );
@@ -768,7 +769,8 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
       ).status
     ).toBe(404);
     expect((await map(s, '', bob)).status).toBe(200);
-    expect((await call(s.t, `${BASE}/branches/map`)).status).toBe(401);
+    // Signed out, a repository that is not public does not exist (only public ones are readable).
+    expect((await call(s.t, `${BASE}/branches/map`)).status).toBe(404);
   });
 });
 

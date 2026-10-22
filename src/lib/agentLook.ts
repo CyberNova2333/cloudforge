@@ -10,6 +10,7 @@
  * - 0.4 added press-and-hold squeezing and antenna dragging (on by default). They are playful, so `AgentAvatar`
  *   turns both off (`press-squeeze="false"`, `antenna-drag="false"`), which keeps the mockup's behaviour.
  */
+import { t } from './i18n';
 import { fnv1a } from './identicon';
 import type { ReviewerStatus } from './uiApi';
 
@@ -107,16 +108,16 @@ export type Tone = 'good' | 'warn' | 'serious' | 'critical' | 'info' | 'off';
 
 /** Words and tone for each state: chips always carry the label, so colour is never the only signal. */
 export const STATE_LOOK: Record<AgentState, { label: string; tone: Tone }> = {
-  clear: { label: 'Passed', tone: 'good' },
-  needs: { label: 'Needs a person', tone: 'warn' },
-  asked: { label: 'Changes requested', tone: 'serious' },
-  reviewing: { label: 'Checking', tone: 'info' },
-  running: { label: 'Working', tone: 'info' },
-  learned: { label: 'Rule saved', tone: 'good' },
-  skipped: { label: 'Not needed', tone: 'off' },
-  off: { label: 'Off for this project', tone: 'off' },
-  failed: { label: 'Review failed', tone: 'critical' },
-  idle: { label: 'Ready', tone: 'off' },
+  clear: { label: t('Passed'), tone: 'good' },
+  needs: { label: t('Needs a person'), tone: 'warn' },
+  asked: { label: t('Changes requested'), tone: 'serious' },
+  reviewing: { label: t('Checking'), tone: 'info' },
+  running: { label: t('Working'), tone: 'info' },
+  learned: { label: t('Rule saved'), tone: 'good' },
+  skipped: { label: t('Not needed'), tone: 'off' },
+  off: { label: t('Off for this project'), tone: 'off' },
+  failed: { label: t('Review failed'), tone: 'critical' },
+  idle: { label: t('Ready'), tone: 'off' },
 };
 
 /** What the avatar shows, named after the element's action or method (spec, "Agent avatar"). */

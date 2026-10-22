@@ -9,6 +9,7 @@ import {
 import { api, qk, type AgentStats, type Namespace } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { useCurrentUser } from '@/lib/auth';
+import { t, tn } from '@/lib/i18n';
 import { inviteChoices } from '@/lib/agentPage';
 import { InlineConfirm } from '@/components/InlineConfirm';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -70,7 +71,12 @@ export function WhereItReviews({
     },
     onSuccess: async (_r, fullName) => {
       await refresh(fullName);
-      toast(`Turned off ${agent.name} on ${fullName}`);
+      toast(
+        t('Turned off {name} on {repo}', {
+          name: agent.name,
+          repo: fullName,
+        })
+      );
     },
   });
   const add = useMutation({
@@ -81,7 +87,7 @@ export function WhereItReviews({
     onSuccess: async (_r, fullName) => {
       setChoice('');
       await refresh(fullName);
-      toast(`Added ${agent.name} to ${fullName}`);
+      toast(t('Added {name} to {repo}', { name: agent.name, repo: fullName }));
     },
   });
 
@@ -100,10 +106,10 @@ export function WhereItReviews({
 
   return (
     <Section
-      title="Where it reviews"
+      title={t('Where it reviews')}
       actions={
         <span className="muted small">
-          {rows.length === 1 ? '1 repository' : `${rows.length} repositories`}
+          {tn(rows.length, '{n} repository', '{n} repositories')}
         </span>
       }
     >
@@ -113,13 +119,15 @@ export function WhereItReviews({
             picture={<CrewIcon size={20} />}
             title={
               agent.deletedAt
-                ? 'It was removed from every repository'
-                : 'It is not on a repository you can see'
+                ? t('It was removed from every repository')
+                : t('It is not on a repository you can see')
             }
             body={
               agent.deletedAt
-                ? 'A deleted agent no longer reviews anything.'
-                : 'Add it to a repository below, or from that repository’s settings. Until then it reviews nothing.'
+                ? t('A deleted agent no longer reviews anything.')
+                : t(
+                    'Add it to a repository below, or from that repository’s settings. Until then it reviews nothing.'
+                  )
             }
           />
         ) : (
@@ -148,10 +156,13 @@ export function WhereItReviews({
                   </div>
                   {canTurnOff && (
                     <InlineConfirm
-                      label="Turn off"
-                      confirmLabel="Turn off"
-                      pendingLabel="Turning off…"
-                      accessibleName={`Turn off ${agent.name} on ${r.fullName}`}
+                      label={t('Turn off')}
+                      confirmLabel={t('Turn off')}
+                      pendingLabel={t('Turning off…')}
+                      accessibleName={t('Turn off {name} on {repo}', {
+                        name: agent.name,
+                        repo: r.fullName,
+                      })}
                       pending={turnOff.isPending && mine}
                       error={
                         turnOff.isError && mine
@@ -163,8 +174,10 @@ export function WhereItReviews({
                   )}
                   {canTurnOff && agent.guarded && (
                     <p className="ag-where-note muted">
-                      {agent.name} is a guarded reviewer. With it off, changes
-                      here can merge without its review.
+                      {t(
+                        '{name} is a guarded reviewer. With it off, changes here can merge without its review.',
+                        { name: agent.name }
+                      )}
                     </p>
                   )}
                 </li>
@@ -181,7 +194,7 @@ export function WhereItReviews({
             }}
           >
             <label className="sr" htmlFor="agent-add-repo">
-              Add {agent.name} to a repository
+              {t('Add {name} to a repository', { name: agent.name })}
             </label>
             <select
               id="agent-add-repo"
@@ -189,7 +202,7 @@ export function WhereItReviews({
               value={picked}
               onChange={(e) => setChoice(e.target.value)}
             >
-              <option value="">Add to a repository…</option>
+              <option value="">{t('Add to a repository…')}</option>
               {choices.map((r) => (
                 <option key={r.id} value={r.fullName}>
                   {r.fullName}
@@ -200,11 +213,11 @@ export function WhereItReviews({
               type="submit"
               className="small primary"
               pending={add.isPending}
-              pendingLabel="Adding…"
+              pendingLabel={t('Adding…')}
               disabled={!picked}
               error={add.isError ? errorMessage(add.error) : null}
             >
-              Add
+              {t('Add')}
             </PendingButton>
           </form>
         )}

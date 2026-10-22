@@ -7,6 +7,7 @@ import {
   auditCategory,
   type AuditCategory,
 } from '@/lib/auditText';
+import { t } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PendingButton } from '@/components/ui/PendingButton';
@@ -53,24 +54,29 @@ export default function AdminAudit() {
     <>
       <PageHead
         icon="shield"
-        crumbs={[{ label: 'Site admin', to: '/admin' }, { label: 'Audit log' }]}
-        title="Audit log"
-        lede="Who did what on this instance, newest first: merges, decisions, access, settings and what GitOrange did on its own. Entries are recorded as they happen and can’t be edited."
+        crumbs={[
+          { label: t('Site admin'), to: '/admin' },
+          { label: t('Audit log') },
+        ]}
+        title={t('Audit log')}
+        lede={t(
+          'Who did what on this instance, newest first: merges, decisions, access, settings and what GitOrange did on its own. Entries are recorded as they happen and can’t be edited.'
+        )}
         actions={
           <PendingButton
             className="small"
             pending={log.isRefetching && !log.isFetchingNextPage}
-            pendingLabel="Refreshing…"
+            pendingLabel={t('Refreshing…')}
             onClick={() => log.refetch()}
           >
-            <SyncIcon size={14} /> Refresh
+            <SyncIcon size={14} /> {t('Refresh')}
           </PendingButton>
         }
       />
       <AdminFrame>
-        <div className="filters" role="group" aria-label="Show">
+        <div className="filters" role="group" aria-label={t('Show')}>
           {(
-            [{ id: 'all', label: 'Everything' }, ...AUDIT_CATEGORIES] as {
+            [{ id: 'all', label: t('Everything') }, ...AUDIT_CATEGORIES] as {
               id: Filter;
               label: string;
             }[]
@@ -82,11 +88,11 @@ export default function AdminAudit() {
               aria-pressed={filter === f.id}
               onClick={() => setFilter(f.id)}
             >
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </div>
-        <section className="panel" aria-label="Audit events">
+        <section className="panel" aria-label={t('Audit events')}>
           {log.isPending ? (
             <div className="pad">
               <RowsSkeleton rows={6} />
@@ -94,7 +100,7 @@ export default function AdminAudit() {
           ) : log.isError && events.length === 0 ? (
             <div className="pad">
               <LoadError
-                what="the audit log"
+                what={t('the audit log')}
                 error={log.error}
                 onRetry={() => log.refetch()}
               />
@@ -102,17 +108,21 @@ export default function AdminAudit() {
           ) : events.length === 0 ? (
             <EmptyState
               picture={<HistoryIcon size={20} />}
-              title="Nothing has been recorded yet."
-              body="Merges, decisions, setting changes and access changes appear here as they happen."
+              title={t('Nothing has been recorded yet.')}
+              body={t(
+                'Merges, decisions, setting changes and access changes appear here as they happen.'
+              )}
             />
           ) : shown.length === 0 ? (
             <EmptyState
               picture={<HistoryIcon size={20} />}
-              title="None of the loaded events match."
+              title={t('None of the loaded events match.')}
               body={
                 more
-                  ? 'Load older events to look further back, or show everything.'
-                  : 'Show everything to see all of them.'
+                  ? t(
+                      'Load older events to look further back, or show everything.'
+                    )
+                  : t('Show everything to see all of them.')
               }
               action={
                 <button
@@ -120,7 +130,7 @@ export default function AdminAudit() {
                   className="btn small"
                   onClick={() => setFilter('all')}
                 >
-                  Show everything
+                  {t('Show everything')}
                 </button>
               }
             />
@@ -136,16 +146,16 @@ export default function AdminAudit() {
             <div className="aud-more">
               {log.isError && events.length > 0 && (
                 <span className="small attention">
-                  Could not load more events.
+                  {t('Could not load more events.')}
                 </span>
               )}
               <PendingButton
                 className="small"
                 pending={log.isFetchingNextPage}
-                pendingLabel="Loading…"
+                pendingLabel={t('Loading…')}
                 onClick={() => log.fetchNextPage()}
               >
-                Load older
+                {t('Load older')}
               </PendingButton>
             </div>
           )}

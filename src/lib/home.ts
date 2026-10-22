@@ -1,5 +1,6 @@
 import type { Tone } from './agentLook';
 import type { BoardRow } from './board';
+import { lang, t, tn } from './i18n';
 import type {
   ApprovalItem,
   AuditEvent,
@@ -43,14 +44,14 @@ export function decisionsOf(
     .map(({ d }) => d);
 }
 
-const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
-
-/** "a", "a and b", "a, b and c". */
+/** "a", "a and b", "a, b and c" (in Chinese "a、b 和 c"). */
 const joinAnd = (xs: string[]) =>
   xs.length < 2
     ? (xs[0] ?? '')
-    : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+    : t('{list} and {last}', {
+        list: xs.slice(0, -1).join(lang === 'zh' ? '、' : ', '),
+        last: xs[xs.length - 1],
+      });
 
 /** What is known about whether anything is broken, from the health of the repositories Home checked. */
 export type HealthState =
@@ -104,26 +105,38 @@ export function homeHeadline(input: {
   const { decisions, others, health } = input;
   if (health.kind === 'loading') return null;
   const parts = [
-    decisions > 0 && plural(decisions, 'decision'),
+    decisions > 0 && tn(decisions, '{n} decision', '{n} decisions'),
     others > 0 &&
-      (decisions > 0 ? plural(others, 'other item') : plural(others, 'item')),
+      (decisions > 0
+        ? tn(others, '{n} other item', '{n} other items')
+        : tn(others, '{n} item', '{n} items')),
   ].filter((p): p is string => !!p);
+  const things = joinAnd(parts);
   const needs = parts.length
-    ? `${joinAnd(parts)} ${decisions + others === 1 ? 'needs' : 'need'} you.`
-    : 'Nothing needs you.';
+    ? decisions + others === 1
+      ? t('{things} needs you.', { things })
+      : t('{things} need you.', { things })
+    : t('Nothing needs you.');
   switch (health.kind) {
     case 'unavailable':
       return needs;
     case 'failing':
-      return `Tests are failing on ${joinAnd(health.repos)}. ${needs}`;
+      return t('Tests are failing on {repos}. {needs}', {
+        repos: joinAnd(health.repos),
+        needs,
+      });
     case 'fine': {
-      const checked =
-        health.checked === 1
-          ? 'busiest repository'
-          : `${health.checked} busiest repositories`;
+      const checked = tn(
+        health.checked,
+        'busiest repository',
+        '{n} busiest repositories'
+      );
       return health.checked >= health.total
-        ? `Nothing is broken. ${needs}`
-        : `Nothing is broken in your ${checked}. ${needs}`;
+        ? t('Nothing is broken. {needs}', { needs })
+        : t('Nothing is broken in your {checked}. {needs}', {
+            checked,
+            needs,
+          });
     }
   }
 }
@@ -134,17 +147,32 @@ export function homeLede(input: {
   automatic: number;
 }): string {
   const { merged7d, automatic } = input;
-  if (merged7d === 0) return 'Nothing has merged in the last 7 days.';
-  const merged = `GitOrange merged ${plural(merged7d, 'change')} in the last 7 days`;
+  if (merged7d === 0) return t('Nothing has merged in the last 7 days.');
+  const changes = tn(merged7d, '{n} change', '{n} changes');
   if (automatic === merged7d)
     return merged7d === 1
-      ? `${merged}, and it needed no merge click.`
-      : `${merged}, and none needed a merge click.`;
-  return `${merged}; ${automatic} needed no merge click.`;
+      ? t(
+          'GitOrange merged {changes} in the last 7 days, and it needed no merge click.',
+          { changes }
+        )
+      : t(
+          'GitOrange merged {changes} in the last 7 days, and none needed a merge click.',
+          { changes }
+        );
+  return t(
+    'GitOrange merged {changes} in the last 7 days; {automatic} needed no merge click.',
+    { changes, automatic }
+  );
 }
 
-/** "Friday 9 October", in the reader's own day. */
+/** "Friday 9 October", in the reader's own day ("10月9日星期五" in Chinese). */
 export function dateEyebrow(now: Date): string {
+  if (lang === 'zh')
+    return new Intl.DateTimeFormat('zh-CN', {
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    }).format(now);
   const parts = new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -201,26 +229,31 @@ export function sinceLastWeek(reports: RepoHealth[]): GlanceLine[] {
   const same: GlanceLine[] = [];
   for (const { repo, report } of reports) {
     // "Security in a/one" when there are several repositories, else just "Security".
-    const named = (label: string) => (several ? `${label} in ${repo}` : label);
+    const named = (label: string) =>
+      several ? t('{area} in {repo}', { area: label, repo }) : label;
+    const line = (label: string, detail: string) =>
+      t('{area}: {detail}', { area: named(label), detail });
     const quiet: string[] = [];
     for (const a of report.areas) {
       if (a.trend === 'worse')
-        worse.push({ trend: 'worse', text: `${named(a.label)}: ${a.detail}` });
+        worse.push({ trend: 'worse', text: line(a.label, a.detail) });
       else if (a.trend === 'better')
-        better.push({
-          trend: 'better',
-          text: `${named(a.label)}: ${a.detail}`,
-        });
+        better.push({ trend: 'better', text: line(a.label, a.detail) });
       else if (a.open > 0)
-        same.push({ trend: 'same', text: `${named(a.label)}: ${a.status}` });
+        same.push({ trend: 'same', text: line(a.label, a.status) });
       else quiet.push(a.label);
     }
     if (quiet.length)
       same.push({
         trend: 'same',
         text: several
-          ? `${plural(quiet.length, 'area')} in ${repo} unchanged`
-          : `No change in ${joinAnd(quiet)}`,
+          ? tn(
+              quiet.length,
+              '{n} area in {repo} unchanged',
+              '{n} areas in {repo} unchanged',
+              { repo }
+            )
+          : t('No change in {areas}', { areas: joinAnd(quiet) }),
       });
   }
   return [...worse, ...better, ...same];
@@ -232,18 +265,28 @@ export function repoVerdict(report: HealthReport): {
   label: string;
 } {
   if (report.areas.some((a) => a.id === 'tests' && a.open > 0))
-    return { tone: 'critical', label: 'Tests are failing on main' };
+    return { tone: 'critical', label: t('Tests are failing on main') };
   if (report.decisionsWaiting > 0)
     return {
       tone: 'warn',
-      label: `${plural(report.decisionsWaiting, 'decision')} for you`,
+      label: tn(
+        report.decisionsWaiting,
+        '{n} decision for you',
+        '{n} decisions for you'
+      ),
     };
   const worse = report.areas.filter((a) => a.trend === 'worse');
   if (worse.length === 1)
-    return { tone: 'serious', label: `${worse[0].label} got worse` };
+    return {
+      tone: 'serious',
+      label: t('{area} got worse', { area: worse[0].label }),
+    };
   if (worse.length > 1)
-    return { tone: 'serious', label: `${worse.length} areas got worse` };
-  return { tone: 'good', label: 'Healthy' };
+    return {
+      tone: 'serious',
+      label: t('{n} areas got worse', { n: worse.length }),
+    };
+  return { tone: 'good', label: t('Healthy') };
 }
 
 /** Pull request timeline entries worth a line in the feed; the rest (state changes, stacking) is noise on Home. */

@@ -58,23 +58,18 @@ export async function handleLfsRequest(
   const url = new URL(request.url);
   const [, owner, name, endpoint] = url.pathname.match(LFS_PATH)!;
 
-  const access = await authenticateRepoRequest(request, env, ctx, owner, name);
+  // Downloads from a public repository need no token; anything that writes asks for one below.
+  const access = await authenticateRepoRequest(request, env, ctx, owner, name, {
+    anonymousRead: true,
+  });
   if (access instanceof Response) {
     // Keep the auth challenge header for the credential helper.
     return access.status === 401
-      ? lfsJson(
-          {
-            message:
-              'Credentials needed. Use a personal access token as the password.',
-          },
-          401,
-          {
-            'WWW-Authenticate':
-              access.headers.get('WWW-Authenticate') ?? 'Basic',
-          }
-        )
+      ? credentialsNeeded(access.headers.get('WWW-Authenticate'))
       : lfsError(404, 'Repository not found');
   }
+  if (!access.user && (await writes(request, endpoint)))
+    return credentialsNeeded(null);
 
   if (endpoint.startsWith('locks'))
     return handleLocks(request, endpoint, access);
@@ -82,6 +77,30 @@ export async function handleLfsRequest(
   if (!lfsConfigured(env)) return lfsError(501, LFS_NOT_CONFIGURED);
   if (endpoint === 'objects/verify') return handleVerify(request, env, access);
   return handleBatch(request, env, access, url);
+}
+
+/** 401 with the challenge the credential helper answers. */
+function credentialsNeeded(challenge: string | null) {
+  return lfsJson(
+    {
+      message:
+        'Credentials needed. Use a personal access token as the password.',
+    },
+    401,
+    { 'WWW-Authenticate': challenge ?? 'Basic' }
+  );
+}
+
+/**
+ * Whether the request needs push access: an upload batch, verify, or a lock call (git-lfs checks
+ * locks before every push). Peeks at a clone of the body, so the handlers can still read it.
+ */
+async function writes(request: Request, endpoint: string) {
+  if (endpoint === 'objects/verify' || endpoint.startsWith('locks'))
+    return request.method === 'POST';
+  if (endpoint !== 'objects/batch') return false;
+  const body = await readJson<{ operation?: string }>(request.clone());
+  return body?.operation !== 'download';
 }
 
 async function handleBatch(
@@ -146,7 +165,7 @@ async function handleBatch(
         oid: o.oid,
         size: o.size,
         r2Key: key,
-        uploadedById: user.id,
+        uploadedById: user?.id ?? null,
         createdAt: new Date(),
       })
       .onConflictDoNothing();
@@ -246,7 +265,7 @@ async function handleVerify(
       oid: o.oid,
       size: o.size,
       r2Key: key,
-      uploadedById: access.user.id,
+      uploadedById: access.user?.id ?? null,
       createdAt: new Date(),
     })
     .onConflictDoNothing();

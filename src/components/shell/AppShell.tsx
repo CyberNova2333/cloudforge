@@ -24,6 +24,7 @@ import {
 import { Rail } from './Rail';
 import { TopBand } from './TopBand';
 import { useMediaQuery } from './useMediaQuery';
+import { t } from '@/lib/i18n';
 
 /** Which menu hanging off the chrome is open: one at a time. */
 export type ShellMenu = 'org' | 'create' | 'acct' | 'search' | null;
@@ -277,7 +278,7 @@ export function AppShell() {
         data-chrome={chrome}
       >
         <a className="skip-link" href="#main" onClick={skipToContent}>
-          Skip to content
+          {t('Skip to content')}
         </a>
         <Rail
           pinned={pinned}

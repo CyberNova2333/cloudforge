@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CopyIcon, CheckIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 
 /**
  * Copies `text` and shows a check for 1.5 seconds. With `children` it carries a visible label ("Copy") that
@@ -8,7 +9,7 @@ import { CopyIcon, CheckIcon } from '@primer/octicons-react';
 export function CopyButton({
   text,
   className = 'btn btn-sm',
-  label = 'Copy to clipboard',
+  label = t('Copy to clipboard'),
   children,
 }: {
   text: string;
@@ -38,7 +39,7 @@ export function CopyButton({
       }}
     >
       {done ? <CheckIcon className="color-fg-success" /> : <CopyIcon />}
-      {children ? (done ? 'Copied' : children) : null}
+      {children ? (done ? t('Copied') : children) : null}
     </button>
   );
 }

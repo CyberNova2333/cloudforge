@@ -3,6 +3,8 @@ import { useTheme } from '@/components/ThemeProvider';
 import { usePageHead } from '@/components/ui/PageHead';
 import { Notice } from '@/components/Notice';
 import { RowsSkeleton } from '@/components/SetFrame';
+import { lang, setLang } from '@/lib/i18n';
+import { LANGUAGES } from '@/components/shell/AccountMenu';
 
 /** The brand mark and name that open every page without the shell. */
 function Brand() {
@@ -11,6 +13,23 @@ function Brand() {
       <img src="/logo.png" width={32} height={32} alt="" />
       <span className="brand-wordmark">GitOrange</span>
     </div>
+  );
+}
+
+/** Switches to the other language: signed-out pages have no account menu to do it from. */
+function LanguageLink() {
+  const other = LANGUAGES.find((l) => l.value !== lang)!;
+  return (
+    <p className="auth-foot plain">
+      <button
+        type="button"
+        className="btn-link"
+        lang={other.value === 'zh' ? 'zh-CN' : 'en'}
+        onClick={() => setLang(other.value)}
+      >
+        {other.label}
+      </button>
+    </p>
   );
 }
 
@@ -44,6 +63,7 @@ export function AuthShell({
         <h1 className="auth-title">{title}</h1>
         {lede && <p className="auth-lede">{lede}</p>}
         {children}
+        <LanguageLink />
       </main>
     </div>
   );

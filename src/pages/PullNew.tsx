@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useOutletContext,
+} from 'react-router-dom';
+import { useSignInHref } from '@/lib/signIn';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftIcon,
@@ -17,9 +23,10 @@ import {
   type RepoDetail,
   type VersionBump,
 } from '@/lib/uiApi';
-import { BUMPS, parseBump } from '@/lib/versionBump';
+import { BUMPS, BUMP_OPTION, parseBump } from '@/lib/versionBump';
 import { useCurrentUser } from '@/lib/auth';
 import { errorMessage } from '@/lib/api';
+import { t, tx } from '@/lib/i18n';
 import {
   comparison,
   compareHref,
@@ -43,12 +50,12 @@ function FileSummary({ files }: { files: FileDiff[] }) {
   return (
     <div className="table-wrap file-summary">
       <table className="table">
-        <caption className="sr">Changed files</caption>
+        <caption className="sr">{t('Changed files')}</caption>
         <thead>
           <tr>
-            <th scope="col">File</th>
-            <th scope="col">Added</th>
-            <th scope="col">Removed</th>
+            <th scope="col">{t('File')}</th>
+            <th scope="col">{t('Added')}</th>
+            <th scope="col">{t('Removed')}</th>
           </tr>
         </thead>
         <tbody>
@@ -71,8 +78,14 @@ function FileSummary({ files }: { files: FileDiff[] }) {
   );
 }
 
-/** Compare two branches and, with write access, open a pull request from the comparison. */
+/** Compare two branches and, with write access, open a pull request from the comparison. Members only. */
 export default function PullNew() {
+  const signedIn = !!useCurrentUser();
+  const signIn = useSignInHref();
+  return signedIn ? <CompareBranches /> : <Navigate to={signIn} replace />;
+}
+
+function CompareBranches() {
   const repo = useOutletContext<RepoDetail>();
   const user = useCurrentUser()!;
   const navigate = useNavigate();
@@ -123,10 +136,10 @@ export default function PullNew() {
   usePageHead({
     icon: 'pull',
     crumbs: [
-      { label: 'Pull requests', to: `${base}/pulls` },
-      { label: 'New pull request' },
+      { label: t('Pull requests'), to: `${base}/pulls` },
+      { label: t('New pull request') },
     ],
-    title: 'New pull request',
+    title: t('New pull request'),
     tab: 'pulls',
   });
 
@@ -136,12 +149,16 @@ export default function PullNew() {
         <div className="phead-row">
           <div className="phead-main">
             <h2 className="ph-title">
-              {showForm ? 'Open a pull request' : 'Comparing changes'}
+              {showForm ? t('Open a pull request') : t('Comparing changes')}
             </h2>
             <p className="lede">
               {showForm
-                ? 'Create a new pull request by comparing changes across two branches.'
-                : 'Choose two branches to see what’s changed or to start a new pull request.'}
+                ? t(
+                    'Create a new pull request by comparing changes across two branches.'
+                  )
+                : t(
+                    'Choose two branches to see what’s changed or to start a new pull request.'
+                  )}
             </p>
           </div>
         </div>
@@ -151,17 +168,17 @@ export default function PullNew() {
         <BranchSelect
           branches={repo.branches}
           current={from}
-          label="base:"
+          label={t('base:')}
           defaultBranch={repo.defaultBranch}
           onSelect={(b) => go(b, head)}
         />
         <span className="cmp-arrow muted">
-          <ArrowLeftIcon aria-label="compared with" />
+          <ArrowLeftIcon aria-label={t('compared with')} />
         </span>
         <BranchSelect
           branches={repo.branches}
-          current={head || 'choose…'}
-          label="compare:"
+          current={head || t('choose…')}
+          label={t('compare:')}
           defaultBranch={repo.defaultBranch}
           onSelect={(h) => go(from, h)}
         />
@@ -170,19 +187,19 @@ export default function PullNew() {
             {view.canRebase ? (
               <>
                 <Chip tone="good" icon={<CheckIcon size={13} />}>
-                  Able to merge
+                  {t('Able to merge')}
                 </Chip>
                 <span className="muted small">
-                  This branch can be rebased onto the base cleanly.
+                  {t('This branch can be rebased onto the base cleanly.')}
                 </span>
               </>
             ) : (
               <>
                 <Chip tone="critical" icon={<XIcon size={13} />}>
-                  Can’t rebase automatically
+                  {t('Can’t rebase automatically')}
                 </Chip>
                 <span className="muted small">
-                  Don’t worry, you can still create the pull request.
+                  {t('Don’t worry, you can still create the pull request.')}
                 </span>
               </>
             )}
@@ -194,13 +211,11 @@ export default function PullNew() {
         <div className="panel">
           <EmptyState
             picture={<GitBranchIcon size={24} />}
-            title="Compare changes"
-            body={
-              <>
-                Compare changes across branches. Pick a branch to compare
-                against <strong>{from}</strong>.
-              </>
-            }
+            title={t('Compare changes')}
+            body={tx(
+              'Compare changes across branches. Pick a branch to compare against {branch}.',
+              { branch: <strong>{from}</strong> }
+            )}
           />
           {others.length ? (
             <div className="cmp-picks">
@@ -217,7 +232,7 @@ export default function PullNew() {
             </div>
           ) : (
             <p className="cmp-picks muted small">
-              There are no other branches yet.
+              {t('There are no other branches yet.')}
             </p>
           )}
         </div>
@@ -226,7 +241,7 @@ export default function PullNew() {
           <QueryError
             error={cmp.error}
             onRetry={() => void cmp.refetch()}
-            title="This comparison did not load"
+            title={t('This comparison did not load')}
           />
         </div>
       ) : cmp.isPending ? (
@@ -234,7 +249,7 @@ export default function PullNew() {
           className="cmp-wait"
           role="status"
           aria-busy="true"
-          aria-label="Loading the comparison"
+          aria-label={t('Loading the comparison')}
         >
           <div className="sk sk-block short" />
           <div className="sk sk-row tall" />
@@ -244,13 +259,11 @@ export default function PullNew() {
         <div className="panel">
           <EmptyState
             picture={<GitCommitIcon size={24} />}
-            title="There isn’t anything to compare."
-            body={
-              <>
-                <strong>{from}</strong> is up to date with all commits from{' '}
-                <strong>{head}</strong>.
-              </>
-            }
+            title={t('There isn’t anything to compare.')}
+            body={tx('{from} is up to date with all commits from {head}.', {
+              from: <strong>{from}</strong>,
+              head: <strong>{head}</strong>,
+            })}
           />
         </div>
       ) : (
@@ -258,7 +271,9 @@ export default function PullNew() {
           {!showForm ? (
             <div className="panel cmp-open">
               <p>
-                Discuss and review the changes in this comparison with others.
+                {t(
+                  'Discuss and review the changes in this comparison with others.'
+                )}
               </p>
               {repo.permissions.write ? (
                 <button
@@ -269,11 +284,11 @@ export default function PullNew() {
                     if (!title) setTitle(prefillTitle(cmp.data!.commits, head));
                   }}
                 >
-                  Create pull request
+                  {t('Create pull request')}
                 </button>
               ) : (
                 <span className="muted small">
-                  You need write access to open a pull request.
+                  {t('You need write access to open a pull request.')}
                 </span>
               )}
             </div>
@@ -298,29 +313,29 @@ export default function PullNew() {
                   </p>
                 )}
                 <div className="fld">
-                  <label htmlFor="pr-title">Add a title</label>
+                  <label htmlFor="pr-title">{t('Add a title')}</label>
                   <input
                     id="pr-title"
                     className="form-control input-lg"
                     autoFocus
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Title"
+                    placeholder={t('Title')}
                   />
                 </div>
                 <div className="fld">
                   <span className="lbl" id="pr-body-label">
-                    Add a description
+                    {t('Add a description')}
                   </span>
                   <MarkdownEditor
                     value={body}
                     onChange={setBody}
-                    placeholder="Add your description here..."
+                    placeholder={t('Add your description here...')}
                     minHeight={200}
                   />
                 </div>
                 <div className="fld">
-                  <label htmlFor="pr-bump">Version bump</label>
+                  <label htmlFor="pr-bump">{t('Version bump')}</label>
                   <select
                     id="pr-bump"
                     className="form-select"
@@ -328,16 +343,17 @@ export default function PullNew() {
                     onChange={(e) => setBump(parseBump(e.target.value))}
                     aria-describedby="pr-bump-hint"
                   >
-                    <option value="">None (counts as patch)</option>
+                    <option value="">{t('None (counts as patch)')}</option>
                     {BUMPS.map((b) => (
                       <option key={b} value={b}>
-                        {b[0].toUpperCase() + b.slice(1)}
+                        {BUMP_OPTION[b]}
                       </option>
                     ))}
                   </select>
                   <span id="pr-bump-hint" className="hint">
-                    What this change does to the next release’s version once it
-                    lands. Nothing changes until someone cuts a release.
+                    {t(
+                      'What this change does to the next release’s version once it lands. Nothing changes until someone cuts a release.'
+                    )}
                   </span>
                 </div>
                 <div className="cmp-actions">
@@ -345,10 +361,10 @@ export default function PullNew() {
                     type="submit"
                     className="primary"
                     pending={busy}
-                    pendingLabel="Creating…"
+                    pendingLabel={t('Creating…')}
                     disabled={!title.trim()}
                   >
-                    Create pull request
+                    {t('Create pull request')}
                   </PendingButton>
                 </div>
               </div>
@@ -358,13 +374,23 @@ export default function PullNew() {
           <div className="panel cmp-stats">
             <span>
               <GitCommitIcon size={16} />{' '}
-              <strong>{cmp.data!.commits.length}</strong> commit
-              {cmp.data!.commits.length === 1 ? '' : 's'}
+              {cmp.data!.commits.length === 1
+                ? tx('{n} commit', {
+                    n: <strong>{cmp.data!.commits.length}</strong>,
+                  })
+                : tx('{n} commits', {
+                    n: <strong>{cmp.data!.commits.length}</strong>,
+                  })}
             </span>
             <span>
               <FileDiffIcon size={16} />{' '}
-              <strong>{cmp.data!.files.length}</strong> file
-              {cmp.data!.files.length === 1 ? '' : 's'} changed
+              {cmp.data!.files.length === 1
+                ? tx('{n} file changed', {
+                    n: <strong>{cmp.data!.files.length}</strong>,
+                  })
+                : tx('{n} files changed', {
+                    n: <strong>{cmp.data!.files.length}</strong>,
+                  })}
             </span>
             <DiffTotals files={cmp.data!.files} />
           </div>
@@ -375,7 +401,7 @@ export default function PullNew() {
             repo={repo}
           />
 
-          <Section title="Files changed">
+          <Section title={t('Files changed')}>
             {cmp.data!.files.length > 1 && (
               <FileSummary files={cmp.data!.files} />
             )}
@@ -384,7 +410,7 @@ export default function PullNew() {
         </>
       )}
       <p className="small muted">
-        <Link to={`${base}/pulls`}>Back to pull requests</Link>
+        <Link to={`${base}/pulls`}>{t('Back to pull requests')}</Link>
       </p>
     </div>
   );

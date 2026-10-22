@@ -138,8 +138,8 @@ export interface RepoPermissions {
 }
 
 /**
- * Admins and owner/creator: everything. Collaborators: read and push. Others: read team and
- * internal repos only. Must agree with `visibleTo`.
+ * Admins and owner/creator: everything. Collaborators: read and push. Other members: read team,
+ * internal and public repos only. No account: read public repos only. Must agree with `visibleTo`.
  */
 export async function permissionsFor(
   db: DrizzleDB,
@@ -210,24 +210,33 @@ function permissionsOf(
   user: SessionUser | undefined,
   collaborator: boolean
 ): RepoPermissions {
-  if (!user || user.banned) return { read: false, write: false, admin: false };
+  if (!user || user.banned)
+    return { read: isPublic(repo), write: false, admin: false };
   if (!needsCollaboration(repo, user))
     return { read: true, write: true, admin: true };
   if (collaborator) return { read: true, write: true, admin: false };
   return { read: readableByMembers(repo), write: false, admin: false };
 }
 
-/** Whether every member can read `repo`: team repositories and internal ones (not a private personal one). */
+/** Whether anyone, signed in or not, can read `repo`. */
+export const isPublic = (repo: Pick<Repository, 'visibility'>) =>
+  repo.visibility === 'public';
+
+/** Whether every member can read `repo`: team, internal and public repositories (not a private personal one). */
 export const readableByMembers = (
   repo: Pick<Repository, 'teamId' | 'visibility'>
-) => repo.teamId !== null || repo.visibility === 'internal';
+) =>
+  repo.teamId !== null ||
+  repo.visibility === 'internal' ||
+  repo.visibility === 'public';
 
-/** SQL filter for listings; mirrors permissionsFor's read rule. */
-export function visibleTo(user: SessionUser): SQL | undefined {
+/** SQL filter for listings; mirrors permissionsFor's read rule. No user: public repositories only. */
+export function visibleTo(user: SessionUser | undefined): SQL | undefined {
+  if (!user || user.banned) return eq(repositories.visibility, 'public');
   if (user.role === 'admin') return undefined;
   return or(
     isNotNull(repositories.teamId),
-    eq(repositories.visibility, 'internal'),
+    inArray(repositories.visibility, ['internal', 'public']),
     eq(repositories.ownerId, user.id),
     sql`${repositories.id} IN (SELECT repository_id FROM repository_collaborators WHERE user_id = ${user.id})`
   );

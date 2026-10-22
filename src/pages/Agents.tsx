@@ -3,6 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { PlusIcon, ShieldIcon } from '@primer/octicons-react';
 import { api, qk, type Agent, type AgentStats } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
+import { t } from '@/lib/i18n';
 import { agentColor } from '@/lib/agentLook';
 import {
   avatarStatusOf,
@@ -28,7 +29,7 @@ function CardsSkeleton({ cards = 3 }: { cards?: number }) {
       className="sk-grid"
       role="status"
       aria-busy="true"
-      aria-label="Loading"
+      aria-label={t('Loading')}
     >
       {Array.from({ length: cards }, (_, i) => (
         <div key={i} className="sk sk-card" />
@@ -95,21 +96,23 @@ export default function Agents() {
         color={a.color}
         name={a.name}
         subtitle={`@${a.username}`}
-        bio={a.bio || 'No description yet.'}
+        bio={a.bio || t('No description yet.')}
         status={status}
         stats={cardStats(s)}
         foot={
           <>
             <Chip status={status}>
-              {status === 'off' ? 'Not on a repository' : undefined}
+              {status === 'off' ? t('Not on a repository') : undefined}
             </Chip>
             {a.guarded && (
               <Chip
                 tone="warn"
                 icon={<ShieldIcon size={12} />}
-                title="Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason"
+                title={t(
+                  'Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason'
+                )}
               >
-                Guarded
+                {t('Guarded')}
               </Chip>
             )}
             <span className="muted small">{whereText(s)}</span>
@@ -123,41 +126,45 @@ export default function Agents() {
     <div className={`ag-page ${entering}`}>
       <PageHead
         icon="crew"
-        crumbs={[{ label: 'Agents' }]}
-        title="Agents"
-        lede="Each agent is an account with its own profile and its own repository of instructions. Reviewers check every change for one area; built-in agents keep changes moving."
+        crumbs={[{ label: t('Agents') }]}
+        title={t('Agents')}
+        lede={t(
+          'Each agent is an account with its own profile and its own repository of instructions. Reviewers check every change for one area; built-in agents keep changes moving.'
+        )}
         actions={
           admin ? (
             <>
               <Link className="btn" to="/admin/agents">
-                Manage agents
+                {t('Manage agents')}
               </Link>
               <Link className="btn primary" to="/agents/new">
                 <PlusIcon />
-                New reviewer
+                {t('New reviewer')}
               </Link>
             </>
           ) : (
             <Link className="btn" to="/agents/new">
-              Who can add reviewers
+              {t('Who can add reviewers')}
             </Link>
           )
         }
       />
 
       <Section
-        title="Reviewing your code"
+        title={t('Reviewing your code')}
         actions={
           ready && (
             <span className="muted small">
-              {groups.reviewing.length} on repositories you can see
+              {t('{n} on repositories you can see', {
+                n: groups.reviewing.length,
+              })}
             </span>
           )
         }
       >
         {agents.isError ? (
           <LoadError
-            what="the agents"
+            what={t('the agents')}
             error={agents.error}
             onRetry={() => void agents.refetch()}
           />
@@ -167,16 +174,20 @@ export default function Agents() {
           <div className="panel">
             <EmptyState
               picture={<CrewIcon size={20} />}
-              title="No reviewer is on a repository you can see"
+              title={t('No reviewer is on a repository you can see')}
               body={
                 admin
-                  ? 'Add the recommended crew, then invite each reviewer to a repository from its profile or from the repository’s settings.'
-                  : 'A reviewer starts once it is invited to a repository. Ask a site admin or the repository’s owner.'
+                  ? t(
+                      'Add the recommended crew, then invite each reviewer to a repository from its profile or from the repository’s settings.'
+                    )
+                  : t(
+                      'A reviewer starts once it is invited to a repository. Ask a site admin or the repository’s owner.'
+                    )
               }
               action={
                 admin ? (
                   <Link className="btn small primary" to="/agents/new">
-                    New reviewer
+                    {t('New reviewer')}
                   </Link>
                 ) : undefined
               }
@@ -187,10 +198,10 @@ export default function Agents() {
         )}
       </Section>
 
-      <Section title="Built in">
+      <Section title={t('Built in')}>
         {builtin.isError ? (
           <LoadError
-            what="the built-in agents"
+            what={t('the built-in agents')}
             error={builtin.error}
             onRetry={() => void builtin.refetch()}
           />
@@ -205,16 +216,16 @@ export default function Agents() {
                 handle={b.id}
                 color={agentColor(b.id)}
                 name={b.name}
-                subtitle="Built in"
+                subtitle={t('Built in')}
                 bio={b.job}
                 status="idle"
                 stats={b.stats.map((s) => ({ value: s.value, label: s.label }))}
                 foot={
                   <>
                     <Chip tone="info" icon={<CrewIcon size={12} />}>
-                      Built in
+                      {t('Built in')}
                     </Chip>
-                    <span className="muted small">Every repository</span>
+                    <span className="muted small">{t('Every repository')}</span>
                   </>
                 }
               />
@@ -225,24 +236,26 @@ export default function Agents() {
 
       {showAvailable && (
         <Section
-          title="Available"
+          title={t('Available')}
           actions={
             <span className="muted small">
               {admin
-                ? 'Open one to add it to a repository, or create the ones that are missing'
-                : 'Reviewers a site admin can add'}
+                ? t(
+                    'Open one to add it to a repository, or create the ones that are missing'
+                  )
+                : t('Reviewers a site admin can add')}
             </span>
           }
         >
           {presets.isError ? (
             <LoadError
-              what="the reviewer presets"
+              what={t('the reviewer presets')}
               error={presets.error}
               onRetry={() => void presets.refetch()}
             />
           ) : agents.isError ? (
             <LoadError
-              what="the agents"
+              what={t('the agents')}
               error={agents.error}
               onRetry={() => void agents.refetch()}
             />
@@ -263,16 +276,16 @@ export default function Agents() {
                   status="off"
                   foot={
                     <>
-                      <Chip status="off">Not created yet</Chip>
+                      <Chip status="off">{t('Not created yet')}</Chip>
                       {p.guarded && (
                         <Chip tone="warn" icon={<ShieldIcon size={12} />}>
-                          Guarded
+                          {t('Guarded')}
                         </Chip>
                       )}
                       <span className="muted small">
                         {admin
-                          ? 'Create it from New reviewer'
-                          : 'Ask a site admin to create it'}
+                          ? t('Create it from New reviewer')
+                          : t('Ask a site admin to create it')}
                       </span>
                     </>
                   }

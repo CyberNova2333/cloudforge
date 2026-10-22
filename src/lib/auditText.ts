@@ -1,4 +1,5 @@
 import type { AuditEvent } from './uiApi';
+import { lang, t, tn } from './i18n';
 import { reasonText } from './pullState';
 
 // The audit log in words: every event as one sentence ("mahmoud paused merging on choyiny/gitorange"), a second
@@ -68,14 +69,29 @@ const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const clip = (s: string, max = 200) =>
   s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 
-/** "a", "a and b", "a, b and c". */
+/** "a", "a and b", "a, b and c" (Chinese: "a、b和c"). */
 const list = (xs: string[]) =>
   xs.length < 2
     ? (xs[0] ?? '')
-    : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+    : lang === 'zh'
+      ? `${xs.slice(0, -1).join('、')}和${xs[xs.length - 1]}`
+      : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
 
 const possessive = (name: string) =>
-  /s$/i.test(name) ? `${name}'` : `${name}'s`;
+  lang === 'zh' ? `${name} 的` : /s$/i.test(name) ? `${name}'` : `${name}'s`;
+
+/** Between the facts of a detail line: ". " (Chinese "。"). */
+const SENTENCE_SEP = lang === 'zh' ? '。' : '. ';
+/** Between reasons: "; " (Chinese "；"). */
+const LIST_SEP = lang === 'zh' ? '；' : '; ';
+
+const VISIBILITY_WORD: Record<string, string> = {
+  private: t('private'),
+  internal: t('internal'),
+  public: t('public'),
+};
+
+const visibilityWord = (v: string) => VISIBILITY_WORD[v] ?? v;
 
 const ACRONYMS: Record<string, string> = { ai: 'AI', id: 'ID', url: 'URL' };
 
@@ -117,18 +133,37 @@ export function actorName(
     case 'ai':
       return 'GitOrange AI';
     case 'system':
-      return 'System';
+      // Not t('System'): the theme menu uses that key for "follow the system" (跟随系统).
+      return lang === 'zh' ? '系统' : 'System';
     case 'agent':
       return actor.login
         ? agentLabel(actor.login, names)
-        : actor.name || 'A reviewer agent';
+        : actor.name || t('A reviewer agent');
     default:
-      return actor.login || actor.name || 'A former member';
+      return actor.login || actor.name || t('A former member');
   }
 }
 
+type Piece = string | AuditPart | null | false | undefined;
+
+/**
+ * A translated sentence template (from `t()`) as pieces for `build`: each `{name}` becomes `vars[name]`, which may
+ * be a linkable part, so a translation can move the links where its language puts them.
+ */
+function parts(template: string, vars: Record<string, Piece>): Piece[] {
+  const out: Piece[] = [];
+  let last = 0;
+  for (const m of template.matchAll(/\{(\w+)\}/g)) {
+    if (!(m[1] in vars)) continue;
+    out.push(template.slice(last, m.index), vars[m[1]]);
+    last = m.index + m[0].length;
+  }
+  out.push(template.slice(last));
+  return out;
+}
+
 /** Joins strings and parts into parts, merging neighbouring text and dropping what is empty. */
-function build(...xs: (string | AuditPart | null | false | undefined)[]) {
+function build(...xs: Piece[]) {
   const out: AuditPart[] = [];
   for (const x of xs) {
     if (!x) continue;
@@ -142,25 +177,25 @@ function build(...xs: (string | AuditPart | null | false | undefined)[]) {
 }
 
 const STATE_PHRASE: Record<string, string> = {
-  agent_followup: 'waiting on an agent',
-  human_review: 'waiting on a person',
-  waiting: 'waiting for checks',
-  ready: 'ready to merge',
+  agent_followup: t('waiting on an agent'),
+  human_review: t('waiting on a person'),
+  waiting: t('waiting for checks'),
+  ready: t('ready to merge'),
 };
 
 const SETTING_LABEL: Record<string, string> = {
-  name: 'the name',
-  description: 'the description',
-  defaultBranch: 'the default branch',
-  protectedBranches: 'the protected branches',
-  deleteMergedBranches: 'automatic branch clean-up',
+  name: t('the name'),
+  description: t('the description'),
+  defaultBranch: t('the default branch'),
+  protectedBranches: t('the protected branches'),
+  deleteMergedBranches: t('automatic branch clean-up'),
 };
 const SETTING_DETAIL: Record<string, string> = {
-  name: 'Name',
-  description: 'Description',
-  defaultBranch: 'Default branch',
-  protectedBranches: 'Protected branches',
-  deleteMergedBranches: 'Automatic branch clean-up',
+  name: t('Name'),
+  description: t('Description'),
+  defaultBranch: t('Default branch'),
+  protectedBranches: t('Protected branches'),
+  deleteMergedBranches: t('Automatic branch clean-up'),
 };
 
 /** The pieces of one event's sentence, so a page can link the repository and the pull request. */
@@ -179,11 +214,14 @@ export function auditParts(
   /** " on owner/name": the repository the event was in, when the log is not that repository's own. */
   const tail = (prep: 'on' | 'in' | 'of') => {
     const r = here ? repoPart() : null;
-    return r ? [` ${prep} `, r] : [];
+    if (!r) return [];
+    const word =
+      prep === 'on' ? t(' on ') : prep === 'in' ? t(' in ') : t(' of ');
+    return [word, r];
   };
   /** The repository as the object of the sentence: a link, or "this repository" in its own log. */
   const repoObject = (): string | AuditPart =>
-    here ? (repoPart() ?? e.target) : 'this repository';
+    here ? (repoPart() ?? e.target) : t('this repository');
   /** A pull request: "#74" in its repository's log, "owner/name#74" instance-wide. */
   const pull = (n: number | null = e.pull): AuditPart | null =>
     n === null
@@ -195,21 +233,24 @@ export function auditParts(
         };
   const on = (n: number | null = e.pull) => {
     const p = pull(n);
-    return p ? [' on ', p] : [];
+    return p ? [t(' on '), p] : [];
   };
   const agent = str(d.agent);
   const agentName = agent ? agentLabel(agent, names) : null;
   const findingOf = (kind: unknown) =>
-    str(kind) === 'change_requested' ? 'change request' : 'finding';
+    str(kind) === 'change_requested' ? t('change request') : t('finding');
   /** "Speed's finding", or "a finding" when it names no agent. */
   const finding = () =>
     agentName
       ? `${possessive(agentName)} ${findingOf(d.kind)}`
-      : `a ${findingOf(d.kind)}`;
+      : t('a {finding}', { finding: findingOf(d.kind) });
   /** " via Claude Code": the app a person acted through (GitOrange AI is already the actor). */
-  const via = () => (e.via && e.actor.kind !== 'ai' ? ` via ${e.via}` : '');
+  const via = () =>
+    e.via && e.actor.kind !== 'ai' ? t(' via {app}', { app: e.via }) : '';
   const forPerson = () =>
-    e.actor.kind === 'ai' && e.actor.login ? ` for ${e.actor.login}` : '';
+    e.actor.kind === 'ai' && e.actor.login
+      ? t(' for {person}', { person: e.actor.login })
+      : '';
 
   const say = (...xs: (string | AuditPart | null | false | undefined)[]) =>
     build(who, ...xs);
@@ -223,8 +264,8 @@ export function auditParts(
           )
         : [];
       return say(
-        ' changed ',
-        labels.length ? list(labels) : 'settings',
+        t(' changed '),
+        labels.length ? list(labels) : t('settings'),
         ...tail('on'),
         via()
       );
@@ -232,48 +273,68 @@ export function auditParts(
     case 'visibility.changed': {
       const to = str(d.to);
       return to
-        ? say(' made ', repoObject(), ` ${to}`, via())
-        : say(' changed the visibility of ', repoObject(), via());
+        ? say(t(' made '), repoObject(), ' ', visibilityWord(to), via())
+        : say(t(' changed the visibility of '), repoObject(), via());
     }
     case 'collaborator.added':
-      return say(` added ${e.target} as a collaborator`, ...tail('on'), via());
+      return say(
+        t(' added '),
+        e.target,
+        t(' as a collaborator'),
+        ...tail('on'),
+        via()
+      );
     case 'collaborator.removed':
       return say(
-        ` removed ${e.target} as a collaborator`,
+        t(' removed '),
+        e.target,
+        t(' as a collaborator'),
         ...tail('on'),
         via()
       );
     case 'agent.invited':
       return say(
-        ` invited ${agentLabel(e.target, names)} to review `,
+        t(' invited '),
+        agentLabel(e.target, names),
+        t(' to review '),
         repoObject(),
         via()
       );
     case 'agent.removed':
       return say(
-        ` removed ${agentLabel(e.target, names)} as a reviewer on `,
+        t(' removed '),
+        agentLabel(e.target, names),
+        t(' as a reviewer on '),
         repoObject(),
         via()
       );
     case 'agent.created':
       return say(
-        ` created the reviewer ${str(d.name) ?? agentLabel(e.target, names)}`,
+        t(' created the reviewer '),
+        str(d.name) ?? agentLabel(e.target, names),
         via()
       );
     case 'agent.deleted':
-      return say(` deleted the reviewer ${agentLabel(e.target, names)}`, via());
+      return say(
+        t(' deleted the reviewer '),
+        agentLabel(e.target, names),
+        via()
+      );
     case 'branch.deleted':
       // GitOrange deletes a branch once its pull request has landed; a person deletes one by hand.
       if (e.pull !== null)
         return say(
-          ` deleted branch ${e.target} after `,
+          t(' deleted branch '),
+          e.target,
+          t(' after '),
           pull(),
-          ' merged',
+          t(' merged'),
           via()
         );
       return say(
-        ` deleted branch ${e.target}`,
-        d.merged === true && ' after it merged',
+        t(' deleted branch '),
+        e.target,
+        d.merged === true && t(' after it merged'),
         ...tail('in'),
         via()
       );
@@ -281,120 +342,147 @@ export function auditParts(
       const branches = Array.isArray(d.branches) ? d.branches.length : null;
       const n = branches ?? (parseInt(e.target, 10) || null);
       return say(
-        ' cleaned up ',
+        t(' cleaned up '),
         n
-          ? `${n} merged ${n === 1 ? 'branch' : 'branches'}`
-          : 'merged branches',
+          ? tn(n, '{n} merged branch', '{n} merged branches')
+          : t('merged branches'),
         ...tail('in'),
         via()
       );
     }
     case 'merging.paused':
-      return say(' paused merging', ...tail('on'), via());
+      return say(t(' paused merging'), ...tail('on'), via());
     case 'merging.resumed':
-      return say(' resumed merging', ...tail('on'), via());
+      return say(t(' resumed merging'), ...tail('on'), via());
     case 'pull.merged': {
       const title = str(d.title);
       const into = str(d.into);
       return say(
-        ' merged ',
+        t(' merged '),
         pull(),
         title && ` “${title}”`,
-        into && ` into ${into}`,
+        into && t(' into '),
+        into,
         via()
       );
     }
     case 'pull.reverted': {
       const next = num(d.revert) ?? num(d.revertPull) ?? num(d.number);
       return say(
-        ' reverted ',
+        t(' reverted '),
         pull(),
-        next !== null && ' with ',
+        next !== null && t(' with '),
         next !== null && pull(next),
         via()
       );
     }
     case 'pull.approved':
-      return say(' approved ', pull(), via());
+      return say(t(' approved '), pull(), via());
     case 'finding.approved':
       return say(
-        str(d.kind) === 'change_requested'
-          ? ` dismissed ${finding()}`
-          : ` approved ${finding()}`,
+        str(d.kind) === 'change_requested' ? t(' dismissed ') : t(' approved '),
+        finding(),
         ...on(),
         via()
       );
     case 'finding.changes_requested':
-      return say(` asked for changes on ${finding()}`, ...on(), via());
+      return say(t(' asked for changes on '), finding(), ...on(), via());
     case 'finding.assigned': {
       const to = str(d.assignee);
       return to
-        ? say(` assigned ${finding()}`, ...on(), ` to ${to}`, via())
-        : say(` unassigned ${finding()}`, ...on(), via());
+        ? say(
+            t(' assigned '),
+            finding(),
+            ...on(),
+            t(' to {person}', { person: to }),
+            via()
+          )
+        : say(t(' unassigned '), finding(), ...on(), via());
     }
     case 'finding.delegated': {
       const decision = str(d.decision);
       const what =
         decision === 'approve'
           ? str(d.kind) === 'change_requested'
-            ? ` dismissed ${finding()}`
-            : ` approved ${finding()}`
+            ? t(' dismissed ')
+            : t(' approved ')
           : decision === 'request_changes'
-            ? ` asked for changes on ${finding()}`
+            ? t(' asked for changes on ')
             : decision === 'leave'
-              ? ` left ${finding()}`
-              : ` answered ${finding()}`;
+              ? t(' left ')
+              : t(' answered ');
       return say(
         what,
+        finding(),
         ...on(),
         forPerson(),
-        decision === 'leave' && forPerson() ? ' to decide' : '',
+        decision === 'leave' && forPerson() ? t(' to decide') : '',
         via()
       );
     }
     case 'finding.undone': {
       const was = str(d.via);
       return say(
-        was
-          ? ` undid ${possessive(was)} decision on ${finding()}`
-          : ` reopened ${finding()}`,
+        ...(was
+          ? parts(t(" undid {who}'s decision on {finding}"), {
+              who: was,
+              finding: finding(),
+            })
+          : [t(' reopened '), finding()]),
         ...on(),
         via()
       );
     }
     case 'finding.taught':
       return say(
-        agentName
-          ? ` taught ${agentName} a rule from its ${findingOf(d.kind)}`
-          : ' taught a reviewer a rule from a finding',
+        ...(agentName
+          ? [
+              t(' taught '),
+              agentName,
+              t(' a rule from its '),
+              findingOf(d.kind),
+            ]
+          : [t(' taught a reviewer a rule from a finding')]),
         ...on(),
         via()
       );
     case 'token.created':
-      return say(` created the access token “${e.target}”`, via());
+      return say(t(' created the access token “'), e.target, '”', via());
     case 'token.deleted':
-      return say(` deleted the access token “${e.target}”`, via());
+      return say(t(' deleted the access token “'), e.target, '”', via());
     case 'repository.created': {
       const visibility = str(d.visibility);
       return say(
-        ' created ',
+        t(' created '),
         repoObject(),
-        visibility && ` (${visibility})`,
+        visibility && ' (',
+        visibility && visibilityWord(visibility),
+        visibility && ')',
         via()
       );
     }
     case 'repository.deleted':
-      return say(` deleted ${e.target}`, via());
+      return say(t(' deleted '), e.target, via());
     case 'release.created':
-      return say(` released ${e.target || 'a version'}`, ...tail('of'), via());
+      return say(
+        t(' released '),
+        e.target || t('a version'),
+        ...tail('of'),
+        via()
+      );
     case 'release.updated': {
       const fields = Array.isArray(d.fields)
         ? d.fields.filter((f): f is string => f === 'title' || f === 'notes')
         : [];
+      const fieldWords = fields.map((f) =>
+        f === 'title' ? t('title') : t('notes')
+      );
       return say(
-        ' edited ',
-        fields.length ? `the ${list(fields)} of ` : '',
-        `release ${e.target || ''}`.trimEnd(),
+        t(' edited '),
+        fieldWords.length
+          ? t('the {fields} of ', { fields: list(fieldWords) })
+          : '',
+        e.target ? t('release {tag}', { tag: e.target }) : t('release'),
         ...tail('in'),
         via()
       );
@@ -402,11 +490,15 @@ export function auditParts(
     case 'pull.version_bump': {
       const from = str(d.from);
       const to = str(d.to);
-      if (!to) return say(' cleared the version bump', ...on(), via());
+      if (!to) return say(t(' cleared the version bump'), ...on(), via());
       return say(
-        from
-          ? ` changed the version bump from ${from} to ${to}`
-          : ` set the version bump to ${to}`,
+        ...(from
+          ? [
+              t(' changed the version bump from '),
+              from,
+              t(' to {version}', { version: to }),
+            ]
+          : [t(' set the version bump to {version}', { version: to })]),
         ...on(),
         via()
       );
@@ -414,10 +506,18 @@ export function auditParts(
     case 'instance.settings':
       return d.reset === true
         ? say(
-            ` reset the instance setting ${settingLabel(e.target)} to its default`,
+            ...parts(
+              t(' reset the instance setting {setting} to its default'),
+              { setting: settingLabel(e.target) }
+            ),
             via()
           )
-        : say(` changed the instance setting ${settingLabel(e.target)}`, via());
+        : say(
+            ...parts(t(' changed the instance setting {setting}'), {
+              setting: settingLabel(e.target),
+            }),
+            via()
+          );
   }
 
   // The pull request timeline (`pull.<kind>`), merged into the same log.
@@ -428,23 +528,24 @@ export function auditParts(
       case 'state_changed': {
         const state = str(d.state);
         return say(
-          ' marked ',
+          t(' marked '),
           pull(),
-          ` as ${(state && STATE_PHRASE[state]) ?? state ?? 'changed'}`
+          t(' as '),
+          (state && STATE_PHRASE[state]) ?? state ?? t('changed')
         );
       }
       case 'stacked':
         return say(
-          ' stacked ',
+          t(' stacked '),
           pull(),
-          other !== null && ' on ',
+          other !== null && t(' on '),
           other !== null && pull(other)
         );
       case 'unstacked':
         return say(
-          ' unstacked ',
+          t(' unstacked '),
           pull(),
-          other !== null && ' from ',
+          other !== null && t(' from '),
           other !== null && pull(other)
         );
       case 'ordered': {
@@ -453,45 +554,50 @@ export function auditParts(
         const before = num(d.before);
         const forPr = num(d.for_pr);
         return say(
-          ' set ',
+          t(' set '),
           pull(),
-          before !== null ? ' to land after ' : ' to land in order',
+          before !== null ? t(' to land after ') : t(' to land in order'),
           before !== null && pull(before),
-          forPr !== null && forPr !== e.pull && ', so ',
+          forPr !== null && forPr !== e.pull && t(', so '),
           forPr !== null && forPr !== e.pull && pull(forPr),
-          forPr !== null && forPr !== e.pull && ' can build on both'
+          forPr !== null && forPr !== e.pull && t(' can build on both')
         );
       }
       case 'must_account_for':
         return say(
-          ' flagged ',
+          t(' flagged '),
           pull(),
-          ' as needing to account for ',
+          t(' as needing to account for '),
           pull(other)
         );
       case 'accounted_for':
-        return say(' marked ', pull(), ' as accounted for ', pull(other));
+        return say(t(' marked '), pull(), t(' as accounted for '), pull(other));
       case 'dismissed':
         return say(
-          ' dismissed the dependency of ',
+          t(' dismissed the dependency of '),
           pull(),
-          other !== null && ' on ',
+          other !== null && t(' on '),
           other !== null && pull(other)
         );
       case 'withdrawn':
-        return say(' withdrew their approval of ', pull());
+        return say(t(' withdrew their approval of '), pull());
       case 'learned': {
         const n = num(d.findings);
         return say(
-          ' learned from ',
-          n ? `${n} dismissed ${n === 1 ? 'finding' : 'findings'} on ` : '',
+          t(' learned from '),
+          n ? tn(n, '{n} dismissed finding', '{n} dismissed findings') : '',
+          n ? t(' on ') : '',
           pull()
         );
       }
       case 'rebased':
-        return say(' rebased ', pull(), ` onto ${str(d.onto) ?? 'its base'}`);
+        return say(
+          t(' rebased '),
+          pull(),
+          t(' onto {onto}', { onto: str(d.onto) ?? t('its base') })
+        );
       default:
-        return say(` recorded ${words(kind).join(' ')} on `, pull());
+        return say(t(' recorded '), words(kind).join(' '), t(' on '), pull());
     }
   }
 
@@ -508,16 +614,16 @@ export function auditText(e: AuditEvent, opts: AuditOptions = {}): string {
 
 /** A value from a settings change, as a few words. */
 function show(v: unknown): string {
-  if (v === null || v === undefined || v === '') return 'none';
-  if (Array.isArray(v)) return v.length ? v.map(String).join(', ') : 'none';
-  if (typeof v === 'boolean') return v ? 'on' : 'off';
+  if (v === null || v === undefined || v === '') return t('none');
+  if (Array.isArray(v)) return v.length ? v.map(String).join(', ') : t('none');
+  if (typeof v === 'boolean') return v ? t('on') : t('off');
   return String(v);
 }
 
 const UNDID: Record<string, string> = {
-  approved: 'an approval',
-  dismissed: 'a dismissal',
-  changes_requested: 'a request for changes',
+  approved: t('an approval'),
+  dismissed: t('a dismissal'),
+  changes_requested: t('a request for changes'),
 };
 
 /** The facts worth a second line (the finding, the reason, the note, what changed), or null for a plain event. */
@@ -526,7 +632,7 @@ export function auditDetail(e: AuditEvent): string | null {
   const title = e.target ? `“${clip(e.target)}”` : null;
   const join = (...xs: (string | null | false)[]) => {
     const parts = xs.filter((x): x is string => !!x);
-    return parts.length ? parts.join('. ') : null;
+    return parts.length ? parts.join(SENTENCE_SEP) : null;
   };
   const labelled = (label: string, v: unknown) => {
     const s = str(v);
@@ -534,20 +640,20 @@ export function auditDetail(e: AuditEvent): string | null {
   };
   switch (e.action) {
     case 'finding.approved':
-      return join(title, labelled('Reason', d.reason));
+      return join(title, labelled(t('Reason'), d.reason));
     case 'finding.changes_requested':
-      return join(title, labelled('Note', d.note));
+      return join(title, labelled(t('Note'), d.note));
     case 'finding.delegated':
-      return join(title, labelled('Why', d.reason));
+      return join(title, labelled(t('Why'), d.reason));
     case 'finding.taught':
-      return join(title, labelled('Taught', d.teach));
+      return join(title, labelled(t('Taught'), d.teach));
     case 'finding.assigned':
       return join(title);
     case 'merging.paused':
-      return labelled('Reason', d.reason);
+      return labelled(t('Reason'), d.reason);
     case 'finding.undone': {
       const undid = str(d.undid);
-      return join(title, undid && UNDID[undid] && `Undid ${UNDID[undid]}`);
+      return join(title, undid && UNDID[undid] && t('Undid ') + UNDID[undid]);
     }
     case 'settings.changed': {
       const changes = record(d.changes);
@@ -560,7 +666,7 @@ export function auditDetail(e: AuditEvent): string | null {
             ]
           : [];
       });
-      return rows.length ? rows.join('. ') : null;
+      return rows.length ? rows.join(SENTENCE_SEP) : null;
     }
     case 'branches.cleaned': {
       const branches = Array.isArray(d.branches)
@@ -571,19 +677,21 @@ export function auditDetail(e: AuditEvent): string | null {
     case 'instance.settings':
       return d.reset === true || d.value === undefined
         ? null
-        : `Now: ${clip(show(d.value))}`;
+        : t('Now: {value}', { value: clip(show(d.value)) });
     case 'token.created': {
       if (!('expiresAt' in d)) return null;
       const at = num(d.expiresAt);
       return at === null
-        ? 'Never expires'
-        : `Expires ${new Date(at).toISOString().slice(0, 10)}`;
+        ? t('Never expires')
+        : t('Expires {date}', {
+            date: new Date(at).toISOString().slice(0, 10),
+          });
     }
     case 'pull.merged':
-      return d.automatic === true ? 'Merged automatically' : null;
+      return d.automatic === true ? t('Merged automatically') : null;
     case 'release.created': {
       const n = num(d.pulls);
-      return n ? `${n} pull ${n === 1 ? 'request' : 'requests'}` : null;
+      return n ? tn(n, '{n} pull request', '{n} pull requests') : null;
     }
     case 'pull.state_changed': {
       const reasons = Array.isArray(d.reasons)
@@ -595,7 +703,7 @@ export function auditDetail(e: AuditEvent): string | null {
       const text = reasons
         .filter((r) => r.kind !== 'stacked_on' && r.kind !== 'waits_on')
         .map((r) => reasonText(r))
-        .join('; ');
+        .join(LIST_SEP);
       return text || null;
     }
     case 'pull.rebased': {
@@ -619,11 +727,11 @@ export type AuditCategory =
   'merging' | 'decisions' | 'access' | 'settings' | 'activity';
 
 export const AUDIT_CATEGORIES: { id: AuditCategory; label: string }[] = [
-  { id: 'merging', label: 'Merging' },
-  { id: 'decisions', label: 'Decisions' },
-  { id: 'access', label: 'Access and agents' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'activity', label: 'Pull request activity' },
+  { id: 'merging', label: t('Merging') },
+  { id: 'decisions', label: t('Decisions') },
+  { id: 'access', label: t('Access and agents') },
+  { id: 'settings', label: t('Settings') },
+  { id: 'activity', label: t('Pull request activity') },
 ];
 
 /** The filter an action belongs to. Pull request timeline entries (and anything new) are "activity". */

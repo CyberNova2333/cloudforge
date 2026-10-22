@@ -3,6 +3,7 @@
  * default trail for a repository page that doesn't name itself (pages redesigned later publish their own through
  * `usePageHead`). Crumbs here are relative to the repository; `RepoLayout` puts `owner / repo` in front.
  */
+import { t } from './i18n';
 import type { PageIconName } from './pageIcon';
 
 export type RepoTabId =
@@ -36,29 +37,44 @@ export interface RepoBand {
 }
 
 const TABS: Record<RepoTabId, RepoTab> = {
-  code: { id: 'code', label: 'Code', icon: 'code', path: '' },
-  health: { id: 'health', label: 'Health', icon: 'pulse', path: 'health' },
-  pulls: { id: 'pulls', label: 'Pull requests', icon: 'pull', path: 'pulls' },
+  code: { id: 'code', label: t('Code'), icon: 'code', path: '' },
+  health: { id: 'health', label: t('Health'), icon: 'pulse', path: 'health' },
+  pulls: {
+    id: 'pulls',
+    label: t('Pull requests'),
+    icon: 'pull',
+    path: 'pulls',
+  },
   releases: {
     id: 'releases',
-    label: 'Releases',
+    label: t('Releases'),
     icon: 'tag',
     path: 'releases',
   },
-  actions: { id: 'actions', label: 'Actions', icon: 'play', path: 'actions' },
+  actions: {
+    id: 'actions',
+    label: t('Actions'),
+    icon: 'play',
+    path: 'actions',
+  },
   insights: {
     id: 'insights',
-    label: 'Insights',
+    label: t('Insights'),
     icon: 'graph',
     path: 'insights',
   },
   settings: {
     id: 'settings',
-    label: 'Settings',
+    label: t('Settings'),
     icon: 'sliders',
     path: 'settings',
   },
-  commits: { id: 'commits', label: 'Commits', icon: 'commit', path: 'commits' },
+  commits: {
+    id: 'commits',
+    label: t('Commits'),
+    icon: 'commit',
+    path: 'commits',
+  },
 };
 
 function decode(segment: string): string {
@@ -144,37 +160,37 @@ export function repoBand(
   const last = rest[rest.length - 1];
   switch (section) {
     case 'tree':
-      return rest.length > 1 ? page('code', last) : page('code', 'Code');
+      return rest.length > 1 ? page('code', last) : page('code', t('Code'));
     case 'blob':
-      return rest.length > 1 ? page('file', last) : page('code', 'Code');
+      return rest.length > 1 ? page('file', last) : page('code', t('Code'));
     case 'commits':
-      return page('commit', 'Commits');
+      return page('commit', t('Commits'));
     case 'commit':
       return item('commit', TABS.commits, (id ?? '').slice(0, 7));
     case 'health':
-      return page('pulse', 'Health');
+      return page('pulse', t('Health'));
     case 'pulls':
-      return page('pull', 'Pull requests');
+      return page('pull', t('Pull requests'));
     case 'pull':
       return item('pull', TABS.pulls, `#${id ?? ''}`);
     case 'compare':
-      return item('pull', TABS.pulls, 'New pull request');
+      return item('pull', TABS.pulls, t('New pull request'));
     case 'session':
-      return item('pull', TABS.pulls, 'Session');
+      return item('pull', TABS.pulls, t('Session'));
     case 'releases':
-      return id ? item('tag', TABS.releases, id) : page('tag', 'Releases');
+      return id ? item('tag', TABS.releases, id) : page('tag', t('Releases'));
     case 'tags':
-      return item('tag', TABS.releases, 'Tags');
+      return item('tag', TABS.releases, t('Tags'));
     case 'actions':
       if (id === 'runs' && rest[2])
-        return item('play', TABS.actions, `Run #${rest[2]}`);
-      if (id === 'agent') return item('play', TABS.actions, 'Agent run');
-      return page('play', 'Actions');
+        return item('play', TABS.actions, t('Run #{n}', { n: rest[2] }));
+      if (id === 'agent') return item('play', TABS.actions, t('Agent run'));
+      return page('play', t('Actions'));
     case 'insights':
-      return page('graph', 'Insights');
+      return page('graph', t('Insights'));
     case 'settings':
-      return page('sliders', 'Settings');
+      return page('sliders', t('Settings'));
     default:
-      return page('code', 'Code');
+      return page('code', t('Code'));
   }
 }

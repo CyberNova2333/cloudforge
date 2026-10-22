@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { t } from '@/lib/i18n';
 import { GitBranchIcon, SearchIcon } from '@primer/octicons-react';
 import { encodeRepoPath, pathCrumbs } from '@/lib/codeView';
 import type { Contents, RepoDetail } from '@/lib/uiApi';
@@ -22,7 +23,7 @@ function PathBar({
 }) {
   const base = `/${repo.fullName}`;
   return (
-    <nav className="pathbar" aria-label="Path">
+    <nav className="pathbar" aria-label={t('Path')}>
       <Link to={`${base}/tree/${refName}`}>
         <b>{repo.name}</b>
       </Link>
@@ -74,7 +75,7 @@ export function CodeToolbar({
           <span className="branch-count small muted">
             <GitBranchIcon />
             <span>
-              <b>{count}</b> {count === 1 ? 'branch' : 'branches'}
+              <b>{count}</b> {count === 1 ? t('branch') : t('branches')}
             </span>
           </span>
         )}
@@ -83,10 +84,10 @@ export function CodeToolbar({
           type="button"
           className="btn small"
           onClick={focusSearch}
-          title="Search this repository (press /)"
+          title={t('Search this repository (press /)')}
         >
           <SearchIcon />
-          Go to file
+          {t('Go to file')}
         </button>
         {!isBlob && <CloneButton repo={repo} />}
       </div>

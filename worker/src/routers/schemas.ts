@@ -52,7 +52,7 @@ export const repoSchema = z
     name: z.string(),
     fullName: z.string(),
     ownerType: z.enum(['user', 'team']),
-    visibility: z.enum(['private', 'internal']),
+    visibility: z.enum(['private', 'internal', 'public']),
     description: z.string().nullable(),
     defaultBranch: z.string(),
     // Branch name patterns GitOrange never rebases (exact names, or globs: * within a segment, ** across).

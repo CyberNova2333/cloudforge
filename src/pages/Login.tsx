@@ -5,6 +5,7 @@ import { api, qk } from '@/lib/uiApi';
 import { signIn, useSession } from '@/lib/auth';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { AuthLoading, AuthShell, FlashError } from './AuthShell';
+import { t } from '@/lib/i18n';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function Login() {
       : await signIn.username({ username: login, password });
     setBusy(false);
     if (res.error) {
-      setError('Incorrect username or password.');
+      setError(t('Incorrect username or password.'));
       return;
     }
     // During an OAuth flow the response says where it continues.
@@ -52,11 +53,14 @@ export default function Login() {
   };
 
   return (
-    <AuthShell title={`Sign in to ${appName}`} docTitle="Sign in">
+    <AuthShell
+      title={t('Sign in to {name}', { name: appName })}
+      docTitle={t('Sign in')}
+    >
       <FlashError message={error} />
       <form className="auth-fields" onSubmit={submit}>
         <div className="fld">
-          <label htmlFor="login_field">Username or email address</label>
+          <label htmlFor="login_field">{t('Username or email address')}</label>
           <input
             id="login_field"
             className="form-control"
@@ -68,7 +72,7 @@ export default function Login() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t('Password')}</label>
           <input
             id="password"
             type="password"
@@ -83,13 +87,13 @@ export default function Login() {
           type="submit"
           className="primary block"
           pending={busy}
-          pendingLabel="Signing in…"
+          pendingLabel={t('Signing in…')}
         >
-          Sign in
+          {t('Sign in')}
         </PendingButton>
       </form>
       <p className="auth-foot">
-        New to this instance? Ask an administrator for an invitation.
+        {t('New to this instance? Ask an administrator for an invitation.')}
       </p>
     </AuthShell>
   );

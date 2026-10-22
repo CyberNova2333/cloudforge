@@ -19,6 +19,7 @@ import {
   type ReviewFlag,
 } from '@/lib/uiApi';
 import { ApiError, errorMessage } from '@/lib/api';
+import { t, tServer, tx } from '@/lib/i18n';
 import { Avatar } from './Avatar';
 import { Markdown } from './Markdown';
 import { PendingButton } from './ui/PendingButton';
@@ -50,7 +51,7 @@ export function useAction(onChange: () => Promise<unknown> | void) {
       const moved = e instanceof ApiError && e.status === 409;
       setError(
         errorMessage(e) +
-          (moved && opts?.sendingNote ? ' Your note was not sent.' : '')
+          (moved && opts?.sendingNote ? t(' Your note was not sent.') : '')
       );
       // A 409 means the pull request moved: show what changed. A failed reload doesn't hide the error.
       if (moved) await Promise.resolve(onChange()).catch(() => {});
@@ -87,31 +88,36 @@ export function AutoMergeStatus({
   let line: React.ReactNode;
   if (state === 'ready') {
     icon = <span className="spinner" aria-hidden="true" />;
-    line = <b>Merging automatically…</b>;
+    line = <b>{t('Merging automatically…')}</b>;
   } else if (state === 'disabled') {
     icon = <StopIcon className="muted" />;
-    line = <b>Auto-merge is off for this pull request</b>;
+    line = <b>{t('Auto-merge is off for this pull request')}</b>;
   } else if (state === 'blocked') {
     icon = <AlertIcon className="pr-bad" />;
     line = (
       <>
-        <b>Won&apos;t merge automatically:</b> {reasons.join('; ')}
+        <b>{t("Won't merge automatically:")}</b>{' '}
+        {reasons.map((r) => tServer(r)).join(t('; '))}
       </>
     );
   } else {
     icon = <ClockIcon className="muted" />;
     line = (
       <>
-        <b>Merges automatically once ready.</b>{' '}
-        <span className="muted">Waiting on: {reasons.join('; ')}</span>
+        <b>{t('Merges automatically once ready.')}</b>{' '}
+        <span className="muted">
+          {t('Waiting on: {reasons}', {
+            reasons: reasons.map((r) => tServer(r)).join(t('; ')),
+          })}
+        </span>
         {pendingFlags && (
           <>
             {' '}
             {pathname === conversationPath ? (
-              <a href={`#${REVIEW_ANCHOR}`}>Review the flags</a>
+              <a href={`#${REVIEW_ANCHOR}`}>{t('Review the flags')}</a>
             ) : (
               <Link to={`${conversationPath}#${REVIEW_ANCHOR}`}>
-                Review the flags
+                {t('Review the flags')}
               </Link>
             )}
           </>
@@ -141,7 +147,7 @@ export function AutoMergeStatus({
             )
           }
         >
-          {enabled ? 'Turn off auto-merge' : 'Turn on auto-merge'}
+          {enabled ? t('Turn off auto-merge') : t('Turn on auto-merge')}
         </PendingButton>
       )}
     </div>
@@ -161,7 +167,7 @@ export type ChangesRequester = {
 export function serverChangesRequester(f: ReviewFlag): ChangesRequester | null {
   return f.changesRequestedAt && !f.approvedAt
     ? {
-        label: f.changesRequestedBy?.username ?? 'a former user',
+        label: f.changesRequestedBy?.username ?? t('a former user'),
         user: f.changesRequestedBy,
         note: f.changesRequestedNote,
       }
@@ -247,20 +253,27 @@ export function Flag({
         <div className="pr-flag-title">
           <b>{f.title}</b>
           <span className="pr-flag-chips">
-            {change && <span className="chip serious">Change requested</span>}
+            {change && (
+              <span className="chip serious">{t('Change requested')}</span>
+            )}
             {f.guarded && !decided && (
               <span
                 className="chip warn"
-                title={`${agentName} is guarded: its findings are never approved in bulk, by one key or by AI, and approving one needs a reason.`}
+                title={t(
+                  '{agent} is guarded: its findings are never approved in bulk, by one key or by AI, and approving one needs a reason.',
+                  { agent: agentName }
+                )}
               >
                 <ShieldIcon size={12} />
-                Needs a reason
+                {t('Needs a reason')}
               </span>
             )}
             {f.assignee && !decided && (
               <span className="chip info">
                 <PersonIcon size={12} />
-                Asked {f.assignee.name || f.assignee.login}
+                {t('Asked {name}', {
+                  name: f.assignee.name || f.assignee.login,
+                })}
               </span>
             )}
           </span>
@@ -268,19 +281,19 @@ export function Flag({
         <Link
           to={`/approvals/${encodeURIComponent(f.id)}`}
           className="pr-flag-open small"
-          title="Open this finding on its own page"
+          title={t('Open this finding on its own page')}
         >
-          Open
+          {t('Open')}
           <LinkExternalIcon size={12} />
         </Link>
       </div>
       {f.question && (
         <p className="pr-flag-q">
-          <b>{agentName} asks:</b> {f.question}
+          <b>{t('{agent} asks:', { agent: agentName })}</b> {f.question}
         </p>
       )}
       {f.paths.length > 0 && (
-        <ul className="pr-flag-paths" aria-label="Files">
+        <ul className="pr-flag-paths" aria-label={t('Files')}>
           {f.paths.map((p) => (
             <li key={p}>
               {filesHref ? (
@@ -303,18 +316,19 @@ export function Flag({
         </div>
       ) : investigating ? (
         <p className="pr-flag-note">
-          <span className="spinner" aria-hidden="true" /> Looking into this…
+          <span className="spinner" aria-hidden="true" />{' '}
+          {t('Looking into this…')}
         </p>
       ) : (
         <p className="pr-flag-note">
-          No further detail: the review model didn&apos;t answer.
+          {t("No further detail: the review model didn't answer.")}
         </p>
       )}
       {changes && (
         <div className="pr-flag-asked">
           <p>
             {changes.user && <Avatar user={changes.user} size={16} />}
-            <b>Changes requested by {changes.label}</b>
+            <b>{t('Changes requested by {name}', { name: changes.label })}</b>
           </p>
           {changes.note && <p className="pr-flag-text">{changes.note}</p>}
         </div>
@@ -364,16 +378,21 @@ export function Flag({
           <div className="pr-flag-decided">
             <p className="pr-ok">
               {approver.user && <Avatar user={approver.user} size={16} />}
-              {change ? 'Dismissed' : 'Approved'} by {approver.label}
+              {change
+                ? t('Dismissed by {name}', { name: approver.label })
+                : t('Approved by {name}', { name: approver.label })}
             </p>
             {f.reason && (
               <p className="pr-flag-text">
-                <span className="muted">Reason:</span> {f.reason}
+                <span className="muted">{t('Reason:')}</span> {f.reason}
               </p>
             )}
             {f.teach && (
               <p className="pr-flag-text">
-                <span className="muted">Rule for {agentName}:</span> {f.teach}
+                <span className="muted">
+                  {t('Rule for {agent}:', { agent: agentName })}
+                </span>{' '}
+                {f.teach}
               </p>
             )}
           </div>
@@ -387,7 +406,7 @@ export function Flag({
                   onClick={() => setPanel('changes')}
                 >
                   <SyncIcon size={14} />
-                  Request changes
+                  {t('Request changes')}
                 </button>
               )}
               {f.guarded ? (
@@ -397,7 +416,9 @@ export function Flag({
                   onClick={() => setPanel(change ? 'dismiss' : 'approve')}
                 >
                   <ShieldIcon size={14} />
-                  {change ? 'Dismiss with a reason…' : 'Approve with a reason…'}
+                  {change
+                    ? t('Dismiss with a reason…')
+                    : t('Approve with a reason…')}
                 </button>
               ) : change ? (
                 <button
@@ -406,7 +427,7 @@ export function Flag({
                   onClick={() => decide({})}
                 >
                   <XIcon size={14} />
-                  Dismiss
+                  {t('Dismiss')}
                 </button>
               ) : (
                 <button
@@ -415,13 +436,13 @@ export function Flag({
                   onClick={() => decide({})}
                 >
                   <CheckCircleFillIcon size={14} />
-                  Approve
+                  {t('Approve')}
                 </button>
               )}
             </div>
           )
         ) : (
-          !changes && <p className="muted small">Not approved</p>
+          !changes && <p className="muted small">{t('Not approved')}</p>
         )}
         {panel === null && <PanelError error={error} />}
       </div>

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { BookIcon, HistoryIcon } from '@primer/octicons-react';
+import { t, tn, tx } from '@/lib/i18n';
 import { dismissedText, LESSON_STATUS, lessonNote } from '@/lib/lessons';
 import {
   engineText,
@@ -29,8 +30,10 @@ export function ReviewsTab({ agent, total }: { agent: Agent; total?: number }) {
       <div className="panel">
         <EmptyState
           picture={<HistoryIcon size={20} />}
-          title="No reviews yet"
-          body="When Clef wakes it for a pull request in a repository you can see, the review shows up here."
+          title={t('No reviews yet')}
+          body={t(
+            'When Clef wakes it for a pull request in a repository you can see, the review shows up here.'
+          )}
         />
       </div>
     );
@@ -71,8 +74,10 @@ export function RulesTab({ agent, rules }: { agent: Agent; rules?: number }) {
       <div className="panel">
         <EmptyState
           picture={<BookIcon size={20} />}
-          title="No rules learned yet"
-          body="When a person dismisses one of its change requests as wrong, it proposes a rule in its own repository, and it shows up here."
+          title={t('No rules learned yet')}
+          body={t(
+            'When a person dismisses one of its change requests as wrong, it proposes a rule in its own repository, and it shows up here.'
+          )}
         />
       </div>
     );
@@ -81,7 +86,9 @@ export function RulesTab({ agent, rules }: { agent: Agent; rules?: number }) {
       <p className="small muted">
         {latestNote(lessons.length, undefined, 'lesson')}
         {rules !== undefined &&
-          ` · ${rules} ${rules === 1 ? 'rule' : 'rules'} saved in all`}
+          ` · ${t('{rules} saved in all', {
+            rules: tn(rules, '{n} rule', '{n} rules'),
+          })}`}
       </p>
       {lessons.map((l) => {
         const note = lessonNote(l);
@@ -104,7 +111,7 @@ export function RulesTab({ agent, rules }: { agent: Agent; rules?: number }) {
             </div>
             {l.status === 'committed' && (
               <p className="ag-rule">
-                <b>{l.summary?.trim() || 'It saved a rule from this.'}</b>
+                <b>{l.summary?.trim() || t('It saved a rule from this.')}</b>
               </p>
             )}
             <div className="muted small">{dismissedText(l.findings)}</div>
@@ -115,11 +122,15 @@ export function RulesTab({ agent, rules }: { agent: Agent; rules?: number }) {
                   className="small"
                   to={`/${agent.repository}/commit/${sha}`}
                 >
-                  Saved in <code>{sha.slice(0, 7)}</code>
+                  {tx('Saved in {sha}', {
+                    sha: <code>{sha.slice(0, 7)}</code>,
+                  })}
                 </Link>
               ) : (
                 <span className="small">
-                  Saved in <code>{sha.slice(0, 7)}</code>
+                  {tx('Saved in {sha}', {
+                    sha: <code>{sha.slice(0, 7)}</code>,
+                  })}
                 </span>
               ))}
           </article>
@@ -141,28 +152,30 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
       style={{ '--agent': agent.color } as CSSProperties}
     >
       <section className="panel pad">
-        <h2>How it wakes</h2>
+        <h2>{t('How it wakes')}</h2>
         <p className="small muted">
-          Clef asks this about every change, over a one-line summary of each
-          changed file. When the answer is yes with enough probability, the
-          agent reviews.
+          {t(
+            'Clef asks this about every change, over a one-line summary of each changed file. When the answer is yes with enough probability, the agent reviews.'
+          )}
         </p>
         <dl className="ag-facts">
-          <dt>Clef asks</dt>
+          <dt>{t('Clef asks')}</dt>
           <dd>{agent.trigger.ask}</dd>
-          <dt>Wakes when</dt>
+          <dt>{t('Wakes when')}</dt>
           <dd>{thresholdText(agent.trigger)}</dd>
-          <dt>Engine</dt>
+          <dt>{t('Engine')}</dt>
           <dd>{engineText(agent.engine)}</dd>
-          <dt>Covers</dt>
-          <dd>{agent.facet ?? 'A custom area'}</dd>
-          <dt>Guarded</dt>
+          <dt>{t('Covers')}</dt>
+          <dd>{agent.facet ?? t('A custom area')}</dd>
+          <dt>{t('Guarded')}</dt>
           <dd>
             {agent.guarded
-              ? 'Yes. Its findings are never approved in bulk, by one key or by GitOrange AI, and approving one needs a reason.'
-              : 'No'}
+              ? t(
+                  'Yes. Its findings are never approved in bulk, by one key or by GitOrange AI, and approving one needs a reason.'
+                )
+              : t('No')}
           </dd>
-          <dt>Colour</dt>
+          <dt>{t('Colour')}</dt>
           <dd>
             <span className="ag-swatch" />
             <span className="mono">{agent.color}</span>
@@ -170,17 +183,17 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
         </dl>
       </section>
       <section className="panel pad">
-        <h2>Where it is defined</h2>
+        <h2>{t('Where it is defined')}</h2>
         {agent.repository ? (
           <>
             <dl className="ag-facts">
-              <dt>Repository</dt>
+              <dt>{t('Repository')}</dt>
               <dd>
                 <Link to={`/${agent.repository}`} className="mono">
                   {agent.repository}
                 </Link>
               </dd>
-              <dt>Instructions</dt>
+              <dt>{t('Instructions')}</dt>
               <dd>
                 <Link
                   to={`/${agent.repository}/blob/${branch}/AGENT.md`}
@@ -191,7 +204,7 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
               </dd>
               {agent.configSha && (
                 <>
-                  <dt>Version</dt>
+                  <dt>{t('Version')}</dt>
                   <dd>
                     <Link
                       to={`/${agent.repository}/commit/${agent.configSha}`}
@@ -204,26 +217,30 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
               )}
             </dl>
             <p className="small muted">
-              To change how it reviews, change AGENT.md in its repository. Edits
-              are pull requests like any other.
+              {t(
+                'To change how it reviews, change AGENT.md in its repository. Edits are pull requests like any other.'
+              )}
             </p>
           </>
         ) : (
           <p className="small muted">
-            Its repository was deleted, or you can’t read it, so its settings
-            can’t be shown.
+            {t(
+              'Its repository was deleted, or you can’t read it, so its settings can’t be shown.'
+            )}
           </p>
         )}
         {agent.configError && (
           <p className="small color-fg-attention">
-            AGENT.md has an error, so this shows its last valid version:{' '}
-            {agent.configError}
+            {t(
+              'AGENT.md has an error, so this shows its last valid version: {error}',
+              { error: agent.configError }
+            )}
           </p>
         )}
       </section>
       {agent.repository && (
         <section className="panel pad">
-          <h2>Settings as written</h2>
+          <h2>{t('Settings as written')}</h2>
           {file.isError ? (
             <LoadError
               what="AGENT.md"
@@ -235,14 +252,16 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
               className="sk-rows"
               role="status"
               aria-busy="true"
-              aria-label="Loading AGENT.md"
+              aria-label={t('Loading AGENT.md')}
             >
               <div className="sk sk-row tall" />
             </div>
           ) : front !== null ? (
             <pre className="ag-raw">{front}</pre>
           ) : (
-            <p className="small muted">AGENT.md has no settings block.</p>
+            <p className="small muted">
+              {t('AGENT.md has no settings block.')}
+            </p>
           )}
         </section>
       )}

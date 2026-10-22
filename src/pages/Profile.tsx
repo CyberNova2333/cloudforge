@@ -10,6 +10,7 @@ import { api, qk, type Namespace } from '@/lib/uiApi';
 import { ApiError } from '@/lib/api';
 import { useCurrentUser } from '@/lib/auth';
 import { fullDate, timeAgo } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { Avatar } from '@/components/Avatar';
 import { VisibilityLabel } from '@/components/VisibilityLabel';
 import { useEnter } from '@/components/code/useEnter';
@@ -41,7 +42,7 @@ export default function Profile() {
         ? {
             icon: 'crew',
             crumbs: [
-              { label: 'Agents', to: '/agents' },
+              { label: t('Agents'), to: '/agents' },
               { label: data.agent.name },
             ],
             title: data.agent.name,
@@ -97,12 +98,12 @@ function PersonProfile({ data }: { data: Namespace }) {
       className="btn small primary"
     >
       <RepoIcon />
-      New repository
+      {t('New repository')}
     </Link>
   );
   return (
     <div className="profile">
-      <aside className="pf-side" aria-label={`About ${name}`}>
+      <aside className="pf-side" aria-label={t('About {name}', { name })}>
         <div className="pf-photo">
           <Avatar user={data.owner} size={168} square={isTeam} />
         </div>
@@ -111,17 +112,17 @@ function PersonProfile({ data }: { data: Namespace }) {
         <p className="pf-badges">
           {isTeam ? (
             <Chip tone="info" icon={<OrganizationIcon size={12} />}>
-              Team
+              {t('Team')}
             </Chip>
           ) : role ? (
             <Chip tone={role === 'admin' ? 'info' : 'off'}>
-              {role === 'admin' ? 'Site admin' : 'Member'}
+              {role === 'admin' ? t('Site admin') : t('Member')}
             </Chip>
           ) : null}
         </p>
         {isTeam ? (
           <p className="pf-bio small muted">
-            Every member can see these repositories.
+            {t('Every member can see these repositories.')}
           </p>
         ) : (
           <ul className="pf-meta">
@@ -136,7 +137,9 @@ function PersonProfile({ data }: { data: Namespace }) {
             <li>
               <ClockIcon />
               <span title={fullDate(data.owner.createdAt)}>
-                Joined {timeAgo(data.owner.createdAt)}
+                {t('Joined {when}', {
+                  when: timeAgo(data.owner.createdAt),
+                })}
               </span>
             </li>
           </ul>
@@ -146,7 +149,7 @@ function PersonProfile({ data }: { data: Namespace }) {
         <Section
           title={
             <>
-              Repositories{' '}
+              {t('Repositories')}{' '}
               <span className="num">{data.repositories.length}</span>
             </>
           }
@@ -158,13 +161,18 @@ function PersonProfile({ data }: { data: Namespace }) {
                 picture={<RepoIcon size={20} />}
                 title={
                   isTeam
-                    ? `${name} doesn’t have any repositories yet.`
-                    : `@${data.owner.username} doesn’t have any repositories you can see yet.`
+                    ? t('{name} doesn’t have any repositories yet.', { name })
+                    : t(
+                        '@{username} doesn’t have any repositories you can see yet.',
+                        { username: data.owner.username }
+                      )
                 }
                 body={
                   canCreate
-                    ? 'Create one and it shows up here.'
-                    : 'Private repositories only show to their owner, collaborators and site admins.'
+                    ? t('Create one and it shows up here.')
+                    : t(
+                        'Private repositories only show to their owner, collaborators and site admins.'
+                      )
                 }
               />
             </div>
@@ -179,7 +187,7 @@ function PersonProfile({ data }: { data: Namespace }) {
                   </div>
                   {r.description && <p className="muted">{r.description}</p>}
                   <span className="muted small" title={fullDate(r.updatedAt)}>
-                    Updated {timeAgo(r.updatedAt)}
+                    {t('Updated {when}', { when: timeAgo(r.updatedAt) })}
                   </span>
                 </li>
               ))}

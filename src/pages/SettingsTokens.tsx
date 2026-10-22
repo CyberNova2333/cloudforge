@@ -4,6 +4,7 @@ import { KeyIcon } from '@primer/octicons-react';
 import { api, qk, type Token } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PendingButton } from '@/components/ui/PendingButton';
@@ -13,10 +14,12 @@ import { LoadError } from '@/components/Notice';
 import { RowsSkeleton, SettingsFrame } from '@/components/SetFrame';
 
 /** "Expires Nov 4, 2026", "Expired" or "No expiration". */
-function expiryText(t: Token): string {
-  if (!t.expiresAt) return 'No expiration';
-  const at = new Date(t.expiresAt);
-  return at < new Date() ? 'Expired' : `Expires ${at.toLocaleDateString()}`;
+function expiryText(token: Token): string {
+  if (!token.expiresAt) return t('No expiration');
+  const at = new Date(token.expiresAt);
+  return at < new Date()
+    ? t('Expired')
+    : t('Expires {date}', { date: at.toLocaleDateString() });
 }
 
 function TokenRow({ token }: { token: Token }) {
@@ -32,18 +35,18 @@ function TokenRow({ token }: { token: Token }) {
         <b>{token.name}</b>
         <span className="muted small">
           {token.lastUsedAt
-            ? `Last used ${timeAgo(token.lastUsedAt)}`
-            : 'Never used'}
+            ? t('Last used {when}', { when: timeAgo(token.lastUsedAt) })
+            : t('Never used')}
           {' · '}
           {expiryText(token)}
         </span>
       </div>
       <div className="ctl">
         <InlineConfirm
-          label="Delete"
-          confirmLabel="Delete token"
-          pendingLabel="Deleting…"
-          accessibleName={`Delete token ${token.name}`}
+          label={t('Delete')}
+          confirmLabel={t('Delete token')}
+          pendingLabel={t('Deleting…')}
+          accessibleName={t('Delete token {name}', { name: token.name })}
           pending={remove.isPending}
           error={remove.isError ? errorMessage(remove.error) : null}
           onConfirm={() => remove.mutate()}
@@ -78,18 +81,22 @@ export default function SettingsTokens() {
       <PageHead
         icon="key"
         crumbs={[
-          { label: 'Settings', to: '/settings/tokens' },
-          { label: 'Personal access tokens' },
+          { label: t('Settings'), to: '/settings/tokens' },
+          { label: t('Personal access tokens') },
         ]}
-        title="Personal access tokens"
-        lede="A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push."
+        title={t('Personal access tokens')}
+        lede={t(
+          'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push.'
+        )}
       />
       <SettingsFrame>
-        <section className="panel" aria-label="Your tokens">
+        <section className="panel" aria-label={t('Your tokens')}>
           <div className="pad">
-            <h2>Your tokens</h2>
+            <h2>{t('Your tokens')}</h2>
             <p className="small muted">
-              Tokens you have generated. A deleted token stops working at once.
+              {t(
+                'Tokens you have generated. A deleted token stops working at once.'
+              )}
             </p>
           </div>
           {tokens.isPending ? (
@@ -99,7 +106,7 @@ export default function SettingsTokens() {
           ) : tokens.isError ? (
             <div className="pad">
               <LoadError
-                what="your tokens"
+                what={t('your tokens')}
                 error={tokens.error}
                 onRetry={() => tokens.refetch()}
               />
@@ -107,13 +114,13 @@ export default function SettingsTokens() {
           ) : tokens.data.length === 0 ? (
             <EmptyState
               picture={<KeyIcon size={20} />}
-              title="You have no personal access tokens."
-              body="Generate one below to use git over HTTPS."
+              title={t('You have no personal access tokens.')}
+              body={t('Generate one below to use git over HTTPS.')}
             />
           ) : (
             <ul className="rowlist">
-              {tokens.data.map((t) => (
-                <TokenRow key={t.id} token={t} />
+              {tokens.data.map((token) => (
+                <TokenRow key={token.id} token={token} />
               ))}
             </ul>
           )}
@@ -121,21 +128,22 @@ export default function SettingsTokens() {
           {created && (
             <div className="newtoken" role="status">
               <p>
-                <b>Copy your new token now.</b> You won&apos;t be able to see it
-                again.
+                {tx("{bold} You won't be able to see it again.", {
+                  bold: <b>{t('Copy your new token now.')}</b>,
+                })}
               </p>
               <div className="copyrow">
                 <input
                   className="form-control"
                   readOnly
                   value={created}
-                  aria-label="Your new token"
+                  aria-label={t('Your new token')}
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <CopyButton
                   text={created}
                   className="btn small"
-                  label="Copy the token"
+                  label={t('Copy the token')}
                 />
               </div>
             </div>
@@ -149,42 +157,42 @@ export default function SettingsTokens() {
               create.mutate();
             }}
           >
-            <h3 className="formtitle">Generate a new token</h3>
+            <h3 className="formtitle">{t('Generate a new token')}</h3>
             <div className="frow">
               <div className="fld grow2">
-                <label htmlFor="tok-name">Note</label>
+                <label htmlFor="tok-name">{t('Note')}</label>
                 <input
                   id="tok-name"
                   className="form-control"
                   required
-                  placeholder="What is this token for?"
+                  placeholder={t('What is this token for?')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="fld">
-                <label htmlFor="tok-exp">Expiration</label>
+                <label htmlFor="tok-exp">{t('Expiration')}</label>
                 <select
                   id="tok-exp"
                   className="form-select"
                   value={days}
                   onChange={(e) => setDays(e.target.value)}
                 >
-                  <option value="7">7 days</option>
-                  <option value="30">30 days</option>
-                  <option value="90">90 days</option>
-                  <option value="366">1 year</option>
-                  <option value="never">No expiration</option>
+                  <option value="7">{t('7 days')}</option>
+                  <option value="30">{t('30 days')}</option>
+                  <option value="90">{t('90 days')}</option>
+                  <option value="366">{t('1 year')}</option>
+                  <option value="never">{t('No expiration')}</option>
                 </select>
               </div>
               <PendingButton
                 type="submit"
                 className="primary"
                 pending={create.isPending}
-                pendingLabel="Generating…"
+                pendingLabel={t('Generating…')}
                 error={create.isError ? errorMessage(create.error) : null}
               >
-                Generate token
+                {t('Generate token')}
               </PendingButton>
             </div>
           </form>

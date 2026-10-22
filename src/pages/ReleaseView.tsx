@@ -5,6 +5,7 @@ import { GitMergeIcon, TagIcon } from '@primer/octicons-react';
 import { api, qk, type Release, type RepoDetail } from '@/lib/uiApi';
 import { ApiError, errorMessage } from '@/lib/api';
 import { fullDate, shortSha, timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { bumpLabel } from '@/lib/versionBump';
 import { Markdown } from '@/components/Markdown';
 import { MarkdownEditor } from '@/components/CommentForm';
@@ -36,7 +37,7 @@ export default function ReleaseView() {
       : {
           icon: 'tag',
           crumbs: [
-            { label: 'Releases', to: `/${repo.fullName}/releases` },
+            { label: t('Releases'), to: `/${repo.fullName}/releases` },
             { label: tag },
           ],
           title: tag,
@@ -49,7 +50,7 @@ export default function ReleaseView() {
   if (q.isError && !q.data)
     return (
       <LoadError
-        what="this release"
+        what={t('this release')}
         error={q.error}
         onRetry={() => void q.refetch()}
         retrying={q.isFetching}
@@ -80,23 +81,44 @@ function ReleaseBody({
                 {r.tag}
               </span>
               <span>
-                Cut{' '}
-                <time
-                  dateTime={new Date(r.createdAt).toISOString()}
-                  title={fullDate(r.createdAt)}
-                >
-                  {timeAgo(r.createdAt)}
-                </time>
-                {r.createdBy && (
-                  <>
-                    {' '}
-                    by <Link to={`/${r.createdBy}`}>{r.createdBy}</Link>
-                  </>
-                )}{' '}
-                at{' '}
-                <Link to={`${base}/commit/${r.commitSha}`} className="mono">
-                  {shortSha(r.commitSha)}
-                </Link>
+                {r.createdBy
+                  ? tx('Cut {when} by {name} at {sha}', {
+                      when: (
+                        <time
+                          dateTime={new Date(r.createdAt).toISOString()}
+                          title={fullDate(r.createdAt)}
+                        >
+                          {timeAgo(r.createdAt)}
+                        </time>
+                      ),
+                      name: <Link to={`/${r.createdBy}`}>{r.createdBy}</Link>,
+                      sha: (
+                        <Link
+                          to={`${base}/commit/${r.commitSha}`}
+                          className="mono"
+                        >
+                          {shortSha(r.commitSha)}
+                        </Link>
+                      ),
+                    })
+                  : tx('Cut {when} at {sha}', {
+                      when: (
+                        <time
+                          dateTime={new Date(r.createdAt).toISOString()}
+                          title={fullDate(r.createdAt)}
+                        >
+                          {timeAgo(r.createdAt)}
+                        </time>
+                      ),
+                      sha: (
+                        <Link
+                          to={`${base}/commit/${r.commitSha}`}
+                          className="mono"
+                        >
+                          {shortSha(r.commitSha)}
+                        </Link>
+                      ),
+                    })}
               </span>
             </p>
           </div>
@@ -107,7 +129,7 @@ function ReleaseBody({
                 className="btn"
                 onClick={() => setEditing(true)}
               >
-                Edit
+                {t('Edit')}
               </button>
             </div>
           )}
@@ -116,18 +138,18 @@ function ReleaseBody({
       {editing ? (
         <EditRelease repo={repo} release={r} onDone={() => setEditing(false)} />
       ) : (
-        <Section title="Notes">
+        <Section title={t('Notes')}>
           <div className="panel rel-entry">
             {r.notes.trim() ? (
               <Markdown source={r.notes} className="rel-notes" />
             ) : (
-              <p className="muted small">No notes.</p>
+              <p className="muted small">{t('No notes.')}</p>
             )}
           </div>
         </Section>
       )}
       {r.pulls.length > 0 && (
-        <Section title="Pull requests">
+        <Section title={t('Pull requests')}>
           <ul className="panel rel-pulls">
             {r.pulls.map((p) => (
               <li key={p.number}>
@@ -143,7 +165,7 @@ function ReleaseBody({
         </Section>
       )}
       <p className="small muted">
-        <Link to={`${base}/releases`}>Back to releases</Link>
+        <Link to={`${base}/releases`}>{t('Back to releases')}</Link>
       </p>
     </>
   );
@@ -195,7 +217,7 @@ function EditRelease({
         </p>
       )}
       <div className="fld">
-        <label htmlFor="rel-title">Title</label>
+        <label htmlFor="rel-title">{t('Title')}</label>
         <input
           id="rel-title"
           className="form-control"
@@ -206,11 +228,11 @@ function EditRelease({
         />
       </div>
       <div className="fld">
-        <span className="lbl">Notes</span>
+        <span className="lbl">{t('Notes')}</span>
         <MarkdownEditor
           value={notes}
           onChange={setNotes}
-          placeholder="What this release changes"
+          placeholder={t('What this release changes')}
           minHeight={200}
         />
       </div>
@@ -221,16 +243,16 @@ function EditRelease({
           onClick={onDone}
           disabled={busy}
         >
-          Cancel
+          {t('Cancel')}
         </button>
         <PendingButton
           type="submit"
           className="primary"
           pending={busy}
-          pendingLabel="Saving…"
+          pendingLabel={t('Saving…')}
           disabled={!title.trim()}
         >
-          Save
+          {t('Save')}
         </PendingButton>
       </div>
     </form>

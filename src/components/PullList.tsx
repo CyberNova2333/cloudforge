@@ -8,8 +8,9 @@ import {
 } from '@primer/octicons-react';
 import { api, qk, type Pull, type RepoDetail } from '@/lib/uiApi';
 import { timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import { laneChip, sortReviewers } from '@/lib/pullBoard';
-import { blocking, reasonText } from '@/lib/pullState';
+import { blocking, isPaused, reasonText } from '@/lib/pullState';
 import {
   filterPulls,
   OPEN_FILTERS,
@@ -32,22 +33,22 @@ import { PrStateIcon } from '@/pages/PrIcons';
 
 /** The filter menu's words; they match the board's lanes. */
 const FILTER_LABEL: Record<ListState, string> = {
-  open: 'All open',
-  closed: 'Closed',
-  human_review: 'Needs you',
-  agent_followup: 'Being fixed',
-  waiting: 'Checking or paused',
-  ready: 'Queued',
+  open: t('All open'),
+  closed: t('Closed'),
+  human_review: t('Needs you'),
+  agent_followup: t('Being fixed'),
+  waiting: t('Checking or paused'),
+  ready: t('Queued'),
 };
 
 /** What the list says when a state has no pull requests. */
 const EMPTY_TEXT: Record<ListState, string> = {
-  open: "There aren't any open pull requests.",
-  closed: "There aren't any closed pull requests.",
-  human_review: 'No pull requests need a person right now.',
-  agent_followup: 'No pull requests are being fixed right now.',
-  waiting: 'No pull requests are being checked or paused right now.',
-  ready: 'No pull requests are queued to merge right now.',
+  open: t("There aren't any open pull requests."),
+  closed: t("There aren't any closed pull requests."),
+  human_review: t('No pull requests need a person right now.'),
+  agent_followup: t('No pull requests are being fixed right now.'),
+  waiting: t('No pull requests are being checked or paused right now.'),
+  ready: t('No pull requests are queued to merge right now.'),
 };
 
 function Row({
@@ -69,12 +70,13 @@ function Row({
   );
   const chip = open ? laneChip(pull.pullState) : null;
   // The first thing holding it, beside the pill. "Paused" already says that merging is.
+  const pausedPill = !!chip && isPaused(pull.pullState);
   const kept = (pull.pullState?.reasons ?? []).filter(
-    (r) => !(chip?.label === 'Paused' && r.kind === 'merging_paused')
+    (r) => !(pausedPill && r.kind === 'merging_paused')
   );
   const first = kept.find(blocking) ?? kept[0];
   const why = first ? reasonText(first) : null;
-  const reasons = pull.pullState?.reasons.map(reasonText).join('; ');
+  const reasons = pull.pullState?.reasons.map(reasonText).join(t('; '));
   return (
     <li className="prow">
       <span className="prow-icon">
@@ -93,7 +95,10 @@ function Row({
           {open && (
             <>
               <span>
-                opened {timeAgo(pull.createdAt)} by {author}
+                {tx('opened {when} by {author}', {
+                  when: timeAgo(pull.createdAt),
+                  author,
+                })}
               </span>
               {pull.createdVia && (
                 <CoderChip
@@ -107,13 +112,23 @@ function Row({
           )}
           {pull.state === 'merged' && (
             <span>
-              by {author} was merged {timeAgo(pull.mergedAt!)}
-              {pull.mergedAutomatically ? ' automatically' : ''}
+              {pull.mergedAutomatically
+                ? tx('by {author} was merged {when} automatically', {
+                    author,
+                    when: timeAgo(pull.mergedAt!),
+                  })
+                : tx('by {author} was merged {when}', {
+                    author,
+                    when: timeAgo(pull.mergedAt!),
+                  })}
             </span>
           )}
           {pull.state === 'closed' && (
             <span>
-              by {author} was closed {timeAgo(pull.closedAt!)}
+              {tx('by {author} was closed {when}', {
+                author,
+                when: timeAgo(pull.closedAt!),
+              })}
             </span>
           )}
         </div>
@@ -129,7 +144,9 @@ function Row({
           <span className="prow-state">
             <Chip tone={chip.tone} title={reasons || undefined}>
               {chip.label}
-              {reasons && <span className="sr">: {reasons}</span>}
+              {reasons && (
+                <span className="sr">{t(': {list}', { list: reasons })}</span>
+              )}
             </Chip>
             {why && <span className="prow-why small muted">{why}</span>}
           </span>
@@ -139,7 +156,7 @@ function Row({
           <Link
             to={`${base}/pull/${pull.number}`}
             className="prow-comments muted"
-            aria-label={`${pull.commentCount} comment${pull.commentCount === 1 ? '' : 's'}`}
+            aria-label={tn(pull.commentCount, '{n} comment', '{n} comments')}
           >
             <CommentIcon size={14} />
             {pull.commentCount}
@@ -263,7 +280,7 @@ export function PullList({
         <QueryError
           error={query.error}
           onRetry={() => void query.refetch()}
-          title="Pull requests did not load"
+          title={t('Pull requests did not load')}
         />
       </div>
     );
@@ -274,17 +291,26 @@ export function PullList({
       <div className="panel">
         <EmptyState
           picture={<GitPullRequestIcon size={24} />}
-          title={q ? `No pull requests match “${q}”` : EMPTY_TEXT[state]}
+          title={
+            q ? t('No pull requests match “{q}”', { q }) : EMPTY_TEXT[state]
+          }
           body={
-            q ? (
-              'Try a number, a title, a branch, a person or a session such as Claude·s4.'
-            ) : state === 'open' && repo.permissions.write ? (
-              <>
-                Coding agents and people open pull requests here.{' '}
-                <Link to={`${base}/compare`}>Create a pull request</Link> to
-                start one by hand.
-              </>
-            ) : undefined
+            q
+              ? t(
+                  'Try a number, a title, a branch, a person or a session such as Claude·s4.'
+                )
+              : state === 'open' && repo.permissions.write
+                ? tx(
+                    'Coding agents and people open pull requests here. {link} to start one by hand.',
+                    {
+                      link: (
+                        <Link to={`${base}/compare`}>
+                          {t('Create a pull request')}
+                        </Link>
+                      ),
+                    }
+                  )
+                : undefined
           }
         />
       </div>
@@ -305,13 +331,17 @@ export function PullList({
         </ul>
         {paged.pages > 1 && (
           <Pager
-            prevLabel="Previous"
-            nextLabel="Next"
+            prevLabel={t('Previous')}
+            nextLabel={t('Next')}
             onPrev={paged.page > 1 ? () => turn(paged.page - 1) : undefined}
             onNext={
               paged.page < paged.pages ? () => turn(paged.page + 1) : undefined
             }
-            note={`Page ${paged.page} of ${paged.pages} · ${paged.total} pull requests`}
+            note={t('Page {page} of {pages} · {total} pull requests', {
+              page: paged.page,
+              pages: paged.pages,
+              total: paged.total,
+            })}
           />
         )}
       </>
@@ -320,15 +350,15 @@ export function PullList({
   return (
     <div className="plist">
       <div className="pl-bar">
-        <nav className="pl-tabs" aria-label="Pull request state">
-          {tab({}, 'Open', query.data?.openCount)}
-          {tab({ state: 'closed' }, 'Closed', query.data?.closedCount)}
+        <nav className="pl-tabs" aria-label={t('Pull request state')}>
+          {tab({}, t('Open'), query.data?.openCount)}
+          {tab({ state: 'closed' }, t('Closed'), query.data?.closedCount)}
         </nav>
         <div className="pl-tools">
           {openish && (
             <select
               className="pl-select"
-              aria-label="Filter by state"
+              aria-label={t('Filter by state')}
               value={filtered ? state : 'open'}
               onChange={(e) =>
                 go({ state: e.target.value as ListState, page: 1 })
@@ -347,8 +377,8 @@ export function PullList({
             <input
               type="search"
               value={draft}
-              placeholder="Search pull requests"
-              aria-label="Search pull requests"
+              placeholder={t('Search pull requests')}
+              aria-label={t('Search pull requests')}
               onChange={(e) => search(e.target.value)}
             />
           </label>

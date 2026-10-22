@@ -7,6 +7,7 @@ import { errorMessage } from '@/lib/api';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { AuthLoading, AuthShell, FlashError } from './AuthShell';
 import { useAppName } from '@/lib/appName';
+import { t, tx } from '@/lib/i18n';
 
 /** First run: create the first administrator account. */
 export default function Setup() {
@@ -54,16 +55,18 @@ export default function Setup() {
 
   return (
     <AuthShell
-      title={`Welcome to ${appName}`}
-      docTitle="Set up"
-      lede="Let’s set up your instance. Create the first administrator account. You can invite the rest of your team once you are in."
+      title={t('Welcome to {name}', { name: appName })}
+      docTitle={t('Set up')}
+      lede={t(
+        'Let’s set up your instance. Create the first administrator account. You can invite the rest of your team once you are in.'
+      )}
       wide
     >
       <FlashError message={error} />
       <form className="auth-fields" onSubmit={submit}>
         {status.data?.codeRequired && (
           <div className="fld">
-            <label htmlFor="code">Setup code</label>
+            <label htmlFor="code">{t('Setup code')}</label>
             <input
               id="code"
               className="form-control"
@@ -75,12 +78,14 @@ export default function Setup() {
               aria-describedby="code-hint"
             />
             <p id="code-hint" className="hint">
-              Printed at the end of <code>yarn gitorange install</code>.
+              {tx('Printed at the end of {command}.', {
+                command: <code>yarn gitorange install</code>,
+              })}
             </p>
           </div>
         )}
         <div className="fld">
-          <label htmlFor="name">Full name</label>
+          <label htmlFor="name">{t('Full name')}</label>
           <input
             id="name"
             className="form-control"
@@ -91,7 +96,7 @@ export default function Setup() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="username">Username</label>
+          <label htmlFor="username">{t('Username')}</label>
           <input
             id="username"
             className="form-control"
@@ -102,7 +107,7 @@ export default function Setup() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="email">Email address</label>
+          <label htmlFor="email">{t('Email address')}</label>
           <input
             id="email"
             type="email"
@@ -113,7 +118,7 @@ export default function Setup() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t('Password')}</label>
           <input
             id="password"
             type="password"
@@ -126,16 +131,16 @@ export default function Setup() {
             aria-describedby="password-hint"
           />
           <p id="password-hint" className="hint">
-            Make sure it is at least 8 characters.
+            {t('Make sure it is at least 8 characters.')}
           </p>
         </div>
         <PendingButton
           type="submit"
           className="primary block"
           pending={busy}
-          pendingLabel="Creating account…"
+          pendingLabel={t('Creating account…')}
         >
-          Create admin account
+          {t('Create admin account')}
         </PendingButton>
       </form>
     </AuthShell>

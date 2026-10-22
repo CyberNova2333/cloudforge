@@ -1,6 +1,7 @@
 import { CodeIcon, TriangleDownIcon } from '@primer/octicons-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { t, tx } from '@/lib/i18n';
 import type { RepoDetail } from '@/lib/uiApi';
 import { Seg } from './ui/Seg';
 import { AgentPrompt } from './AgentPrompt';
@@ -24,21 +25,21 @@ export function CloneButton({ repo }: { repo: RepoDetail }) {
           aria-expanded={open}
           onClick={toggle}
         >
-          <CodeIcon /> Code <TriangleDownIcon />
+          <CodeIcon /> {t('Code')} <TriangleDownIcon />
         </button>
       )}
     >
       {() => (
         <div className="clone-body">
           <div className="clone-head">
-            <b>Clone</b>
+            <b>{t('Clone')}</b>
             <Seg<'https' | 'agent'>
-              label="Clone with"
+              label={t('Clone with')}
               value={tab}
               onChange={setTab}
               options={[
                 { value: 'https', label: 'HTTPS' },
-                { value: 'agent', label: 'AI agent' },
+                { value: 'agent', label: t('AI agent') },
               ]}
             />
           </div>
@@ -50,20 +51,43 @@ export function CloneButton({ repo }: { repo: RepoDetail }) {
                 <input
                   className="form-control input-monospace input-sm"
                   readOnly
-                  aria-label="HTTPS clone URL"
+                  aria-label={t('HTTPS clone URL')}
                   value={url}
                   onFocus={(e) => e.target.select()}
                 />
                 <CopyButton
                   text={url}
                   className="btn small"
-                  label="Copy clone URL"
+                  label={t('Copy clone URL')}
                 />
               </div>
-              <p className="small muted">
-                Use a <Link to="/settings/tokens">personal access token</Link>{' '}
-                as your password. Large files use Git LFS.
-              </p>
+              {repo.visibility === 'public' ? (
+                <p className="small muted">
+                  {tx(
+                    'Anyone can clone this public repository without a token. To push, use a {token} as your password. Large files use Git LFS.',
+                    {
+                      token: (
+                        <Link to="/settings/tokens">
+                          {t('personal access token')}
+                        </Link>
+                      ),
+                    }
+                  )}
+                </p>
+              ) : (
+                <p className="small muted">
+                  {tx(
+                    'Use a {token} as your password. Large files use Git LFS.',
+                    {
+                      token: (
+                        <Link to="/settings/tokens">
+                          {t('personal access token')}
+                        </Link>
+                      ),
+                    }
+                  )}
+                </p>
+              )}
             </>
           )}
         </div>

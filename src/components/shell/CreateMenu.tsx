@@ -9,6 +9,7 @@ import {
 import { useCurrentUser } from '@/lib/auth';
 import type { ShellMenu } from './AppShell';
 import { CrewIcon } from './icons';
+import { t } from '@/lib/i18n';
 
 /** The "+" menu: New repository, New reviewer and Invite member (site admins create those), New access token. */
 export function CreateMenu({
@@ -27,7 +28,7 @@ export function CreateMenu({
         type="button"
         className="tool"
         data-menu-trigger="create"
-        aria-label="Create new"
+        aria-label={t('Create new')}
         aria-expanded={open}
         onClick={() => setMenu(open ? null : 'create')}
       >
@@ -39,28 +40,28 @@ export function CreateMenu({
           <Link className="ws-item" to="/new" onClick={close}>
             <RepoIcon />
             <span>
-              <b>New repository</b>
+              <b>{t('New repository')}</b>
             </span>
           </Link>
           {admin && (
             <Link className="ws-item" to="/agents/new" onClick={close}>
               <CrewIcon />
               <span>
-                <b>New reviewer</b>
+                <b>{t('New reviewer')}</b>
               </span>
             </Link>
           )}
           <Link className="ws-item" to="/settings/tokens" onClick={close}>
             <KeyIcon />
             <span>
-              <b>New access token</b>
+              <b>{t('New access token')}</b>
             </span>
           </Link>
           {admin && (
             <Link className="ws-item" to="/admin?invite=1" onClick={close}>
               <PersonAddIcon />
               <span>
-                <b>Invite member</b>
+                <b>{t('Invite member')}</b>
               </span>
             </Link>
           )}

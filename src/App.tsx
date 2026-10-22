@@ -11,7 +11,8 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
-import { useSession } from '@/lib/auth';
+import { useCurrentUser, useSession } from '@/lib/auth';
+import { openWithoutAccount } from '@/lib/signIn';
 import { api, qk } from '@/lib/uiApi';
 import { Spinner } from '@/components/Spinner';
 import { LiveUpdates } from '@/lib/live';
@@ -22,6 +23,7 @@ import Setup from './pages/Setup';
 import Login from './pages/Login';
 import AcceptInvite from './pages/AcceptInvite';
 import Home from './pages/Home';
+import PublicHome from './pages/PublicHome';
 import Repositories from './pages/Repositories';
 import Approvals from './pages/Approvals';
 import Finding from './pages/Finding';
@@ -61,27 +63,35 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 15_000,
-      retry: (n, e: any) => e?.status !== 404 && n < 2,
+      // Not found and signed out are answers, not hiccups: no retry.
+      retry: (n, e: any) => e?.status !== 404 && e?.status !== 401 && n < 2,
       refetchOnWindowFocus: false,
     },
   },
 });
 
-/** First run → /setup; afterwards every page needs a session. */
+/** First run → /setup; afterwards every page needs a session, except home and public repositories. */
 function Gate({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const setup = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
   const { data: session, isPending } = useSession();
   if (setup.isPending || isPending) return <Spinner />;
   if (setup.data?.setupRequired) return <Navigate to="/setup" replace />;
-  if (!session)
+  if (!session) {
+    if (openWithoutAccount(location.pathname)) return <>{children}</>;
     return (
       <Navigate
         to={`/login?return_to=${encodeURIComponent(location.pathname + location.search)}`}
         replace
       />
     );
+  }
   return <LiveUpdates>{children}</LiveUpdates>;
+}
+
+/** Home: the dashboard for members, the public repositories for everyone else. */
+function HomeRoute() {
+  return useCurrentUser() ? <Home /> : <PublicHome />;
 }
 
 function AdminOnly({ children }: { children: React.ReactNode }) {
@@ -117,7 +127,7 @@ const App = () => (
             {/* Signed in, but an authorization page of its own: no rail. */}
             <Route path="/oauth/consent" element={<OAuthConsent />} />
             <Route element={<AppShell />}>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/repos" element={<Repositories />} />
               {/* Every member reads the agents; creating them is for site admins (the page says so). */}
               <Route path="/agents" element={<Agents />} />

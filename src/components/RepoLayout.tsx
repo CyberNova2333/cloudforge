@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RepoIcon } from '@primer/octicons-react';
 import { api, qk, type RepoDetail } from '@/lib/uiApi';
 import { ApiError } from '@/lib/api';
+import { t } from '@/lib/i18n';
 import { useLiveRepo } from '@/lib/live';
 import { repoBand, repoRest, repoTabOf, repoTabs } from '@/lib/repoNav';
 import {
@@ -58,8 +59,15 @@ export function useRepoAgent(owner: string, repo: string) {
 }
 
 const VISIBILITY_TITLE = {
-  private: 'Only you, collaborators, and site admins can see this',
-  internal: 'Every member can see this',
+  private: t('Only you, collaborators, and site admins can see this'),
+  internal: t('Every member can see this'),
+  public: t('Anyone can see this, even without an account'),
+} as const;
+
+const VISIBILITY_TEXT = {
+  private: t('Private'),
+  internal: t('Internal'),
+  public: t('Public'),
 } as const;
 
 /**
@@ -141,7 +149,7 @@ export function RepoLayout() {
                 // Sent since crew redesign B1; typed in uiApi by C0.
                 color={(agent as { color?: string | null }).color}
                 size={28}
-                label={`${agent.name}, a reviewer agent`}
+                label={t('{name}, a reviewer agent', { name: agent.name })}
               />
             ) : (
               <RepoIcon />
@@ -154,28 +162,28 @@ export function RepoLayout() {
           </span>
           {data && (
             <span className="vis" title={VISIBILITY_TITLE[data.visibility]}>
-              {data.visibility === 'private' ? 'Private' : 'Internal'}
+              {VISIBILITY_TEXT[data.visibility]}
             </span>
           )}
           {agent && (
             <>
-              <span className="vis">Agent instructions</span>
+              <span className="vis">{t('Agent instructions')}</span>
               <Link className="rhead-link" to={`/${agent.username}`}>
-                {agent.name}&rsquo;s profile
+                {t('{name}’s profile', { name: agent.name })}
               </Link>
             </>
           )}
         </div>
-        <nav className="rtabs" aria-label="Repository">
-          {tabs.map((t) => (
+        <nav className="rtabs" aria-label={t('Repository')}>
+          {tabs.map((tab) => (
             <Link
-              key={t.id}
-              to={t.path ? `${base}/${t.path}` : base}
-              aria-current={t.id === activeTab ? 'page' : undefined}
+              key={tab.id}
+              to={tab.path ? `${base}/${tab.path}` : base}
+              aria-current={tab.id === activeTab ? 'page' : undefined}
             >
-              <PageIcon name={t.icon} />
-              {t.label}
-              {t.id === 'pulls' && !!data?.openPullCount && (
+              <PageIcon name={tab.icon} />
+              {tab.label}
+              {tab.id === 'pulls' && !!data?.openPullCount && (
                 <span className="count">{data.openPullCount}</span>
               )}
             </Link>

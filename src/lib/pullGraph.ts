@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { reasonText, stateLabel } from './pullState';
 import type { PullStateName, StackDependency, StackTree } from './uiApi';
 
@@ -64,21 +65,26 @@ export function nodeTooltip(n: TipNode): string {
   const dep = (d: StackDependency, as: 'parent' | 'wait' | 'account') => {
     if (seen.has(d.number)) return;
     seen.add(d.number);
-    if (d.kind === 'ordered_after') lines.push(`lands after #${d.number}`);
+    if (d.kind === 'ordered_after')
+      lines.push(t('lands after #{pr}', { pr: d.number }));
     else if (d.kind === 'must_account_for')
       lines.push(
-        `must change for #${d.number}${why(d)}${d.accounted ? ' (accounted for)' : ''}`
+        t('must change for #{pr}', { pr: d.number }) +
+          why(d) +
+          (d.accounted ? t(' (accounted for)') : '')
       );
-    else if (as === 'parent') lines.push(`stacked on #${d.number}${why(d)}`);
-    else lines.push(`waits on #${d.number}${why(d)}`);
+    else if (as === 'parent')
+      lines.push(t('stacked on #{pr}', { pr: d.number }) + why(d));
+    else lines.push(t('waits on #{pr}', { pr: d.number }) + why(d));
   };
   if (n.parent) dep(n.parent, 'parent');
   for (const d of n.waitsOn) dep(d, 'wait');
   for (const d of n.mustAccountFor) dep(d, 'account');
   for (const d of n.landedRelations) dep(d, 'wait');
-  for (const p of n.pending) lines.push(`checking #${p}…`);
-  for (const u of n.unchecked) lines.push(`couldn't check against #${u}`);
-  if (n.checking) lines.push('checking…');
+  for (const p of n.pending) lines.push(t('checking #{pr}…', { pr: p }));
+  for (const u of n.unchecked)
+    lines.push(t("couldn't check against #{pr}", { pr: u }));
+  if (n.checking) lines.push(t('checking…'));
   return lines.join('\n');
 }
 
@@ -96,7 +102,7 @@ export const ICON_SLOT = 'MM';
 /** A PR node's text: its whole title, who opened it, then room for `icons` icons (none: no such line). */
 function nodeLabel(n: TipNode, icons: number): string {
   const title = `#${n.number} ${n.title}`;
-  const by = `by @${n.author.username}`;
+  const by = t('by @{user}', { user: n.author.username });
   return icons > 0
     ? label(title, by, ICON_SLOT.repeat(icons))
     : label(title, by);
@@ -128,12 +134,13 @@ type Edge = { arrow: string; style: string | null };
 /** How an edge from a PR to `d` (something that lands before it) is drawn. */
 function edgeFor(d: StackDependency, as: 'parent' | 'wait' | 'account'): Edge {
   if (d.kind === 'ordered_after')
-    return { arrow: '-.->|lands after|', style: DOTTED };
+    return { arrow: `-.->|${t('lands after')}|`, style: DOTTED };
   if (d.kind === 'must_account_for' && !d.accounted)
-    return { arrow: '-->|must change for|', style: RED };
-  if (as === 'parent') return { arrow: '-->|stacked on|', style: null };
-  if (as === 'account') return { arrow: '-.->|accounted for|', style: DASHED };
-  return { arrow: '-.->|waits on|', style: DASHED };
+    return { arrow: `-->|${t('must change for')}|`, style: RED };
+  if (as === 'parent') return { arrow: `-->|${t('stacked on')}|`, style: null };
+  if (as === 'account')
+    return { arrow: `-.->|${t('accounted for')}|`, style: DASHED };
+  return { arrow: `-.->|${t('waits on')}|`, style: DASHED };
 }
 
 /**
@@ -147,25 +154,26 @@ export function pullGraph(
   /** How many icons each open PR shows under its title (by number); none by default. */
   icons: (pr: number) => number = () => 0
 ): PullGraph[] {
-  return tree.targets.map((t) => {
-    const open = new Set(t.nodes.map((n) => n.number));
-    const landedTitle = new Map(t.landed.map((l) => [l.number, l.title]));
-    const nodeLines = [`  land${label(t.branch)}`];
-    for (const n of t.nodes)
+  return tree.targets.map((tg) => {
+    const open = new Set(tg.nodes.map((n) => n.number));
+    const landedTitle = new Map(tg.landed.map((l) => [l.number, l.title]));
+    const nodeLines = [`  land${label(tg.branch)}`];
+    for (const n of tg.nodes)
       nodeLines.push(`  pr${n.number}${nodeLabel(n, icons(n.number))}`);
     const tips: Record<string, string> = {};
-    for (const n of t.nodes) tips[`pr${n.number}`] = nodeTooltip(n);
+    for (const n of tg.nodes) tips[`pr${n.number}`] = nodeTooltip(n);
     const extra = new Set<string>();
     const idOf = (d: StackDependency) => {
       const id = d.landed ? `m${d.number}` : `pr${d.number}`;
       if (!open.has(d.number) && !extra.has(id)) {
         extra.add(id);
         const title = landedTitle.get(d.number);
+        const merged = t(' (merged)');
         if (d.landed)
-          tips[id] = `#${d.number}${title ? ` ${title}` : ''} (merged)`;
+          tips[id] = `#${d.number}${title ? ` ${title}` : ''}${merged}`;
         nodeLines.push(
           `  ${id}${label(
-            `#${d.number}${title ? ` ${title}` : ''}${d.landed ? ' (merged)' : ''}`
+            `#${d.number}${title ? ` ${title}` : ''}${d.landed ? merged : ''}`
           )}`
         );
       }
@@ -177,7 +185,7 @@ export function pullGraph(
       if (e.style) styles.push(`  linkStyle ${edges.length} ${e.style}`);
       edges.push(`  ${from} ${e.arrow} ${to}`);
     };
-    for (const n of t.nodes) {
+    for (const n of tg.nodes) {
       const from = `pr${n.number}`;
       const drawn = new Set<number>();
       if (!n.parent && n.waitsOn.length === 0)
@@ -208,11 +216,11 @@ export function pullGraph(
       ...[...extra]
         .filter((id) => id.startsWith('m'))
         .map((id) => `  class ${id} merged`),
-      ...t.nodes.flatMap((n) =>
+      ...tg.nodes.flatMap((n) =>
         n.pullState ? [`  class pr${n.number} ${CLASS[n.pullState.state]}`] : []
       ),
     ];
-    const cycles = t.nodes
+    const cycles = tg.nodes
       .filter((n) => n.cycleWith.length > 0)
       .map((n) => n.number)
       .sort((x, y) => x - y);
@@ -234,6 +242,6 @@ export function pullGraph(
       ),
       ...styles,
     ].join('\n');
-    return { target: t.branch, source, cycles, tips, landed: t.landed };
+    return { target: tg.branch, source, cycles, tips, landed: tg.landed };
   });
 }

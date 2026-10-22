@@ -1,4 +1,5 @@
 import type { Tone } from './agentLook';
+import { locale, t } from './i18n';
 import type { Agent, AgentActivity, RepoStats, RepoWithStats } from './uiApi';
 
 // The Repositories board, and the repository lists on Home, as pure functions: which repository is an agent's
@@ -31,14 +32,14 @@ export type BoardFilter = 'all' | 'attention' | 'code' | 'agent';
 export type BoardSort = 'updated' | 'name';
 
 export const BOARD_FILTERS: { id: BoardFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'attention', label: 'Needs attention' },
-  { id: 'code', label: 'Code' },
-  { id: 'agent', label: 'Agent instructions' },
+  { id: 'all', label: t('All') },
+  { id: 'attention', label: t('Needs attention') },
+  { id: 'code', label: t('Code') },
+  { id: 'agent', label: t('Agent instructions') },
 ];
 export const BOARD_SORTS: { id: BoardSort; label: string }[] = [
-  { id: 'updated', label: 'Recently updated' },
-  { id: 'name', label: 'Name' },
+  { id: 'updated', label: t('Recently updated') },
+  { id: 'name', label: t('Name') },
 ];
 
 export interface BoardView {
@@ -161,10 +162,14 @@ export interface FlightSegment {
  */
 export function flightSegments(pulls: RepoStats['pulls']): FlightSegment[] {
   const all: FlightSegment[] = [
-    { key: 'needs', label: 'needs a person', count: pulls.needsPerson },
-    { key: 'asked', label: 'changes requested', count: pulls.changesRequested },
-    { key: 'reviewing', label: 'checking', count: pulls.checking },
-    { key: 'clear', label: 'queued', count: pulls.queued },
+    { key: 'needs', label: t('needs a person'), count: pulls.needsPerson },
+    {
+      key: 'asked',
+      label: t('changes requested'),
+      count: pulls.changesRequested,
+    },
+    { key: 'reviewing', label: t('checking'), count: pulls.checking },
+    { key: 'clear', label: t('queued'), count: pulls.queued },
   ];
   return all.filter((s) => s.count > 0);
 }
@@ -177,19 +182,29 @@ export function pullChip(pulls: RepoStats['pulls']): {
   if (pulls.needsPerson > 0)
     return {
       tone: 'warn',
-      label: `${pulls.needsPerson} ${pulls.needsPerson === 1 ? 'needs' : 'need'} a person`,
+      label:
+        pulls.needsPerson === 1
+          ? t('{n} needs a person', { n: pulls.needsPerson })
+          : t('{n} need a person', { n: pulls.needsPerson }),
     };
   if (pulls.changesRequested > 0)
     return {
       tone: 'serious',
-      label: `${pulls.changesRequested} with changes requested`,
+      label: t('{n} with changes requested', { n: pulls.changesRequested }),
     };
   if (pulls.checking > 0)
-    return { tone: 'info', label: `${pulls.checking} being checked` };
+    return {
+      tone: 'info',
+      label: t('{n} being checked', { n: pulls.checking }),
+    };
   if (pulls.queued > 0)
-    return { tone: 'good', label: `${pulls.queued} queued to merge` };
-  if (pulls.open > 0) return { tone: 'off', label: `${pulls.open} open` };
-  return { tone: 'off', label: 'No open pull requests' };
+    return {
+      tone: 'good',
+      label: t('{n} queued to merge', { n: pulls.queued }),
+    };
+  if (pulls.open > 0)
+    return { tone: 'off', label: t('{n} open', { n: pulls.open }) };
+  return { tone: 'off', label: t('No open pull requests') };
 }
 
 /** What blocks a merge, then what is in progress, then what is done: the order an agent's work is told in. */
@@ -240,7 +255,7 @@ const DAY_MS = 86_400_000;
 export function dayLabels(count: number, now: number): string[] {
   const today = Math.floor(now / DAY_MS) * DAY_MS;
   return Array.from({ length: count }, (_, i) =>
-    new Date(today - (count - 1 - i) * DAY_MS).toLocaleDateString('en-US', {
+    new Date(today - (count - 1 - i) * DAY_MS).toLocaleDateString(locale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

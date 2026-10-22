@@ -63,9 +63,10 @@ describe('repositories', () => {
         })
       ).status
     ).toBe(403);
+    // Signed out, a repository that is not public does not exist (only public ones are readable).
     expect(
       (await call(t, '/api/repos/octocat/app', { method: 'GET' })).status
-    ).toBe(401);
+    ).toBe(404);
   });
 
   it('resolves branch names containing slashes in tree paths', async () => {

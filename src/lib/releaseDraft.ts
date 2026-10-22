@@ -2,9 +2,10 @@
  * The cut-release form's version and notes: what the page suggests, and what survives a refetch (after a 409 the
  * suggestion moves to the new head, but whatever the person typed stays theirs).
  */
+import { t } from './i18n';
 import type { UnreleasedChanges } from './uiApi';
 
-export const FIRST_NOTES = 'First release.';
+export const FIRST_NOTES = t('First release.');
 
 export type ReleaseDraft = { version: string; notes: string };
 

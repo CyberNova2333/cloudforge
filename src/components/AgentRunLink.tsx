@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { HubotIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import { api, qk, type AgentRunKind, type RepoDetail } from '@/lib/uiApi';
 
 /**
@@ -12,7 +13,7 @@ export function AgentRunLink({
   number,
   kind,
   className = 'f6',
-  label = 'View run',
+  label = t('View run'),
 }: {
   repo: RepoDetail;
   number: number;
@@ -34,7 +35,9 @@ export function AgentRunLink({
       to={`/${repo.fullName}/actions/agent/${encodeURIComponent(latest.id)}`}
       className={`${className} d-inline-flex flex-items-center`}
       style={{ gap: 4 }}
-      title={`${latest.title}: steps, models, tokens, and decisions`}
+      title={t('{title}: steps, models, tokens, and decisions', {
+        title: latest.title,
+      })}
     >
       <HubotIcon size={14} /> {label}
     </Link>

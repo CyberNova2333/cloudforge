@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n';
 import { sparkGeometry } from '@/lib/spark';
 
 /**
@@ -15,7 +16,7 @@ export function Spark({
   unit = '',
   trend,
   missing,
-  missingText = 'no data',
+  missingText = t('no data'),
 }: {
   values: number[];
   width?: number;
@@ -42,7 +43,7 @@ export function Spark({
     trend === 'better' || trend === 'worse' ? `spark ${trend}` : 'spark';
   const shown = (i: number) => Math.min(i, values.length - 1);
   const title = (i: number, text: string) =>
-    `${labels?.[shown(i)] ?? `Week ${shown(i) + 1}`}: ${text}`;
+    `${labels?.[shown(i)] ?? t('Week {n}', { n: shown(i) + 1 })}: ${text}`;
   const lines = runs.filter((r) => r.length > 1);
   return (
     <svg

@@ -15,8 +15,10 @@ import {
   type Reviewer,
 } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
+import { useSignInHref } from '@/lib/signIn';
 import { errorMessage } from '@/lib/api';
 import { fullDate, timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import type { ShownStatus, TimelineItem } from '@/lib/reviewTimeline';
 import { Avatar } from '@/components/Avatar';
 import { Markdown } from '@/components/Markdown';
@@ -61,10 +63,13 @@ function TimelineComment({
             {c.author.username}
           </Link>
           <span className="muted">
-            commented{' '}
-            <time dateTime={c.createdAt} title={fullDate(c.createdAt)}>
-              {timeAgo(c.createdAt)}
-            </time>
+            {tx('commented {when}', {
+              when: (
+                <time dateTime={c.createdAt} title={fullDate(c.createdAt)}>
+                  {timeAgo(c.createdAt)}
+                </time>
+              ),
+            })}
           </span>
           <span className="grow" />
           {label && <span className="chip off">{label}</span>}
@@ -74,7 +79,7 @@ function TimelineComment({
             <Markdown source={c.body} />
           ) : (
             <p className="muted">
-              <i>No description provided.</i>
+              <i>{t('No description provided.')}</i>
             </p>
           )}
         </div>
@@ -102,7 +107,9 @@ export function Conversation({
   anchored: string | null;
   refresh: () => Promise<unknown>;
 }) {
-  const me = useCurrentUser()!;
+  // Null on a public repository, signed out: the timeline reads the same, the composer asks to sign in.
+  const me = useCurrentUser();
+  const signIn = useSignInHref();
   const pr = d.pull;
   const base = `/${repo.fullName}`;
   const [body, setBody] = useState('');
@@ -110,7 +117,7 @@ export function Conversation({
     null
   );
   const [error, setError] = useState<string | null>(null);
-  const canEdit = d.canMerge || pr.author.id === me.id;
+  const canEdit = d.canMerge || pr.author.id === me?.id;
   const slot = (i: number) =>
     slots[i].map((x) =>
       x.kind === 'event' ? (
@@ -156,12 +163,12 @@ export function Conversation({
   };
   return (
     <section className="section" aria-labelledby="pr-conversation">
-      <h2 id="pr-conversation">Conversation</h2>
+      <h2 id="pr-conversation">{t('Conversation')}</h2>
       <div className="pr-timeline">
         <TimelineComment
           c={{ author: pr.author, body: pr.body, createdAt: pr.createdAt }}
-          me={pr.author.id === me.id}
-          label="Author"
+          me={pr.author.id === me?.id}
+          label={t('Author')}
         />
         {d.comments.map((c, i) => (
           <Fragment key={c.id}>
@@ -169,30 +176,35 @@ export function Conversation({
             {slot(i)}
             <TimelineComment
               c={c}
-              me={c.author.id === me.id}
-              label={c.author.id === pr.author.id ? 'Author' : undefined}
+              me={c.author.id === me?.id}
+              label={c.author.id === pr.author.id ? t('Author') : undefined}
             />
           </Fragment>
         ))}
         {slot(d.comments.length)}
         {pr.state === 'merged' && (
           <EventRow icon={<GitMergeIcon />} tone="merged">
-            {pr.mergedBy ? (
-              <>
-                <Avatar user={pr.mergedBy} size={20} />{' '}
-                <b>{pr.mergedBy.username}</b> merged commit{' '}
-              </>
-            ) : (
-              <>
-                <SparkleFillIcon /> <b>Auto-merge</b> merged commit{' '}
-              </>
-            )}
-            {pr.mergeCommitSha && (
-              <Link to={`${base}/commit/${pr.mergeCommitSha}`} className="mono">
-                {pr.mergeCommitSha.slice(0, 7)}
-              </Link>
-            )}{' '}
-            into <code>{pr.baseRef}</code>{' '}
+            {tx('{who} merged commit {commit} into {branch}', {
+              who: pr.mergedBy ? (
+                <>
+                  <Avatar user={pr.mergedBy} size={20} />{' '}
+                  <b>{pr.mergedBy.username}</b>
+                </>
+              ) : (
+                <>
+                  <SparkleFillIcon /> <b>{t('Auto-merge')}</b>
+                </>
+              ),
+              commit: pr.mergeCommitSha ? (
+                <Link
+                  to={`${base}/commit/${pr.mergeCommitSha}`}
+                  className="mono"
+                >
+                  {pr.mergeCommitSha.slice(0, 7)}
+                </Link>
+              ) : null,
+              branch: <code>{pr.baseRef}</code>,
+            })}{' '}
             {pr.mergedAt && (
               <time
                 className="muted"
@@ -206,7 +218,7 @@ export function Conversation({
         )}
         {pr.state === 'closed' && (
           <EventRow icon={<GitPullRequestClosedIcon />} tone="closed">
-            This pull request was closed{' '}
+            {t('This pull request was closed')}{' '}
             {pr.closedAt && (
               <time
                 className="muted"
@@ -219,52 +231,62 @@ export function Conversation({
           </EventRow>
         )}
       </div>
-      <div className="pr-composer">
-        <span className="pr-entry-ava" aria-hidden="true">
-          <Avatar user={{ username: me.username ?? me.name }} size={40} />
-        </span>
-        <div className="pr-composer-main">
-          <h3 className="pr-subhead">Add a comment</h3>
-          <PanelError error={error} />
-          <MarkdownEditor
-            value={body}
-            onChange={setBody}
-            placeholder="Use Markdown to format your comment"
-          />
-          <div className="actions pr-composer-actions">
-            {canEdit && pr.state === 'open' && (
+      {!me ? (
+        <p className="muted pr-composer">
+          {tx('{link} to comment.', {
+            link: <Link to={signIn}>{t('Sign in')}</Link>,
+          })}
+        </p>
+      ) : (
+        <div className="pr-composer">
+          <span className="pr-entry-ava" aria-hidden="true">
+            <Avatar user={{ username: me.username ?? me.name }} size={40} />
+          </span>
+          <div className="pr-composer-main">
+            <h3 className="pr-subhead">{t('Add a comment')}</h3>
+            <PanelError error={error} />
+            <MarkdownEditor
+              value={body}
+              onChange={setBody}
+              placeholder={t('Use Markdown to format your comment')}
+            />
+            <div className="actions pr-composer-actions">
+              {canEdit && pr.state === 'open' && (
+                <PendingButton
+                  pending={sending === 'closed'}
+                  pendingLabel={t('Closing…')}
+                  disabled={!!sending}
+                  onClick={() => send('closed')}
+                >
+                  <GitPullRequestClosedIcon size={14} />
+                  {body.trim()
+                    ? t('Close with comment')
+                    : t('Close pull request')}
+                </PendingButton>
+              )}
+              {canEdit && pr.state === 'closed' && d.headBranchExists && (
+                <PendingButton
+                  pending={sending === 'open'}
+                  pendingLabel={t('Reopening…')}
+                  disabled={!!sending}
+                  onClick={() => send('open')}
+                >
+                  {t('Reopen pull request')}
+                </PendingButton>
+              )}
               <PendingButton
-                pending={sending === 'closed'}
-                pendingLabel="Closing…"
-                disabled={!!sending}
-                onClick={() => send('closed')}
+                className="primary"
+                pending={sending === 'comment'}
+                pendingLabel={t('Commenting…')}
+                disabled={!!sending || !body.trim()}
+                onClick={() => send()}
               >
-                <GitPullRequestClosedIcon size={14} />
-                {body.trim() ? 'Close with comment' : 'Close pull request'}
+                {t('Comment')}
               </PendingButton>
-            )}
-            {canEdit && pr.state === 'closed' && d.headBranchExists && (
-              <PendingButton
-                pending={sending === 'open'}
-                pendingLabel="Reopening…"
-                disabled={!!sending}
-                onClick={() => send('open')}
-              >
-                Reopen pull request
-              </PendingButton>
-            )}
-            <PendingButton
-              className="primary"
-              pending={sending === 'comment'}
-              pendingLabel="Commenting…"
-              disabled={!!sending || !body.trim()}
-              onClick={() => send()}
-            >
-              Comment
-            </PendingButton>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

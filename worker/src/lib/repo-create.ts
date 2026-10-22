@@ -34,9 +34,9 @@ export interface CreateRepositoryInput {
   name: string;
   description?: string;
   addReadme?: boolean;
-  /** Personal repos default to private; team repos are always internal. */
+  /** Personal repos default to private; team repos are internal unless public. */
   owner?: 'user' | 'team';
-  visibility?: 'private' | 'internal';
+  visibility?: 'private' | 'internal' | 'public';
 }
 
 export type CreateRepositoryResult =
@@ -87,7 +87,11 @@ export async function createRepository(
     id,
     ownerId: user.id,
     teamId: team?.id ?? null,
-    visibility: team ? 'internal' : (input.visibility ?? 'private'),
+    visibility: team
+      ? input.visibility === 'public'
+        ? 'public'
+        : 'internal'
+      : (input.visibility ?? 'private'),
     name,
     description: input.description?.trim() || null,
     defaultBranch: 'main',

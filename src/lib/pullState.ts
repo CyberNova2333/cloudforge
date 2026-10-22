@@ -1,10 +1,11 @@
+import { t, tn } from './i18n';
 import type { PullReason, PullState, PullStateName } from './uiApi';
 
 export const STATE_LABEL: Record<PullStateName, string> = {
-  agent_followup: 'Ready for agent followup',
-  human_review: 'Requires human review',
-  waiting: 'Waiting for checks',
-  ready: 'Ready',
+  agent_followup: t('Ready for agent followup'),
+  human_review: t('Requires human review'),
+  waiting: t('Waiting for checks'),
+  ready: t('Ready'),
 };
 
 /** Primer Label modifiers per state. */
@@ -23,61 +24,94 @@ const n = (v: unknown) => Number(v);
 const has = (v: unknown) => v != null && Number.isFinite(Number(v));
 const prs = (v: unknown) =>
   ((v as number[]) ?? []).map((x) => `#${x}`).join(', ');
-const s = (k: number, word: string) => `${k} ${word}${k === 1 ? '' : 's'}`;
 
 /** A reason in a few words, for labels, banners and the timeline. */
 export function reasonText(r: PullReason): string {
   switch (r.kind) {
-    case 'check_failed':
-      return `${r.check ? `the "${r.check}" check` : 'a check'} failed${has(r.run_number) ? ` (run #${n(r.run_number)})` : ''}`;
+    case 'check_failed': {
+      const check = r.check ? String(r.check) : null;
+      const run = has(r.run_number) ? n(r.run_number) : null;
+      if (check && run !== null)
+        return t('the "{check}" check failed (run #{run})', { check, run });
+      if (check) return t('the "{check}" check failed', { check });
+      if (run !== null) return t('a check failed (run #{run})', { run });
+      return t('a check failed');
+    }
     case 'changes_requested':
       return has(r.flags)
-        ? `changes requested on ${s(n(r.flags), 'flag')}`
-        : 'changes requested on review flags';
+        ? tn(
+            n(r.flags),
+            'changes requested on {n} flag',
+            'changes requested on {n} flags'
+          )
+        : t('changes requested on review flags');
     case 'rebase_conflict':
       return r.commit
-        ? `commit ${String(r.commit).slice(0, 7)} conflicts in ${((r.files as string[]) ?? []).join(', ')}`
-        : String(r.error ?? 'the rebase stopped');
+        ? t('commit {sha} conflicts in {files}', {
+            sha: String(r.commit).slice(0, 7),
+            files: ((r.files as string[]) ?? []).join(', '),
+          })
+        : r.error != null
+          ? String(r.error)
+          : t('the rebase stopped');
     case 'must_account_for':
-      return `must account for #${n(r.pr)}${r.branch ? `, after rebasing onto ${String(r.branch)}` : ''}`;
+      return r.branch
+        ? t('must account for #{pr}, after rebasing onto {branch}', {
+            pr: n(r.pr),
+            branch: String(r.branch),
+          })
+        : t('must account for #{pr}', { pr: n(r.pr) });
     case 'rebase_onto':
-      return `GitOrange is rebasing it onto #${n(r.pr)} (${String(r.branch)})`;
+      return t('GitOrange is rebasing it onto #{pr} ({branch})', {
+        pr: n(r.pr),
+        branch: String(r.branch),
+      });
     case 'cycle':
-      return `depends in a circle on ${prs(r.prs)}`;
+      return t('depends in a circle on {prs}', { prs: prs(r.prs) });
     case 'checks_running':
       return r.check
         ? r.started
-          ? `the "${r.check}" check is running`
-          : `waiting for the "${r.check}" check`
+          ? t('the "{check}" check is running', { check: String(r.check) })
+          : t('waiting for the "{check}" check', { check: String(r.check) })
         : r.started
-          ? 'checks are running'
-          : 'no checks have run yet';
+          ? t('checks are running')
+          : t('no checks have run yet');
     case 'resolution_running':
-      return 'AI is resolving conflicts';
+      return t('AI is resolving conflicts');
     case 'stack_checking':
       return (r.prs as number[] | undefined)?.length
-        ? `checking against ${prs(r.prs)}`
-        : 'checking how it relates to other open pull requests';
+        ? t('checking against {prs}', { prs: prs(r.prs) })
+        : t('checking how it relates to other open pull requests');
     case 'stacked_on':
-      return `stacked on #${n(r.pr)}`;
+      return t('stacked on #{pr}', { pr: n(r.pr) });
     case 'waits_on':
-      return `waits on #${n(r.pr)}`;
+      return t('waits on #{pr}', { pr: n(r.pr) });
     case 'agent_reviewing':
       return r.agent
-        ? `@${String(r.agent)} is reviewing`
-        : 'agents are reviewing';
+        ? t('@{agent} is reviewing', { agent: String(r.agent) })
+        : t('agents are reviewing');
     case 'agent_flagged':
-      return `@${String(r.agent)} flagged ${s(((r.flags as unknown[]) ?? []).length, 'finding')} for a person`;
+      return tn(
+        ((r.flags as unknown[]) ?? []).length,
+        '@{agent} flagged {n} finding for a person',
+        '@{agent} flagged {n} findings for a person',
+        { agent: String(r.agent) }
+      );
     case 'agent_changes_requested':
-      return `@${String(r.agent)} requested ${s(((r.changes as unknown[]) ?? []).length, 'change')}`;
+      return tn(
+        ((r.changes as unknown[]) ?? []).length,
+        '@{agent} requested {n} change',
+        '@{agent} requested {n} changes',
+        { agent: String(r.agent) }
+      );
     case 'agent_review_failed':
       return r.agent
-        ? `@${String(r.agent)}'s review failed`
-        : 'the review failed';
+        ? t("@{agent}'s review failed", { agent: String(r.agent) })
+        : t('the review failed');
     case 'needs_approval':
-      return 'no agent reviewed it: a person approves it';
+      return t('no agent reviewed it: a person approves it');
     case 'merging_paused':
-      return 'merging is paused';
+      return t('merging is paused');
     default:
       return r.kind.replace(/_/g, ' ');
   }
@@ -88,7 +122,7 @@ export function reasonText(r: PullReason): string {
  * is why it is not landing, whatever else it waits for). A person's or an agent's move keeps its own label.
  */
 export function stateLabel(state: PullState): string {
-  return isPaused(state) ? 'Paused' : STATE_LABEL[state.state];
+  return isPaused(state) ? t('Paused') : STATE_LABEL[state.state];
 }
 
 /** A waiting pull request merging is paused on: the pause is why it is not landing, whatever else it waits for. */
@@ -108,10 +142,12 @@ export function stateText(state: PullState): {
   const first = state.reasons.find(blocking) ?? state.reasons[0];
   return {
     label:
-      stateLabel(state) +
-      (state.state === 'ready' && stacked
-        ? `, stacked on #${Number(stacked.pr)}`
-        : ''),
+      state.state === 'ready' && stacked
+        ? t('{label}, stacked on #{pr}', {
+            label: stateLabel(state),
+            pr: Number(stacked.pr),
+          })
+        : stateLabel(state),
     // A ready PR's label already says what it's stacked on.
     reason:
       first && !(state.state === 'ready' && first === stacked)

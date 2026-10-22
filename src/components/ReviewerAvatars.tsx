@@ -1,6 +1,7 @@
 import { agentState, STATE_LOOK } from '@/lib/agentLook';
 import type { PullReviewer } from '@/lib/uiApi';
 import { AgentAvatar } from '@/components/AgentAvatar';
+import { t } from '@/lib/i18n';
 
 /**
  * The reviewer agents on a pull request, each as its avatar in its state (approved, needs a person, asked for
@@ -18,9 +19,12 @@ export function ReviewerAvatars({
 }) {
   if (!reviewers.length) return null;
   return (
-    <ul className={className} aria-label="Reviewers">
+    <ul className={className} aria-label={t('Reviewers')}>
       {reviewers.map((r) => {
-        const label = `${r.name}: ${STATE_LOOK[agentState(r.status)].label}`;
+        const label = t('{name}: {state}', {
+          name: r.name,
+          state: STATE_LOOK[agentState(r.status)].label,
+        });
         return (
           <li key={r.handle} title={label}>
             <AgentAvatar

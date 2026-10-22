@@ -298,6 +298,7 @@ jobs:
           worker/src/__tests__/search.test.ts
           worker/src/__tests__/live-feed.test.ts
           worker/src/__tests__/install-wellknown.test.ts
+          worker/src/__tests__/public-repos.test.ts
           src/lib/
 
   # The npm package (scripts/gitorange/pack.mjs): pack it, prove the shipped build deploys from a

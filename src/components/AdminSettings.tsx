@@ -4,6 +4,7 @@ import { SlidersIcon } from '@primer/octicons-react';
 import { api, qk, type InstanceSetting } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tn, tServer } from '@/lib/i18n';
 import { Section } from '@/components/ui/Section';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { LoadError, Notice } from '@/components/Notice';
@@ -66,9 +67,9 @@ function SettingRow({
 
   const defaultText =
     s.default === null
-      ? 'keep forever'
+      ? t('keep forever')
       : retention
-        ? `${s.default} days`
+        ? t('{n} days', { n: String(s.default) })
         : String(s.default);
 
   return (
@@ -80,9 +81,9 @@ function SettingRow({
         }}
       >
         <label className="setting-label" htmlFor={`setting-${s.key}`}>
-          {s.label}
+          {tServer(s.label)}
         </label>
-        <p className="small muted">{s.description}</p>
+        <p className="small muted">{tServer(s.description)}</p>
         <div className="setting-input">
           {retention ? (
             <>
@@ -97,14 +98,14 @@ function SettingRow({
                 onChange={(e) => setText(e.target.value)}
                 required={!forever}
               />
-              <span className="muted">days</span>
+              <span className="muted">{t('days')}</span>
               <label className="check-inline small">
                 <input
                   type="checkbox"
                   checked={forever}
                   onChange={(e) => setForever(e.target.checked)}
                 />
-                Keep forever
+                {t('Keep forever')}
               </label>
             </>
           ) : numeric ? (
@@ -132,28 +133,33 @@ function SettingRow({
             type="submit"
             className="small"
             pending={busy === 'save'}
-            pendingLabel="Saving…"
+            pendingLabel={t('Saving…')}
             disabled={busy !== null || !dirty}
           >
-            Save
+            {t('Save')}
           </PendingButton>
           {s.overridden && (
             <PendingButton
               className="small quiet"
               pending={busy === 'reset'}
-              pendingLabel="Resetting…"
+              pendingLabel={t('Resetting…')}
               disabled={busy !== null}
               onClick={() => void run('reset', () => api.resetSetting(s.key))}
             >
-              Reset to default
+              {t('Reset to default')}
             </PendingButton>
           )}
         </div>
         <p className="small muted">
           {s.overridden
-            ? `Set here${s.updatedAt ? ` ${timeAgo(s.updatedAt)}` : ''}. Default: ${defaultText}.`
-            : `Using the default (${defaultText}).`}
-          {saved && !error && <span className="saved"> Saved.</span>}
+            ? s.updatedAt
+              ? t('Set here {when}. Default: {value}.', {
+                  when: timeAgo(s.updatedAt),
+                  value: defaultText,
+                })
+              : t('Set here. Default: {value}.', { value: defaultText })
+            : t('Using the default ({value}).', { value: defaultText })}
+          {saved && !error && <span className="saved"> {t('Saved.')}</span>}
         </p>
         {error && <Notice tone="bad">{error}</Notice>}
       </form>
@@ -181,20 +187,20 @@ export function AdminSettings() {
       <Section
         title={
           <>
-            <SlidersIcon size={16} /> Instance settings
+            <SlidersIcon size={16} /> {t('Instance settings')}
           </>
         }
       >
         <p className="small muted">
-          Instance-wide settings. Defaults come from the deploy&apos;s
-          configuration; anything set here takes effect right away, without a
-          deploy.
+          {t(
+            "Instance-wide settings. Defaults come from the deploy's configuration; anything set here takes effect right away, without a deploy."
+          )}
         </p>
         {q.isPending ? (
           <RowsSkeleton rows={4} />
         ) : q.isError ? (
           <LoadError
-            what="the instance settings"
+            what={t('the instance settings')}
             error={q.error}
             onRetry={() => q.refetch()}
           />
@@ -202,7 +208,7 @@ export function AdminSettings() {
           GROUPS.map((group) => (
             <div key={group} className="panel">
               <div className="pad">
-                <h3 className="group-title">{group}</h3>
+                <h3 className="group-title">{tServer(group)}</h3>
               </div>
               <ul className="rowlist">
                 {q.data.settings
@@ -212,14 +218,33 @@ export function AdminSettings() {
                   ))}
                 {group === 'Actions' && (
                   <li className="setting-foot small muted">
-                    {q.data.actions.runs} workflow run
-                    {q.data.actions.runs === 1 ? '' : 's'} stored
-                    {q.data.actions.oldestFinishedAt &&
-                      `; the oldest finished ${timeAgo(q.data.actions.oldestFinishedAt)}`}
-                    .{' '}
-                    {q.data.actions.retention
-                      ? `Cleanup last ran ${timeAgo(q.data.actions.retention.at)} and deleted ${q.data.actions.retention.deletedRuns} run${q.data.actions.retention.deletedRuns === 1 ? '' : 's'}${q.data.actions.retention.more ? ' (more remain; it continues tomorrow)' : ''}.`
-                      : 'Cleanup runs once a day.'}
+                    {q.data.actions.oldestFinishedAt
+                      ? tn(
+                          q.data.actions.runs,
+                          '{n} workflow run stored; the oldest finished {when}.',
+                          '{n} workflow runs stored; the oldest finished {when}.',
+                          { when: timeAgo(q.data.actions.oldestFinishedAt) }
+                        )
+                      : tn(
+                          q.data.actions.runs,
+                          '{n} workflow run stored.',
+                          '{n} workflow runs stored.'
+                        )}{' '}
+                    {!q.data.actions.retention
+                      ? t('Cleanup runs once a day.')
+                      : q.data.actions.retention.more
+                        ? tn(
+                            q.data.actions.retention.deletedRuns,
+                            'Cleanup last ran {when} and deleted {n} run (more remain; it continues tomorrow).',
+                            'Cleanup last ran {when} and deleted {n} runs (more remain; it continues tomorrow).',
+                            { when: timeAgo(q.data.actions.retention.at) }
+                          )
+                        : tn(
+                            q.data.actions.retention.deletedRuns,
+                            'Cleanup last ran {when} and deleted {n} run.',
+                            'Cleanup last ran {when} and deleted {n} runs.',
+                            { when: timeAgo(q.data.actions.retention.at) }
+                          )}
                   </li>
                 )}
               </ul>

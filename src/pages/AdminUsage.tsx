@@ -10,6 +10,7 @@ import { GraphIcon, SyncIcon } from '@primer/octicons-react';
 import { api, qk, type UsageLine, type UsageReport } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Chip } from '@/components/ui/Chip';
 import { Section } from '@/components/ui/Section';
@@ -77,7 +78,7 @@ function DailyChart({ report }: { report: UsageReport }) {
         viewBox={`0 0 ${W} ${H + 18}`}
         width="100%"
         role="img"
-        aria-label="Estimated cost per day"
+        aria-label={t('Estimated cost per day')}
       >
         <line x1={0} x2={W} y1={H} y2={H} className="axis" />
         {days.map((d, i) => {
@@ -116,7 +117,10 @@ function DailyChart({ report }: { report: UsageReport }) {
         })}
       </svg>
       <figcaption className="small muted">
-        Highest day: {usd(max)}. Days without a bar have no recorded cost yet.
+        {t(
+          'Highest day: {amount}. Days without a bar have no recorded cost yet.',
+          { amount: usd(max) }
+        )}
       </figcaption>
     </figure>
   );
@@ -124,10 +128,12 @@ function DailyChart({ report }: { report: UsageReport }) {
 
 function StatusLabel({ line }: { line: UsageLine }) {
   if (line.status === 'measured')
-    return <Chip tone="off">{SOURCE_LABEL[line.source]}</Chip>;
+    return <Chip tone="off">{t(SOURCE_LABEL[line.source])}</Chip>;
   return (
     <Chip tone="warn">
-      {line.status === 'not-configured' ? 'Not configured' : 'Unavailable'}
+      {line.status === 'not-configured'
+        ? t('Not configured')
+        : t('Unavailable')}
     </Chip>
   );
 }
@@ -139,12 +145,12 @@ function LinesTable({ lines }: { lines: UsageLine[] }) {
       <table className="table usage">
         <thead>
           <tr>
-            <th>Metric</th>
-            <th className="r">GitOrange usage</th>
-            <th>Included (whole account)</th>
-            <th className="r">List price</th>
-            <th className="r">With allowance</th>
-            <th className="r">Projected</th>
+            <th>{t('Metric')}</th>
+            <th className="r">{t('GitOrange usage')}</th>
+            <th>{t('Included (whole account)')}</th>
+            <th className="r">{t('List price')}</th>
+            <th className="r">{t('With allowance')}</th>
+            <th className="r">{t('Projected')}</th>
           </tr>
         </thead>
         {products.map((p) => (
@@ -167,7 +173,9 @@ function LinesTable({ lines }: { lines: UsageLine[] }) {
                     {l.note && <div className="note muted">{l.note}</div>}
                     {l.billedFrom && (
                       <div className="note muted">
-                        Cloudflare bills this from {l.billedFrom}.
+                        {t('Cloudflare bills this from {source}.', {
+                          source: l.billedFrom,
+                        })}
                       </div>
                     )}
                     {l.resources.length > 1 && (
@@ -252,8 +260,10 @@ export default function AdminUsage() {
       setSyncMsg({
         kind: 'ok',
         text: failed
-          ? `Synced ${r.days.length} days; some metrics were unavailable (see below).`
-          : `Synced ${r.days.length} days.`,
+          ? t('Synced {n} days; some metrics were unavailable (see below).', {
+              n: r.days.length,
+            })
+          : t('Synced {n} days.', { n: r.days.length }),
       });
       qc.invalidateQueries({ queryKey: ['usage'] });
     },
@@ -266,23 +276,21 @@ export default function AdminUsage() {
       <PageHead
         icon="shield"
         crumbs={[
-          { label: 'Site admin', to: '/admin' },
-          { label: 'Usage and cost' },
+          { label: t('Site admin'), to: '/admin' },
+          { label: t('Usage and cost') },
         ]}
-        title="Usage and cost"
+        title={t('Usage and cost')}
         lede={
           <>
-            What this GitOrange deployment uses on Cloudflare, and what it would
-            cost. Estimates from Cloudflare analytics (filtered to this
-            deployment’s own Worker, Durable Objects, Workflows, D1 database, R2
-            buckets, and Artifacts namespace) and from GitOrange’s own records.
-            Not an invoice: Cloudflare’s Billing → Billable Usage page has the
-            exact account total.
+            {t(
+              'What this GitOrange deployment uses on Cloudflare, and what it would cost. Estimates from Cloudflare analytics (filtered to this deployment’s own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace) and from GitOrange’s own records. Not an invoice: Cloudflare’s Billing → Billable Usage page has the exact account total.'
+            )}
             {r?.lastSync?.completedAt && (
               <>
                 {' '}
-                Cloudflare analytics last synced{' '}
-                {timeAgo(r.lastSync.completedAt)}.
+                {t('Cloudflare analytics last synced {when}.', {
+                  when: timeAgo(r.lastSync.completedAt),
+                })}
               </>
             )}
           </>
@@ -292,7 +300,7 @@ export default function AdminUsage() {
             <input
               type="month"
               className="form-control"
-              aria-label="Month"
+              aria-label={t('Month')}
               value={month}
               max={thisMonth()}
               onChange={(e) =>
@@ -302,14 +310,14 @@ export default function AdminUsage() {
             <PendingButton
               className="small"
               pending={sync.isPending}
-              pendingLabel="Syncing…"
+              pendingLabel={t('Syncing…')}
               disabled={r ? !r.analyticsConfigured : false}
               onClick={() => {
                 setSyncMsg(null);
                 sync.mutate();
               }}
             >
-              <SyncIcon size={14} /> Sync now
+              <SyncIcon size={14} /> {t('Sync now')}
             </PendingButton>
           </>
         }
@@ -320,7 +328,7 @@ export default function AdminUsage() {
           <RowsSkeleton rows={4} />
         ) : report.isError ? (
           <LoadError
-            what="the usage report"
+            what={t('the usage report')}
             error={report.error}
             onRetry={() => report.refetch()}
           />
@@ -328,45 +336,49 @@ export default function AdminUsage() {
           <>
             {!r.analyticsConfigured && (
               <Notice tone="warn">
-                Cloudflare analytics are not set up, so only what GitOrange
-                records itself (Actions runners, Workers AI calls, emails) is
-                shown. Add the <code>CF_ANALYTICS_TOKEN</code> secret: an
-                account API token with <b>Account Analytics: Read</b>.
+                {tx(
+                  'Cloudflare analytics are not set up, so only what GitOrange records itself (Actions runners, Workers AI calls, emails) is shown. Add the {secret} secret: an account API token with {scope}.',
+                  {
+                    secret: <code>CF_ANALYTICS_TOKEN</code>,
+                    scope: <b>Account Analytics: Read</b>,
+                  }
+                )}
               </Notice>
             )}
             <div className="stats">
               <Card
-                label="GitOrange usage at list price"
+                label={t('GitOrange usage at list price')}
                 value={usd(r.totals.listCost)}
-                detail="Every unit priced, no allowances"
+                detail={t('Every unit priced, no allowances')}
               />
               <Card
-                label="If GitOrange had the allowances to itself"
+                label={t('If GitOrange had the allowances to itself')}
                 value={usd(r.totals.dedicatedCost)}
-                detail="Usage above the included amounts"
+                detail={t('Usage above the included amounts')}
               />
               <Card
-                label="Projected for the month"
+                label={t('Projected for the month')}
                 value={usd(r.totals.projectedListCost)}
-                detail={`${usd(r.totals.projectedDedicatedCost)} with allowances`}
+                detail={t('{amount} with allowances', {
+                  amount: usd(r.totals.projectedDedicatedCost),
+                })}
               />
               <Card
-                label="Workers Paid plan fee"
+                label={t('Workers Paid plan fee')}
                 value={usd(r.prices.planFee)}
-                detail="Per account, not counted above"
+                detail={t('Per account, not counted above')}
               />
             </div>
             <Notice tone="info">
-              Included allowances and the plan fee belong to the whole
-              Cloudflare account. If anything else runs on it, the allowances
-              are shared and the real bill for GitOrange’s usage is somewhere
-              between the two figures above.
+              {t(
+                'Included allowances and the plan fee belong to the whole Cloudflare account. If anything else runs on it, the allowances are shared and the real bill for GitOrange’s usage is somewhere between the two figures above.'
+              )}
             </Notice>
 
             <Section
               title={
                 <>
-                  <GraphIcon size={16} /> Estimated cost per day
+                  <GraphIcon size={16} /> {t('Estimated cost per day')}
                 </>
               }
             >
@@ -375,63 +387,77 @@ export default function AdminUsage() {
               </div>
             </Section>
 
-            <Section title="By product">
+            <Section title={t('By product')}>
               <LinesTable lines={r.lines} />
             </Section>
 
             <div className="usage-cols">
               <Section
-                title={`Actions: ${qty(r.actions.minutes)} runner minutes, ${usd(r.actions.cost)}`}
+                title={t('Actions: {minutes} runner minutes, {cost}', {
+                  minutes: qty(r.actions.minutes),
+                  cost: usd(r.actions.cost),
+                })}
               >
                 {r.actions.running > 0 && (
                   <p className="small muted">
-                    {r.actions.running} runner(s) running now are counted up to
-                    this moment.
+                    {t(
+                      '{n} runner(s) running now are counted up to this moment.',
+                      { n: r.actions.running }
+                    )}
                   </p>
                 )}
                 <Breakdown
-                  title="By repository"
-                  empty="No Actions jobs ran this month."
+                  title={t('By repository')}
+                  empty={t('No Actions jobs ran this month.')}
                   rows={r.actions.byRepository.map((x) => ({
                     key: x.repository,
-                    detail: `${qty(x.minutes)} minutes`,
+                    detail: t('{n} minutes', { n: qty(x.minutes) }),
                     cost: x.cost,
                   }))}
                 />
                 <Breakdown
-                  title="By runner size"
-                  empty="No Actions jobs ran this month."
+                  title={t('By runner size')}
+                  empty={t('No Actions jobs ran this month.')}
                   rows={r.actions.byInstance.map((x) => ({
                     key: x.instanceType,
-                    detail: `${qty(x.minutes)} minutes`,
+                    detail: t('{n} minutes', { n: qty(x.minutes) }),
                     cost: x.cost,
                   }))}
                 />
               </Section>
               <Section
-                title={`Workers AI: ${qty(r.ai.requests)} calls, ${usd(r.ai.cost)}`}
+                title={t('Workers AI: {calls} calls, {cost}', {
+                  calls: qty(r.ai.requests),
+                  cost: usd(r.ai.cost),
+                })}
               >
                 {r.ai.unreportedRequests > 0 && (
                   <p className="small muted">
-                    {r.ai.unreportedRequests} call(s) reported no token counts
-                    and are not priced.
+                    {t(
+                      '{n} call(s) reported no token counts and are not priced.',
+                      { n: r.ai.unreportedRequests }
+                    )}
                   </p>
                 )}
                 <Breakdown
-                  title="By feature"
-                  empty="No AI calls this month."
+                  title={t('By feature')}
+                  empty={t('No AI calls this month.')}
                   rows={r.ai.byFeature.map((x) => ({
                     key: x.key,
-                    detail: `${qty(x.requests)} calls · ${qty(x.tokensIn)} in · ${qty(x.tokensOut)} out tokens`,
+                    detail: t('{calls} calls · {in} in · {out} out tokens', {
+                      calls: qty(x.requests),
+                      in: qty(x.tokensIn),
+                      out: qty(x.tokensOut),
+                    }),
                     cost: x.cost,
                   }))}
                 />
                 <Breakdown
-                  title="By repository"
-                  empty="No AI calls this month."
+                  title={t('By repository')}
+                  empty={t('No AI calls this month.')}
                   rows={r.ai.byRepository.map((x) => ({
                     key: x.key,
-                    detail: `${qty(x.requests)} calls`,
+                    detail: t('{n} calls', { n: qty(x.requests) }),
                     cost: x.cost,
                   }))}
                 />
@@ -440,54 +466,71 @@ export default function AdminUsage() {
 
             {r.gateway && (
               <Section
-                title={
-                  <>
-                    AI Gateway <code>{r.gateway.id}</code> (whole gateway)
-                  </>
-                }
+                title={tx('AI Gateway {id} (whole gateway)', {
+                  id: <code>{r.gateway.id}</code>,
+                })}
               >
                 <div className="panel pad small">
                   {r.gateway.status === 'measured' ? (
                     <p>
-                      {qty(r.gateway.requests ?? 0)} requests
-                      {r.gateway.estimatedCost !== null &&
-                        `, ${usd(r.gateway.estimatedCost)} by the gateway’s own estimate`}
-                      .
+                      {r.gateway.estimatedCost !== null
+                        ? tx(
+                            '{requests} requests, {cost} by the gateway’s own estimate.',
+                            {
+                              requests: qty(r.gateway.requests ?? 0),
+                              cost: usd(r.gateway.estimatedCost),
+                            }
+                          )
+                        : t('{requests} requests.', {
+                            requests: qty(r.gateway.requests ?? 0),
+                          })}
                     </p>
                   ) : (
                     <p className="attention">
                       {r.gateway.status === 'not-configured'
-                        ? 'Not configured.'
-                        : 'Unavailable.'}{' '}
+                        ? t('Not configured.')
+                        : t('Unavailable.')}{' '}
                       {r.gateway.reason}
                     </p>
                   )}
                   <p className="muted">
-                    For the whole gateway, which other apps or a dev instance
-                    may share; not added to GitOrange’s totals. GitOrange’s own
-                    AI cost is the Workers AI section above.
+                    {t(
+                      'For the whole gateway, which other apps or a dev instance may share; not added to GitOrange’s totals. GitOrange’s own AI cost is the Workers AI section above.'
+                    )}
                   </p>
                 </div>
               </Section>
             )}
 
-            <Section title="Not measured">
+            <Section title={t('Not measured')}>
               <ul className="plain-bullets small muted">
                 {r.notMeasured.map((n) => (
                   <li key={n}>{n}</li>
                 ))}
               </ul>
               <p className="small muted">
-                Workers Paid list prices, last checked {r.prices.checkedOn}:{' '}
-                {r.prices.sources.map((s, i) => (
-                  <span key={s}>
-                    {i > 0 && ', '}
-                    <a href={s} target="_blank" rel="noreferrer">
-                      {new URL(s).pathname.split('/').filter(Boolean)[0]}
-                    </a>
-                  </span>
-                ))}
-                .
+                {tx(
+                  'Workers Paid list prices, last checked {date}: {sources}.',
+                  {
+                    date: r.prices.checkedOn,
+                    sources: (
+                      <>
+                        {r.prices.sources.map((s, i) => (
+                          <span key={s}>
+                            {i > 0 && ', '}
+                            <a href={s} target="_blank" rel="noreferrer">
+                              {
+                                new URL(s).pathname
+                                  .split('/')
+                                  .filter(Boolean)[0]
+                              }
+                            </a>
+                          </span>
+                        ))}
+                      </>
+                    ),
+                  }
+                )}
               </p>
             </Section>
           </>

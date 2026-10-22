@@ -16,6 +16,7 @@ import { users } from './db/auth.schema';
 import {
   findRepo,
   gitFor,
+  isPublic,
   permissionsFor,
   type RepoPermissions,
 } from './lib/repos';
@@ -62,7 +63,8 @@ function parseBasic(
 
 export type GitAccess = {
   db: DrizzleD1Database<typeof schema>;
-  user: typeof users.$inferSelect;
+  /** Null: no credentials, reading a public repository. */
+  user: typeof users.$inferSelect | null;
   repo: Repository;
   /** Canonical `<owner>/<name>`. */
   fullName: string;
@@ -71,20 +73,33 @@ export type GitAccess = {
 
 /**
  * Auth for the git and LFS endpoints: PAT via Basic auth (either slot, like GitHub) plus read
- * access. Returns the context, or a 401/404 Response.
+ * access. With `anonymousRead`, a request without credentials may read a public repository
+ * (`user` null, read-only); every other repository still answers 401, so git asks for a token.
+ * Returns the context, or a 401/404 Response.
  */
 export async function authenticateRepoRequest(
   request: Request,
   env: CloudflareBindings,
   ctx: ExecutionContext,
   owner: string,
-  name: string
+  name: string,
+  { anonymousRead = false }: { anonymousRead?: boolean } = {}
 ): Promise<GitAccess | Response> {
   const db = drizzle(env.DB, { schema });
   // Read only when challenging, not on every git request.
   const realm = () => instanceName(db, env);
   const creds = parseBasic(request.headers.get('Authorization'));
-  if (!creds) return unauthorized(await realm());
+  if (!creds) {
+    const found = anonymousRead ? await findRepo(db, owner, name) : undefined;
+    if (!found || !isPublic(found.repo)) return unauthorized(await realm());
+    return {
+      db,
+      user: null,
+      repo: found.repo,
+      fullName: `${found.namespace.username}/${found.repo.name}`,
+      perms: await permissionsFor(db, found.repo, undefined),
+    };
+  }
   const token =
     creds.pass && creds.pass !== 'x-oauth-basic' ? creds.pass : creds.user;
   const pat = await db
@@ -132,15 +147,18 @@ export async function handleGitRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
   const [, owner, name, endpoint] = url.pathname.match(GIT_PATH)!;
-  const access = await authenticateRepoRequest(request, env, ctx, owner, name);
-  if (access instanceof Response) return access;
-  const { user, repo, perms, fullName } = access;
-
   const service =
     endpoint === 'info/refs' ? url.searchParams.get('service') : endpoint;
   if (service !== 'git-upload-pack' && service !== 'git-receive-pack') {
     return new Response('Unsupported service\n', { status: 403 });
   }
+  const isPush = service === 'git-receive-pack';
+  // Clone and fetch of a public repository need no token; push always does.
+  const access = await authenticateRepoRequest(request, env, ctx, owner, name, {
+    anonymousRead: !isPush,
+  });
+  if (access instanceof Response) return access;
+  const { user, repo, perms, fullName } = access;
   // GET ref advertisement or POST pack exchange.
   const expectedMethod = endpoint === 'info/refs' ? 'GET' : 'POST';
   if (request.method !== expectedMethod) {
@@ -149,10 +167,10 @@ export async function handleGitRequest(
       headers: { Allow: expectedMethod },
     });
   }
-  const isPush = service === 'git-receive-pack';
-  if (isPush && !perms.write) {
+  // A push always carries credentials (anonymousRead was off), so `user` is set here.
+  if (isPush && (!user || !perms.write)) {
     return new Response(
-      `Permission to ${owner}/${name}.git denied to ${user.username}.\n`,
+      `Permission to ${owner}/${name}.git denied to ${user?.username}.\n`,
       { status: 403 }
     );
   }
@@ -194,7 +212,7 @@ export async function handleGitRequest(
     if (v) respHeaders.set(h, v);
   }
 
-  if (isPush && request.method === 'POST' && upstream.ok) {
+  if (isPush && user && request.method === 'POST' && upstream.ok) {
     // Receive-pack responses are small; buffer to sync metadata after the push lands.
     const body = await upstream.arrayBuffer();
     ctx.waitUntil(afterPush(env, repo.id, user.id, refsBefore, fullName));

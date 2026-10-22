@@ -3,6 +3,7 @@
  * that needs approval, a stack item), what keyboard shortcuts do on each, and the pieces of a finding's recorded
  * detail. Pure, so the page stays thin and the rules (guarded agents never bulk- or one-key-approved) are tested.
  */
+import { t } from './i18n';
 import type {
   ApprovalItem,
   Member,
@@ -190,7 +191,9 @@ export function selectable(r: InboxRow): boolean {
 
 /** What a guarded agent's finding says when a one-key decision is tried on it. */
 export const guardMessage = (agentName: string) =>
-  `${agentName} findings need a reason. Open it to decide.`;
+  t('{agent} findings need a reason. Open it to decide.', {
+    agent: agentName,
+  });
 
 export type KeyAction =
   | { kind: 'move'; dir: 1 | -1 }
@@ -227,7 +230,9 @@ export function keyAction(key: string, row: InboxRow | null): KeyAction | null {
     if (key === 'x')
       return {
         kind: 'toast',
-        message: `${name} findings can't be approved in bulk.`,
+        message: t("{agent} findings can't be approved in bulk.", {
+          agent: name,
+        }),
       };
   }
   if (key === 'a') return { kind: 'approve' };
@@ -315,8 +320,8 @@ export function splitFindingDetail(
   return parts;
 }
 
-const bare = (t: string) =>
-  t
+const bare = (s: string) =>
+  s
     .trim()
     .replace(/[.!?]+$/, '')
     .toLowerCase();

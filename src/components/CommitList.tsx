@@ -3,6 +3,7 @@ import { CodeIcon, GitCommitIcon } from '@primer/octicons-react';
 import { useMemo, useState } from 'react';
 import type { Commit, CommitRuns, RepoDetail } from '@/lib/uiApi';
 import { shortSha, timeAgo } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { parseCommitMessage } from '@/lib/commitMessage';
 import { groupByDay } from '@/lib/commits';
 import { CommitAuthor } from './CommitAuthor';
@@ -40,8 +41,8 @@ function CommitRow({
               onClick={() => setExpanded(!expanded)}
               aria-label={
                 expanded
-                  ? 'Hide the rest of the message'
-                  : 'Show the rest of the message'
+                  ? t('Hide the rest of the message')
+                  : t('Show the rest of the message')
               }
             >
               …
@@ -52,27 +53,29 @@ function CommitRow({
         <p className="cl-by small muted">
           <CommitAuthor commit={c} size={16} repo={repo} />
           <CoAuthored trailers={message.trailers} />
-          <span className="no-wrap">committed {timeAgo(c.committedAt)}</span>
+          <span className="no-wrap">
+            {t('committed {when}', { when: timeAgo(c.committedAt) })}
+          </span>
         </p>
       </div>
       <div className="cl-side">
         <Link
           to={`${base}/commit/${c.hash}`}
           className="shabtn mono"
-          title="Open this commit"
+          title={t('Open this commit')}
         >
           {shortSha(c.hash)}
         </Link>
         <CopyButton
           text={c.hash}
           className="btn small quiet"
-          label="Copy full SHA"
+          label={t('Copy full SHA')}
         />
         <Link
           to={`${base}/tree/${c.hash}`}
           className="btn small quiet"
-          aria-label={`Browse the code at ${shortSha(c.hash)}`}
-          title="Browse the code at this commit"
+          aria-label={t('Browse the code at {sha}', { sha: shortSha(c.hash) })}
+          title={t('Browse the code at this commit')}
         >
           <CodeIcon />
         </Link>
@@ -101,7 +104,7 @@ export function CommitList({
       {groupByDay(commits).map((g) => (
         <section key={g.day} className="section">
           <h3 className="daylabel">
-            <GitCommitIcon /> Commits on {g.day}
+            <GitCommitIcon /> {t('Commits on {day}', { day: g.day })}
           </h3>
           <ul className="commitlist panel">
             {g.commits.map((c) => (

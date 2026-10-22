@@ -1,3 +1,4 @@
+import { t, tn } from './i18n';
 import type { ReviewerStatus } from './uiApi';
 
 /** The parts of a reviewer row the timeline reads. */
@@ -20,22 +21,29 @@ export function reviewVerb(r: {
 }): string {
   switch (r.status) {
     case 'approved':
-      return 'approved these changes';
+      return t('approved these changes');
     case 'changes_requested':
-      return 'requested changes';
+      return t('requested changes');
     case 'flagged': {
       // Only findings still waiting on a person; approved ones are done.
       const open = r.flags.filter((f) => f.approvedAt === null).length;
       const n = open || r.flags.length;
-      const findings = `${n} finding${n === 1 ? '' : 's'}`;
       return open
-        ? `flagged ${findings} for a person`
-        : `flagged ${findings}, ${n === 1 ? 'approved' : 'all approved'}`;
+        ? tn(
+            n,
+            'flagged {n} finding for a person',
+            'flagged {n} findings for a person'
+          )
+        : tn(
+            n,
+            'flagged {n} finding, approved',
+            'flagged {n} findings, all approved'
+          );
     }
     case 'reviewing':
-      return 'is reviewing…';
+      return t('is reviewing…');
     case 'failed':
-      return 'couldn’t finish its review';
+      return t('couldn’t finish its review');
   }
 }
 
@@ -46,7 +54,7 @@ export function earlierVerb(r: {
 }): string {
   if (r.status !== 'flagged') return reviewVerb(r);
   const n = r.flags.length;
-  return `flagged ${n} finding${n === 1 ? '' : 's'}`;
+  return tn(n, 'flagged {n} finding', 'flagged {n} findings');
 }
 
 /** Where a review sits in the timeline: when it finished, or when it started while it runs. */

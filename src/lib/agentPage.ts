@@ -3,6 +3,7 @@
  * (its overall state, its tabs, where it can be invited) and New reviewer (preset state, the crew's result).
  */
 import type { AgentStatus, Tone } from './agentLook';
+import { t, tn, tServer } from './i18n';
 import type {
   Agent,
   AgentActivity,
@@ -76,23 +77,24 @@ export function cardStats(
 ): { value: string; label: string }[] {
   if (!s)
     return [
-      { value: '—', label: 'raised' },
-      { value: '—', label: 'kept' },
-      { value: '—', label: 'rules' },
+      { value: '—', label: t('raised') },
+      { value: '—', label: t('kept') },
+      { value: '—', label: t('rules') },
     ];
   return [
-    { value: String(s.raised), label: 'raised' },
-    { value: s.keptPct === null ? '—' : `${s.keptPct}%`, label: 'kept' },
-    { value: String(s.rules), label: s.rules === 1 ? 'rule' : 'rules' },
+    { value: String(s.raised), label: t('raised') },
+    { value: s.keptPct === null ? '—' : `${s.keptPct}%`, label: t('kept') },
+    { value: String(s.rules), label: s.rules === 1 ? t('rule') : t('rules') },
   ];
 }
 
 /** Where a card says the agent works. */
 export function whereText(s: AgentStats | undefined): string {
-  if (!s) return 'Record unavailable';
-  if (s.repos.length === 0) return 'Add it to a repository from its profile';
-  if (s.repos.length === 1) return `Reviews ${s.repos[0].repo}`;
-  return `Reviews ${s.repos.length} repositories`;
+  if (!s) return t('Record unavailable');
+  if (s.repos.length === 0) return t('Add it to a repository from its profile');
+  if (s.repos.length === 1)
+    return t('Reviews {repo}', { repo: s.repos[0].repo });
+  return t('Reviews {n} repositories', { n: s.repos.length });
 }
 
 export const PROFILE_TABS = ['overview', 'reviews', 'rules', 'config'] as const;
@@ -139,7 +141,7 @@ const percent = (above: number) => Math.round(above * 100);
 
 /** "Wakes when Clef is 40% sure" */
 export function wakeText(trigger: { above: number; ask?: string }): string {
-  return `Wakes when Clef is ${percent(trigger.above)}% sure`;
+  return t('Wakes when Clef is {pct}% sure', { pct: percent(trigger.above) });
 }
 
 /** "At least 40% sure that the answer is yes": the threshold, for the settings. */
@@ -147,19 +149,24 @@ export function thresholdText(trigger: {
   above: number;
   ask?: string;
 }): string {
-  return `At least ${percent(trigger.above)}% sure that the answer is yes`;
+  return t('At least {pct}% sure that the answer is yes', {
+    pct: percent(trigger.above),
+  });
 }
 
 export function engineText(engine: 'pass' | 'pi'): string {
   return engine === 'pi'
-    ? 'A Pi agent that reads the repository with read-only tools'
-    : 'One reasoning-model pass per review';
+    ? t('A Pi agent that reads the repository with read-only tools')
+    : t('One reasoning-model pass per review');
 }
 
 /** "Security, Data and Speed" */
 export function listNames(names: readonly string[]): string {
   if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return t('{list} and {last}', {
+    list: names.slice(0, -1).join(t(', ')),
+    last: names[names.length - 1],
+  });
 }
 
 /** What "Add the recommended crew" did: who was added (null when nobody) and each one skipped, with the reason. */
@@ -169,18 +176,24 @@ export function crewResultText(r: CrewResult): {
 } {
   return {
     added: r.created.length
-      ? `Added ${listNames(r.created.map((a) => a.name))}.`
+      ? t('Added {names}.', { names: listNames(r.created.map((a) => a.name)) })
       : null,
-    skipped: r.skipped.map((s) => `@${s.handle}: ${s.reason}`),
+    // The reason is the server's words: translated like its other messages.
+    skipped: r.skipped.map((s) =>
+      t('@{handle}: {reason}', {
+        handle: s.handle,
+        reason: tServer(s.reason),
+      })
+    ),
   };
 }
 
 /** Why a handle can't be used, in plain words (the server has the last word); null when it looks fine. */
 export function handleProblem(handle: string): string | null {
-  if (!handle) return 'Give the agent a handle.';
-  if (handle.length > 39) return 'A handle can be at most 39 characters.';
+  if (!handle) return t('Give the agent a handle.');
+  if (handle.length > 39) return t('A handle can be at most 39 characters.');
   if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9]))*$/.test(handle))
-    return 'Use letters, numbers and single hyphens only.';
+    return t('Use letters, numbers and single hyphens only.');
   return null;
 }
 
@@ -205,12 +218,16 @@ export function presetState(
 export function latestNote(
   shown: number,
   total: number | undefined,
-  noun: string
+  noun: 'review' | 'lesson'
 ): string {
-  const plural = (n: number) => `${n} ${noun}${n === 1 ? '' : 's'}`;
-  if (total === undefined) return `Latest ${plural(shown)}`;
-  if (total <= shown) return shown === 1 ? plural(1) : `All ${plural(shown)}`;
-  return `Latest ${shown} of ${plural(total)}`;
+  const plural = (n: number) =>
+    noun === 'review'
+      ? tn(n, '{n} review', '{n} reviews')
+      : tn(n, '{n} lesson', '{n} lessons');
+  if (total === undefined) return t('Latest {items}', { items: plural(shown) });
+  if (total <= shown)
+    return shown === 1 ? plural(1) : t('All {items}', { items: plural(shown) });
+  return t('Latest {shown} of {items}', { shown, items: plural(total) });
 }
 
 const LESSON_TONE: Record<LessonStatus, Tone> = {

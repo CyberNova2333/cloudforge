@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { api, type Pull, type RepoDetail, type VersionBump } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
 import { errorMessage } from '@/lib/api';
-import { BUMPS, bumpLabel, parseBump } from '@/lib/versionBump';
+import { BUMP_OPTION, BUMPS, bumpLabel, parseBump } from '@/lib/versionBump';
+import { t, tx } from '@/lib/i18n';
 
 /**
  * The pull request's version bump and, once a release ships it, "Released in vX.Y.Z". The author and anyone with
@@ -45,10 +46,10 @@ export function VersionPanel({
   const shown = saving !== undefined ? saving : pr.versionBump;
   return (
     <section className="panel pad" aria-labelledby="pr-version-title">
-      <h2 id="pr-version-title">Release</h2>
+      <h2 id="pr-version-title">{t('Release')}</h2>
       {canEdit ? (
         <div className="fld">
-          <label htmlFor="pr-version-bump">Version bump</label>
+          <label htmlFor="pr-version-bump">{t('Version bump')}</label>
           <select
             id="pr-version-bump"
             className="form-select"
@@ -57,10 +58,10 @@ export function VersionPanel({
             aria-busy={saving !== undefined || undefined}
             onChange={(e) => void change(parseBump(e.target.value))}
           >
-            <option value="">None (counts as patch)</option>
+            <option value="">{t('None (counts as patch)')}</option>
             {BUMPS.map((b) => (
               <option key={b} value={b}>
-                {b[0].toUpperCase() + b.slice(1)}
+                {BUMP_OPTION[b]}
               </option>
             ))}
           </select>
@@ -72,24 +73,27 @@ export function VersionPanel({
         </div>
       ) : (
         <p className="small">
-          Version bump: <strong>{bumpLabel(pr.versionBump)}</strong>
+          {tx('Version bump: {bump}', {
+            bump: <strong>{bumpLabel(pr.versionBump)}</strong>,
+          })}
         </p>
       )}
       {merged && (
         <p className="small">
           {pr.releasedIn ? (
-            <>
-              Released in{' '}
-              <Link
-                to={`${base}/releases/${encodeURIComponent(pr.releasedIn)}`}
-              >
-                {pr.releasedIn}
-              </Link>
-            </>
+            tx('Released in {version}', {
+              version: (
+                <Link
+                  to={`${base}/releases/${encodeURIComponent(pr.releasedIn)}`}
+                >
+                  {pr.releasedIn}
+                </Link>
+              ),
+            })
           ) : (
             <span className="muted">
-              Not released yet.{' '}
-              <Link to={`${base}/releases`}>Unreleased changes</Link>
+              {t('Not released yet.')}{' '}
+              <Link to={`${base}/releases`}>{t('Unreleased changes')}</Link>
             </span>
           )}
         </p>
