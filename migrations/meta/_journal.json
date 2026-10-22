@@ -218,6 +218,20 @@
       "when": 1792528324404,
       "tag": "0030_boring_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1792671761509,
+      "tag": "0031_user_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1792671763322,
+      "tag": "0032_verify_existing_accounts",
+      "breakpoints": true
     }
   ]
 }

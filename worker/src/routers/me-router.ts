@@ -8,6 +8,7 @@ import {
   validationHook,
 } from './openapi-helpers';
 import { auditEventSchema } from './schemas';
+import { getUserSettings, setUserSettings } from '../lib/user-settings';
 
 /** The signed-in person's own preferences: `/api/me/...`. */
 export const meRouter = new OpenAPIHono<AppEnv>({
@@ -87,4 +88,53 @@ meRouter.openapi(putRoute, async (c) => {
   );
   if (!result.ok) return c.json({ error: result.error }, result.status);
   return c.json(await delegationsFor(c.get('db'), user), 200);
+});
+
+// ── Preferences ──────────────────────────────────────────────────────────────
+// Personal settings, kept with the account (lib/user-settings.ts lists the keys).
+
+const preferencesSchema = z
+  .object({
+    /** Interface language; null follows the instance default (Site admin → Settings), then the browser. */
+    language: z.enum(['zh', 'en']).nullable(),
+  })
+  .openapi('Preferences');
+
+const getPreferencesRoute = createRoute({
+  method: 'get',
+  path: '/preferences',
+  tags: ['Users'],
+  summary: 'Your preferences, kept with your account',
+  responses: {
+    ...json200Response(preferencesSchema, 'Your preferences'),
+  },
+});
+meRouter.openapi(getPreferencesRoute, async (c) =>
+  c.json(await getUserSettings(c.get('db'), c.get('user')!.id), 200)
+);
+
+const putPreferencesRoute = createRoute({
+  method: 'put',
+  path: '/preferences',
+  tags: ['Users'],
+  summary: 'Change your preferences',
+  description:
+    'Changes only the preferences in the body; null goes back to the default.',
+  request: {
+    body: {
+      content: {
+        'application/json': { schema: preferencesSchema.partial() },
+      },
+    },
+  },
+  responses: {
+    ...json200Response(preferencesSchema, 'Your preferences now'),
+    ...json400Response,
+  },
+});
+meRouter.openapi(putPreferencesRoute, async (c) => {
+  const db = c.get('db');
+  const userId = c.get('user')!.id;
+  await setUserSettings(db, userId, c.req.valid('json'));
+  return c.json(await getUserSettings(db, userId), 200);
 });

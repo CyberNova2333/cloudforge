@@ -1,12 +1,13 @@
 // The side navs of Settings and Site admin: which entry is current for a location, and whether an entry is an
 // in-page jump (a section of /admin) rather than a page of its own.
 
-export type SettingsSection = 'tokens' | 'mcp' | 'emails';
+export type SettingsSection = 'tokens' | 'mcp' | 'emails' | 'language';
 
 /** Which Settings page a path belongs to (`/settings/emails/verify` is part of Emails). */
 export function settingsSection(pathname: string): SettingsSection | null {
   if (pathname === '/settings/tokens') return 'tokens';
   if (pathname === '/settings/mcp') return 'mcp';
+  if (pathname === '/settings/language') return 'language';
   if (
     pathname === '/settings/emails' ||
     pathname.startsWith('/settings/emails/')

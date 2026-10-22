@@ -9,23 +9,44 @@ import { zh, zhPatterns } from '../locales/zh';
  */
 export type Lang = 'en' | 'zh';
 
-const STORAGE_KEY = 'go-lang';
+/** This browser's choice (the account menu, the sign-in page), or the account's choice once it is known. */
+const CHOICE_KEY = 'go-lang';
+/** The instance default (Site admin → Settings) from the last visit, so the first paint already uses it. */
+const DEFAULT_KEY = 'go-lang-default';
 
-function detect(): Lang {
+const isLang = (v: unknown): v is Lang => v === 'en' || v === 'zh';
+
+function read(key: string): Lang | null {
   try {
-    const saved =
-      typeof localStorage === 'undefined'
-        ? null
-        : localStorage.getItem(STORAGE_KEY);
-    if (saved === 'en' || saved === 'zh') return saved;
+    const v =
+      typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
+    return isLang(v) ? v : null;
   } catch {
-    // Blocked storage: fall through to the browser's languages.
+    return null; // Blocked storage.
   }
+}
+
+function write(key: string, value: Lang | null) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Blocked storage: the browser's languages decide.
+  }
+}
+
+/** The browser's preference: Chinese when any of its languages is, else English. */
+export function browserLang(): Lang {
   const langs =
     typeof navigator === 'undefined' || !navigator.languages
       ? []
       : navigator.languages;
   return langs.some((l) => l.toLowerCase().startsWith('zh')) ? 'zh' : 'en';
+}
+
+/** At load: the choice made here (or synced from the account), else the instance default, else the browser. */
+function detect(): Lang {
+  return read(CHOICE_KEY) ?? read(DEFAULT_KEY) ?? browserLang();
 }
 
 export const lang: Lang = detect();
@@ -35,14 +56,31 @@ export const locale = lang === 'zh' ? 'zh-CN' : 'en';
 
 if (typeof document !== 'undefined') document.documentElement.lang = locale;
 
-/** Stores the choice and reloads, so every string (including module-level ones) is rebuilt. */
-export function setLang(next: Lang) {
-  try {
-    localStorage.setItem(STORAGE_KEY, next);
-  } catch {
-    // Blocked storage: the reload falls back to the browser's languages.
-  }
+/**
+ * Stores this browser's choice and reloads, so every string (including module-level ones) is rebuilt. Null
+ * forgets it: the account's choice, the instance default or the browser decide again.
+ */
+export function setLang(next: Lang | null) {
+  write(CHOICE_KEY, next);
   location.reload();
+}
+
+/**
+ * Once the instance default and, for a member, the account's choice are known: remembers them for the next
+ * load and reloads if this page shows another language (at most once: the next load reads what was stored).
+ * The account's choice wins, then a choice made in this browser, then the instance default, then the browser.
+ */
+export function syncLang(
+  instance: 'auto' | Lang,
+  account: Lang | null | undefined
+) {
+  write(DEFAULT_KEY, instance === 'auto' ? null : instance);
+  if (account) write(CHOICE_KEY, account);
+  const want =
+    account ??
+    read(CHOICE_KEY) ??
+    (instance === 'auto' ? browserLang() : instance);
+  if (want !== lang) location.reload();
 }
 
 type Vars = Record<string, string | number>;

@@ -17,6 +17,7 @@ export const RESERVED_USERNAMES = new Set([
   'repos',
   'settings',
   'setup',
+  'signup',
   'assets',
   'favicon.svg',
   'favicon.png',

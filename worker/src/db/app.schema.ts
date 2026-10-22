@@ -440,6 +440,23 @@ export const instanceSettings = sqliteTable('instance_settings', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
+// ── Accounts ─────────────────────────────────────────────────────────────────
+// A person's own settings, one row per (user, key): the personal twin of instance_settings. The keys, their
+// types and defaults live in worker/src/lib/user-settings.ts, so a new personal setting needs no migration. A
+// missing row means the default.
+export const userPreferences = sqliteTable(
+  'user_preferences',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    value: text('value', { mode: 'json' }).$type<unknown>(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })]
+);
+
 // ── Reviews ──────────────────────────────────────────────────────────────────
 // One review per PR head commit (id `<pull request id>-<head sha>`): its one-liners and status; its agents are
 // pr_reviewers rows, their findings pr_review_flags.

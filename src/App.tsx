@@ -13,6 +13,8 @@ import {
 } from 'react-router-dom';
 import { useCurrentUser, useSession } from '@/lib/auth';
 import { openWithoutAccount } from '@/lib/signIn';
+import { syncLang } from '@/lib/i18n';
+import { useEffect } from 'react';
 import { api, qk } from '@/lib/uiApi';
 import { Spinner } from '@/components/Spinner';
 import { LiveUpdates } from '@/lib/live';
@@ -21,6 +23,7 @@ import { AppShell } from '@/components/shell/AppShell';
 import { PageHeadProvider, useCurrentPageHead } from '@/components/ui/PageHead';
 import Setup from './pages/Setup';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import AcceptInvite from './pages/AcceptInvite';
 import Home from './pages/Home';
 import PublicHome from './pages/PublicHome';
@@ -50,6 +53,7 @@ import RunView from './pages/RunView';
 import AgentRunView from './pages/AgentRuns';
 import SettingsTokens from './pages/SettingsTokens';
 import SettingsEmails, { VerifyEmail } from './pages/SettingsEmails';
+import SettingsLanguage from './pages/SettingsLanguage';
 import Admin from './pages/Admin';
 import AdminUsage from './pages/AdminUsage';
 import AdminAudit from './pages/AdminAudit';
@@ -100,6 +104,27 @@ function AdminOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Applies the instance default language and, for a member, the language kept with their account (both are
+ * known only after the page has loaded with its first guess; see syncLang).
+ */
+function LanguageSync() {
+  const status = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
+  const signedIn = !!useCurrentUser();
+  const prefs = useQuery({
+    queryKey: qk.preferences,
+    queryFn: api.preferences,
+    enabled: signedIn,
+  });
+  const instance = status.data?.defaultLanguage;
+  const account = prefs.data?.language;
+  const waiting = signedIn && prefs.isPending;
+  useEffect(() => {
+    if (instance && !waiting) syncLang(instance, account);
+  }, [instance, account, waiting]);
+  return null;
+}
+
 /** Sets the tab title: the page's name (from the top band) and the instance name. */
 function DocumentTitle() {
   const head = useCurrentPageHead();
@@ -111,11 +136,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <PageHeadProvider>
       <DocumentTitle />
+      <LanguageSync />
       <BrowserRouter>
         <Routes>
           {/* Public and auth pages: no rail. */}
           <Route path="/setup" element={<Setup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/invite/:token" element={<AcceptInvite />} />
           <Route
             element={
@@ -139,6 +166,7 @@ const App = () => (
               <Route path="/settings/tokens" element={<SettingsTokens />} />
               <Route path="/settings/mcp" element={<SettingsMcp />} />
               <Route path="/settings/emails" element={<SettingsEmails />} />
+              <Route path="/settings/language" element={<SettingsLanguage />} />
               <Route path="/settings/emails/verify" element={<VerifyEmail />} />
               <Route
                 path="/admin"

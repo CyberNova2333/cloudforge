@@ -28,6 +28,8 @@ export default function Admin() {
     queryFn: api.invitations,
   });
   const team = useQuery({ queryKey: qk.team, queryFn: api.team });
+  const status = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
+  const signup = status.data?.signup;
 
   // `?invite=1` (the create menu's "Invite member") opens the form, also when this page is already open.
   const wantInvite = params.get('invite') === '1';
@@ -270,8 +272,21 @@ export default function Admin() {
             }
           >
             <p className="small muted">
+              {signup?.enabled
+                ? signup.domains.length
+                  ? t(
+                      'Self sign-up is on for {domains}; anyone else joins by invitation.',
+                      { domains: signup.domains.join(', ') }
+                    )
+                  : t(
+                      'Self sign-up is on: anyone who can reach this instance can create an account.'
+                    )
+                : t('Self sign-up is off. People join by invitation.')}{' '}
+              {tx('Change it in {settings}.', {
+                settings: <a href="#settings">{t('Instance settings')}</a>,
+              })}{' '}
               {t(
-                "Self sign-up is off. People join by invitation. Members can't be removed and roles can't be changed from here."
+                "Members can't be removed and roles can't be changed from here."
               )}
             </p>
             {showInvite && (

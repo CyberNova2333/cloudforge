@@ -362,11 +362,16 @@ export type EarlierReview = {
   flags: ReviewFlag[];
 };
 /** One instance setting in Site admin (GET /api/admin/settings). */
+export type Preferences = { language: 'zh' | 'en' | null };
 export type InstanceSetting = {
   key: string;
   label: string;
   description: string;
-  group: 'General' | 'AI models' | 'Reviews' | 'Actions';
+  group: 'General' | 'Accounts' | 'AI models' | 'Reviews' | 'Actions';
+  /** The control: a switch, one of `options`, a number, or text (`optional` text may be saved empty). */
+  input: 'boolean' | 'choice' | 'number' | 'text';
+  options?: { value: string; label: string }[];
+  optional?: boolean;
   value: unknown;
   default: unknown;
   overridden: boolean;
@@ -1260,6 +1265,10 @@ export const api = {
       setupRequired: boolean;
       codeRequired: boolean;
       appName: string;
+      /** For people who haven't picked a language: auto follows the browser. */
+      defaultLanguage: 'auto' | 'zh' | 'en';
+      /** Self sign-up: open, limited to `domains` (empty: any), confirming the email first (`verification`). */
+      signup: { enabled: boolean; domains: string[]; verification: boolean };
     }>('/api/setup/status'),
   setup: (body: {
     name: string;
@@ -1628,6 +1637,10 @@ export const api = {
   approvalFlag: (flagId: string) =>
     apiFetch<Finding>(`/api/approvals/flags/${encodeURIComponent(flagId)}`),
   delegations: () => apiFetch<Delegations>('/api/me/delegations'),
+  /** Your preferences, kept with your account: `language` null follows the instance default. */
+  preferences: () => apiFetch<Preferences>('/api/me/preferences'),
+  savePreferences: (body: Preferences) =>
+    apiFetch<Preferences>('/api/me/preferences', { method: 'PUT', json: body }),
   /** Replaces the set of agents GitOrange AI decides for you (handles); 400 for an unknown agent, 422 for a guarded one. */
   setDelegations: (agents: string[]) =>
     apiFetch<Delegations>('/api/me/delegations', {
@@ -1770,6 +1783,7 @@ export const api = {
 
 export const qk = {
   setup: ['setup'] as const,
+  preferences: ['me', 'preferences'] as const,
   repos: ['repos'] as const,
   /** Under `qk.repos`, so whatever refreshes the repository list refreshes the board. */
   repoStats: ['repos', 'stats'] as const,

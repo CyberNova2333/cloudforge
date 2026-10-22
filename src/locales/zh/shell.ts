@@ -145,4 +145,28 @@ export const shell: Record<string, string> = {
   'Authorizing…': '正在授权…',
   'Authorize {app}': '授权 {app}',
   'From {host}': '来自 {host}',
+  'Sign-up is closed': '暂不开放注册',
+  'Sign up': '注册',
+  'This instance doesn’t take sign-ups. Ask an administrator for an invitation.':
+    '这个实例不开放自助注册，请向管理员索取邀请。',
+  'Check your inbox': '请查收邮件',
+  'We sent a link to {email}. Open it to confirm your email; it signs you in.':
+    '我们已向 {email} 发送了一个链接。打开它即可确认邮箱并自动登录。',
+  'No email after a few minutes? Check your spam folder, or {link} with your email address to send it again.':
+    '几分钟后还没收到？请检查垃圾邮件，或用邮箱地址{link}以重新发送。',
+  'sign in': '登录',
+  'Could not create the account.': '无法创建账户。',
+  'Sign up with an email address at {domains}.':
+    '请使用 {domains} 的邮箱地址注册。',
+  'Create your account.': '创建你的账户。',
+  'We’ll send a link to confirm it before your first sign-in.':
+    '首次登录前，我们会发送一个链接来确认这个邮箱。',
+  'Already have an account?': '已经有账户了？',
+  'Sent. Open the new link in your inbox.': '已发送，请打开邮箱里的新链接。',
+  'Could not send it. Try again': '发送失败，请重试',
+  'Send the link again': '重新发送确认链接',
+  'To get the link again, sign in with your email address.':
+    '如需重新发送确认链接，请用邮箱地址登录。',
+  'New to this instance?': '第一次使用这个实例？',
+  'Create an account': '创建账户',
 };

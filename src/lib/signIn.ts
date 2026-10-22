@@ -17,6 +17,7 @@ const APP_PAGES = new Set([
   'oauth',
   'setup',
   'login',
+  'signup',
   'invite',
 ]);
 

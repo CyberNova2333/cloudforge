@@ -32,7 +32,7 @@ describe('setup code', () => {
 
   it('status says a code is required while SETUP_CODE_HASH is set and nobody exists', async () => {
     const t = await withHash(await setupCodeHash(CODE));
-    expect(await (await call(t, '/api/setup/status')).json()).toEqual({
+    expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
       codeRequired: true,
       appName: 'GitOrange',

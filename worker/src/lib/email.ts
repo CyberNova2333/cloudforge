@@ -60,6 +60,26 @@ export async function sendInviteEmail(
   });
 }
 
+/** Asks someone who signed up by themselves to confirm their email before their first sign-in. */
+export async function sendSignupVerification(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  opts: { to: string; name: string; url: string; hours: number }
+): Promise<boolean> {
+  const { app, from } = await identity(db, env);
+  return send(env, { email: from, name: app }, 'signup-verify', {
+    to: opts.to,
+    subject: `Confirm your email for ${app}`,
+    text: `Hi ${opts.name},\n\nConfirm your email to finish creating your ${app} account:\n${opts.url}\n\nThis link expires in ${opts.hours} hours. If you did not sign up, you can ignore this email.`,
+    html: shell(`
+  <h2 style="font-weight:400">Confirm your email for <strong>${escapeHtml(app)}</strong></h2>
+  <p>Hi ${escapeHtml(opts.name)}, open this link to finish creating your account. You will be signed in right away.</p>
+  ${button(opts.url, 'Confirm email')}
+  <p style="color:#59636e;font-size:12px">This link expires in ${opts.hours} hours. If you did not sign up, you can ignore this email.</p>
+`),
+  });
+}
+
 /** Asks the owner of an alternate commit email to confirm it. */
 export async function sendEmailVerification(
   env: CloudflareBindings,

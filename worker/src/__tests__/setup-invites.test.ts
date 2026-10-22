@@ -12,13 +12,15 @@ import {
 describe('first-run setup', () => {
   it('reports setup required until the first admin exists, then closes', async () => {
     const t = makeEnv();
-    expect(await (await call(t, '/api/setup/status')).json()).toEqual({
+    expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
       codeRequired: false,
       appName: 'GitOrange',
+      // Nobody can sign up before the first admin exists.
+      signup: { enabled: false },
     });
     await bootstrapAdmin(t);
-    expect(await (await call(t, '/api/setup/status')).json()).toEqual({
+    expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: false,
       codeRequired: false,
       appName: 'GitOrange',
