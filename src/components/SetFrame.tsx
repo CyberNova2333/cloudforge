@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   ChecklistIcon,
   CreditCardIcon,
+  GlobeIcon,
   HistoryIcon,
   KeyIcon,
   MailIcon,
@@ -46,6 +47,12 @@ const SETTINGS: NavItem<SettingsSection>[] = [
     label: t('Emails'),
     icon: <MailIcon />,
     to: '/settings/emails',
+  },
+  {
+    id: 'language',
+    label: t('Language'),
+    icon: <GlobeIcon />,
+    to: '/settings/language',
   },
 ];
 

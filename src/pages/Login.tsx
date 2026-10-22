@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qk } from '@/lib/uiApi';
-import { signIn, useSession } from '@/lib/auth';
+import { authClient, signIn, useSession } from '@/lib/auth';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { AuthLoading, AuthShell, FlashError } from './AuthShell';
-import { t } from '@/lib/i18n';
+import { Notice } from '@/components/Notice';
+import { t, tServer } from '@/lib/i18n';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -21,6 +22,11 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A self sign-up that hasn't confirmed its email yet: offer to send the link again (needs the email address).
+  const [unverified, setUnverified] = useState(false);
+  const [resent, setResent] = useState<'sending' | 'sent' | 'failed' | null>(
+    null
+  );
   if (status.isPending || isPending) return <AuthLoading />;
   if (status.data?.setupRequired) return <Navigate to="/setup" replace />;
   // Already signed in during an OAuth flow: resume the authorization request.
@@ -38,8 +44,13 @@ export default function Login() {
       ? await signIn.email({ email: login, password })
       : await signIn.username({ username: login, password });
     setBusy(false);
+    setUnverified(false);
+    setResent(null);
     if (res.error) {
-      setError(t('Incorrect username or password.'));
+      if (res.error.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverified(true);
+        setError(tServer(res.error.message ?? ''));
+      } else setError(t('Incorrect username or password.'));
       return;
     }
     // During an OAuth flow the response says where it continues.
@@ -58,6 +69,35 @@ export default function Login() {
       docTitle={t('Sign in')}
     >
       <FlashError message={error} />
+      {unverified && (
+        <Notice tone="info">
+          {login.includes('@') ? (
+            resent === 'sent' ? (
+              t('Sent. Open the new link in your inbox.')
+            ) : (
+              <button
+                type="button"
+                className="btn small"
+                disabled={resent === 'sending'}
+                onClick={async () => {
+                  setResent('sending');
+                  const r = await authClient.sendVerificationEmail({
+                    email: login.trim(),
+                    callbackURL: '/',
+                  });
+                  setResent(r.error ? 'failed' : 'sent');
+                }}
+              >
+                {resent === 'failed'
+                  ? t('Could not send it. Try again')
+                  : t('Send the link again')}
+              </button>
+            )
+          ) : (
+            t('To get the link again, sign in with your email address.')
+          )}
+        </Notice>
+      )}
       <form className="auth-fields" onSubmit={submit}>
         <div className="fld">
           <label htmlFor="login_field">{t('Username or email address')}</label>
@@ -93,7 +133,14 @@ export default function Login() {
         </PendingButton>
       </form>
       <p className="auth-foot">
-        {t('New to this instance? Ask an administrator for an invitation.')}
+        {status.data?.signup.enabled ? (
+          <>
+            {t('New to this instance?')}{' '}
+            <Link to="/signup">{t('Create an account')}</Link>
+          </>
+        ) : (
+          t('New to this instance? Ask an administrator for an invitation.')
+        )}
       </p>
     </AuthShell>
   );

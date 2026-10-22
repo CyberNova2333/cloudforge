@@ -337,6 +337,12 @@ const PAGES: PageDef[] = [
     keywords: 'settings addresses',
   },
   {
+    label: t('Language'),
+    en: 'Language',
+    to: '/settings/language',
+    keywords: 'settings preferences chinese english 中文 语言',
+  },
+  {
     label: t('Site admin'),
     en: 'Site admin',
     to: '/admin',

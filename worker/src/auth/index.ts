@@ -11,6 +11,16 @@ import { namespaceTaken } from '../lib/namespaces';
 import { isAgentUser } from '../agents/identity';
 import { eq } from 'drizzle-orm';
 import { mcpModerators } from '../db/app.schema';
+import { sendSignupVerification } from '../lib/email';
+import {
+  checkResend,
+  checkSignup,
+  mustVerifyEmail,
+  verificationRequired,
+} from './signup';
+
+/** How long a sign-up verification link works. */
+const VERIFY_HOURS = 24;
 
 /** The /mcp URL: the OAuth protected resource and token audience (RFC 8707). */
 export const mcpResource = (baseURL: string) =>
@@ -135,9 +145,34 @@ function createAuth(env?: CloudflareBindings) {
     }),
     emailAndPassword: {
       enabled: true,
-      // Users come from setup or invitations only.
-      disableSignUp: true,
+      // Setup and invitations create users directly; self sign-up is open only while Site admin turns it on
+      // (checkSignup, below). It never signs in by itself: the page signs in, or the emailed link does.
+      disableSignUp: false,
+      autoSignIn: false,
       minPasswordLength: 8,
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      expiresIn: VERIFY_HOURS * 3600,
+      // Only to a self sign-up that must confirm its email (Site admin requires it, and email is set up). During
+      // the sign-up request itself the account isn't marked as a self sign-up yet (user.create.after runs once the
+      // request is done), so there the requirement alone decides; a resend is already limited by checkResend.
+      sendVerificationEmail: async ({ user, url }, request) => {
+        if (!env) return;
+        const signingUp =
+          !!request && new URL(request.url).pathname.endsWith('/sign-up/email');
+        const send = signingUp
+          ? await verificationRequired(db, env)
+          : await mustVerifyEmail(db, env, user.id);
+        if (!send) return;
+        await sendSignupVerification(env, db, {
+          to: user.email,
+          name: user.name,
+          url,
+          hours: VERIFY_HOURS,
+        });
+      },
     },
     // jwt() only signs OAuth access tokens; its session-JWT endpoint is off.
     disabledPaths: ['/token'],
@@ -164,7 +199,16 @@ function createAuth(env?: CloudflareBindings) {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (!env || !ctx.path.startsWith('/oauth2/')) return;
+        if (!env) return;
+        if (ctx.path === '/sign-up/email') {
+          await checkSignup(db, env, ctx.body);
+          return;
+        }
+        if (ctx.path === '/send-verification-email') {
+          await checkResend(db, env, ctx.body);
+          return;
+        }
+        if (!ctx.path.startsWith('/oauth2/')) return;
         await ensureMcpResource(db, baseURL);
         if (ctx.path === '/oauth2/authorize') {
           const context = await moderatorAuthorizeNeedsConsent(db, ctx);
@@ -188,6 +232,13 @@ function createAuth(env?: CloudflareBindings) {
               throw new APIError('FORBIDDEN', {
                 message: 'Agents can’t sign in.',
               });
+            // A self sign-up signs in only once its email is confirmed (while Site admin requires that).
+            if (env && (await mustVerifyEmail(db, env, session.userId)))
+              throw new APIError('FORBIDDEN', {
+                message:
+                  'Confirm your email first: open the link we sent you, then sign in.',
+                code: 'EMAIL_NOT_VERIFIED',
+              });
             return { data: session };
           },
         },
@@ -205,6 +256,14 @@ function createAuth(env?: CloudflareBindings) {
         },
       },
       user: {
+        create: {
+          // Only a self sign-up starts unverified (and so may have to confirm its email before signing in).
+          // Setup, invitations and the admin API vouch for the address: those accounts start verified.
+          before: async (user, ctx) => {
+            if (ctx?.path === '/sign-up/email') return;
+            return { data: { ...user, emailVerified: true } };
+          },
+        },
         update: {
           // Usernames share the URL namespace with the team slug.
           before: async (data, ctx) => {

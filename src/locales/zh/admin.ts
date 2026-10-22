@@ -378,4 +378,28 @@ export const admin: Record<string, string> = {
   'Access tokens': '访问令牌',
   'People and team': '成员与团队',
   'Your settings': '你的设置',
+  'follows your browser': '跟随浏览器',
+  'Instance default': '实例默认',
+  'Currently {language}, set by a site admin.':
+    '当前为{language}，由站点管理员设置。',
+  Language: '语言',
+  'The language of the interface. It is kept with your account, so it follows you to every browser you sign in on.':
+    '界面语言。它保存在你的账户里，在任何浏览器上登录都会生效。',
+  'your preferences': '你的偏好设置',
+  'Interface language': '界面语言',
+  'This page is shown in {language} now.': '当前页面以{language}显示。',
+  'Self sign-up is on for {domains}; anyone else joins by invitation.':
+    '已对 {domains} 开放自助注册，其他人需通过邀请加入。',
+  'Self sign-up is on: anyone who can reach this instance can create an account.':
+    '已开放自助注册：任何能访问这个实例的人都可以创建账户。',
+  'Self sign-up is off. People join by invitation.':
+    '未开放自助注册，成员需通过邀请加入。',
+  'Change it in {settings}.': '可在{settings}中修改。',
+  "Members can't be removed and roles can't be changed from here.":
+    '这里不能移除成员，也不能修改角色。',
+  empty: '空',
+  Enabled: '已开启',
+  Disabled: '已关闭',
+  enabled: '开启',
+  disabled: '关闭',
 };

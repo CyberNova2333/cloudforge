@@ -447,6 +447,32 @@ export const errors: Record<string, string> = {
   'The AI binding is missing.': '缺少 AI 绑定。',
   'Workers AI answered. AI_GATEWAY is off, so nothing was logged.':
     'Workers AI 已作答。AI_GATEWAY 已关闭，因此没有记录。',
+  Accounts: '账户',
+  'Default language': '默认语言',
+  'The interface language for visitors and for members who have not picked one in their settings. Follow the browser shows Chinese when the browser prefers it, else English.':
+    '访客以及未在个人设置中选择语言的成员所看到的界面语言。“跟随浏览器”会在浏览器偏好中文时显示中文，否则显示英文。',
+  'Follow the browser': '跟随浏览器',
+  'Self sign-up': '自助注册',
+  'Anyone who can reach this instance can create a member account from the sign-in page, without an invitation. Off: people join by invitation only.':
+    '任何能访问这个实例的人都可以在登录页自行创建成员账户，无需邀请。关闭时只能通过邀请加入。',
+  'Sign-up email domains': '允许注册的邮箱域名',
+  'Only email addresses at these domains can sign up, separated by commas (for example: example.com, example.org). Empty allows any address.':
+    '只有这些域名的邮箱地址可以注册，多个域名用逗号分隔（例如：example.com, example.org）。留空则允许任何地址。',
+  'Use domains like example.com, separated by commas':
+    '请填写类似 example.com 的域名，多个用逗号分隔',
+  'Verify email on sign-up': '注册时验证邮箱',
+  'Accounts made by self sign-up must open the link emailed to them before they can sign in. It needs outbound email (Email Sending); invited members and the first admin are never asked.':
+    '自助注册的账户必须先打开发到邮箱的链接才能登录。需要已配置发信（Email Sending）；被邀请的成员和第一个管理员不受影响。',
+  'Set up the instance first.': '请先完成实例的初始设置。',
+  'Self sign-up is off. Ask an administrator for an invitation.':
+    '未开放自助注册，请向管理员索取邀请。',
+  'Accounts with this email domain can’t sign up here.':
+    '这个邮箱域名不允许在此注册。',
+  'Choose a username.': '请填写用户名。',
+  'Confirm your email first: open the link we sent you, then sign in.':
+    '请先确认邮箱：打开我们发给你的链接后再登录。',
+  'No sign-up is waiting for this email to be confirmed.':
+    '没有等待确认这个邮箱的注册。',
 };
 
 /**

@@ -12,6 +12,7 @@ import { RowsSkeleton } from '@/components/SetFrame';
 
 const GROUPS: InstanceSetting['group'][] = [
   'General',
+  'Accounts',
   'AI models',
   'Reviews',
   'Actions',
@@ -26,8 +27,11 @@ function SettingRow({
 }) {
   const retention = s.key === 'actions.retention_days';
   // Other number settings (e.g. actions.max_concurrent_jobs) save numbers, not text.
-  const numeric = !retention && typeof s.default === 'number';
+  const numeric = !retention && s.input === 'number';
+  const toggle = s.input === 'boolean';
+  const choice = s.input === 'choice';
   const [text, setText] = useState('');
+  const [on, setOn] = useState(false);
   const [forever, setForever] = useState(false);
   const [busy, setBusy] = useState<'save' | 'reset' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,16 +42,19 @@ function SettingRow({
     if (retention) {
       setForever(s.value === null);
       setText(s.value === null ? '' : String(s.value));
-    } else setText(String(s.value ?? ''));
-  }, [s.value, retention]);
+    } else if (toggle) setOn(s.value === true);
+    else setText(String(s.value ?? ''));
+  }, [s.value, retention, toggle]);
 
   const current = retention
     ? forever
       ? null
       : Number(text)
-    : numeric
-      ? Number(text)
-      : text.trim();
+    : toggle
+      ? on
+      : numeric
+        ? Number(text)
+        : text.trim();
   const dirty = current !== s.value;
 
   const run = async (kind: 'save' | 'reset', fn: () => Promise<unknown>) => {
@@ -65,12 +72,22 @@ function SettingRow({
     }
   };
 
+  const optionLabel = (value: unknown) =>
+    tServer(s.options?.find((o) => o.value === value)?.label ?? String(value));
   const defaultText =
     s.default === null
       ? t('keep forever')
       : retention
         ? t('{n} days', { n: String(s.default) })
-        : String(s.default);
+        : toggle
+          ? s.default
+            ? t('enabled')
+            : t('disabled')
+          : choice
+            ? optionLabel(s.default)
+            : s.default === ''
+              ? t('empty')
+              : String(s.default);
 
   return (
     <li className="setting">
@@ -108,6 +125,29 @@ function SettingRow({
                 {t('Keep forever')}
               </label>
             </>
+          ) : toggle ? (
+            <label className="check-inline">
+              <input
+                id={`setting-${s.key}`}
+                type="checkbox"
+                checked={on}
+                onChange={(e) => setOn(e.target.checked)}
+              />
+              {on ? t('Enabled') : t('Disabled')}
+            </label>
+          ) : choice ? (
+            <select
+              id={`setting-${s.key}`}
+              className="form-select"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            >
+              {s.options?.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {tServer(o.label)}
+                </option>
+              ))}
+            </select>
           ) : numeric ? (
             <input
               id={`setting-${s.key}`}
@@ -126,7 +166,7 @@ function SettingRow({
               className="form-control wide"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              required
+              required={!s.optional}
             />
           )}
           <PendingButton

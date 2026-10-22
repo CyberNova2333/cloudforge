@@ -13,8 +13,10 @@ import { DEFAULT_APP_NAME } from './app-name';
 type Definition<T> = {
   label: string;
   description: string;
-  group: 'General' | 'AI models' | 'Reviews' | 'Actions';
+  group: 'General' | 'Accounts' | 'AI models' | 'Reviews' | 'Actions';
   schema: z.ZodType<T>;
+  /** A choice setting's options, by value: how Site admin names each one. */
+  choices?: Record<string, string>;
   default: (env: CloudflareBindings) => T;
   /** Another setting this one takes its (resolved, override included) value from until it is overridden itself. */
   follows?: string;
@@ -43,6 +45,18 @@ export const LEARN_MAX_MINUTES = 30;
 
 const whole = (min: number, max: number) => z.number().int().min(min).max(max);
 
+/** Email domains, separated by commas and/or spaces; empty is allowed. */
+const DOMAINS_RE =
+  /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:[\s,]+|$))*$/i;
+
+/** The domains of `signup.allowed_domains`, lowercased; empty means any domain. */
+export function signupDomains(value: string): string[] {
+  return value
+    .split(/[\s,]+/)
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export const SETTINGS = {
   'app.name': {
     label: 'Instance name',
@@ -52,6 +66,43 @@ export const SETTINGS = {
     schema: z.string().trim().min(1).max(60),
     default: (env) => env.APP_NAME?.trim() || DEFAULT_APP_NAME,
   } satisfies Definition<string>,
+  'ui.default_language': {
+    label: 'Default language',
+    description:
+      'The interface language for visitors and for members who have not picked one in their settings. Follow the browser shows Chinese when the browser prefers it, else English.',
+    group: 'General',
+    schema: z.enum(['auto', 'zh', 'en']),
+    default: () => 'auto' as const,
+    choices: { auto: 'Follow the browser', zh: '中文', en: 'English' },
+  } satisfies Definition<'auto' | 'zh' | 'en'>,
+  'signup.enabled': {
+    label: 'Self sign-up',
+    description:
+      'Anyone who can reach this instance can create a member account from the sign-in page, without an invitation. Off: people join by invitation only.',
+    group: 'Accounts',
+    schema: z.boolean(),
+    default: () => false,
+  } satisfies Definition<boolean>,
+  'signup.allowed_domains': {
+    label: 'Sign-up email domains',
+    description:
+      'Only email addresses at these domains can sign up, separated by commas (for example: example.com, example.org). Empty allows any address.',
+    group: 'Accounts',
+    schema: z
+      .string()
+      .trim()
+      .max(500)
+      .regex(DOMAINS_RE, 'Use domains like example.com, separated by commas'),
+    default: () => '',
+  } satisfies Definition<string>,
+  'signup.require_verification': {
+    label: 'Verify email on sign-up',
+    description:
+      'Accounts made by self sign-up must open the link emailed to them before they can sign in. It needs outbound email (Email Sending); invited members and the first admin are never asked.',
+    group: 'Accounts',
+    schema: z.boolean(),
+    default: () => true,
+  } satisfies Definition<boolean>,
   'email.from': {
     label: 'Invitation sender',
     description:
@@ -279,9 +330,34 @@ export async function listSettings(db: DrizzleDB, env: CloudflareBindings) {
       default: r.fallback,
       overridden: r.overridden,
       updatedAt: row?.updatedAt.toISOString() ?? null,
+      ...inputOf(def),
       ...bounds(def.schema),
     };
   });
+}
+
+/**
+ * Which control Site admin shows: a switch, a choice among `options`, a number, or text (`optional` text may be
+ * saved empty).
+ */
+function inputOf(def: Definition<unknown>): {
+  input: 'boolean' | 'choice' | 'number' | 'text';
+  options?: { value: string; label: string }[];
+  optional?: boolean;
+} {
+  const schema = def.schema;
+  if (schema instanceof z.ZodBoolean) return { input: 'boolean' };
+  if (schema instanceof z.ZodEnum)
+    return {
+      input: 'choice',
+      options: (schema.options as string[]).map((value) => ({
+        value,
+        label: def.choices?.[value] ?? value,
+      })),
+    };
+  const inner = schema instanceof z.ZodNullable ? schema.unwrap() : schema;
+  if (inner instanceof z.ZodNumber) return { input: 'number' };
+  return { input: 'text', optional: def.default({} as never) === '' };
 }
 
 /** A number setting's inclusive limits, for the Site admin input. */

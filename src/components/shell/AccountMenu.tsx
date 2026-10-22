@@ -6,6 +6,7 @@ import { Seg } from '@/components/ui/Seg';
 import { signOut, useCurrentUser } from '@/lib/auth';
 import { lang, setLang, t, type Lang } from '@/lib/i18n';
 import { THEMES, type Mode } from '@/lib/theme';
+import { api } from '@/lib/uiApi';
 import type { ShellMenu } from './AppShell';
 
 const MODES: readonly { value: Mode; label: string }[] = [
@@ -102,7 +103,12 @@ export function AccountMenu({
             label="Language · 语言"
             options={LANGUAGES}
             value={lang}
-            onChange={(next) => next !== lang && setLang(next)}
+            onChange={async (next) => {
+              if (next === lang) return;
+              // Kept with the account too, so it follows the person to other browsers.
+              await api.savePreferences({ language: next }).catch(() => {});
+              setLang(next);
+            }}
           />
           <div className="dd-sep" />
           <Link className="ws-item" to={`/${login}`} onClick={close}>

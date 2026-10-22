@@ -1,4 +1,5 @@
-import { instanceName } from '../lib/settings';
+import { getSettings, signupDomains } from '../lib/settings';
+import { verificationRequired } from '../auth/signup';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { sql } from 'drizzle-orm';
 import { users } from '../db/auth.schema';
@@ -48,6 +49,16 @@ const statusRoute = createRoute({
         codeRequired: z.boolean(),
         /** The instance's display name. */
         appName: z.string(),
+        /** The interface language for people who haven't picked one: auto follows the browser. */
+        defaultLanguage: z.enum(['auto', 'zh', 'en']),
+        /** Self sign-up (Site admin → Settings → Accounts), for the sign-in and sign-up pages. */
+        signup: z.object({
+          enabled: z.boolean(),
+          /** Only these email domains may sign up; empty allows any. */
+          domains: z.array(z.string()),
+          /** New accounts confirm their email before their first sign-in. */
+          verification: z.boolean(),
+        }),
       }),
       'Setup status'
     ),
@@ -55,12 +66,25 @@ const statusRoute = createRoute({
 });
 
 setupRouter.openapi(statusRoute, async (c) => {
-  const setupRequired = (await countUsers(c.get('db'))) === 0;
+  const db = c.get('db');
+  const setupRequired = (await countUsers(db)) === 0;
+  const s = await getSettings(db, c.env, [
+    'app.name',
+    'ui.default_language',
+    'signup.enabled',
+    'signup.allowed_domains',
+  ]);
   return c.json(
     {
       setupRequired,
       codeRequired: setupRequired && setupCodeRequired(c.env),
-      appName: await instanceName(c.get('db'), c.env),
+      appName: s['app.name'],
+      defaultLanguage: s['ui.default_language'],
+      signup: {
+        enabled: !setupRequired && s['signup.enabled'],
+        domains: signupDomains(s['signup.allowed_domains']),
+        verification: await verificationRequired(db, c.env),
+      },
     },
     200
   );
