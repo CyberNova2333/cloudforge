@@ -1,7 +1,7 @@
+import { t, tn } from './i18n';
 import type { MergeRefusal, RebaseView } from './uiApi';
 
 const sha7 = (s: unknown) => (typeof s === 'string' ? s.slice(0, 7) : '');
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** The merge box's line about the branch against its base. */
 export function rebaseHeadline(
@@ -11,35 +11,49 @@ export function rebaseHeadline(
   switch (r.status) {
     case 'nothing_to_merge':
       return {
-        title: 'This branch is up to date',
-        detail: 'There is nothing to merge.',
+        title: t('This branch is up to date'),
+        detail: t('There is nothing to merge.'),
       };
     case 'up_to_date':
       return {
-        title: `Up to date with ${r.onto}`,
-        detail:
-          'Merging moves the target branch to this branch’s head: its commits land as they are.',
+        title: t('Up to date with {onto}', { onto: r.onto }),
+        detail: t(
+          'Merging moves the target branch to this branch’s head: its commits land as they are.'
+        ),
       };
     case 'behind':
       return {
-        title: `Behind ${r.onto}`,
-        detail:
-          'GitOrange rebases it onto the latest commits; merging rebases it first if it still needs to.',
+        title: t('Behind {onto}', { onto: r.onto }),
+        detail: t(
+          'GitOrange rebases it onto the latest commits; merging rebases it first if it still needs to.'
+        ),
       };
     case 'resolving':
       return {
         title: r.commit
-          ? `Resolving commit ${sha7(r.commit)}’s conflict with AI`
-          : 'Resolving a conflict with AI',
-        detail: `The rebase onto ${r.onto} stopped there; an agent is resolving it and the rebase goes on.`,
+          ? t('Resolving commit {sha}’s conflict with AI', {
+              sha: sha7(r.commit),
+            })
+          : t('Resolving a conflict with AI'),
+        detail: t(
+          'The rebase onto {onto} stopped there; an agent is resolving it and the rebase goes on.',
+          { onto: r.onto }
+        ),
       };
     case 'conflict':
       return {
         title: r.commit
-          ? `Commit ${sha7(r.commit)} conflicts with ${r.onto}`
-          : `This branch can’t be rebased onto ${r.onto}`,
+          ? t('Commit {sha} conflicts with {onto}', {
+              sha: sha7(r.commit),
+              onto: r.onto,
+            })
+          : t('This branch can’t be rebased onto {onto}', { onto: r.onto }),
         detail:
-          r.error ?? `Rebase ${headRef} onto ${r.onto} locally, then push.`,
+          r.error ??
+          t('Rebase {head} onto {onto} locally, then push.', {
+            head: headRef,
+            onto: r.onto,
+          }),
       };
   }
 }
@@ -56,14 +70,27 @@ export function canRetryRebase(r: RebaseView | null): boolean {
 export function rebasedText(d: Record<string, unknown>): string {
   const skipped = Number(d.skipped) || 0;
   const resolved = Number(d.resolved) || 0;
-  const onto = String(d.onto ?? 'its base');
+  const onto = d.onto != null ? String(d.onto) : t('its base');
   return (
-    `GitOrange rebased this branch onto ${onto} (${sha7(d.from)} → ${sha7(d.to)})` +
+    t('GitOrange rebased this branch onto {onto} ({from} → {to})', {
+      onto,
+      from: sha7(d.from),
+      to: sha7(d.to),
+    }) +
     (skipped
-      ? `, skipping ${plural(skipped, 'commit')} ${onto} already has`
+      ? tn(
+          skipped,
+          ', skipping {n} commit {onto} already has',
+          ', skipping {n} commits {onto} already has',
+          { onto }
+        )
       : '') +
     (resolved
-      ? `; AI resolved the conflicts of ${plural(resolved, 'commit')}`
+      ? tn(
+          resolved,
+          '; AI resolved the conflicts of {n} commit',
+          '; AI resolved the conflicts of {n} commits'
+        )
       : '')
   );
 }

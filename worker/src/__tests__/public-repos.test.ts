@@ -1,0 +1,303 @@
+import { describe, expect, it } from 'vitest';
+import { isPublicRepoRead } from '../auth/guards';
+import { handleGitRequest } from '../git-http';
+import { handleLfsRequest } from '../lfs-http';
+import { sha256Hex } from '../git/bytes';
+import {
+  addMember,
+  bootstrapAdmin,
+  call,
+  makeEnv,
+  type TestEnv,
+} from './helpers/app';
+
+const ctx = {
+  waitUntil: () => {},
+  passThroughOnException: () => {},
+  props: {},
+} as unknown as ExecutionContext;
+
+type Repo = {
+  fullName: string;
+  visibility: string;
+  permissions?: { read: boolean; write: boolean; admin: boolean };
+};
+
+async function pat(t: TestEnv, cookie: string) {
+  const res = await call(t, '/api/tokens', {
+    cookie,
+    json: { name: 'cli', expiresInDays: 30 },
+  });
+  return ((await res.json()) as { plaintext: string }).plaintext;
+}
+
+function git(t: TestEnv, path: string, opts: { token?: string } = {}) {
+  const headers = new Headers();
+  if (opts.token)
+    headers.set('Authorization', `Basic ${btoa(`user:${opts.token}`)}`);
+  return handleGitRequest(
+    new Request(`http://test.local${path}`, { headers }),
+    t.env,
+    ctx
+  );
+}
+
+function lfs(t: TestEnv, path: string, json: unknown, token?: string) {
+  const headers = new Headers({
+    Accept: 'application/vnd.git-lfs+json',
+    'Content-Type': 'application/vnd.git-lfs+json',
+  });
+  if (token) headers.set('Authorization', `Basic ${btoa(`user:${token}`)}`);
+  return handleLfsRequest(
+    new Request(`http://test.local${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(json),
+    }),
+    t.env,
+    ctx
+  );
+}
+
+/** octocat/open (public) and octocat/inside (internal), both with a README. */
+async function setup() {
+  const t = makeEnv();
+  const admin = await bootstrapAdmin(t);
+  for (const [name, visibility] of [
+    ['open', 'public'],
+    ['inside', 'internal'],
+  ])
+    await call(t, '/api/repos', {
+      cookie: admin,
+      json: { name, visibility, addReadme: true },
+    });
+  return { t, admin };
+}
+
+describe('public repositories, signed out', () => {
+  it('lists only public repositories', async () => {
+    const { t } = await setup();
+    const res = await call(t, '/api/repos');
+    expect(res.status).toBe(200);
+    const list = (await res.json()) as Repo[];
+    expect(list.map((r) => r.fullName)).toEqual(['octocat/open']);
+  });
+
+  it('reads a public repository and its pages, read-only', async () => {
+    const { t } = await setup();
+    const repo = await call(t, '/api/repos/octocat/open');
+    expect(repo.status).toBe(200);
+    expect(((await repo.json()) as Repo).permissions).toEqual({
+      read: true,
+      write: false,
+      admin: false,
+    });
+    for (const page of [
+      'contents',
+      'commits?ref=main',
+      'pulls',
+      'actions/runs',
+      'branches',
+      'releases',
+      'tags',
+      'agents',
+    ]) {
+      const res = await call(t, `/api/repos/octocat/open/${page}`);
+      expect([page, res.status]).toEqual([page, 200]);
+    }
+  });
+
+  it('cannot see internal or private repositories', async () => {
+    const { t, admin } = await setup();
+    await call(t, '/api/repos', { cookie: admin, json: { name: 'diary' } });
+    expect((await call(t, '/api/repos/octocat/inside')).status).toBe(404);
+    expect((await call(t, '/api/repos/octocat/diary')).status).toBe(404);
+    expect((await call(t, '/api/repos/octocat/inside/contents')).status).toBe(
+      404
+    );
+  });
+
+  it('keeps writes and members-only pages behind sign-in', async () => {
+    const { t } = await setup();
+    expect(
+      (
+        await call(t, '/api/repos/octocat/open', {
+          method: 'PATCH',
+          json: { description: 'defaced' },
+        })
+      ).status
+    ).toBe(401);
+    expect(
+      (await call(t, '/api/repos', { json: { name: 'mine' } })).status
+    ).toBe(401);
+    expect((await call(t, '/api/repos/octocat/open/audit')).status).toBe(401);
+    expect(
+      (await call(t, '/api/repos/octocat/open/collaborators')).status
+    ).toBe(401);
+    expect((await call(t, '/api/users')).status).toBe(401);
+  });
+
+  it('clones a public repository without a token, but never pushes', async () => {
+    const { t } = await setup();
+    const clone = await git(
+      t,
+      '/octocat/open.git/info/refs?service=git-upload-pack'
+    );
+    expect(clone.status).toBe(200);
+    expect(await clone.text()).toContain('refs/heads/main');
+
+    const push = await git(
+      t,
+      '/octocat/open.git/info/refs?service=git-receive-pack'
+    );
+    expect(push.status).toBe(401);
+    expect(push.headers.get('WWW-Authenticate')).toContain('Basic');
+
+    // Anything not public still asks for credentials, so git prompts for a token.
+    const inside = await git(
+      t,
+      '/octocat/inside.git/info/refs?service=git-upload-pack'
+    );
+    expect(inside.status).toBe(401);
+  });
+
+  it('downloads LFS objects of a public repository without a token, but never uploads', async () => {
+    const { t } = await setup();
+    const content = 'public asset';
+    const oid = await sha256Hex(content);
+    const size = new TextEncoder().encode(content).length;
+    // In R2 under every repository (`lfs/<repository id>/<oid>`); D1 learns of it on the first batch.
+    for (const r of t.fake.repos.values())
+      await t.env.LFS.put(`lfs/${r.name.slice(2)}/${oid}`, content, {
+        sha256: oid,
+      });
+
+    const down = await lfs(t, '/octocat/open.git/info/lfs/objects/batch', {
+      operation: 'download',
+      objects: [{ oid, size }],
+    });
+    expect(down.status).toBe(200);
+    const body = (await down.json()) as {
+      objects: { actions?: { download?: unknown } }[];
+    };
+    expect(body.objects[0].actions?.download).toBeDefined();
+
+    const up = await lfs(t, '/octocat/open.git/info/lfs/objects/batch', {
+      operation: 'upload',
+      objects: [{ oid, size }],
+    });
+    expect(up.status).toBe(401);
+    expect(up.headers.get('WWW-Authenticate')).toContain('Basic');
+
+    const verify = await lfs(t, '/octocat/open.git/info/lfs/objects/verify', {
+      oid,
+      size,
+    });
+    expect(verify.status).toBe(401);
+
+    const inside = await lfs(t, '/octocat/inside.git/info/lfs/objects/batch', {
+      operation: 'download',
+      objects: [{ oid, size }],
+    });
+    expect(inside.status).toBe(401);
+  });
+});
+
+describe('public repositories, signed in', () => {
+  it('are readable by every member, writable only by collaborators', async () => {
+    const { t, admin } = await setup();
+    const bob = await addMember(t, admin, 'bob');
+    const list = (await (
+      await call(t, '/api/repos', { cookie: bob })
+    ).json()) as Repo[];
+    expect(list.map((r) => r.fullName).sort()).toEqual([
+      'octocat/inside',
+      'octocat/open',
+    ]);
+    const repo = (await (
+      await call(t, '/api/repos/octocat/open', { cookie: bob })
+    ).json()) as Repo;
+    expect(repo.permissions).toEqual({
+      read: true,
+      write: false,
+      admin: false,
+    });
+    const push = await git(
+      t,
+      '/octocat/open.git/info/refs?service=git-receive-pack',
+      { token: await pat(t, bob) }
+    );
+    expect(push.status).toBe(403);
+  });
+
+  it('lets the owner make a repository public and private again', async () => {
+    const { t, admin } = await setup();
+    const open = await call(t, '/api/repos/octocat/inside', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { visibility: 'public' },
+    });
+    expect(((await open.json()) as Repo).visibility).toBe('public');
+    expect((await call(t, '/api/repos/octocat/inside')).status).toBe(200);
+
+    await call(t, '/api/repos/octocat/inside', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { visibility: 'private' },
+    });
+    expect((await call(t, '/api/repos/octocat/inside')).status).toBe(404);
+
+    const audit = (await (
+      await call(t, '/api/repos/octocat/inside/audit', { cookie: admin })
+    ).json()) as { events: { action: string; data: unknown }[] };
+    const changes = audit.events
+      .filter((e) => e.action === 'visibility.changed')
+      .map((e) => e.data);
+    // Both may land in the same second, so their order is not asserted.
+    expect(changes).toHaveLength(2);
+    expect(changes).toEqual(
+      expect.arrayContaining([
+        { from: 'internal', to: 'public' },
+        { from: 'public', to: 'private' },
+      ])
+    );
+  });
+
+  it('lets a team repository be public, but never private', async () => {
+    const { t, admin } = await setup();
+    await call(t, '/api/team', {
+      cookie: admin,
+      method: 'PUT',
+      json: { name: 'XY Space', slug: 'xyspace' },
+    });
+    await call(t, '/api/repos', {
+      cookie: admin,
+      json: { name: 'site', owner: 'team', addReadme: true },
+    });
+    const open = await call(t, '/api/repos/xyspace/site', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { visibility: 'public' },
+    });
+    expect(open.status).toBe(200);
+    expect((await call(t, '/api/repos/xyspace/site')).status).toBe(200);
+    const closed = await call(t, '/api/repos/xyspace/site', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { visibility: 'private' },
+    });
+    expect(closed.status).toBe(400);
+  });
+});
+
+describe('isPublicRepoRead', () => {
+  it('allows the list and a repository’s pages, except members-only ones', () => {
+    expect(isPublicRepoRead('/api/repos')).toBe(true);
+    expect(isPublicRepoRead('/api/repos/o/r')).toBe(true);
+    expect(isPublicRepoRead('/api/repos/o/r/pulls/3/files')).toBe(true);
+    expect(isPublicRepoRead('/api/repos/o/r/audit')).toBe(false);
+    expect(isPublicRepoRead('/api/repos/o/r/collaborators/bob')).toBe(false);
+    expect(isPublicRepoRead('/api/repos/o')).toBe(false);
+    expect(isPublicRepoRead('/api/users')).toBe(false);
+  });
+});

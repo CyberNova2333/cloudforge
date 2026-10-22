@@ -5,6 +5,7 @@
  * it in the title (`Review by @handle of …`, `@handle learns from #n`).
  */
 import type { AgentStatus, Tone } from './agentLook';
+import { t } from './i18n';
 import type {
   AgentRun,
   AgentRunKind,
@@ -13,12 +14,15 @@ import type {
 } from './uiApi';
 
 export const AGENT_RUN_KINDS: { kind: AgentRunKind; label: string }[] = [
-  { kind: 'review', label: 'Review' },
-  { kind: 'rebase', label: 'Rebase' },
-  { kind: 'conflict_resolution', label: 'Conflict resolution (squash-era)' },
-  { kind: 'stack_discovery', label: 'Stack discovery' },
-  { kind: 'sweep', label: 'Sweep' },
-  { kind: 'learning', label: 'Learning' },
+  { kind: 'review', label: t('Review') },
+  { kind: 'rebase', label: t('Rebase') },
+  {
+    kind: 'conflict_resolution',
+    label: t('Conflict resolution (squash-era)'),
+  },
+  { kind: 'stack_discovery', label: t('Stack discovery') },
+  { kind: 'sweep', label: t('Sweep') },
+  { kind: 'learning', label: t('Learning') },
 ];
 
 export const agentKindLabel = (kind: AgentRunKind): string =>
@@ -81,18 +85,18 @@ export function actorRole(run: Pick<AgentRun, 'kind' | 'title'>): string {
   switch (run.kind) {
     case 'review':
       return runActor(run)?.builtin
-        ? 'Decides which reviewers to ask'
-        : 'Reviews the change';
+        ? t('Decides which reviewers to ask')
+        : t('Reviews the change');
     case 'rebase':
-      return 'Rebases the branch';
+      return t('Rebases the branch');
     case 'conflict_resolution':
-      return 'Resolves conflicts';
+      return t('Resolves conflicts');
     case 'stack_discovery':
-      return 'Works out how pull requests fit together';
+      return t('Works out how pull requests fit together');
     case 'sweep':
-      return 'Re-checks open pull requests';
+      return t('Re-checks open pull requests');
     case 'learning':
-      return 'Learns from dismissed requests';
+      return t('Learns from dismissed requests');
   }
 }
 
@@ -111,10 +115,10 @@ export function runStatusLook(status: AgentRunStatus): {
   label: string;
 } {
   return status === 'running'
-    ? { tone: 'info', label: 'Running' }
+    ? { tone: 'info', label: t('Running') }
     : status === 'failed'
-      ? { tone: 'critical', label: 'Failed' }
-      : { tone: 'good', label: 'Finished' };
+      ? { tone: 'critical', label: t('Failed') }
+      : { tone: 'good', label: t('Finished') };
 }
 
 /**
@@ -125,12 +129,12 @@ export function runOutcome(
   run: Pick<AgentRun, 'status' | 'error'>,
   steps: Pick<AgentStep, 'decision' | 'error'>[]
 ): string | null {
-  if (run.status === 'running') return 'Still working.';
+  if (run.status === 'running') return t('Still working.');
   if (run.status === 'failed') {
     if (run.error) return run.error;
     for (let i = steps.length - 1; i >= 0; i--)
       if (steps[i].error) return steps[i].error;
-    return 'The run failed.';
+    return t('The run failed.');
   }
   for (let i = steps.length - 1; i >= 0; i--)
     if (steps[i].decision) return steps[i].decision;

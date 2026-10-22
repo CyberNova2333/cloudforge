@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { t } from '@/lib/i18n';
 import { ClockIcon } from '@primer/octicons-react';
 import { firstLine, shortSha, timeAgo } from '@/lib/format';
 import type { Contents, RepoDetail } from '@/lib/uiApi';
@@ -45,10 +46,10 @@ export function LatestCommit({
       <Link
         to={`${base}/commits/${data.ref}`}
         className="ft-count"
-        aria-label="History"
+        aria-label={t('History')}
       >
         <ClockIcon />
-        <span className="ft-count-label">History</span>
+        <span className="ft-count-label">{t('History')}</span>
       </Link>
     </div>
   );

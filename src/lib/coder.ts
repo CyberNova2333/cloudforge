@@ -2,6 +2,8 @@
  * The coding agent (or person) that opened a pull request, as the crew pages draw it: a monogram tile and a short
  * label such as "Claude·s4". Coding agents write the code and are never drawn as the reviewer robots.
  */
+import { t } from './i18n';
+
 export type CoderKind = 'claude' | 'codex' | 'other' | 'person';
 
 export interface Coder {
@@ -34,9 +36,9 @@ export function coderOf(
     return {
       kind: 'person',
       mono: '',
-      name: 'By hand',
-      label: 'by hand',
-      title: 'Opened by hand',
+      name: t('By hand'),
+      label: t('by hand'),
+      title: t('Opened by hand'),
     };
   const session = (sessionLabel ?? '').trim();
   const first = via.split(/\s+/)[0];
@@ -54,6 +56,6 @@ export function coderOf(
     mono,
     name,
     label: session ? `${name}·${session}` : name,
-    title: session ? `${via} session ${session}` : via,
+    title: session ? t('{via} session {session}', { via, session }) : via,
   };
 }

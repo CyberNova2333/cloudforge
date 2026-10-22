@@ -17,6 +17,7 @@ import {
 } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { t, tn, tx } from '@/lib/i18n';
 import {
   anchoredReviewer,
   earlierEntries,
@@ -87,12 +88,12 @@ function FileJump({ files }: { files: FileDiff[] }) {
   return (
     <div className="table-wrap pr-filejump">
       <table className="table">
-        <caption className="sr">Changed files</caption>
+        <caption className="sr">{t('Changed files')}</caption>
         <thead>
           <tr>
-            <th scope="col">File</th>
-            <th scope="col">Added</th>
-            <th scope="col">Removed</th>
+            <th scope="col">{t('File')}</th>
+            <th scope="col">{t('Added')}</th>
+            <th scope="col">{t('Removed')}</th>
           </tr>
         </thead>
         <tbody>
@@ -146,21 +147,21 @@ function ConversationTab({
         <WhySection repo={repo} d={d} />
         {d.pull.state === 'open' &&
           (queue.error && !target ? (
-            <Section title="Order">
+            <Section title={t('Order')}>
               <div className="panel">
                 <QueryError
                   error={queue.error}
-                  title="The merge queue did not load"
+                  title={t('The merge queue did not load')}
                   onRetry={queue.retry}
                 />
               </div>
             </Section>
           ) : queue.loading ? (
-            <Section title="Order">
+            <Section title={t('Order')}>
               <div
                 className="sk sk-line w50"
                 role="status"
-                aria-label="Loading"
+                aria-label={t('Loading')}
               />
             </Section>
           ) : (
@@ -188,7 +189,7 @@ function ConversationTab({
  */
 export default function PullView() {
   const repo = useOutletContext<RepoDetail>();
-  const me = useCurrentUser()!;
+  const me = useCurrentUser();
   const qc = useQueryClient();
   const { number = '', tab: tabParam } = useParams();
   const num = Number(number);
@@ -233,7 +234,7 @@ export default function PullView() {
       : {
           icon: 'pull',
           crumbs: [
-            { label: 'Pull requests', to: `${base}/pulls` },
+            { label: t('Pull requests'), to: `${base}/pulls` },
             { label: `#${num}` },
           ],
           title: `#${num}`,
@@ -245,7 +246,7 @@ export default function PullView() {
   if (q.isError && !d)
     return (
       <LoadError
-        what="this pull request"
+        what={t('this pull request')}
         error={q.error}
         onRetry={() => void q.refetch()}
         retrying={q.isFetching}
@@ -262,40 +263,40 @@ export default function PullView() {
     void qc.invalidateQueries({ queryKey: ['namespace'] });
     return qc.invalidateQueries({ queryKey: qk.pull(o, repo.name, num) });
   };
-  const canEdit = d.canMerge || pr.author.id === me.id;
-  const paused = queue.data?.find((t) => t.paused)?.paused ?? null;
+  const canEdit = d.canMerge || pr.author.id === me?.id;
+  const paused = queue.data?.find((qt) => qt.paused)?.paused ?? null;
   const spot = queueSpot(queue.data, num);
   const target = spot
-    ? (queue.data?.find((t) => t.target === spot.target) ?? null)
+    ? (queue.data?.find((qt) => qt.target === spot.target) ?? null)
     : null;
   const tabs: { id: PullTab; label: string; icon: Icon; count?: number }[] = [
     {
       id: 'conversation',
-      label: 'Conversation',
+      label: t('Conversation'),
       icon: CommentDiscussionIcon,
       count: d.comments.length,
     },
     {
       id: 'commits',
-      label: 'Commits',
+      label: t('Commits'),
       icon: GitCommitIcon,
       count: d.commitCount,
     },
     {
       id: 'files',
-      label: 'Files changed',
+      label: t('Files changed'),
       icon: FileDiffIcon,
       count: files.data?.length,
     },
     {
       id: 'checks',
-      label: 'Checks',
+      label: t('Checks'),
       icon: ChecklistIcon,
       count: checks.data?.runs.length,
     },
   ];
-  const tabHref = (t: PullTab) =>
-    `${base}/pull/${num}${t === 'conversation' ? '' : `/${t}`}`;
+  const tabHref = (id: PullTab) =>
+    `${base}/pull/${num}${id === 'conversation' ? '' : `/${id}`}`;
   return (
     // Route changes start fresh; a new head also clears an open merge confirmation.
     <div key={pr.id} className={`pr-page ${entering}`}>
@@ -317,16 +318,18 @@ export default function PullView() {
       ) : (
         <ClosedBox repo={repo} d={d} canEdit={canEdit} onDone={refresh} />
       )}
-      <nav className="pr-tabs" aria-label="Pull request">
-        {tabs.map((t) => (
+      <nav className="pr-tabs" aria-label={t('Pull request')}>
+        {tabs.map((tb) => (
           <Link
-            key={t.id}
-            to={tabHref(t.id)}
-            aria-current={tab === t.id ? 'page' : undefined}
+            key={tb.id}
+            to={tabHref(tb.id)}
+            aria-current={tab === tb.id ? 'page' : undefined}
           >
-            <t.icon size={16} />
-            {t.label}
-            {t.count !== undefined && <span className="count">{t.count}</span>}
+            <tb.icon size={16} />
+            {tb.label}
+            {tb.count !== undefined && (
+              <span className="count">{tb.count}</span>
+            )}
           </Link>
         ))}
       </nav>
@@ -349,7 +352,7 @@ export default function PullView() {
           <div className="panel">
             <QueryError
               error={commits.error}
-              title="The commits did not load"
+              title={t('The commits did not load')}
               onRetry={() => void commits.refetch()}
             />
           </div>
@@ -359,8 +362,11 @@ export default function PullView() {
           <div className="panel">
             <EmptyState
               picture={<GitCommitIcon size={20} />}
-              title="No commits to show"
-              body={`Nothing on ${pr.headRef} is ahead of ${pr.baseRef}.`}
+              title={t('No commits to show')}
+              body={t('Nothing on {head} is ahead of {base}.', {
+                head: pr.headRef,
+                base: pr.baseRef,
+              })}
             />
           </div>
         ) : (
@@ -375,7 +381,7 @@ export default function PullView() {
           <div className="panel">
             <QueryError
               error={files.error}
-              title="The changes did not load"
+              title={t('The changes did not load')}
               onRetry={() => void files.refetch()}
             />
           </div>
@@ -383,7 +389,11 @@ export default function PullView() {
           <RowsSkeleton rows={4} />
         ) : (
           <Section
-            title={`${files.data.length} ${files.data.length === 1 ? 'file' : 'files'} changed`}
+            title={tn(
+              files.data.length,
+              '{n} file changed',
+              '{n} files changed'
+            )}
             actions={<DiffTotals files={files.data} />}
           >
             {files.data.length > 1 && <FileJump files={files.data} />}
@@ -392,14 +402,17 @@ export default function PullView() {
         ))}
       {tab === 'checks' && (
         <Section
-          title="Checks"
+          title={t('Checks')}
           actions={
             d.headSha ? (
               <span className="muted small">
-                on{' '}
-                <Link to={`${base}/commit/${d.headSha}`} className="mono">
-                  {d.headSha.slice(0, 7)}
-                </Link>
+                {tx('on {commit}', {
+                  commit: (
+                    <Link to={`${base}/commit/${d.headSha}`} className="mono">
+                      {d.headSha.slice(0, 7)}
+                    </Link>
+                  ),
+                })}
               </span>
             ) : undefined
           }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { PendingButton } from '@/components/ui/PendingButton';
+import { t } from '@/lib/i18n';
 
 /**
  * A destructive button that asks again in place (no dialog): "Delete" becomes "Delete token" and "Cancel".
@@ -81,7 +82,7 @@ export function InlineConfirm({
         disabled={pending}
         onClick={cancel}
       >
-        Cancel
+        {t('Cancel')}
       </button>
     </span>
   );

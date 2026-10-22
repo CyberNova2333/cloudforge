@@ -8,6 +8,7 @@ import { PendingButton } from '@/components/ui/PendingButton';
 import { Notice } from '@/components/Notice';
 import { AuthLoading, AuthShell, FlashError } from './AuthShell';
 import { useAppName } from '@/lib/appName';
+import { t, tx } from '@/lib/i18n';
 
 export default function AcceptInvite() {
   const appName = useAppName();
@@ -27,12 +28,15 @@ export default function AcceptInvite() {
   if (invite.isPending) return <AuthLoading />;
   if (invite.error) {
     return (
-      <AuthShell title="Invitation not found" docTitle="Invitation not found">
+      <AuthShell
+        title={t('Invitation not found')}
+        docTitle={t('Invitation not found')}
+      >
         <Notice tone="warn">
-          This invitation is invalid, has expired, or was already used.
+          {t('This invitation is invalid, has expired, or was already used.')}
         </Notice>
         <Link to="/login" className="btn block">
-          Go to sign in
+          {t('Go to sign in')}
         </Link>
       </AuthShell>
     );
@@ -59,23 +63,21 @@ export default function AcceptInvite() {
   };
   return (
     <AuthShell
-      title={`Join ${appName}`}
-      docTitle="Join"
+      title={t('Join {name}', { name: appName })}
+      docTitle={t('Join')}
       lede={
-        invite.data.inviter ? (
-          <>
-            <b>@{invite.data.inviter}</b> invited you to join.
-          </>
-        ) : (
-          'You have been invited to join.'
-        )
+        invite.data.inviter
+          ? tx('{inviter} invited you to join.', {
+              inviter: <b>@{invite.data.inviter}</b>,
+            })
+          : t('You have been invited to join.')
       }
       wide
     >
       <FlashError message={error} />
       <form className="auth-fields" onSubmit={submit}>
         <div className="fld">
-          <label htmlFor="invite-email">Email address</label>
+          <label htmlFor="invite-email">{t('Email address')}</label>
           <input
             id="invite-email"
             className="form-control"
@@ -84,7 +86,7 @@ export default function AcceptInvite() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="name">Full name</label>
+          <label htmlFor="name">{t('Full name')}</label>
           <input
             id="name"
             className="form-control"
@@ -95,7 +97,7 @@ export default function AcceptInvite() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="username">Username</label>
+          <label htmlFor="username">{t('Username')}</label>
           <input
             id="username"
             className="form-control"
@@ -106,7 +108,7 @@ export default function AcceptInvite() {
           />
         </div>
         <div className="fld">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t('Password')}</label>
           <input
             id="password"
             type="password"
@@ -119,16 +121,16 @@ export default function AcceptInvite() {
             aria-describedby="password-hint"
           />
           <p id="password-hint" className="hint">
-            Make sure it is at least 8 characters.
+            {t('Make sure it is at least 8 characters.')}
           </p>
         </div>
         <PendingButton
           type="submit"
           className="primary block"
           pending={busy}
-          pendingLabel="Creating account…"
+          pendingLabel={t('Creating account…')}
         >
-          Create account
+          {t('Create account')}
         </PendingButton>
       </form>
     </AuthShell>

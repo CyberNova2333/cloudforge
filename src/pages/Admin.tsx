@@ -5,6 +5,7 @@ import { MailIcon, OrganizationIcon, PeopleIcon } from '@primer/octicons-react';
 import { api, qk } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -78,7 +79,9 @@ export default function Admin() {
     onSuccess: (r) => {
       setTeamMsg({
         kind: 'ok',
-        text: `Saved. Team repositories live at /${r.team.slug}/<repo>.`,
+        text: t('Saved. Team repositories live at /{slug}/<repo>.', {
+          slug: r.team.slug,
+        }),
       });
       setTeamForm(null);
       qc.invalidateQueries({ queryKey: qk.team });
@@ -94,30 +97,39 @@ export default function Admin() {
     <>
       <PageHead
         icon="shield"
-        crumbs={[{ label: 'Site admin' }]}
-        title="Site admin"
-        lede="Who can sign in, whether this deployment is set up properly, and the settings every repository shares."
+        crumbs={[{ label: t('Site admin') }]}
+        title={t('Site admin')}
+        lede={t(
+          'Who can sign in, whether this deployment is set up properly, and the settings every repository shares.'
+        )}
       />
       <AdminFrame>
         <div id="people" className="adm-people">
           <Section
             title={
               <>
-                <OrganizationIcon size={16} /> Team
+                <OrganizationIcon size={16} /> {t('Team')}
               </>
             }
           >
             <p className="small muted">
-              The one shared team. Its repositories are visible to every member,
-              and live at{' '}
-              <code>/{team.data?.team?.slug ?? '<team>'}/&lt;repo&gt;</code>.
+              {tx(
+                'The one shared team. Its repositories are visible to every member, and live at {path}.',
+                {
+                  path: (
+                    <code>
+                      /{team.data?.team?.slug ?? '<team>'}/&lt;repo&gt;
+                    </code>
+                  ),
+                }
+              )}
             </p>
             {teamMsg && <Notice tone={teamMsg.kind}>{teamMsg.text}</Notice>}
             {team.isPending ? (
               <RowsSkeleton rows={1} />
             ) : team.isError ? (
               <LoadError
-                what="the team"
+                what={t('the team')}
                 error={team.error}
                 onRetry={() => team.refetch()}
               />
@@ -132,7 +144,7 @@ export default function Admin() {
               >
                 <div className="frow">
                   <div className="fld grow2">
-                    <label htmlFor="team-name">Team name</label>
+                    <label htmlFor="team-name">{t('Team name')}</label>
                     <input
                       id="team-name"
                       className="form-control"
@@ -145,7 +157,7 @@ export default function Admin() {
                     />
                   </div>
                   <div className="fld grow2">
-                    <label htmlFor="team-slug">URL name</label>
+                    <label htmlFor="team-slug">{t('URL name')}</label>
                     <input
                       id="team-slug"
                       className="form-control mono"
@@ -160,8 +172,9 @@ export default function Admin() {
                 </div>
                 {team.data.team && teamForm.slug !== team.data.team.slug && (
                   <Notice tone="warn">
-                    Changing the URL name changes every team repository&apos;s
-                    URL and clone address.
+                    {t(
+                      "Changing the URL name changes every team repository's URL and clone address."
+                    )}
                   </Notice>
                 )}
                 <div className="actions">
@@ -169,16 +182,16 @@ export default function Admin() {
                     type="submit"
                     className="primary"
                     pending={saveTeam.isPending}
-                    pendingLabel="Saving…"
+                    pendingLabel={t('Saving…')}
                   >
-                    Save team
+                    {t('Save team')}
                   </PendingButton>
                   <button
                     type="button"
                     className="btn"
                     onClick={() => setTeamForm(null)}
                   >
-                    Cancel
+                    {t('Cancel')}
                   </button>
                 </div>
               </form>
@@ -211,7 +224,7 @@ export default function Admin() {
                             })
                           }
                         >
-                          Rename
+                          {t('Rename')}
                         </button>
                       </div>
                     </li>
@@ -219,15 +232,15 @@ export default function Admin() {
                 ) : (
                   <EmptyState
                     picture={<OrganizationIcon size={20} />}
-                    title="No team yet."
-                    body="Create it to allow team repositories."
+                    title={t('No team yet.')}
+                    body={t('Create it to allow team repositories.')}
                     action={
                       <button
                         type="button"
                         className="btn small primary"
                         onClick={() => setTeamForm({ name: '', slug: '' })}
                       >
-                        Create team
+                        {t('Create team')}
                       </button>
                     }
                   />
@@ -239,7 +252,7 @@ export default function Admin() {
           <Section
             title={
               <>
-                <PeopleIcon size={16} /> Members
+                <PeopleIcon size={16} /> {t('Members')}
                 {members.data && (
                   <span className="num">{members.data.length}</span>
                 )}
@@ -252,13 +265,14 @@ export default function Admin() {
                 aria-expanded={showInvite}
                 onClick={() => setShowInvite(!showInvite)}
               >
-                Invite member
+                {t('Invite member')}
               </button>
             }
           >
             <p className="small muted">
-              Self sign-up is off. People join by invitation. Members can&apos;t
-              be removed and roles can&apos;t be changed from here.
+              {t(
+                "Self sign-up is off. People join by invitation. Members can't be removed and roles can't be changed from here."
+              )}
             </p>
             {showInvite && (
               <form
@@ -271,38 +285,45 @@ export default function Admin() {
                   invite.mutate();
                 }}
               >
-                <h3 className="formtitle">Invite a member</h3>
+                <h3 className="formtitle">{t('Invite a member')}</h3>
                 <p className="small muted">
-                  They&apos;ll receive an email with a link to create their
-                  account. The link expires in 7 days.
+                  {t(
+                    "They'll receive an email with a link to create their account. The link expires in 7 days."
+                  )}
                 </p>
                 {error && <Notice tone="bad">{error}</Notice>}
                 {result && (
                   <Notice tone={result.emailed ? 'ok' : 'warn'}>
                     <p>
                       {result.emailed
-                        ? `Invitation sent to ${result.email}. You can also share this link directly:`
-                        : `We couldn't send the email to ${result.email}. Share this link with them instead:`}
+                        ? t(
+                            'Invitation sent to {email}. You can also share this link directly:',
+                            { email: result.email }
+                          )
+                        : t(
+                            "We couldn't send the email to {email}. Share this link with them instead:",
+                            { email: result.email }
+                          )}
                     </p>
                     <div className="copyrow">
                       <input
                         className="form-control mono"
                         readOnly
                         value={result.url}
-                        aria-label="Invitation link"
+                        aria-label={t('Invitation link')}
                         onFocus={(e) => e.currentTarget.select()}
                       />
                       <CopyButton
                         text={result.url}
                         className="btn small"
-                        label="Copy the invitation link"
+                        label={t('Copy the invitation link')}
                       />
                     </div>
                   </Notice>
                 )}
                 <div className="frow">
                   <div className="fld grow2">
-                    <label htmlFor="invite-email">Email address</label>
+                    <label htmlFor="invite-email">{t('Email address')}</label>
                     <input
                       id="invite-email"
                       type="email"
@@ -314,7 +335,7 @@ export default function Admin() {
                     />
                   </div>
                   <div className="fld">
-                    <label htmlFor="invite-role">Role</label>
+                    <label htmlFor="invite-role">{t('Role')}</label>
                     <select
                       id="invite-role"
                       className="form-select"
@@ -323,17 +344,17 @@ export default function Admin() {
                         setRole(e.target.value as 'user' | 'admin')
                       }
                     >
-                      <option value="user">Member</option>
-                      <option value="admin">Site admin</option>
+                      <option value="user">{t('Member')}</option>
+                      <option value="admin">{t('Site admin')}</option>
                     </select>
                   </div>
                   <PendingButton
                     type="submit"
                     className="primary"
                     pending={invite.isPending}
-                    pendingLabel="Sending…"
+                    pendingLabel={t('Sending…')}
                   >
-                    Send invitation
+                    {t('Send invitation')}
                   </PendingButton>
                 </div>
               </form>
@@ -346,7 +367,7 @@ export default function Admin() {
               ) : members.isError ? (
                 <div className="pad">
                   <LoadError
-                    what="the members"
+                    what={t('the members')}
                     error={members.error}
                     onRetry={() => members.refetch()}
                   />
@@ -367,10 +388,10 @@ export default function Admin() {
                       </div>
                       <div className="ctl stack">
                         {m.role === 'admin' && (
-                          <Chip tone="info">Site admin</Chip>
+                          <Chip tone="info">{t('Site admin')}</Chip>
                         )}
                         <span className="when">
-                          Joined {timeAgo(m.createdAt)}
+                          {t('Joined {when}', { when: timeAgo(m.createdAt) })}
                         </span>
                       </div>
                     </li>
@@ -383,7 +404,7 @@ export default function Admin() {
           <Section
             title={
               <>
-                <MailIcon size={16} /> Pending invitations
+                <MailIcon size={16} /> {t('Pending invitations')}
               </>
             }
           >
@@ -391,7 +412,7 @@ export default function Admin() {
               <RowsSkeleton rows={1} />
             ) : invites.isError ? (
               <LoadError
-                what="the invitations"
+                what={t('the invitations')}
                 error={invites.error}
                 onRetry={() => invites.refetch()}
               />
@@ -399,7 +420,7 @@ export default function Admin() {
               <div className="panel">
                 <EmptyState
                   picture={<MailIcon size={20} />}
-                  title="No pending invitations."
+                  title={t('No pending invitations.')}
                 />
               </div>
             ) : (
@@ -411,19 +432,26 @@ export default function Admin() {
                       <div className="grow">
                         <b className="wrap">{i.email}</b>
                         <span className="muted small">
-                          Invited {timeAgo(i.createdAt)} · expires{' '}
-                          {timeAgo(i.expiresAt)}
+                          {t('Invited {when} · expires {expires}', {
+                            when: timeAgo(i.createdAt),
+                            expires: timeAgo(i.expiresAt),
+                          })}
                         </span>
                       </div>
                       <div className="ctl">
                         <Chip tone="off">
-                          {i.role === 'admin' ? 'Site admin' : 'Member'}
+                          {i.role === 'admin' ? t('Site admin') : t('Member')}
                         </Chip>
                         <InlineConfirm
-                          label="Revoke"
-                          confirmLabel="Revoke invitation"
-                          pendingLabel="Revoking…"
-                          accessibleName={`Revoke the invitation to ${i.email}`}
+                          label={t('Revoke')}
+                          confirmLabel={t('Revoke invitation')}
+                          pendingLabel={t('Revoking…')}
+                          accessibleName={t(
+                            'Revoke the invitation to {email}',
+                            {
+                              email: i.email,
+                            }
+                          )}
                           pending={
                             revoke.isPending && revoke.variables === i.id
                           }

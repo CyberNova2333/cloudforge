@@ -18,6 +18,7 @@ import { railClasses } from '@/lib/rail';
 import type { RecentRepo } from '@/lib/recentRepos';
 import type { ShellMenu, ShellRepo } from './AppShell';
 import { CrewIcon } from './icons';
+import { t } from '@/lib/i18n';
 
 /** Which rail entry the current page belongs to. */
 function railKey(pathname: string, repo: ShellRepo | null): string | null {
@@ -186,7 +187,11 @@ export function Rail({
       }}
     >
       <div className="snav-panel">
-        <Link className="snav-brand" to="/" aria-label={`${appName} home`}>
+        <Link
+          className="snav-brand"
+          to="/"
+          aria-label={t('{name} home', { name: appName })}
+        >
           <img src="/logo.png" width={26} height={26} alt="" />
           <span className="brand-wordmark">GitOrange</span>
         </Link>
@@ -196,7 +201,7 @@ export function Rail({
             className="snav-org-btn"
             data-menu-trigger="org"
             aria-expanded={menu === 'org'}
-            aria-label={`Instance: ${appName}`}
+            aria-label={t('Instance: {name}', { name: appName })}
             title={appName}
             onClick={() => setMenu(menu === 'org' ? null : 'org')}
           >
@@ -206,7 +211,7 @@ export function Rail({
           </button>
           {menu === 'org' && (
             <div className="ws-menu">
-              <div className="dd-label">Instance</div>
+              <div className="dd-label">{t('Instance')}</div>
               <div className="ws-item on">
                 <span
                   className="wd"
@@ -215,7 +220,7 @@ export function Rail({
                 <span>
                   <b>{appName}</b>
                   <span className="sub">
-                    {window.location.host} · single-tenant
+                    {window.location.host} · {t('single-tenant')}
                   </span>
                 </span>
               </div>
@@ -228,8 +233,8 @@ export function Rail({
                     onClick={() => setMenu(null)}
                   >
                     <span>
-                      <b>Instance settings</b>
-                      <span className="sub">Site admin</span>
+                      <b>{t('Instance settings')}</b>
+                      <span className="sub">{t('Site admin')}</span>
                     </span>
                   </Link>
                 </>
@@ -241,35 +246,39 @@ export function Rail({
           <div className="snav-sec">
             <RailItem
               to="/"
-              label="Home"
+              label={t('Home')}
               icon={<HomeIcon />}
               current={current === 'home'}
             />
-            <RailItem
-              to="/repos"
-              label="Repositories"
-              icon={<RepoIcon />}
-              current={current === 'repos'}
-            />
-            <RailItem
-              to="/approvals"
-              label="Approvals"
-              icon={<InboxIcon />}
-              current={current === 'approvals'}
-              count={approvals}
-            />
-            <RailItem
-              to="/agents"
-              label="Agents"
-              icon={<CrewIcon />}
-              current={current === 'agents'}
-            />
+            {user && (
+              <>
+                <RailItem
+                  to="/repos"
+                  label={t('Repositories')}
+                  icon={<RepoIcon />}
+                  current={current === 'repos'}
+                />
+                <RailItem
+                  to="/approvals"
+                  label={t('Approvals')}
+                  icon={<InboxIcon />}
+                  current={current === 'approvals'}
+                  count={approvals}
+                />
+                <RailItem
+                  to="/agents"
+                  label={t('Agents')}
+                  icon={<CrewIcon />}
+                  current={current === 'agents'}
+                />
+              </>
+            )}
           </div>
           {recent.length > 0 && (
             <div
               className="snav-sec"
               role="group"
-              aria-label="Recent repositories"
+              aria-label={t('Recent repositories')}
             >
               <div className="snav-rule" />
               {recent.map((r) => (
@@ -283,16 +292,18 @@ export function Rail({
           )}
           <div className="snav-sec">
             <div className="snav-rule" />
-            <RailItem
-              to="/settings/tokens"
-              label="Settings"
-              icon={<SlidersIcon />}
-              current={current === 'settings'}
-            />
+            {user && (
+              <RailItem
+                to="/settings/tokens"
+                label={t('Settings')}
+                icon={<SlidersIcon />}
+                current={current === 'settings'}
+              />
+            )}
             {admin && (
               <RailItem
                 to="/admin"
-                label="Site admin"
+                label={t('Site admin')}
                 icon={<ShieldIcon />}
                 current={current === 'admin'}
               />
@@ -303,17 +314,17 @@ export function Rail({
           <button
             type="button"
             className="snav-fold"
-            aria-label="Keep the rail open"
+            aria-label={t('Keep the rail open')}
             aria-pressed={pinned}
             title={
               pinned
-                ? 'Unpin: the rail collapses and opens when you point at it'
-                : 'Keep the rail open'
+                ? t('Unpin: the rail collapses and opens when you point at it')
+                : t('Keep the rail open')
             }
             onClick={onTogglePin}
           >
             {pinned ? <SidebarCollapseIcon /> : <SidebarExpandIcon />}
-            <span>{pinned ? 'Unpin' : 'Keep open'}</span>
+            <span>{pinned ? t('Unpin') : t('Keep open')}</span>
           </button>
         </div>
       </div>

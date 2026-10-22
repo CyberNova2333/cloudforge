@@ -1,4 +1,5 @@
 import { BookIcon } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import { isMarkdownPath } from '@/lib/codeView';
 import type { RepoDetail } from '@/lib/uiApi';
 import { MarkdownFile } from './MarkdownFile';
@@ -14,7 +15,7 @@ export function Readme({
   readme: { path: string; text: string };
 }) {
   return (
-    <section className="readme panel" aria-label="README">
+    <section className="readme panel" aria-label={t('README')}>
       <div className="readme-head">
         <BookIcon />
         <b>{readme.path.split('/').pop()}</b>

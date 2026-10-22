@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { AlertIcon, SparkleFillIcon } from '@primer/octicons-react';
 import type { Pull } from '@/lib/uiApi';
+import { t, tn } from '@/lib/i18n';
 
 const AI_LABEL: Record<NonNullable<Pull['aiResolution']>, string> = {
-  running: 'Resolving a rebase conflict with AI…',
-  failed: 'Rebase conflict needs the author',
+  running: t('Resolving a rebase conflict with AI…'),
+  failed: t('Rebase conflict needs the author'),
 };
 
 /** AI resolving a rebase conflict next to a listed PR's title: spinner while it runs, like checks. */
@@ -41,12 +42,12 @@ export function AiResolutionBadge({ state }: { state: Pull['aiResolution'] }) {
 type ReviewState = NonNullable<Pull['review']>['state'];
 
 const REVIEW_LABEL: Record<ReviewState, string> = {
-  reviewing: 'Reviewing…',
-  review_required: 'Review required',
-  approved: 'Approved',
-  failed: 'Review failed',
-  changes_requested: 'Changes requested',
-  needs_approval: 'Needs approval',
+  reviewing: t('Reviewing…'),
+  review_required: t('Review required'),
+  approved: t('Approved'),
+  failed: t('Review failed'),
+  changes_requested: t('Changes requested'),
+  needs_approval: t('Needs approval'),
 };
 
 const REVIEW_CLASS: Record<ReviewState, string> = {
@@ -69,7 +70,7 @@ export function ReviewLabel({
   if (!review) return null;
   const flags =
     review.state === 'review_required' && review.flags > 0
-      ? ` · ${review.flags} flag${review.flags === 1 ? '' : 's'}`
+      ? tn(review.flags, ' · {n} flag', ' · {n} flags')
       : '';
   return (
     <>

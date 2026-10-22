@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CodeIcon } from '@primer/octicons-react';
 import { api, qk, type FileDiff, type RepoDetail } from '@/lib/uiApi';
 import { ApiError } from '@/lib/api';
+import { t, tn } from '@/lib/i18n';
 import { shortSha, timeAgo } from '@/lib/format';
 import { parseCommitMessage } from '@/lib/commitMessage';
 import { CommitAuthor } from '@/components/CommitAuthor';
@@ -22,12 +23,12 @@ function FileSummary({ files }: { files: FileDiff[] }) {
   return (
     <div className="table-wrap file-summary">
       <table className="table">
-        <caption className="sr">Changed files</caption>
+        <caption className="sr">{t('Changed files')}</caption>
         <thead>
           <tr>
-            <th scope="col">File</th>
-            <th scope="col">Added</th>
-            <th scope="col">Removed</th>
+            <th scope="col">{t('File')}</th>
+            <th scope="col">{t('Added')}</th>
+            <th scope="col">{t('Removed')}</th>
           </tr>
         </thead>
         <tbody>
@@ -71,7 +72,7 @@ export default function CommitView() {
   usePageHead({
     icon: 'commit',
     crumbs: [
-      { label: 'Commits', to: `${base}/commits/${repo.defaultBranch}` },
+      { label: t('Commits'), to: `${base}/commits/${repo.defaultBranch}` },
       { label: short },
     ],
     title: short,
@@ -83,7 +84,7 @@ export default function CommitView() {
   if (q.isError && !q.data)
     return (
       <LoadError
-        what="this commit"
+        what={t('this commit')}
         error={q.error}
         onRetry={() => void q.refetch()}
         retrying={q.isFetching}
@@ -102,12 +103,12 @@ export default function CommitView() {
           <div className="phead-actions">
             <Link to={`${base}/tree/${commit.hash}`} className="btn small">
               <CodeIcon />
-              Browse files
+              {t('Browse files')}
             </Link>
           </div>
         </div>
       </header>
-      <section className="panel commitbox" aria-label="Commit">
+      <section className="panel commitbox" aria-label={t('Commit')}>
         {hasMessage && (
           <div className="cb-message">
             <CommitBody message={message} />
@@ -118,13 +119,12 @@ export default function CommitView() {
             <CommitAuthor commit={commit} repo={repo} size={22} />
             <CoAuthored trailers={message.trailers} />
             <span className="muted">
-              committed {timeAgo(commit.committedAt)}
+              {t('committed {when}', { when: timeAgo(commit.committedAt) })}
             </span>
           </span>
           <span className="grow" />
           <span className="muted small cb-parents">
-            {commit.parents.length} parent
-            {commit.parents.length === 1 ? '' : 's'}{' '}
+            {tn(commit.parents.length, '{n} parent', '{n} parents')}{' '}
             {commit.parents.map((p) => (
               <Link key={p} to={`${base}/commit/${p}`} className="mono shabtn">
                 {shortSha(p)}
@@ -132,18 +132,18 @@ export default function CommitView() {
             ))}
           </span>
           <span className="cb-sha small">
-            <span className="muted">commit</span>{' '}
+            <span className="muted">{t('commit')}</span>{' '}
             <span className="mono">{commit.hash}</span>
             <CopyButton
               text={commit.hash}
               className="btn small quiet"
-              label="Copy full SHA"
+              label={t('Copy full SHA')}
             />
           </span>
         </div>
       </section>
       <Section
-        title={`${files.length} ${files.length === 1 ? 'file' : 'files'} changed`}
+        title={tn(files.length, '{n} file changed', '{n} files changed')}
         actions={<DiffTotals files={files} />}
       >
         {files.length > 1 && <FileSummary files={files} />}

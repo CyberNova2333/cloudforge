@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ClockIcon, PlayIcon } from '@primer/octicons-react';
 import { api, qk, type RepoDetail, type WorkflowRun } from '@/lib/uiApi';
 import { duration, shortSha, timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import { parseActionsView } from '@/lib/agentRuns';
 import { useNow } from '@/lib/useNow';
 import { CopyButton } from '@/components/CopyButton';
@@ -34,19 +35,16 @@ jobs:
 `;
 
 function trigger(run: WorkflowRun) {
-  const who = run.actor?.username ?? 'someone';
+  const who = run.actor?.username ?? t('someone');
   if (run.event === 'pull_request')
-    return (
-      <>
-        Pull request #{run.pullRequestNumber} by <b>{who}</b>
-      </>
-    );
-  return (
-    <>
-      Commit <span className="mono">{shortSha(run.headSha)}</span> pushed by{' '}
-      <b>{who}</b>
-    </>
-  );
+    return tx('Pull request {pr} by {who}', {
+      pr: `#${run.pullRequestNumber}`,
+      who: <b>{who}</b>,
+    });
+  return tx('Commit {sha} pushed by {who}', {
+    sha: <span className="mono">{shortSha(run.headSha)}</span>,
+    who: <b>{who}</b>,
+  });
 }
 
 export default function RepoActions() {
@@ -59,23 +57,25 @@ export default function RepoActions() {
     <>
       <PageHead
         icon="play"
-        crumbs={[{ label: 'Actions' }]}
-        title="Actions"
+        crumbs={[{ label: t('Actions') }]}
+        title={t('Actions')}
         tab="actions"
-        lede="Your workflows run on Cloudflare Containers. Every AI process GitOrange runs, such as reviews, rebases and conflict fixes, is listed under Agent runs."
+        lede={t(
+          'Your workflows run on Cloudflare Containers. Every AI process GitOrange runs, such as reviews, rebases and conflict fixes, is listed under Agent runs.'
+        )}
       />
-      <nav className="act-tabs" aria-label="Actions">
+      <nav className="act-tabs" aria-label={t('Actions')}>
         <Link
           to={`${base}/actions`}
           aria-current={view.mode === 'workflows' ? 'page' : undefined}
         >
-          Workflow runs
+          {t('Workflow runs')}
         </Link>
         <Link
           to={`${base}/actions?agent=all`}
           aria-current={view.mode === 'agents' ? 'page' : undefined}
         >
-          Agent runs
+          {t('Agent runs')}
         </Link>
       </nav>
       {view.mode === 'agents' ? (
@@ -128,7 +128,7 @@ function WorkflowRuns({
         <QueryError
           error={q.error}
           onRetry={() => void q.refetch()}
-          title="Workflow runs did not load"
+          title={t('Workflow runs did not load')}
           picture={<PlayIcon size={24} />}
         />
       </div>
@@ -140,8 +140,10 @@ function WorkflowRuns({
       <div className="panel">
         <EmptyState
           picture={<PlayIcon size={24} />}
-          title="Actions isn't set up on this server"
-          body="A site admin can enable Actions by adding the Actions bindings to the deployment. See docs/configuration.md."
+          title={t("Actions isn't set up on this server")}
+          body={t(
+            'A site admin can enable Actions by adding the Actions bindings to the deployment. See docs/configuration.md.'
+          )}
         />
       </div>
     );
@@ -149,30 +151,37 @@ function WorkflowRuns({
   if (data.totalCount === 0)
     return (
       <section className="panel pad act-starter">
-        <h2>Get started with Actions</h2>
+        <h2>{t('Get started with Actions')}</h2>
         <p className="muted">
-          Build and test every push and pull request. Add a workflow file like
-          this one at <code>.github/workflows/ci.yml</code>; it uses the same
-          syntax as GitHub Actions. Jobs run on Linux with Node.js, git and
-          common build tools preinstalled.
+          {tx(
+            'Build and test every push and pull request. Add a workflow file like this one at {path}; it uses the same syntax as GitHub Actions. Jobs run on Linux with Node.js, git and common build tools preinstalled.',
+            { path: <code>.github/workflows/ci.yml</code> }
+          )}
         </p>
         <div className="act-code">
           <div className="act-code-head">
             <span className="mono small muted">.github/workflows/ci.yml</span>
             <CopyButton
               text={STARTER}
-              label="Copy workflow"
+              label={t('Copy workflow')}
               className="btn small quiet"
             />
           </div>
           <pre className="mono">{STARTER}</pre>
         </div>
         <p className="small muted">
-          Supported today: <code>run</code> steps, <code>actions/checkout</code>
-          , <code>actions/setup-node</code>, <code>needs</code>, <code>if</code>
-          , matrix builds, expressions and step outputs. Use{' '}
-          <code>runs-on: gitorange-standard-2</code> (up to{' '}
-          <code>standard-4</code>) for a bigger machine.
+          {tx(
+            'Supported today: {run} steps, {checkout}, {setup}, {needs}, {if}, matrix builds, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.',
+            {
+              run: <code>run</code>,
+              checkout: <code>actions/checkout</code>,
+              setup: <code>actions/setup-node</code>,
+              needs: <code>needs</code>,
+              if: <code>if</code>,
+              runsOn: <code>runs-on: gitorange-standard-2</code>,
+              max: <code>standard-4</code>,
+            }
+          )}
         </p>
       </section>
     );
@@ -183,23 +192,23 @@ function WorkflowRuns({
     <Section
       title={
         <>
-          {current?.name ?? 'All workflows'}
+          {current?.name ?? t('All workflows')}
           {current && <span className="mono small muted">{current.path}</span>}
         </>
       }
       actions={
         <span className="muted small">
-          {data.totalCount} workflow run{data.totalCount === 1 ? '' : 's'}
+          {tn(data.totalCount, '{n} workflow run', '{n} workflow runs')}
         </span>
       }
     >
       {data.workflows.length > 0 && (
         <FilterLinks
-          label="Workflows"
+          label={t('Workflows')}
           items={[
             {
               key: '',
-              label: 'All workflows',
+              label: t('All workflows'),
               to: `${base}/actions`,
               current: !workflow,
             },
@@ -260,14 +269,14 @@ function WorkflowRuns({
         </ul>
       ) : (
         <div className="panel">
-          <EmptyState title="No runs on this page" />
+          <EmptyState title={t('No runs on this page')} />
         </div>
       )}
       {pages > 1 && (
         <Pager
-          prevLabel="Previous"
-          nextLabel="Next"
-          note={`Page ${page} of ${pages}`}
+          prevLabel={t('Previous')}
+          nextLabel={t('Next')}
+          note={t('Page {page} of {pages}', { page, pages })}
           onPrev={page > 1 ? () => setPage(page - 1) : undefined}
           onNext={page < pages ? () => setPage(page + 1) : undefined}
         />

@@ -11,6 +11,7 @@ import {
 import { api, qk } from '@/lib/uiApi';
 import { askCandidates } from '@/lib/approvalsInbox';
 import { errorMessage } from '@/lib/api';
+import { t, tx } from '@/lib/i18n';
 import { PendingButton } from '@/components/ui/PendingButton';
 
 /** The server's limits for a note, a reason and a teach note. */
@@ -31,6 +32,8 @@ export function PanelError({ error }: { error: string | null | undefined }) {
     </p>
   ) : null;
 }
+
+const optional = () => <span className="muted">{t('(optional)')}</span>;
 
 /**
  * "Remember this for next time": a rule in the person's words, which the agent learns when the pull request
@@ -62,12 +65,13 @@ export function TeachField({
           checked={on}
           onChange={(e) => onToggle(e.target.checked)}
         />
-        {label ?? <>Save a rule so {agentName} doesn’t ask again</>}
+        {label ??
+          t('Save a rule so {agent} doesn’t ask again', { agent: agentName })}
       </label>
       {on && (
         <>
           <label className="ap-label" htmlFor={id}>
-            The rule {agentName} learns
+            {t('The rule {agent} learns', { agent: agentName })}
           </label>
           <textarea
             id={id}
@@ -75,13 +79,20 @@ export function TeachField({
             rows={2}
             maxLength={TEXT_MAX}
             value={text}
-            placeholder="For example: links marked public may skip sign-in."
+            placeholder={t(
+              'For example: links marked public may skip sign-in.'
+            )}
             onChange={(e) => onText(e.target.value)}
           />
           <p className="ap-small">
             <BookIcon size={13} />
-            {agentName} learns it when #{pull} closes. Undoing your answer drops
-            it.
+            {t(
+              '{agent} learns it when #{pull} closes. Undoing your answer drops it.',
+              {
+                agent: agentName,
+                pull,
+              }
+            )}
           </p>
         </>
       )}
@@ -117,7 +128,7 @@ export function ChangesPanel({
   return (
     <div className="ap-panel" id={id} onKeyDown={escapeCloses(onCancel)}>
       <label className="ap-label" htmlFor={`${id}-note`}>
-        What should change? <span className="muted">(optional)</span>
+        {tx('What should change? {optional}', { optional: optional() })}
       </label>
       <textarea
         id={`${id}-note`}
@@ -129,7 +140,9 @@ export function ChangesPanel({
         onChange={(e) => setNote(e.target.value)}
       />
       <p className="ap-small">
-        The pull request’s author gets this with {agentName}’s finding.
+        {t('The pull request’s author gets this with {agent}’s finding.', {
+          agent: agentName,
+        })}
       </p>
       <TeachField
         agentName={agentName}
@@ -143,15 +156,15 @@ export function ChangesPanel({
         <PendingButton
           className="primary small"
           pending={pending}
-          pendingLabel="Sending…"
+          pendingLabel={t('Sending…')}
           disabled={teachOn && !teach.trim()}
           onClick={() => onSubmit(note, teachText(teachOn, teach))}
         >
           <SyncIcon size={14} />
-          Request changes
+          {t('Request changes')}
         </PendingButton>
         <button type="button" className="btn quiet small" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
       <PanelError error={error} />
@@ -189,7 +202,9 @@ export function DismissPanel({
   return (
     <div className="ap-panel" id={id} onKeyDown={escapeCloses(onCancel)}>
       <label className="ap-label" htmlFor={`${id}-why`}>
-        Reason {!guarded && <span className="muted">(optional)</span>}
+        {guarded
+          ? t('Reason')
+          : tx('Reason {optional}', { optional: optional() })}
       </label>
       <textarea
         id={`${id}-why`}
@@ -199,14 +214,16 @@ export function DismissPanel({
         value={reason}
         autoFocus
         aria-required={guarded}
-        placeholder="Why doesn’t this need a change?"
+        placeholder={t('Why doesn’t this need a change?')}
         onChange={(e) => setReason(e.target.value)}
       />
       {guarded && (
         <p className="ap-small">
           <ShieldIcon size={13} />
-          {agentName} findings need a reason. It goes in the audit log with your
-          name.
+          {t(
+            '{agent} findings need a reason. It goes in the audit log with your name.',
+            { agent: agentName }
+          )}
         </p>
       )}
       <TeachField
@@ -221,15 +238,15 @@ export function DismissPanel({
         <PendingButton
           className="primary small"
           pending={pending}
-          pendingLabel="Dismissing…"
+          pendingLabel={t('Dismissing…')}
           disabled={missing}
           onClick={() => onSubmit(reason, teachText(teachOn, teach))}
         >
           {teachOn ? <BookIcon size={14} /> : <XIcon size={14} />}
-          {teachOn ? 'Dismiss and save a rule' : 'Dismiss'}
+          {teachOn ? t('Dismiss and save a rule') : t('Dismiss')}
         </PendingButton>
         <button type="button" className="btn quiet small" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
       <PanelError error={error} />
@@ -237,10 +254,23 @@ export function DismissPanel({
   );
 }
 
-const REASONS: [string, string][] = [
-  ['False positive', 'The finding is wrong.'],
-  ['Accepted risk', 'The risk is real and you accept it.'],
-  ['Intended behaviour', 'It works this way on purpose.'],
+/** `value` is what the API records (English, like its other fields); `label` and `help` are what people read. */
+const REASONS: { value: string; label: string; help: string }[] = [
+  {
+    value: 'False positive',
+    label: t('False positive'),
+    help: t('The finding is wrong.'),
+  },
+  {
+    value: 'Accepted risk',
+    label: t('Accepted risk'),
+    help: t('The risk is real and you accept it.'),
+  },
+  {
+    value: 'Intended behaviour',
+    label: t('Intended behaviour'),
+    help: t('It works this way on purpose.'),
+  },
 ];
 
 /** The reason sent for a guarded approval: the choice, then the note. */
@@ -271,25 +301,25 @@ export function ApproveReasonPanel({
   const [teach, setTeach] = useState('');
   return (
     <fieldset className="ap-panel" id={id} onKeyDown={escapeCloses(onCancel)}>
-      <legend className="ap-label">Reason for approving</legend>
-      {REASONS.map(([r, help], i) => (
-        <label className="ap-radio" key={r}>
+      <legend className="ap-label">{t('Reason for approving')}</legend>
+      {REASONS.map((r, i) => (
+        <label className="ap-radio" key={r.value}>
           <input
             type="radio"
             name={`${id}-reason`}
-            value={r}
-            checked={choice === r}
+            value={r.value}
+            checked={choice === r.value}
             autoFocus={i === 0}
-            onChange={() => setChoice(r)}
+            onChange={() => setChoice(r.value)}
           />
           <span>
-            <b>{r}</b>
-            <small>{help}</small>
+            <b>{r.label}</b>
+            <small>{r.help}</small>
           </span>
         </label>
       ))}
       <label className="ap-label" htmlFor={`${id}-note`}>
-        Note for the audit log <span className="muted">(optional)</span>
+        {tx('Note for the audit log {optional}', { optional: optional() })}
       </label>
       <textarea
         id={`${id}-note`}
@@ -301,7 +331,7 @@ export function ApproveReasonPanel({
       />
       <p className="ap-small">
         <ShieldIcon size={13} />
-        Recorded in the audit log with your name and reason.
+        {t('Recorded in the audit log with your name and reason.')}
       </p>
       <TeachField
         agentName={agentName}
@@ -315,17 +345,17 @@ export function ApproveReasonPanel({
         <PendingButton
           className="primary small"
           pending={pending}
-          pendingLabel="Approving…"
+          pendingLabel={t('Approving…')}
           disabled={!choice || (teachOn && !teach.trim())}
           onClick={() =>
             onSubmit(approvalReason(choice, note), teachText(teachOn, teach))
           }
         >
           <CheckIcon size={14} />
-          Approve
+          {t('Approve')}
         </PendingButton>
         <button type="button" className="btn quiet small" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
       <PanelError error={error} />
@@ -390,22 +420,31 @@ export function AskPanel({
   const chosen = people?.find((p) => p.login === pick);
   return (
     <fieldset className="ap-panel" id={id} onKeyDown={escapeCloses(onCancel)}>
-      <legend className="ap-label">Who should decide?</legend>
+      <legend className="ap-label">{t('Who should decide?')}</legend>
       <p className="ap-small">
         <PersonIcon size={13} />
-        Anyone who can push to {owner}/{name} can decide its findings.
+        {t('Anyone who can push to {owner}/{name} can decide its findings.', {
+          owner,
+          name,
+        })}
       </p>
       {loadError ? (
         <p className="ap-error" role="alert">
           {errorMessage(loadError)}{' '}
           <button type="button" className="btn quiet small" onClick={retry}>
-            Retry
+            {t('Retry')}
           </button>
         </p>
       ) : !people ? (
-        <div className="sk sk-row" role="status" aria-label="Loading people" />
+        <div
+          className="sk sk-row"
+          role="status"
+          aria-label={t('Loading people')}
+        />
       ) : !people.length ? (
-        <p className="ap-small">Nobody else can push to this repository.</p>
+        <p className="ap-small">
+          {t('Nobody else can push to this repository.')}
+        </p>
       ) : (
         <div className="ap-people">
           {people.map((p, i) => (
@@ -422,7 +461,7 @@ export function AskPanel({
                 <b>{p.name}</b>
                 <small>
                   @{p.login}
-                  {assignee?.login === p.login ? ' · has it now' : ''}
+                  {assignee?.login === p.login && <> · {t('has it now')}</>}
                 </small>
               </span>
             </label>
@@ -433,12 +472,12 @@ export function AskPanel({
         <PendingButton
           className="primary small"
           pending={pending}
-          pendingLabel="Asking…"
+          pendingLabel={t('Asking…')}
           disabled={!chosen || chosen.login === assignee?.login}
           onClick={() => chosen && onSubmit(chosen.login)}
         >
           <PersonIcon size={14} />
-          {chosen ? `Ask ${chosen.name}` : 'Ask'}
+          {chosen ? t('Ask {name}', { name: chosen.name }) : t('Ask')}
         </PendingButton>
         {assignee && (
           <button
@@ -448,12 +487,14 @@ export function AskPanel({
             onClick={() => onSubmit(null)}
           >
             {assignee.login === me
-              ? 'Unassign yourself'
-              : `Take it back from ${assignee.name || assignee.login}`}
+              ? t('Unassign yourself')
+              : t('Take it back from {name}', {
+                  name: assignee.name || assignee.login,
+                })}
           </button>
         )}
         <button type="button" className="btn quiet small" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
       <PanelError error={error} />

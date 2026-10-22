@@ -7,6 +7,7 @@ import {
 import { GitCommitIcon } from '@primer/octicons-react';
 import { useRepoAgent, useRepoSubPath } from '@/components/RepoLayout';
 import { api, qk, type RepoDetail } from '@/lib/uiApi';
+import { t, tx } from '@/lib/i18n';
 import { BranchSelect } from '@/components/BranchSelect';
 import { CommitList } from '@/components/CommitList';
 import { LoadError } from '@/components/code/LoadError';
@@ -39,16 +40,12 @@ export default function RepoCommits() {
     <div className={`code-page ${entering}`}>
       <PageHead
         icon="commit"
-        crumbs={[{ label: 'Commits' }]}
-        title="Commits"
+        crumbs={[{ label: t('Commits') }]}
+        title={t('Commits')}
         lede={
-          agent ? (
-            'Every change to how this agent reviews.'
-          ) : (
-            <>
-              Every change on <b>{ref}</b>.
-            </>
-          )
+          agent
+            ? t('Every change to how this agent reviews.')
+            : tx('Every change on {ref}.', { ref: <b>{ref}</b> })
         }
       />
       <div className="codebar">
@@ -59,11 +56,13 @@ export default function RepoCommits() {
           defaultBranch={repo.defaultBranch}
           onSelect={(b) => navigate(`/${repo.fullName}/commits/${b}`)}
         />
-        {page > 1 && <span className="small muted">Page {page}</span>}
+        {page > 1 && (
+          <span className="small muted">{t('Page {n}', { n: page })}</span>
+        )}
       </div>
       {q.isError && !q.data ? (
         <LoadError
-          what="the commits"
+          what={t('the commits')}
           error={q.error}
           onRetry={() => void q.refetch()}
           retrying={q.isFetching}
@@ -73,7 +72,7 @@ export default function RepoCommits() {
           className="sk-rows"
           role="status"
           aria-busy="true"
-          aria-label="Loading commits"
+          aria-label={t('Loading commits')}
         >
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="sk sk-row" />
@@ -84,12 +83,14 @@ export default function RepoCommits() {
           <EmptyState
             picture={<GitCommitIcon size={20} />}
             title={
-              page > 1 ? 'There is nothing on this page' : 'No commits yet'
+              page > 1
+                ? t('There is nothing on this page')
+                : t('No commits yet')
             }
             body={
               page > 1
-                ? 'You have gone past the oldest commit.'
-                : `There are no commits on ${ref}.`
+                ? t('You have gone past the oldest commit.')
+                : t('There are no commits on {ref}.', { ref })
             }
             action={
               page > 1 ? (
@@ -98,7 +99,7 @@ export default function RepoCommits() {
                   className="btn small"
                   onClick={() => goTo(1)}
                 >
-                  Back to the newest
+                  {t('Back to the newest')}
                 </button>
               ) : undefined
             }
@@ -108,14 +109,14 @@ export default function RepoCommits() {
         <CommitList commits={commits} base={`/${repo.fullName}`} repo={repo} />
       )}
       {(page > 1 || q.data?.hasMore) && (
-        <nav className="pager" aria-label="Pages of commits">
+        <nav className="pager" aria-label={t('Pages of commits')}>
           <button
             type="button"
             className="btn small"
             disabled={page === 1}
             onClick={() => goTo(page - 1)}
           >
-            Newer
+            {t('Newer')}
           </button>
           <button
             type="button"
@@ -123,7 +124,7 @@ export default function RepoCommits() {
             disabled={!q.data?.hasMore}
             onClick={() => goTo(page + 1)}
           >
-            Older
+            {t('Older')}
           </button>
         </nav>
       )}

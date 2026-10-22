@@ -16,6 +16,7 @@ import { PendingButton } from '@/components/ui/PendingButton';
 import { RowsSkeleton } from '@/components/SetFrame';
 import { useAppName } from '@/lib/appName';
 import { AuthShell } from './AuthShell';
+import { t, tx } from '@/lib/i18n';
 
 type PublicClient = {
   client_id: string;
@@ -56,15 +57,16 @@ export default function OAuthConsent() {
 
   if (!params.has('sig') || !clientId)
     return (
-      <AuthShell title="Authorization link" docTitle="Authorize">
+      <AuthShell title={t('Authorization link')} docTitle={t('Authorize')}>
         <Notice tone="bad">
-          This authorization link is incomplete or has expired. Start the
-          connection again from your app.
+          {t(
+            'This authorization link is incomplete or has expired. Start the connection again from your app.'
+          )}
         </Notice>
       </AuthShell>
     );
 
-  const name = client.data?.client_name || 'An application';
+  const name = client.data?.client_name || t('An application');
 
   async function decide(accept: boolean) {
     setBusy(accept ? 'allow' : 'deny');
@@ -91,25 +93,28 @@ export default function OAuthConsent() {
       setError(
         data.error_description ||
           data.message ||
-          'Something went wrong. Start the connection again from your app.'
+          t('Something went wrong. Start the connection again from your app.')
       );
     } catch {
-      setError('Network error. Try again.');
+      setError(t('Network error. Try again.'));
     }
     setBusy(null);
   }
 
-  const readOnly = tools.data?.tools.filter((t) => t.annotations.readOnlyHint);
-  const writes = tools.data?.tools.filter((t) => !t.annotations.readOnlyHint);
+  const readOnly = tools.data?.tools.filter(
+    (tool) => tool.annotations.readOnlyHint
+  );
+  const writes = tools.data?.tools.filter(
+    (tool) => !tool.annotations.readOnlyHint
+  );
 
   return (
     <AuthShell
-      title={
-        <>
-          <b>{name}</b> wants to access your {appName} account
-        </>
-      }
-      docTitle="Authorize"
+      title={tx('{app} wants to access your {name} account', {
+        app: <b>{name}</b>,
+        name: appName,
+      })}
+      docTitle={t('Authorize')}
       hideBrand
       wide
     >
@@ -134,8 +139,10 @@ export default function OAuthConsent() {
         <RowsSkeleton rows={3} />
       ) : client.isError ? (
         <Notice tone="bad">
-          This app isn&apos;t registered with {appName}. Start the connection
-          again from your app.
+          {t(
+            'This app isn’t registered with {name}. Start the connection again from your app.',
+            { name: appName }
+          )}
         </Notice>
       ) : (
         <ul className="rowlist perms">
@@ -144,7 +151,10 @@ export default function OAuthConsent() {
               <Avatar user={user as { username: string }} size={32} />
               <div className="grow">
                 <span className="small">
-                  Signed in as <b>{user.username}</b>. {name} will act as you.
+                  {tx('Signed in as {user}. {app} will act as you.', {
+                    user: <b>{user.username}</b>,
+                    app: name,
+                  })}
                 </span>
               </div>
             </li>
@@ -152,22 +162,29 @@ export default function OAuthConsent() {
           <li className="top">
             <EyeIcon className="ic" />
             <div className="grow">
-              <b>Read your repositories</b>
+              <b>{t('Read your repositories')}</b>
               <span className="small muted">
-                {readOnly?.map((t) => t.title).join(', ') ||
-                  'See the repositories you can see'}
-                . Includes private repositories you have access to.
+                {t(
+                  '{tools}. Includes private repositories you have access to.',
+                  {
+                    tools:
+                      readOnly?.map((tool) => tool.title).join(', ') ||
+                      t('See the repositories you can see'),
+                  }
+                )}
               </span>
             </div>
           </li>
           <li className="top">
             <PencilIcon className="ic" />
             <div className="grow">
-              <b>Make changes</b>
+              <b>{t('Make changes')}</b>
               <span className="small muted">
-                {writes?.map((t) => t.title).join(', ') ||
-                  'Create repositories'}{' '}
-                as you.
+                {t('{tools} as you.', {
+                  tools:
+                    writes?.map((tool) => tool.title).join(', ') ||
+                    t('Create repositories'),
+                })}
               </span>
             </div>
           </li>
@@ -175,17 +192,20 @@ export default function OAuthConsent() {
             <li className="top">
               <PersonIcon className="ic" />
               <div className="grow">
-                <b>Know who you are</b>
+                <b>{t('Know who you are')}</b>
                 <span className="small muted">
-                  Your name, username
-                  {scopes.includes('email') ? ', and email address' : ''}.
+                  {scopes.includes('email')
+                    ? t('Your name, username, and email address.')
+                    : t('Your name, username.')}
                 </span>
               </div>
             </li>
           )}
           {scopes.includes('offline_access') && (
             <li className="small muted">
-              Stays connected until you disconnect it in Settings → MCP server.
+              {t(
+                'Stays connected until you disconnect it in Settings → MCP server.'
+              )}
             </li>
           )}
         </ul>
@@ -198,21 +218,21 @@ export default function OAuthConsent() {
           disabled={busy !== null}
           onClick={() => decide(false)}
         >
-          {busy === 'deny' ? 'Cancelling…' : 'Cancel'}
+          {busy === 'deny' ? t('Cancelling…') : t('Cancel')}
         </button>
         <PendingButton
           className="primary"
           pending={busy === 'allow'}
-          pendingLabel="Authorizing…"
+          pendingLabel={t('Authorizing…')}
           disabled={busy !== null || client.isError || client.isLoading}
           onClick={() => decide(true)}
         >
-          Authorize {name}
+          {t('Authorize {app}', { app: name })}
         </PendingButton>
       </div>
       {hostOf(client.data?.client_uri) && (
         <p className="auth-foot plain">
-          From {hostOf(client.data?.client_uri)}
+          {t('From {host}', { host: hostOf(client.data?.client_uri) ?? '' })}
         </p>
       )}
     </AuthShell>

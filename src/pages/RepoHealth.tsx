@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PulseIcon } from '@primer/octicons-react';
 import { api, qk, type HealthReport, type RepoDetail } from '@/lib/uiApi';
 import { healthLede } from '@/lib/health';
+import { t } from '@/lib/i18n';
 import { QueryError, StatsSkeleton } from '@/components/actions/states';
 import { Contributors } from '@/components/health/Contributors';
 import { DecisionSlot } from '@/components/health/DecisionCard';
@@ -23,22 +24,24 @@ function Report({ data, repo }: { data: HealthReport; repo: RepoDetail }) {
         />
       )}
 
-      <Section title="Did anything get worse?">
+      <Section title={t('Did anything get worse?')}>
         {data.areas.length === 0 ? (
           <div className="panel">
             <EmptyState
               picture={<PulseIcon size={24} />}
-              title="Nothing is measured yet"
-              body="Health fills in as reviewers raise findings, tests run on main and changes merge."
+              title={t('Nothing is measured yet')}
+              body={t(
+                'Health fills in as reviewers raise findings, tests run on main and changes merge.'
+              )}
             />
           </div>
         ) : (
           <TrendTable areas={data.areas} base={base} />
         )}
         <p className="hl-measure muted small">
-          Measured from your reviewers’ findings, tests on main and merges. For
-          tests, the chart shows the share of runs that failed. A week with no
-          test runs shows as a gap.
+          {t(
+            'Measured from your reviewers’ findings, tests on main and merges. For tests, the chart shows the share of runs that failed. A week with no test runs shows as a gap.'
+          )}
         </p>
       </Section>
 
@@ -71,13 +74,13 @@ export default function RepoHealth() {
     <>
       <PageHead
         icon="pulse"
-        crumbs={[{ label: 'Health' }]}
-        title="Health"
+        crumbs={[{ label: t('Health') }]}
+        title={t('Health')}
         tab="health"
         lede={
           q.data
             ? healthLede(q.data, repo.openPullCount)
-            : `How things are going in ${repo.fullName}.`
+            : t('How things are going in {repo}.', { repo: repo.fullName })
         }
       />
       {q.isError && !q.data ? (
@@ -85,7 +88,7 @@ export default function RepoHealth() {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="Health did not load"
+            title={t('Health did not load')}
             picture={<PulseIcon size={24} />}
           />
         </div>

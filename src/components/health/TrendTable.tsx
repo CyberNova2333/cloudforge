@@ -9,6 +9,7 @@ import {
 } from '@primer/octicons-react';
 import type { HealthArea, HealthTrend } from '@/lib/uiApi';
 import { areaKind, areaSpark, TREND_LOOK } from '@/lib/health';
+import { t, tServer } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Chip } from '@/components/ui/Chip';
 import { Spark } from '@/components/ui/Spark';
@@ -44,7 +45,7 @@ function AreaName({ area, base }: { area: HealthArea; base: string }) {
         <span className="hl-area-mark" aria-hidden="true">
           <BeakerIcon size={16} />
         </span>
-        <b>{area.label}</b>
+        <b>{tServer(area.label)}</b>
       </Link>
     );
   return (
@@ -52,7 +53,7 @@ function AreaName({ area, base }: { area: HealthArea; base: string }) {
       <span className="hl-area-mark" aria-hidden="true">
         <GitMergeIcon size={16} />
       </span>
-      <b>{area.label}</b>
+      <b>{tServer(area.label)}</b>
     </span>
   );
 }
@@ -73,16 +74,16 @@ export function TrendTable({
     <div className="table-wrap">
       <table className="table hl-table">
         <caption className="sr">
-          Did anything get worse? A row for each area: where it stands now, the
-          last eight weeks, and whether it is better, the same or worse than
-          last week. Every row counts problems, so lower is better.
+          {t(
+            'Did anything get worse? A row for each area: where it stands now, the last eight weeks, and whether it is better, the same or worse than last week. Every row counts problems, so lower is better.'
+          )}
         </caption>
         <thead>
           <tr>
-            <th scope="col">Area</th>
-            <th scope="col">This week</th>
-            <th scope="col">Last 8 weeks</th>
-            <th scope="col">Change</th>
+            <th scope="col">{t('Area')}</th>
+            <th scope="col">{t('This week')}</th>
+            <th scope="col">{t('Last 8 weeks')}</th>
+            <th scope="col">{t('Change')}</th>
           </tr>
         </thead>
         <tbody>
@@ -95,8 +96,8 @@ export function TrendTable({
                   <AreaName area={area} base={base} />
                 </th>
                 <td className="hl-cell-now">
-                  <b>{area.status}</b>
-                  <span className="muted small">{area.detail}</span>
+                  <b>{tServer(area.status)}</b>
+                  <span className="muted small">{tServer(area.detail)}</span>
                 </td>
                 <td className="hl-cell-spark">
                   <Spark

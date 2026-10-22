@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   FileDiffIcon,
 } from '@primer/octicons-react';
+import { t } from '@/lib/i18n';
 import type { FileDiff } from '@/lib/uiApi';
 import { languageFor } from '@/lib/languages';
 import { useHighlighter } from '@/lib/useHighlight';
@@ -54,8 +55,8 @@ const STATUS_CHIP: Record<
   Exclude<FileDiff['status'], 'modified'>,
   { tone: string; label: string }
 > = {
-  added: { tone: 'good', label: 'Added' },
-  removed: { tone: 'critical', label: 'Deleted' },
+  added: { tone: 'good', label: t('Added') },
+  removed: { tone: 'critical', label: t('Deleted') },
 };
 
 function FileBlock({ file }: { file: FileDiff }) {
@@ -111,7 +112,11 @@ function FileBlock({ file }: { file: FileDiff }) {
           type="button"
           className="diff-toggle"
           aria-expanded={open}
-          aria-label={open ? `Hide ${file.path}` : `Show ${file.path}`}
+          aria-label={
+            open
+              ? t('Hide {path}', { path: file.path })
+              : t('Show {path}', { path: file.path })
+          }
           onClick={() => setOpen(!open)}
         >
           {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
@@ -137,14 +142,16 @@ function FileBlock({ file }: { file: FileDiff }) {
       </header>
       {open &&
         (file.binary ? (
-          <p className="diff-note">Binary file not shown.</p>
+          <p className="diff-note">{t('Binary file not shown.')}</p>
         ) : file.tooLarge ? (
-          <p className="diff-note">Large diffs are not rendered by default.</p>
+          <p className="diff-note">
+            {t('Large diffs are not rendered by default.')}
+          </p>
         ) : rows.length === 0 ? (
           <p className="diff-note">
             {file.status === 'added'
-              ? 'File added without changes.'
-              : 'Empty file or mode change only.'}
+              ? t('File added without changes.')
+              : t('Empty file or mode change only.')}
           </p>
         ) : (
           <div className="diff-scroll">
@@ -164,7 +171,7 @@ export function DiffView({ files }: { files: FileDiff[] }) {
       <div className="panel">
         <EmptyState
           picture={<FileDiffIcon size={20} />}
-          title="No changes to show"
+          title={t('No changes to show')}
         />
       </div>
     );

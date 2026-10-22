@@ -23,6 +23,7 @@ import {
   type InboxRow,
 } from '@/lib/approvalsInbox';
 import { possessive } from '@/lib/claudeLog';
+import { lang, t, tn } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Kbd } from '@/components/ui/Kbd';
@@ -44,14 +45,17 @@ import {
 } from '@/components/approvals/InboxRow';
 
 const KEYS: [string[], string][] = [
-  [['j', 'k'], 'move'],
-  [['o'], 'open'],
-  [['a'], 'approve'],
-  [['r'], 'request changes'],
-  [['d'], 'dismiss'],
-  [['x'], 'select'],
-  [['A'], 'approve selected'],
+  [['j', 'k'], t('move')],
+  [['o'], t('open')],
+  [['a'], t('approve')],
+  [['r'], t('request changes')],
+  [['d'], t('dismiss')],
+  [['x'], t('select')],
+  [['A'], t('approve selected')],
 ];
+
+/** An agent's name as the owner of its findings: "Security's" in English; Chinese says "Security 的" in the sentence. */
+const whose = (name: string) => (lang === 'zh' ? name : possessive(name));
 
 type Busy = { key: string; kind: RowAction['kind'] } | null;
 
@@ -70,8 +74,11 @@ function approvedReceipt(row: FindingRow): ReceiptBody {
     status: 'approved',
     icon: 'check',
     tone: 'good',
-    text: `You approved ${possessive(agentName(row.agent))} finding. #${n} can merge when nothing else holds it up.`,
-    toast: `Approved ${agentName(row.agent)} on #${n}`,
+    text: t(
+      'You approved {whose} finding. #{n} can merge when nothing else holds it up.',
+      { whose: whose(agentName(row.agent)), n }
+    ),
+    toast: t('Approved {agent} on #{n}', { agent: agentName(row.agent), n }),
     undo: () => api.undoFlag(owner, name, n, row.flag.id),
   };
 }
@@ -95,16 +102,25 @@ function receiptFor(row: InboxRow, a: RowAction): ReceiptBody | null {
               status: 'learned',
               icon: 'book',
               tone: 'good',
-              text: `Dismissed. ${agent} learns your rule when #${n} closes.`,
-              toast: `Dismissed. ${agent} learns your rule`,
+              text: t('Dismissed. {agent} learns your rule when #{n} closes.', {
+                agent,
+                n,
+              }),
+              toast: t('Dismissed. {agent} learns your rule', { agent }),
               undo,
             }
           : {
               status: 'approved',
               icon: 'x',
               tone: 'muted',
-              text: `Dismissed for #${n} only. ${agent} will ask again next time.`,
-              toast: 'Dismissed once',
+              text: t(
+                'Dismissed for #{n} only. {agent} will ask again next time.',
+                {
+                  agent,
+                  n,
+                }
+              ),
+              toast: t('Dismissed once'),
               undo,
             };
       case 'changes':
@@ -112,8 +128,16 @@ function receiptFor(row: InboxRow, a: RowAction): ReceiptBody | null {
           status: 'changes_requested',
           icon: 'sync',
           tone: 'change',
-          text: `Changes requested on #${n}. Its author gets ${possessive(agent)} finding${a.note.trim() ? ' and your note' : ''}.`,
-          toast: `Changes requested on #${n}`,
+          text: a.note.trim()
+            ? t(
+                'Changes requested on #{n}. Its author gets {whose} finding and your note.',
+                { n, whose: whose(agent) }
+              )
+            : t('Changes requested on #{n}. Its author gets {whose} finding.', {
+                n,
+                whose: whose(agent),
+              }),
+          toast: t('Changes requested on #{n}', { n }),
           undo,
         };
       default:
@@ -125,8 +149,11 @@ function receiptFor(row: InboxRow, a: RowAction): ReceiptBody | null {
       status: 'approved',
       icon: 'check',
       tone: 'good',
-      text: `You approved #${n}. It can merge when nothing else holds it up.`,
-      toast: `Approved #${n}`,
+      text: t(
+        'You approved #{n}. It can merge when nothing else holds it up.',
+        { n }
+      ),
+      toast: t('Approved #{n}', { n }),
       undo: () => api.withdrawApproval(owner, name, n),
     };
   return null;
@@ -168,8 +195,8 @@ async function perform(
         status: 'reviewing',
         icon: 'play',
         tone: 'good',
-        text: `The review of #${n} started again.`,
-        toast: `Review restarted on #${n}`,
+        text: t('The review of #{n} started again.', { n }),
+        toast: t('Review restarted on #{n}', { n }),
       };
     case 'retry-reviewer':
       if (row.type !== 'reviewer-failed') return null;
@@ -178,8 +205,14 @@ async function perform(
         status: 'reviewing',
         icon: 'play',
         tone: 'good',
-        text: `${agentName(row.agent)} is reviewing #${n} again.`,
-        toast: `${agentName(row.agent)} is reviewing #${n} again`,
+        text: t('{agent} is reviewing #{n} again.', {
+          agent: agentName(row.agent),
+          n,
+        }),
+        toast: t('{agent} is reviewing #{n} again', {
+          agent: agentName(row.agent),
+          n,
+        }),
       };
     case 'retry-stack':
       await api.retryStack(owner, name, n);
@@ -187,8 +220,8 @@ async function perform(
         status: 'reviewing',
         icon: 'play',
         tone: 'good',
-        text: `Checking #${n} against the others again.`,
-        toast: `Checking #${n} again`,
+        text: t('Checking #{n} against the others again.', { n }),
+        toast: t('Checking #{n} again', { n }),
       };
     case 'approve-pull':
       if (!row.pull.headSha) return null;
@@ -208,7 +241,7 @@ async function perform(
 export default function Approvals() {
   const me = useCurrentUser();
   const myLogin = me?.username ?? null;
-  const myName = me?.name || me?.username || 'you';
+  const myName = me?.name || me?.username || t('you');
   const navigate = useNavigate();
   const toast = useToast();
   const refresh = useRefresh();
@@ -351,7 +384,9 @@ export default function Approvals() {
       dropReceipt(row.key);
       const message = failure(e, { sendingNote: a.kind === 'changes' });
       setError(row.key, message);
-      toast(`Not saved: ${message}`, { icon: <AlertIcon size={16} /> });
+      toast(t('Not saved: {error}', { error: message }), {
+        icon: <AlertIcon size={16} />,
+      });
     } finally {
       pending.current.delete(row.key);
       // Also after a refusal (409: the branch moved): the list shows the new state.
@@ -385,7 +420,7 @@ export default function Approvals() {
         if (cur === row.key) setCurrent(next);
         if (hadFocus) focusRow(next);
       } else if (a.kind === 'undo')
-        toast('Reopened. It’s back in your list.', {
+        toast(t('Reopened. It’s back in your list.'), {
           icon: <UndoIcon size={16} />,
         });
     } catch (e) {
@@ -411,7 +446,7 @@ export default function Approvals() {
       dropReceipt(key);
       setCurrent(key);
       focusRow(key);
-      toast('Reopened. It’s back in your list.', {
+      toast(t('Reopened. It’s back in your list.'), {
         icon: <UndoIcon size={16} />,
       });
     } catch (e) {
@@ -447,10 +482,9 @@ export default function Approvals() {
     });
     setSelected(new Set());
     setCurrent(openKeys.find((k) => !keys.includes(k)) ?? null);
-    toast(
-      `Approved ${keys.length} ${keys.length === 1 ? 'finding' : 'findings'}`,
-      { undo: () => void undoMany(keys) }
-    );
+    toast(tn(keys.length, 'Approved {n} finding', 'Approved {n} findings'), {
+      undo: () => void undoMany(keys),
+    });
     const sent = (async () => {
       let refused = 0;
       for (const row of rowsToApprove)
@@ -479,7 +513,11 @@ export default function Approvals() {
     );
     if (refused)
       toast(
-        `${refused} ${refused === 1 ? 'approval was' : 'approvals were'} not saved: ${refused === 1 ? 'it is' : 'they are'} back in your list`,
+        tn(
+          refused,
+          '{n} approval was not saved: it is back in your list',
+          '{n} approvals were not saved: they are back in your list'
+        ),
         { icon: <AlertIcon size={16} /> }
       );
   };
@@ -508,14 +546,17 @@ export default function Approvals() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target instanceof Element ? e.target : document.body;
+      const target = e.target instanceof Element ? e.target : document.body;
       if (
-        t.closest(
+        target.closest(
           'textarea, select, [contenteditable="true"], input:not([type=checkbox]):not([type=radio]), [data-menu-root]'
         )
       )
         return;
-      if (e.key === 'Enter' && t.closest('button, a, input, label, summary'))
+      if (
+        e.key === 'Enter' &&
+        target.closest('button, a, input, label, summary')
+      )
         return;
       const row = cur ? (byKey.get(cur) ?? null) : null;
       // Shift+a is "A" whatever the keyboard reports.
@@ -562,8 +603,12 @@ export default function Approvals() {
   const lede = !q.data
     ? undefined
     : count
-      ? `${count} ${count === 1 ? 'item needs' : 'items need'} you. Your reviewers raised these for a person, across every repository you can merge in.`
-      : 'Nothing needs you. Your crew will ask when something does.';
+      ? tn(
+          count,
+          '{n} item needs you. Your reviewers raised these for a person, across every repository you can merge in.',
+          '{n} items need you. Your reviewers raised these for a person, across every repository you can merge in.'
+        )
+      : t('Nothing needs you. Your crew will ask when something does.');
 
   const setFilter = (v: 'all' | 'assigned') =>
     setParams(v === 'assigned' ? { filter: 'assigned' } : {}, {
@@ -576,7 +621,7 @@ export default function Approvals() {
       <QueryError
         error={q.error}
         onRetry={() => void q.refetch()}
-        title="Approvals did not load"
+        title={t('Approvals did not load')}
         picture={<InboxIcon size={24} />}
       />
     );
@@ -590,8 +635,8 @@ export default function Approvals() {
         id="ap-empty"
         tabIndex={-1}
         picture={<AgentAvatar handle="clef" status="idle" size={56} />}
-        title="Nothing assigned to you in what has loaded so far."
-        body="Load more to look further."
+        title={t('Nothing assigned to you in what has loaded so far.')}
+        body={t('Load more to look further.')}
       />
     );
   else if (!order.length)
@@ -600,15 +645,15 @@ export default function Approvals() {
         id="ap-empty"
         tabIndex={-1}
         picture={<AgentAvatar handle="clef" status="idle" size={56} />}
-        title="Nothing is assigned to you."
-        body="When someone asks you to decide a finding, it shows here."
+        title={t('Nothing is assigned to you.')}
+        body={t('When someone asks you to decide a finding, it shows here.')}
         action={
           <button
             type="button"
             className="btn small"
             onClick={() => setFilter('all')}
           >
-            Show everything
+            {t('Show everything')}
           </button>
         }
       />
@@ -617,8 +662,10 @@ export default function Approvals() {
         id="ap-empty"
         tabIndex={-1}
         picture={<AgentAvatar handle="clef" status="idle" size={56} />}
-        title="Nothing needs you."
-        body="Your crew will ask when something does: findings agents raise for a person, failed reviews, pull requests no agent reviewed, conflicts AI couldn’t resolve, and pull requests that need a decision."
+        title={t('Nothing needs you.')}
+        body={t(
+          'Your crew will ask when something does: findings agents raise for a person, failed reviews, pull requests no agent reviewed, conflicts AI couldn’t resolve, and pull requests that need a decision.'
+        )}
       />
     );
   else
@@ -693,29 +740,31 @@ export default function Approvals() {
     <div className="ap">
       <PageHead
         icon="inbox"
-        crumbs={[{ label: 'Home', to: '/' }, { label: 'Approvals' }]}
-        title="Approvals"
+        crumbs={[{ label: t('Home'), to: '/' }, { label: t('Approvals') }]}
+        title={t('Approvals')}
         lede={lede}
       />
       <div className="ap-bar">
         <Seg
-          label="Show"
+          label={t('Show')}
           value={assignedOnly ? 'assigned' : 'all'}
           onChange={setFilter}
           options={[
             {
               value: 'all',
-              label: firstPage ? `Everything · ${count}` : 'Everything',
+              label: firstPage
+                ? t('Everything · {n}', { n: count })
+                : t('Everything'),
             },
             {
               value: 'assigned',
               label: firstPage
-                ? `Assigned to you · ${assignedToMe}`
-                : 'Assigned to you',
+                ? t('Assigned to you · {n}', { n: assignedToMe })
+                : t('Assigned to you'),
             },
           ]}
         />
-        <ul className="ap-keys" aria-label="Keyboard shortcuts">
+        <ul className="ap-keys" aria-label={t('Keyboard shortcuts')}>
           {KEYS.map(([keys, what]) => (
             <li key={what}>
               {keys.map((k) => (
@@ -731,7 +780,7 @@ export default function Approvals() {
           <section className="ap-box" aria-labelledby="ap-list-h">
             <div className="ap-box-head">
               <h2 id="ap-list-h">
-                {assignedOnly ? 'Assigned to you' : 'Waiting on you'}{' '}
+                {assignedOnly ? t('Assigned to you') : t('Waiting on you')}{' '}
                 {firstPage && (
                   <span className="ap-n">
                     {assignedOnly ? assignedToMe : count}
@@ -739,19 +788,19 @@ export default function Approvals() {
                 )}
                 {shownReceipts.length > 0 && (
                   <span className="ap-n-done">
-                    {shownReceipts.length} answered
+                    {t('{n} answered', { n: shownReceipts.length })}
                   </span>
                 )}
               </h2>
               {picked.length > 0 && (
                 <div className="ap-bulk">
-                  <span>{picked.length} selected</span>
+                  <span>{t('{n} selected', { n: picked.length })}</span>
                   <button
                     type="button"
                     className="btn quiet small"
                     onClick={() => setSelected(new Set())}
                   >
-                    Clear
+                    {t('Clear')}
                   </button>
                   <button
                     type="button"
@@ -760,7 +809,7 @@ export default function Approvals() {
                     onClick={() => void approveSelected()}
                   >
                     <CheckIcon size={14} />
-                    Approve selected
+                    {t('Approve selected')}
                   </button>
                 </div>
               )}
@@ -771,10 +820,10 @@ export default function Approvals() {
                 <PendingButton
                   className="small"
                   pending={q.isFetchingNextPage}
-                  pendingLabel="Loading…"
+                  pendingLabel={t('Loading…')}
                   onClick={() => void q.fetchNextPage()}
                 >
-                  Load more
+                  {t('Load more')}
                 </PendingButton>
               </div>
             )}

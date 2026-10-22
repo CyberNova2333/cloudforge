@@ -3,7 +3,11 @@ import { settleStates } from './pulls/settle';
 import { swaggerUI } from '@hono/swagger-ui';
 import { logger } from 'hono/logger';
 import { createAuth } from './auth';
-import { requireAdmin, requireAuth } from './auth/guards';
+import {
+  requireAdmin,
+  requireAuth,
+  requireAuthUnlessPublicRead,
+} from './auth/guards';
 import { injectDb } from './db/middleware';
 import { handleGitRequest, isGitRequest } from './git-http';
 import { handleLfsRequest, isLfsRequest } from './lfs-http';
@@ -70,9 +74,9 @@ app.route('/mcp', mcpRouter);
 app.route('/api/setup', setupRouter);
 app.route('/api/invites', invitesRouter);
 
-// Members only
-app.use('/api/repos/*', requireAuth);
-app.use('/api/repos', requireAuth);
+// Members only, except reads of public repositories
+app.use('/api/repos/*', requireAuthUnlessPublicRead);
+app.use('/api/repos', requireAuthUnlessPublicRead);
 // Successful repo mutations ping live pages (and approval inboxes for pull changes).
 const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();

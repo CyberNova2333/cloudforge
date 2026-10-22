@@ -1,5 +1,6 @@
 /** Workflow runs, jobs and steps (Actions): the small decisions the run and job pages make. */
 import type { Tone } from './agentLook';
+import { t } from './i18n';
 import type { RunConclusion, RunStatus, WorkflowStep } from './uiApi';
 
 /** A log line the page draws in red. */
@@ -27,15 +28,15 @@ export function runTone(status: RunStatus, conclusion: RunConclusion): Tone {
 
 /** A run, job or step's state in words (the chip says the same). */
 export function runLabel(status: RunStatus, conclusion: RunConclusion): string {
-  if (status === 'queued') return 'Queued';
-  if (status === 'in_progress') return 'In progress';
+  if (status === 'queued') return t('Queued');
+  if (status === 'in_progress') return t('In progress');
   return (
     {
-      success: 'Passed',
-      failure: 'Failed',
-      cancelled: 'Cancelled',
-      skipped: 'Skipped',
-    }[conclusion ?? 'skipped'] ?? 'Done'
+      success: t('Passed'),
+      failure: t('Failed'),
+      cancelled: t('Cancelled'),
+      skipped: t('Skipped'),
+    }[conclusion ?? 'skipped'] ?? t('Done')
   );
 }
 
@@ -44,15 +45,15 @@ export function stepLabel(
   status: RunStatus,
   conclusion: RunConclusion
 ): string {
-  if (status === 'queued') return 'Waiting to start';
-  if (status === 'in_progress') return 'Running';
+  if (status === 'queued') return t('Waiting to start');
+  if (status === 'in_progress') return t('Running');
   return (
     {
-      success: 'Passed',
-      failure: 'Failed',
-      cancelled: 'Cancelled',
-      skipped: 'Skipped',
-    }[conclusion ?? 'skipped'] ?? 'Done'
+      success: t('Passed'),
+      failure: t('Failed'),
+      cancelled: t('Cancelled'),
+      skipped: t('Skipped'),
+    }[conclusion ?? 'skipped'] ?? t('Done')
   );
 }
 

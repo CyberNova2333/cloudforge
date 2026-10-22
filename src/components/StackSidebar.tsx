@@ -8,6 +8,7 @@ import {
   SyncIcon,
 } from '@primer/octicons-react';
 import { errorMessage } from '@/lib/api';
+import { t, tx } from '@/lib/i18n';
 import { api, type RepoDetail, type StackNode } from '@/lib/uiApi';
 import { AgentRunLink } from './AgentRunLink';
 
@@ -15,7 +16,7 @@ import { AgentRunLink } from './AgentRunLink';
 function joined(items: ReactNode[]) {
   return items.map((el, i) => (
     <Fragment key={i}>
-      {i > 0 && ', '}
+      {i > 0 && t(', ')}
       {el}
     </Fragment>
   ));
@@ -81,7 +82,7 @@ export function StackSidebar({
     <div className="pr-stack">
       <div className="pr-stack-head">
         <GitBranchIcon />
-        <b>Stack</b>
+        <b>{t('Stack')}</b>
         <span className="grow" />
         <AgentRunLink
           repo={repo}
@@ -92,16 +93,18 @@ export function StackSidebar({
       </div>
       {empty && stack.checking && (
         <p className="muted">
-          <span className="spinner" aria-hidden="true" /> Checking against other
-          open pull requests…
+          <span className="spinner" aria-hidden="true" />{' '}
+          {t('Checking against other open pull requests…')}
         </p>
       )}
       {empty && !stack.checking && (
-        <p className="muted">Independent of other open pull requests.</p>
+        <p className="muted">{t('Independent of other open pull requests.')}</p>
       )}
       {stack.pending.length > 0 && (
         <p className="muted">
-          Checking against {joined(stack.pending.map(link))}…
+          {tx('Checking against {list}…', {
+            list: joined(stack.pending.map(link)),
+          })}
         </p>
       )}
       {stack.parent && (
@@ -109,37 +112,42 @@ export function StackSidebar({
           <p>
             {stack.parent.kind === 'ordered_after' ? (
               <>
-                Lands after {link(stack.parent.number)} so{' '}
-                {stack.parent.forPr
-                  ? link(stack.parent.forPr)
-                  : 'another pull request'}{' '}
-                can build on both: {stack.parent.reason}
+                {tx('Lands after {after} so {pr} can build on both:', {
+                  after: link(stack.parent.number),
+                  pr: stack.parent.forPr
+                    ? link(stack.parent.forPr)
+                    : t('another pull request'),
+                })}{' '}
+                {stack.parent.reason}
               </>
             ) : (
               <>
-                Builds on {link(stack.parent.number)}: {stack.parent.reason}
+                {tx('Builds on {pr}:', { pr: link(stack.parent.number) })}{' '}
+                {stack.parent.reason}
               </>
             )}
           </p>
           {control(
-            'Unstack',
+            t('Unstack'),
             () => unstack.mutate(),
-            'Retarget to the land target and stop building on it'
+            t('Retarget to the land target and stop building on it')
           )}
         </div>
       )}
       {stack.children.length > 0 && (
-        <p>Built on by {joined(stack.children.map(link))}</p>
+        <p>
+          {tx('Built on by {list}', { list: joined(stack.children.map(link)) })}
+        </p>
       )}
       {stack.waitsOn.map((d) => (
         <div key={`w${d.number}`} className="pr-stack-line">
           <p>
-            Waits on {link(d.number)}: {d.reason}
+            {tx('Waits on {pr}:', { pr: link(d.number) })} {d.reason}
           </p>
           {control(
-            'Dismiss',
+            t('Dismiss'),
             () => dismiss.mutate(d.number),
-            'Stop waiting on it'
+            t('Stop waiting on it')
           )}
         </div>
       ))}
@@ -152,22 +160,24 @@ export function StackSidebar({
             {d.accounted ? (
               <span className="chip good">
                 <CheckIcon size={12} />
-                accounted for
+                {t('accounted for')}
               </span>
             ) : (
               <AlertIcon className="pr-warn" />
             )}{' '}
-            Must change for {link(d.number)}
-            {d.landed ? ' (landed)' : ''}: {d.reason}
+            {d.landed
+              ? tx('Must change for {pr} (landed):', { pr: link(d.number) })
+              : tx('Must change for {pr}:', { pr: link(d.number) })}{' '}
+            {d.reason}
           </p>
           {d.instructions && !d.accounted && (
             <p className="pr-stack-how">{d.instructions}</p>
           )}
           {!d.accounted &&
             control(
-              'Dismiss',
+              t('Dismiss'),
               () => dismiss.mutate(d.number),
-              'Stop waiting on it'
+              t('Stop waiting on it')
             )}
         </div>
       ))}
@@ -178,14 +188,18 @@ export function StackSidebar({
       )}
       {stack.cycleWith.length > 0 && (
         <p className="pr-bad">
-          <AlertIcon /> Depends in a circle on{' '}
-          {joined(stack.cycleWith.map(link))}; a person decides the order.
+          <AlertIcon />{' '}
+          {tx('Depends in a circle on {list}; a person decides the order.', {
+            list: joined(stack.cycleWith.map(link)),
+          })}
         </p>
       )}
       {stack.unchecked.length > 0 && (
         <div className="pr-stack-line">
           <p>
-            Couldn&apos;t check against {joined(stack.unchecked.map(link))}.
+            {tx("Couldn't check against {list}.", {
+              list: joined(stack.unchecked.map(link)),
+            })}
           </p>
           {repo.permissions.write && (
             <button
@@ -195,7 +209,7 @@ export function StackSidebar({
               onClick={() => retry.mutate()}
             >
               <SyncIcon size={14} />
-              Retry
+              {t('Retry')}
             </button>
           )}
         </div>

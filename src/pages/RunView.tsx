@@ -23,6 +23,7 @@ import {
 } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { duration, shortSha, timeAgo } from '@/lib/format';
+import { t, tx } from '@/lib/i18n';
 import {
   confirmingCancel,
   focusStep,
@@ -61,11 +62,12 @@ function StepLog({
     refetchInterval: running ? 2000 : false,
     staleTime: step.status === 'completed' ? Infinity : 0,
   });
-  if (q.isLoading) return <div className="act-log-note">Loading log…</div>;
+  if (q.isLoading)
+    return <div className="act-log-note">{t('Loading log…')}</div>;
   if (!q.data)
     return (
       <div className="act-log-note">
-        {step.status === 'queued' ? 'Waiting to start…' : 'No output'}
+        {step.status === 'queued' ? t('Waiting to start…') : t('No output')}
       </div>
     );
   const lines = q.data.replace(/\n$/, '').split('\n');
@@ -83,12 +85,27 @@ function StepLog({
 
 /** A job's state in words: how it ended, where it waits, or when it started. */
 function jobState(job: WorkflowJob): string {
-  if (job.status === 'completed')
-    return `${runLabel(job.status, job.conclusion)}${job.completedAt ? ` ${timeAgo(job.completedAt)}` : ''}${job.startedAt ? ` in ${duration(job.startedAt, job.completedAt)}` : ''}`;
-  if (job.queuedAhead !== null) return `Queued (${job.queuedAhead} ahead)`;
+  if (job.status === 'completed') {
+    const state = runLabel(job.status, job.conclusion);
+    const when = job.completedAt ? timeAgo(job.completedAt) : '';
+    const took = job.startedAt ? duration(job.startedAt, job.completedAt) : '';
+    if (when && took)
+      return t('{state} {when} in {duration}', {
+        state,
+        when,
+        duration: took,
+      });
+    if (when) return t('{state} {when}', { state, when });
+    if (took) return t('{state} in {duration}', { state, duration: took });
+    return state;
+  }
+  if (job.queuedAhead !== null)
+    return t('Queued ({n} ahead)', { n: job.queuedAhead });
   if (job.status === 'in_progress')
-    return `Started ${job.startedAt ? timeAgo(job.startedAt) : ''}`;
-  return 'Waiting for a runner';
+    return job.startedAt
+      ? t('Started {when}', { when: timeAgo(job.startedAt) })
+      : t('Started');
+  return t('Waiting for a runner');
 }
 
 function JobLog({
@@ -119,19 +136,22 @@ function JobLog({
     });
 
   return (
-    <section className="act-logbox panel" aria-label={`Log of ${job.name}`}>
+    <section
+      className="act-logbox panel"
+      aria-label={t('Log of {name}', { name: job.name })}
+    >
       <div className="act-log-head">
         <div>
           <b>{job.name}</b>
           <p className="small muted">{jobState(job)}</p>
         </div>
-        <span className="mono small muted" title="Runner">
+        <span className="mono small muted" title={t('Runner')}>
           {job.runsOn}
         </span>
       </div>
       <div className="act-log">
         {job.steps.length === 0 && (
-          <div className="act-log-note">No steps yet</div>
+          <div className="act-log-note">{t('No steps yet')}</div>
         )}
         {job.steps.map((s) => {
           const isOpen = open.has(s.number);
@@ -183,39 +203,55 @@ function Summary({
         <dl className="act-facts act-facts-row">
           <div>
             <dt>
-              Triggered via{' '}
-              {run.event === 'pull_request' ? 'pull request' : 'push'}{' '}
-              {timeAgo(run.createdAt)}
+              {t('Triggered via {event} {when}', {
+                event:
+                  run.event === 'pull_request' ? t('pull request') : t('push'),
+                when: timeAgo(run.createdAt),
+              })}
             </dt>
             <dd className="act-actor">
               <Identicon login={run.actor?.username ?? 'someone'} size={18} />
-              <b>{run.actor?.username ?? 'someone'}</b>
-              {run.event === 'pull_request' ? (
-                <>
-                  updated{' '}
-                  <Link to={`${base}/pull/${run.pullRequestNumber}`}>
-                    #{run.pullRequestNumber}
-                  </Link>
-                </>
-              ) : (
-                'pushed'
-              )}
-              <Link to={`${base}/commit/${run.headSha}`} className="mono">
-                {shortSha(run.headSha)}
-              </Link>
-              {run.event === 'push' && (
-                <span className="mono act-branch">{run.refName}</span>
-              )}
+              {run.event === 'pull_request'
+                ? tx('{who} updated {pr} {sha}', {
+                    who: <b>{run.actor?.username ?? t('someone')}</b>,
+                    pr: (
+                      <Link to={`${base}/pull/${run.pullRequestNumber}`}>
+                        #{run.pullRequestNumber}
+                      </Link>
+                    ),
+                    sha: (
+                      <Link
+                        to={`${base}/commit/${run.headSha}`}
+                        className="mono"
+                      >
+                        {shortSha(run.headSha)}
+                      </Link>
+                    ),
+                  })
+                : tx('{who} pushed {sha} {branch}', {
+                    who: <b>{run.actor?.username ?? t('someone')}</b>,
+                    sha: (
+                      <Link
+                        to={`${base}/commit/${run.headSha}`}
+                        className="mono"
+                      >
+                        {shortSha(run.headSha)}
+                      </Link>
+                    ),
+                    branch: (
+                      <span className="mono act-branch">{run.refName}</span>
+                    ),
+                  })}
             </dd>
           </div>
           <div>
-            <dt>Status</dt>
+            <dt>{t('Status')}</dt>
             <dd>
               <RunChip status={run.status} conclusion={run.conclusion} />
             </dd>
           </div>
           <div>
-            <dt>Total duration</dt>
+            <dt>{t('Total duration')}</dt>
             <dd>
               {run.startedAt
                 ? duration(run.startedAt, run.completedAt, now)
@@ -232,7 +268,11 @@ function Summary({
       {jobs.length > 0 && (
         <Section
           title={run.workflowPath.split('/').pop()}
-          actions={<span className="muted small mono">on: {run.event}</span>}
+          actions={
+            <span className="muted small mono">
+              {t('on: {event}', { event: run.event })}
+            </span>
+          }
         >
           <div className="act-jobcards">
             {jobs.map((j) => (
@@ -245,7 +285,7 @@ function Summary({
                 <span className="act-jobcard-name">{j.name}</span>
                 <span className="muted small">
                   {j.queuedAhead !== null
-                    ? `Queued (${j.queuedAhead} ahead)`
+                    ? t('Queued ({n} ahead)', { n: j.queuedAhead })
                     : j.startedAt && j.conclusion !== 'skipped'
                       ? duration(j.startedAt, j.completedAt, now)
                       : ''}
@@ -306,17 +346,20 @@ function RunPage() {
   usePageHead({
     icon: 'play',
     crumbs: [
-      { label: 'Actions', to: `${base}/actions` },
+      { label: t('Actions'), to: `${base}/actions` },
       ...(job
         ? [
-            { label: `Run #${num}`, to: `${base}/actions/runs/${num}` },
+            {
+              label: t('Run #{n}', { n: num }),
+              to: `${base}/actions/runs/${num}`,
+            },
             { label: job.name },
           ]
-        : [{ label: `Run #${num}` }]),
+        : [{ label: t('Run #{n}', { n: num }) }]),
     ],
-    title: job ? job.name : `Run #${num}`,
+    title: job ? job.name : t('Run #{n}', { n: num }),
     tab: 'actions',
-    documentTitle: `Run #${num}`,
+    documentTitle: t('Run #{n}', { n: num }),
   });
 
   if (q.isError && !q.data)
@@ -324,7 +367,7 @@ function RunPage() {
       <QueryError
         error={q.error}
         onRetry={() => void q.refetch()}
-        title="This run did not load"
+        title={t('This run did not load')}
       />
     );
   if (!q.data || !run) return <Skeleton kind="detail" />;
@@ -351,13 +394,11 @@ function RunPage() {
         lede={
           <>
             {run.name} ·{' '}
-            {run.event === 'pull_request' ? (
-              <>pull request #{run.pullRequestNumber}</>
-            ) : (
-              <>
-                pushed to <span className="mono">{run.refName}</span>
-              </>
-            )}{' '}
+            {run.event === 'pull_request'
+              ? t('pull request #{n}', { n: run.pullRequestNumber ?? '' })
+              : tx('pushed to {branch}', {
+                  branch: <span className="mono">{run.refName}</span>,
+                })}{' '}
             · {runLabel(run.status, run.conclusion).toLowerCase()}
             {run.startedAt && (
               <> · {duration(run.startedAt, run.completedAt, now)}</>
@@ -370,20 +411,20 @@ function RunPage() {
             <PendingButton
               className="small"
               pending={rerun.isPending}
-              pendingLabel="Re-running…"
+              pendingLabel={t('Re-running…')}
               onClick={() => rerun.mutate()}
             >
-              <SyncIcon size={14} /> Re-run all jobs
+              <SyncIcon size={14} /> {t('Re-run all jobs')}
             </PendingButton>
           ) : confirming ? (
             <>
               <PendingButton
                 className="small danger"
                 pending={cancel.isPending}
-                pendingLabel="Cancelling…"
+                pendingLabel={t('Cancelling…')}
                 onClick={() => cancel.mutate()}
               >
-                <XIcon size={14} /> Confirm cancel
+                <XIcon size={14} /> {t('Confirm cancel')}
               </PendingButton>
               <button
                 type="button"
@@ -391,7 +432,7 @@ function RunPage() {
                 disabled={cancel.isPending}
                 onClick={() => setConfirmCancel(false)}
               >
-                Keep running
+                {t('Keep running')}
               </button>
             </>
           ) : (
@@ -400,7 +441,7 @@ function RunPage() {
               className="btn small danger"
               onClick={() => setConfirmCancel(true)}
             >
-              <XIcon size={14} /> Cancel workflow
+              <XIcon size={14} /> {t('Cancel workflow')}
             </button>
           ))
         }
@@ -411,15 +452,15 @@ function RunPage() {
         </div>
       )}
       <div className="act-runlayout">
-        <nav className="act-joblist panel" aria-label="Jobs">
+        <nav className="act-joblist panel" aria-label={t('Jobs')}>
           <Link
             to={`${base}/actions/runs/${run.runNumber}`}
             aria-current={!job ? 'page' : undefined}
           >
             <HomeIcon size={16} />
-            <span>Summary</span>
+            <span>{t('Summary')}</span>
           </Link>
-          {jobs.length > 0 && <p className="act-joblist-h">Jobs</p>}
+          {jobs.length > 0 && <p className="act-joblist-h">{t('Jobs')}</p>}
           {jobs.map((j) => (
             <Link
               key={j.id}
@@ -430,7 +471,7 @@ function RunPage() {
               <span className="act-joblist-name">{j.name}</span>
               <span className="muted small">
                 {j.queuedAhead !== null
-                  ? `${j.queuedAhead} ahead`
+                  ? t('{n} ahead', { n: j.queuedAhead })
                   : j.startedAt && j.conclusion !== 'skipped'
                     ? duration(j.startedAt, j.completedAt, now)
                     : ''}
@@ -443,9 +484,9 @@ function RunPage() {
             <JobLog key={job.id} repo={repo} run={run} job={job} now={now} />
           ) : jobId ? (
             <div className="act-error" role="alert">
-              This run has no job with that id.{' '}
+              {t('This run has no job with that id.')}{' '}
               <Link to={`${base}/actions/runs/${run.runNumber}`}>
-                Back to the summary
+                {t('Back to the summary')}
               </Link>
             </div>
           ) : (

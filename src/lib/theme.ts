@@ -3,6 +3,7 @@
  * browser (localStorage). `index.html` applies it before the first paint with an inline script that mirrors
  * `rootAttributes`; `ThemeProvider` keeps it applied afterwards. Pure: no DOM access here.
  */
+import { t } from './i18n';
 
 export type ThemeId =
   | 'navy'
@@ -39,49 +40,49 @@ export interface Theme {
 export const THEMES: readonly Theme[] = [
   {
     id: 'navy',
-    label: 'Navy',
+    label: t('Navy'),
     skin: 'hq',
     chrome: 'navy',
     swatch: ['#16203a', '#3730a3'],
   },
   {
     id: 'ink',
-    label: 'Ink',
+    label: t('Ink'),
     skin: 'hq',
     chrome: 'ink',
     swatch: ['#101113', '#3730a3'],
   },
   {
     id: 'slate',
-    label: 'Slate',
+    label: t('Slate'),
     skin: 'hq',
     chrome: 'slate',
     swatch: ['#1e242b', '#3730a3'],
   },
   {
     id: 'indigo',
-    label: 'Indigo',
+    label: t('Indigo'),
     skin: 'hq',
     chrome: 'indigo',
     swatch: ['#241f52', '#3730a3'],
   },
   {
     id: 'forest',
-    label: 'Forest',
+    label: t('Forest'),
     skin: 'hq',
     chrome: 'forest',
     swatch: ['#122a1f', '#3730a3'],
   },
   {
     id: 'claret',
-    label: 'Claret',
+    label: t('Claret'),
     skin: 'hq',
     chrome: 'claret',
     swatch: ['#2c1419', '#3730a3'],
   },
   {
     id: 'paper',
-    label: 'Paper',
+    label: t('Paper'),
     skin: 'hq',
     chrome: 'paper',
     swatch: ['#dee2ea', '#3730a3'],
@@ -102,7 +103,7 @@ export const DEFAULT_THEME: ThemeId = 'navy';
 export const DEFAULT_MODE: Mode = 'system';
 
 export function parseThemeId(value: unknown): ThemeId {
-  return THEMES.find((t) => t.id === value)?.id ?? DEFAULT_THEME;
+  return THEMES.find((th) => th.id === value)?.id ?? DEFAULT_THEME;
 }
 
 export function parseMode(value: unknown): Mode {
@@ -121,7 +122,7 @@ export function resolveTheme(
   mode: Mode,
   systemDark: boolean
 ): ResolvedTheme {
-  const theme = THEMES.find((t) => t.id === id) ?? THEMES[0];
+  const theme = THEMES.find((th) => th.id === id) ?? THEMES[0];
   const dark = mode === 'dark' || (mode === 'system' && systemDark);
   return {
     skin: theme.skin,

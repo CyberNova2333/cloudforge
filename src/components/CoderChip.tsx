@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PersonIcon } from '@primer/octicons-react';
 import { coderOf } from '@/lib/coder';
+import { t } from '@/lib/i18n';
 
 /**
  * Who opened a pull request: a coding session as a monogram tile and "Claude·s4", or a person's name and "by
@@ -43,7 +44,7 @@ export function CoderChip({
     coder.kind === 'person' ? (
       <span>
         {person ? `${person} ` : ''}
-        <span className="muted">by hand</span>
+        <span className="muted">{t('by hand')}</span>
       </span>
     ) : (
       <span>{coder.label}</span>

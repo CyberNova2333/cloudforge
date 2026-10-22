@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
 import { usePageHead, type PageHeadInfo } from '@/components/ui/PageHead';
+import { useCurrentUser } from '@/lib/auth';
+import { useSignInHref } from '@/lib/signIn';
+import { t } from '@/lib/i18n';
 
 /** The top band for a page that doesn't exist (or that the person can't see). */
 export const NOT_FOUND_HEAD: PageHeadInfo = {
   icon: 'alert',
-  crumbs: [{ label: 'Page not found' }],
-  title: 'Page not found',
+  crumbs: [{ label: t('Page not found') }],
+  title: t('Page not found'),
 };
 
 /**
@@ -14,23 +17,40 @@ export const NOT_FOUND_HEAD: PageHeadInfo = {
  */
 export function NotFound() {
   usePageHead(NOT_FOUND_HEAD);
+  const signedIn = !!useCurrentUser();
+  const signIn = useSignInHref();
   return (
     <section className="notfound" aria-labelledby="not-found-title">
       <p className="nf-code mono" aria-hidden="true">
         404
       </p>
-      <h2 id="not-found-title">This page does not exist</h2>
+      <h2 id="not-found-title">{t('This page does not exist')}</h2>
       <p>
-        This is not the web page you are looking for. It may have moved, or you
-        may not have access to it.
+        {t(
+          'This is not the web page you are looking for. It may have moved, or you may not have access to it.'
+        )}
       </p>
       <div className="actions">
-        <Link to="/" className="btn primary">
-          Go home
-        </Link>
-        <Link to="/repos" className="btn">
-          Browse repositories
-        </Link>
+        {signedIn ? (
+          <>
+            <Link to="/" className="btn primary">
+              {t('Go home')}
+            </Link>
+            <Link to="/repos" className="btn">
+              {t('Browse repositories')}
+            </Link>
+          </>
+        ) : (
+          <>
+            {/* Signed out, a private repository looks like this too: signing in may open it. */}
+            <Link to={signIn} className="btn primary">
+              {t('Sign in')}
+            </Link>
+            <Link to="/" className="btn">
+              {t('Public repositories')}
+            </Link>
+          </>
+        )}
       </div>
     </section>
   );

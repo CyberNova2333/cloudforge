@@ -285,9 +285,11 @@ export async function deleteAgent(db: DrizzleDB, userId: string) {
 export async function repositoryAgentList(
   db: DrizzleDB,
   repositoryId: string,
-  viewer: SessionUser
+  /** No viewer: someone without an account, on a public repository. */
+  viewer: SessionUser | undefined
 ): Promise<(AgentView & { invitedAt: Date })[]> {
   // The invited repository is only a filter, so `repositories` here is the agent's own.
+  // Not ownRepository: without a viewer it shows every agent repository, and here it must show public ones only.
   return db
     .select({
       agent: agents,
@@ -298,7 +300,10 @@ export async function repositoryAgentList(
     .from(repositoryAgents)
     .innerJoin(agents, eq(agents.userId, repositoryAgents.agentId))
     .innerJoin(users, eq(users.id, agents.userId))
-    .leftJoin(repositories, ownRepository(viewer))
+    .leftJoin(
+      repositories,
+      and(eq(repositories.id, agents.repositoryId), visibleTo(viewer))
+    )
     .where(eq(repositoryAgents.repositoryId, repositoryId))
     .orderBy(asc(users.username))
     .all();

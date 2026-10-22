@@ -12,6 +12,7 @@ import {
 } from '@primer/octicons-react';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { t, tn, tServer } from '@/lib/i18n';
 import {
   testAiGateway,
   useSetupChecks,
@@ -25,14 +26,12 @@ import { LoadError, Notice } from '@/components/Notice';
 import { RowsSkeleton } from '@/components/SetFrame';
 import { CopyButton } from './CopyButton';
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
 function StatusIcon({ status }: { status: SetupStatus }) {
   if (status === 'error')
-    return <XCircleFillIcon className="st bad" aria-label="Error" />;
+    return <XCircleFillIcon className="st bad" aria-label={t('Error')} />;
   if (status === 'warning')
-    return <AlertFillIcon className="st warn" aria-label="Warning" />;
-  return <CheckCircleFillIcon className="st ok" aria-label="OK" />;
+    return <AlertFillIcon className="st warn" aria-label={t('Warning')} />;
+  return <CheckCircleFillIcon className="st ok" aria-label={t('OK')} />;
 }
 
 function AiGatewayTest() {
@@ -43,13 +42,15 @@ function AiGatewayTest() {
         <PendingButton
           className="small"
           pending={test.isPending}
-          pendingLabel="Testing…"
+          pendingLabel={t('Testing…')}
           onClick={() => test.mutate()}
         >
-          Test
+          {t('Test')}
         </PendingButton>
         <span className="small muted">
-          Sends one tiny Workers AI request (a few tokens) through the gateway.
+          {t(
+            'Sends one tiny Workers AI request (a few tokens) through the gateway.'
+          )}
         </span>
       </div>
       {test.data && (
@@ -60,7 +61,7 @@ function AiGatewayTest() {
               : 'warn'
           }
         >
-          {test.data.detail}
+          {tServer(test.data.detail)}
         </Notice>
       )}
       {test.error && <Notice tone="bad">{errorMessage(test.error)}</Notice>}
@@ -74,22 +75,22 @@ function CheckRow({ check }: { check: SetupCheck }) {
       <StatusIcon status={check.status} />
       <div className="check-body">
         <div className="check-title">
-          <b className="mono">{check.title}</b>
-          <Chip tone="off">{check.category}</Chip>
+          <b className="mono">{tServer(check.title)}</b>
+          <Chip tone="off">{tServer(check.category)}</Chip>
         </div>
-        <p className="small muted">{check.detail}</p>
+        <p className="small muted">{tServer(check.detail)}</p>
         {check.fix.length > 0 && check.status !== 'ok' && (
           <div className="howfix">
-            <b className="small">How to fix</b>
+            <b className="small">{t('How to fix')}</b>
             <ol className="small">
               {check.fix.map((s, i) => (
                 <li key={i}>
-                  {s.text}
+                  {tServer(s.text)}
                   {s.link && (
                     <>
                       {' '}
                       <a href={s.link} target="_blank" rel="noreferrer">
-                        Open dashboard <LinkExternalIcon size={12} />
+                        {t('Open dashboard')} <LinkExternalIcon size={12} />
                       </a>
                     </>
                   )}
@@ -99,7 +100,7 @@ function CheckRow({ check }: { check: SetupCheck }) {
                       <CopyButton
                         text={s.code}
                         className="btn small quiet"
-                        label="Copy command"
+                        label={t('Copy command')}
                       />
                     </div>
                   )}
@@ -113,7 +114,8 @@ function CheckRow({ check }: { check: SetupCheck }) {
             {check.fix.map((s, i) =>
               s.link ? (
                 <a key={i} href={s.link} target="_blank" rel="noreferrer">
-                  {s.text.replace(/:$/, '')} <LinkExternalIcon size={12} />
+                  {tServer(s.text).replace(/[:：]$/, '')}{' '}
+                  <LinkExternalIcon size={12} />
                 </a>
               ) : null
             )}
@@ -138,7 +140,7 @@ export function AdminSetup() {
       <Section
         title={
           <>
-            <ChecklistIcon size={16} /> Setup checks
+            <ChecklistIcon size={16} /> {t('Setup checks')}
           </>
         }
         actions={
@@ -149,19 +151,20 @@ export function AdminSetup() {
             onClick={() => setup.refetch()}
           >
             <SyncIcon size={14} />
-            {setup.isFetching ? 'Checking…' : 'Re-check'}
+            {setup.isFetching ? t('Checking…') : t('Re-check')}
           </button>
         }
       >
         <p className="small muted">
-          This deployment&apos;s secrets, bindings, and variables. Secret values
-          are never shown; only whether they&apos;re set.
+          {t(
+            "This deployment's secrets, bindings, and variables. Secret values are never shown; only whether they're set."
+          )}
         </p>
         {setup.isPending ? (
           <RowsSkeleton rows={3} />
         ) : setup.error ? (
           <LoadError
-            what="the setup checks"
+            what={t('the setup checks')}
             error={setup.error}
             onRetry={() => setup.refetch()}
           />
@@ -172,15 +175,18 @@ export function AdminSetup() {
             >
               <b>
                 {counts!.error
-                  ? `${counts!.error} error${counts!.error === 1 ? '' : 's'} to fix`
+                  ? tn(counts!.error, '{n} error to fix', '{n} errors to fix')
                   : counts!.warning
-                    ? 'No errors; some features are off or misconfigured'
-                    : 'Everything is set up'}
+                    ? t('No errors; some features are off or misconfigured')
+                    : t('Everything is set up')}
               </b>
               <span className="muted small block">
-                {plural(counts!.error, 'error')} ·{' '}
-                {plural(counts!.warning, 'warning')} · {counts!.ok} OK · checked{' '}
-                {timeAgo(setup.data!.checkedAt)}
+                {tn(counts!.error, '{n} error', '{n} errors')} ·{' '}
+                {tn(counts!.warning, '{n} warning', '{n} warnings')} ·{' '}
+                {t('{n} OK', { n: counts!.ok })} ·{' '}
+                {t('checked {when}', {
+                  when: timeAgo(setup.data!.checkedAt),
+                })}
               </span>
             </Notice>
             {problems.length > 0 && (
@@ -201,9 +207,11 @@ export function AdminSetup() {
               >
                 <CheckCircleFillIcon className="st ok" />
                 <b className="grow">
-                  {ok.length} check{ok.length === 1 ? '' : 's'} passed
+                  {tn(ok.length, '{n} check passed', '{n} checks passed')}
                 </b>
-                <span className="small muted">{showOk ? 'Hide' : 'Show'}</span>
+                <span className="small muted">
+                  {showOk ? t('Hide') : t('Show')}
+                </span>
                 {showOk ? <ChevronDownIcon /> : <ChevronRightIcon />}
               </button>
               {showOk && (

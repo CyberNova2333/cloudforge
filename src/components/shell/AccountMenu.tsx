@@ -4,13 +4,20 @@ import { Avatar } from '@/components/Avatar';
 import { useTheme } from '@/components/ThemeProvider';
 import { Seg } from '@/components/ui/Seg';
 import { signOut, useCurrentUser } from '@/lib/auth';
+import { lang, setLang, t, type Lang } from '@/lib/i18n';
 import { THEMES, type Mode } from '@/lib/theme';
 import type { ShellMenu } from './AppShell';
 
 const MODES: readonly { value: Mode; label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: t('System') },
+  { value: 'light', label: t('Light') },
+  { value: 'dark', label: t('Dark') },
+];
+
+/** Each language in its own name, so it can be found whichever is showing. */
+export const LANGUAGES: readonly { value: Lang; label: string }[] = [
+  { value: 'zh', label: '中文' },
+  { value: 'en', label: 'English' },
 ];
 
 /**
@@ -37,7 +44,7 @@ export function AccountMenu({
         className="acct-btn"
         data-menu-trigger="acct"
         aria-expanded={open}
-        aria-label="Account and theme"
+        aria-label={t('Account and theme')}
         onClick={() => setMenu(open ? null : 'acct')}
       >
         <Avatar user={{ username: login, image: user.image }} size={28} />
@@ -55,62 +62,69 @@ export function AccountMenu({
           </div>
           <div className="dd-sep" />
           <div className="dd-label" id="acct-theme-label">
-            Theme
+            {t('Theme')}
           </div>
           <div
             className="theme-grid"
             role="group"
             aria-labelledby="acct-theme-label"
           >
-            {THEMES.map((t) => (
+            {THEMES.map((th) => (
               <button
-                key={t.id}
+                key={th.id}
                 type="button"
                 className="theme-opt"
-                aria-pressed={t.id === theme}
-                onClick={() => setTheme(t.id)}
+                aria-pressed={th.id === theme}
+                onClick={() => setTheme(th.id)}
               >
                 <span
                   className="theme-sw"
                   style={
                     {
-                      '--a': t.swatch[0],
-                      '--b': t.swatch[1],
+                      '--a': th.swatch[0],
+                      '--b': th.swatch[1],
                     } as React.CSSProperties
                   }
                 />
-                {t.label}
+                {th.label}
               </button>
             ))}
           </div>
-          <div className="dd-label">Appearance</div>
+          <div className="dd-label">{t('Appearance')}</div>
           <Seg
-            label="Appearance"
+            label={t('Appearance')}
             options={MODES}
             value={mode}
             onChange={setMode}
           />
+          <div className="dd-label">Language · 语言</div>
+          <Seg
+            label="Language · 语言"
+            options={LANGUAGES}
+            value={lang}
+            onChange={(next) => next !== lang && setLang(next)}
+          />
           <div className="dd-sep" />
           <Link className="ws-item" to={`/${login}`} onClick={close}>
             <span>
-              <b>Your profile</b>
+              <b>{t('Your profile')}</b>
             </span>
           </Link>
           <Link className="ws-item" to="/repos" onClick={close}>
             <span>
-              <b>Your repositories</b>
+              <b>{t('Your repositories')}</b>
             </span>
           </Link>
           <Link className="ws-item" to="/settings/tokens" onClick={close}>
             <span>
-              <b>Settings</b>
-              <span className="sub">Tokens, MCP server, emails</span>
+              <b>{t('Settings')}</b>
+              <span className="sub">{t('Tokens, MCP server, emails')}</span>
             </span>
           </Link>
           {user.role === 'admin' && (
             <Link className="ws-item" to="/admin" onClick={close}>
               <span>
-                <b>Site admin</b>
+                <b>{t('Site admin')}</b>
               </span>
             </Link>
           )}
@@ -125,7 +139,7 @@ export function AccountMenu({
             }}
           >
             <span>
-              <b>Sign out</b>
+              <b>{t('Sign out')}</b>
             </span>
           </button>
         </div>

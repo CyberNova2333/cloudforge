@@ -1,3 +1,5 @@
+import { tServer } from './i18n';
+
 export class ApiError extends Error {
   status: number;
   body: any;
@@ -43,8 +45,8 @@ export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     const b = e.body;
     if (b?.error?.issues)
-      return b.error.issues.map((i: any) => i.message).join(', ');
-    return e.message;
+      return b.error.issues.map((i: any) => tServer(i.message)).join(', ');
+    return tServer(e.message);
   }
-  return e instanceof Error ? e.message : String(e);
+  return e instanceof Error ? tServer(e.message) : String(e);
 }

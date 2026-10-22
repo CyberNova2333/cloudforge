@@ -3,6 +3,7 @@ import { ClockIcon, PersonIcon } from '@primer/octicons-react';
 import { useApprovalPages } from '@/lib/approvals';
 import { decisionCopy, pickDecision } from '@/lib/health';
 import { timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { useAgentDirectory } from '@/components/actions/RunActor';
 
@@ -14,14 +15,18 @@ function WaitingCard({ count }: { count: number }) {
         <PersonIcon size={24} />
       </span>
       <div className="hl-ask-body">
-        <span className="hl-ask-from">Waiting for a person</span>
+        <span className="hl-ask-from">{t('Waiting for a person')}</span>
         <strong>
-          {count === 1 ? '1 decision needs you' : `${count} decisions need you`}
+          {tn(count, '1 decision needs you', '{n} decisions need you')}
         </strong>
-        <p>Pull requests here are waiting for someone to approve or answer.</p>
+        <p>
+          {t(
+            'Pull requests here are waiting for someone to approve or answer.'
+          )}
+        </p>
       </div>
       <Link className="btn primary" to="/approvals">
-        Open approvals
+        {t('Open approvals')}
       </Link>
     </div>
   );
@@ -48,7 +53,7 @@ export function DecisionSlot({
         className="sk sk-block short"
         role="status"
         aria-busy="true"
-        aria-label="Loading the decision"
+        aria-label={t('Loading the decision')}
       />
     );
   const row = q.data
@@ -71,7 +76,7 @@ export function DecisionSlot({
           color={agent.color}
           status="needs"
           size={56}
-          label={`${agent.name}, waiting for you`}
+          label={t('{name}, waiting for you', { name: agent.name })}
         />
         <div className="hl-ask-body">
           <span className="hl-ask-from">{copy.from}</span>
@@ -80,25 +85,33 @@ export function DecisionSlot({
           <span className="hl-ask-meta">
             <ClockIcon size={14} />
             <span>
-              On{' '}
-              <Link to={row.prUrl}>
-                #{row.pull.number} {row.pull.title}
-              </Link>
-              , updated {timeAgo(row.pull.updatedAt)}
-              {assignee && ` · Assigned to ${assignee.name ?? assignee.login}`}
+              {tx('On {pr}, updated {time}', {
+                pr: (
+                  <Link to={row.prUrl}>
+                    #{row.pull.number} {row.pull.title}
+                  </Link>
+                ),
+                time: timeAgo(row.pull.updatedAt),
+              })}
+              {assignee &&
+                t(' · Assigned to {name}', {
+                  name: assignee.name ?? assignee.login,
+                })}
             </span>
           </span>
         </div>
         <Link className="btn primary" to={`/approvals/${row.flag.id}`}>
-          {row.flag.question ? 'Answer' : 'Decide'}
+          {row.flag.question ? t('Answer') : t('Decide')}
         </Link>
       </div>
       {more > 0 && (
         <p className="hl-more small">
           <Link to="/approvals">
-            {more === 1
-              ? '1 more decision is waiting for you'
-              : `${more} more decisions are waiting for you`}
+            {tn(
+              more,
+              '1 more decision is waiting for you',
+              '{n} more decisions are waiting for you'
+            )}
           </Link>
         </p>
       )}

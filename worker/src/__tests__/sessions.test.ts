@@ -333,8 +333,9 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
         })
       ).status
     ).toBe(404);
+    // Signed out, a repository that is not public does not exist (only public ones are readable).
     expect((await call(s.t, '/api/repos/octocat/app/sessions')).status).toBe(
-      401
+      404
     );
     expect(
       (await call(s.t, '/api/repos/octocat/app/sessions', { cookie: bob }))

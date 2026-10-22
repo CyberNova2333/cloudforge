@@ -20,6 +20,7 @@ import {
 } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
 import { fullDate, timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import {
   earlierVerb,
   reviewEntries,
@@ -46,15 +47,15 @@ export const REVIEWER_STATUS: Record<
   ReviewerStatus,
   { label: string; className: string }
 > = {
-  not_needed: { label: 'Not needed', className: 'color-fg-muted' },
-  reviewing: { label: 'Reviewing…', className: 'color-fg-muted' },
-  approved: { label: 'Approved', className: 'color-fg-success' },
-  flagged: { label: 'Needs a person', className: 'color-fg-attention' },
+  not_needed: { label: t('Not needed'), className: 'color-fg-muted' },
+  reviewing: { label: t('Reviewing…'), className: 'color-fg-muted' },
+  approved: { label: t('Approved'), className: 'color-fg-success' },
+  flagged: { label: t('Needs a person'), className: 'color-fg-attention' },
   changes_requested: {
-    label: 'Changes requested',
+    label: t('Changes requested'),
     className: 'color-fg-danger',
   },
-  failed: { label: 'Review failed', className: 'color-fg-danger' },
+  failed: { label: t('Review failed'), className: 'color-fg-danger' },
 };
 
 /** A reviewer's status as a small icon, coloured like its label. */
@@ -182,7 +183,7 @@ export function AgentReview({
       <article
         className="pr-card agent"
         id={anchor ? REVIEW_ANCHOR : undefined}
-        aria-label={`${look.name}'s review`}
+        aria-label={t("{name}'s review", { name: look.name })}
       >
         <EntryHeader {...look} status={r.status}>
           <span className="pr-verb">
@@ -196,30 +197,32 @@ export function AgentReview({
           {!r.invited && (
             <span
               className="chip off"
-              title="Removed from this repository: its review no longer counts"
+              title={t(
+                'Removed from this repository: its review no longer counts'
+              )}
             >
-              removed
+              {t('removed')}
             </span>
           )}
-          <span className="chip off">Agent</span>
+          <span className="chip off">{t('Agent')}</span>
         </EntryHeader>
         <div className="pr-card-body">
           {r.summary && <p>{r.summary}</p>}
           {r.status === 'failed' && (
             <div className="pr-failed" role="alert">
-              <span>{r.error ?? 'The review failed.'}</span>
+              <span>{r.error ?? t('The review failed.')}</span>
               {canAct && r.invited && (
                 <PendingButton
                   className="small"
                   pending={busy && acted === null}
-                  pendingLabel="Starting…"
-                  aria-label={`Retry ${look.name}'s review`}
+                  pendingLabel={t('Starting…')}
+                  aria-label={t("Retry {name}'s review", { name: look.name })}
                   onClick={() => {
                     setActed(null);
                     void run(() => api.retryReviewer(o, repo.name, n, r.id));
                   }}
                 >
-                  Retry
+                  {t('Retry')}
                 </PendingButton>
               )}
             </div>
@@ -240,18 +243,22 @@ export function AgentReview({
                       f.approvedAt
                         ? {
                             label: withVia(
-                              f.approvedBy?.username ?? 'a former user',
+                              f.approvedBy?.username ?? t('a former user'),
                               f.approvedVia ?? f.decidedVia
                             ),
                             user: f.approvedBy,
                           }
                         : approved.has(f.id)
-                          ? { label: 'you', user: null }
+                          ? { label: t('you'), user: null }
                           : null
                     }
                     changesRequester={
                       localNote !== undefined
-                        ? { label: 'you', user: null, note: localNote || null }
+                        ? {
+                            label: t('you'),
+                            user: null,
+                            note: localNote || null,
+                          }
                         : serverChangesRequester(f)
                     }
                     canApprove={canAct}
@@ -301,24 +308,30 @@ export function AgentReview({
           )}
           <footer className="pr-card-foot">
             <span>
-              of <code>{d.review!.headSha.slice(0, 7)}</code>
+              {tx('of {sha}', {
+                sha: <code>{d.review!.headSha.slice(0, 7)}</code>,
+              })}
             </span>
             {r.probability !== null && (
-              <span title="Clef's probability that this change concerns the agent">
-                requested at Clef {pct(r.probability)}
+              <span
+                title={t(
+                  "Clef's probability that this change concerns the agent"
+                )}
+              >
+                {t('requested at Clef {pct}', { pct: pct(r.probability) })}
               </span>
             )}
             {r.agentSha &&
               (r.agentRepository ? (
                 <Link
                   to={`/${r.agentRepository}/commit/${r.agentSha}`}
-                  title="The agent's commit this review used"
+                  title={t("The agent's commit this review used")}
                 >
                   AGENT.md @{' '}
                   <span className="mono">{r.agentSha.slice(0, 7)}</span>
                 </Link>
               ) : (
-                <span title="The agent's commit this review used">
+                <span title={t("The agent's commit this review used")}>
                   AGENT.md @ <code>{r.agentSha.slice(0, 7)}</code>
                 </span>
               ))}
@@ -349,7 +362,7 @@ function ReadOnlyFlag({
         f.approvedAt
           ? {
               label: withVia(
-                f.approvedBy?.username ?? 'a former user',
+                f.approvedBy?.username ?? t('a former user'),
                 f.approvedVia ?? f.decidedVia
               ),
               user: f.approvedBy,
@@ -398,34 +411,46 @@ export function EarlierReview({
       </Link>
       <article
         className="pr-card agent earlier"
-        aria-label={`${look.name}'s review of an earlier commit`}
+        aria-label={t("{name}'s review of an earlier commit", {
+          name: look.name,
+        })}
       >
         <EntryHeader {...look} status={r.status}>
           <span className="pr-verb">
             <StatusIcon status={r.status} />
-            {earlierVerb(r)} on{' '}
-            <Link to={`/${repo.fullName}/commit/${r.headSha}`} className="mono">
-              {r.headSha.slice(0, 7)}
-            </Link>
-            , an earlier commit
+            {tx('{verb} on {sha}, an earlier commit', {
+              verb: earlierVerb(r),
+              sha: (
+                <Link
+                  to={`/${repo.fullName}/commit/${r.headSha}`}
+                  className="mono"
+                >
+                  {r.headSha.slice(0, 7)}
+                </Link>
+              ),
+            })}
           </span>
           <time dateTime={at} title={fullDate(at)} className="muted">
             {timeAgo(at)}
           </time>
           <span className="grow" />
-          <span className="chip off">Agent</span>
+          <span className="chip off">{t('Agent')}</span>
         </EntryHeader>
         <div className="pr-card-body">
           {r.summary && <p className="muted">{r.summary}</p>}
           {r.status === 'failed' && (
             <div className="pr-failed">
-              <span>{r.error ?? 'The review failed.'}</span>
+              <span>{r.error ?? t('The review failed.')}</span>
             </div>
           )}
           {n > 0 && (
             <details className="pr-earlier">
               <summary>
-                {n} finding{n === 1 ? '' : 's'} on this earlier commit
+                {tn(
+                  n,
+                  '{n} finding on this earlier commit',
+                  '{n} findings on this earlier commit'
+                )}
               </summary>
               <div className="pr-flags">
                 {r.flags.map((f) => (
@@ -516,15 +541,16 @@ export function PersonApprovals({
                 {withVia(a.user.username, a.via)}
               </span>
             ))}
-            <span className="pr-ok">approved this commit</span>
+            <span className="pr-ok">{t('approved this commit')}</span>
           </p>
         ) : (
-          <p className="muted">No person has approved this commit.</p>
+          <p className="muted">{t('No person has approved this commit.')}</p>
         )}
         {canAct && !mine && changeRequested && (
           <p className="pr-warn small">
-            Approving does not override an agent&apos;s change request: dismiss
-            it, or push a fix.
+            {t(
+              "Approving does not override an agent's change request: dismiss it, or push a fix."
+            )}
           </p>
         )}
         <PanelError error={error} />
@@ -541,18 +567,22 @@ export function PersonApprovals({
               )
             }
           >
-            Withdraw approval
+            {t('Withdraw approval')}
           </button>
         ) : (
           <button
             type="button"
             className="btn small"
             disabled={!d.headSha || busy}
-            aria-label="Approve this commit"
+            aria-label={t('Approve this commit')}
             title={
               outstanding
-                ? 'Approving stands over findings from unguarded agents and failed or unfinished reviews. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
-                : 'Approve this commit. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                ? t(
+                    'Approving stands over findings from unguarded agents and failed or unfinished reviews. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                  )
+                : t(
+                    'Approve this commit. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                  )
             }
             onClick={() =>
               decide(true, () =>
@@ -561,7 +591,7 @@ export function PersonApprovals({
             }
           >
             <ShieldCheckIcon size={14} />
-            Approve
+            {t('Approve')}
           </button>
         ))}
     </div>
@@ -593,9 +623,9 @@ export function ReviewersSidebar({
   const others = review.reviewers.filter((r) => !requested.includes(r));
   const progress =
     review.status === 'summarizing'
-      ? 'Summarizing each changed file…'
+      ? t('Summarizing each changed file…')
       : review.status === 'triggering'
-        ? 'Asking which agents this concerns…'
+        ? t('Asking which agents this concerns…')
         : null;
   return (
     <section
@@ -604,9 +634,11 @@ export function ReviewersSidebar({
       aria-labelledby="pr-reviews-title"
     >
       <div className="pr-panel-head">
-        <h2 id="pr-reviews-title">Reviews</h2>
+        <h2 id="pr-reviews-title">{t('Reviews')}</h2>
         <span className="muted small">
-          of <code>{review.headSha.slice(0, 7)}</code>
+          {tx('of {sha}', {
+            sha: <code>{review.headSha.slice(0, 7)}</code>,
+          })}
         </span>
         <span className="grow" />
         <AgentRunLink
@@ -625,29 +657,37 @@ export function ReviewersSidebar({
       {review.status === 'failed' && (
         <div className="pr-failed" role="alert">
           <span>
-            The review failed: {review.errorMessage ?? 'unknown error'}
+            {t('The review failed: {message}', {
+              message: review.errorMessage ?? t('unknown error'),
+            })}
           </span>
           {canAct && (
             <PendingButton
               className="small"
               pending={busy}
-              pendingLabel="Starting…"
+              pendingLabel={t('Starting…')}
               onClick={() =>
                 run(() =>
                   api.retryReview(repo.owner.username, repo.name, d.pull.number)
                 )
               }
             >
-              Try the review again
+              {t('Try the review again')}
             </PendingButton>
           )}
         </div>
       )}
       {!review.agentsInvited && !review.reviewers.length && (
         <p className="muted small">
-          No agent reviews this repository, so a person approves each commit.{' '}
-          {d.canMerge && (
-            <Link to={`/${repo.fullName}/settings`}>Invite agents</Link>
+          {tx(
+            'No agent reviews this repository, so a person approves each commit. {link}',
+            {
+              link: d.canMerge ? (
+                <Link to={`/${repo.fullName}/settings`}>
+                  {t('Invite agents')}
+                </Link>
+              ) : null,
+            }
           )}
         </p>
       )}
@@ -655,8 +695,9 @@ export function ReviewersSidebar({
         review.status === 'done' &&
         !requested.length && (
           <p className="muted small">
-            No invited agent was needed for this commit, so a person approves
-            it.
+            {t(
+              'No invited agent was needed for this commit, so a person approves it.'
+            )}
           </p>
         )}
       {requested.length > 0 && (
@@ -679,29 +720,38 @@ export function ReviewersSidebar({
                     {!r.invited && (
                       <span
                         className="chip off"
-                        title="Removed from this repository: its review no longer counts"
+                        title={t(
+                          'Removed from this repository: its review no longer counts'
+                        )}
                       >
-                        removed
+                        {t('removed')}
                       </span>
                     )}
                   </span>
                   {r.probability !== null && (
                     <span
                       className="muted small"
-                      title="Clef's probability that this change concerns the agent"
+                      title={t(
+                        "Clef's probability that this change concerns the agent"
+                      )}
                     >
-                      Requested at Clef {pct(r.probability)}
+                      {t('Requested at Clef {pct}', {
+                        pct: pct(r.probability),
+                      })}
                     </span>
                   )}
                 </span>
                 <a
                   href={`#${reviewEntryId(r)}`}
                   className="pr-rv-state"
-                  title={`Go to ${look.name}'s review${
+                  title={
                     r.probability !== null
-                      ? ` (requested at Clef ${pct(r.probability)})`
-                      : ''
-                  }`}
+                      ? t("Go to {name}'s review (requested at Clef {pct})", {
+                          name: look.name,
+                          pct: pct(r.probability),
+                        })
+                      : t("Go to {name}'s review", { name: look.name })
+                  }
                 >
                   <Chip status={r.status} />
                 </a>
@@ -712,7 +762,7 @@ export function ReviewersSidebar({
       )}
       {others.length > 0 && (
         <details className="pr-notneeded">
-          <summary>Not needed ({others.length})</summary>
+          <summary>{t('Not needed ({n})', { n: others.length })}</summary>
           <ul>
             {others.map((r) => {
               const look = lookOf(r.agent);
@@ -732,12 +782,14 @@ export function ReviewersSidebar({
                     className="muted small"
                     title={
                       r.probability !== null
-                        ? "Clef's probability that this change concerns the agent"
+                        ? t(
+                            "Clef's probability that this change concerns the agent"
+                          )
                         : undefined
                     }
                   >
                     {r.probability !== null
-                      ? `Clef: ${pct(r.probability)}`
+                      ? t('Clef: {pct}', { pct: pct(r.probability) })
                       : (r.summary ?? '')}
                   </span>
                 </li>
@@ -748,13 +800,17 @@ export function ReviewersSidebar({
       )}
       {d.approvals.length > 0 && (
         <div className="pr-approved">
-          <h3 className="pr-subhead">Approved by</h3>
+          <h3 className="pr-subhead">{t('Approved by')}</h3>
           <ul>
             {d.approvals.map((a) => (
               <li key={a.user.id} title={fullDate(a.createdAt)}>
                 <Avatar user={a.user} size={20} />
                 <Link to={`/${a.user.username}`}>{a.user.username}</Link>
-                {a.via && <span className="muted small">via {a.via}</span>}
+                {a.via && (
+                  <span className="muted small">
+                    {t('via {via}', { via: a.via })}
+                  </span>
+                )}
                 <span className="grow" />
                 <CheckCircleIcon size={14} className="pr-ok" />
               </li>

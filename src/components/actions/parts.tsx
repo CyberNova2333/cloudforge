@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { agentKindLabel, AGENT_RUN_KINDS } from '@/lib/agentRuns';
+import { t } from '@/lib/i18n';
 import type { AgentRunKind } from '@/lib/uiApi';
 
 /** The title block of a run page: an optional lead (a status mark or an avatar), the title, a line under it. */
@@ -46,7 +47,7 @@ export function Pager({
   note?: ReactNode;
 }) {
   return (
-    <nav className="act-pager" aria-label="Pagination">
+    <nav className="act-pager" aria-label={t('Pagination')}>
       <button
         type="button"
         className="btn small"
@@ -102,11 +103,11 @@ export function KindFilter({
 }) {
   return (
     <FilterLinks
-      label="Kind of agent run"
+      label={t('Kind of agent run')}
       items={[
         {
           key: 'all',
-          label: 'All',
+          label: t('All'),
           to: `${base}/actions?agent=all`,
           current: current === null,
         },

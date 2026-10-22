@@ -22,6 +22,7 @@ import {
 } from '@/lib/uiApi';
 import { WATCH_REFETCH_MS } from '@/lib/live';
 import { timeAgo } from '@/lib/format';
+import { t, tn } from '@/lib/i18n';
 import { pullsHref } from '@/lib/pullsView';
 import {
   boardLanes,
@@ -86,9 +87,11 @@ function Card({
           <>
             {' '}
             <span className="muted" title={blocker.more.join('\n')}>
-              +{more} more
+              {t('+{n} more', { n: more })}
             </span>
-            <span className="sr">: {blocker.more.join('; ')}</span>
+            <span className="sr">
+              {t(': {list}', { list: blocker.more.join(t('; ')) })}
+            </span>
           </>
         )}
       </p>
@@ -116,11 +119,13 @@ function Card({
           checks={pull.headSha ? checks?.[pull.headSha] : undefined}
         />
         <AiResolutionBadge state={pull.aiResolution} />
-        <span className="prcard-age">opened {timeAgo(pull.createdAt)}</span>
+        <span className="prcard-age">
+          {t('opened {when}', { when: timeAgo(pull.createdAt) })}
+        </span>
         {pull.commentCount > 0 && (
           <span
             className="prcard-comments"
-            title={`${pull.commentCount} comment${pull.commentCount === 1 ? '' : 's'}`}
+            title={tn(pull.commentCount, '{n} comment', '{n} comments')}
           >
             <CommentIcon size={13} />
             {pull.commentCount}
@@ -132,11 +137,15 @@ function Card({
 }
 
 function MergedCard({ pull, base }: { pull: Pull; base: string }) {
-  const by = pull.mergedAutomatically
-    ? 'automatically'
+  const when = timeAgo(pull.mergedAt!);
+  const merged = pull.mergedAutomatically
+    ? t('Merged {when} automatically', { when })
     : pull.mergedBy
-      ? `by ${pull.mergedBy.name || pull.mergedBy.username}`
-      : '';
+      ? t('Merged {when} by {name}', {
+          when,
+          name: pull.mergedBy.name || pull.mergedBy.username,
+        })
+      : t('Merged {when}', { when });
   return (
     <article className="prcard merged">
       <h4 className="prcard-title">
@@ -154,8 +163,7 @@ function MergedCard({ pull, base }: { pull: Pull; base: string }) {
       <div className="prcard-foot">
         <span className="prcard-eta">
           <GitMergeIcon size={13} />
-          Merged {timeAgo(pull.mergedAt!)}
-          {by && ` ${by}`}
+          {merged}
         </span>
       </div>
     </article>
@@ -165,7 +173,12 @@ function MergedCard({ pull, base }: { pull: Pull; base: string }) {
 /** Placeholder lanes for the board's first load. */
 export function BoardSkeleton() {
   return (
-    <div className="lanes" role="status" aria-busy="true" aria-label="Loading">
+    <div
+      className="lanes"
+      role="status"
+      aria-busy="true"
+      aria-label={t('Loading')}
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="lane">
           <div className="sk sk-line w50" />
@@ -191,24 +204,26 @@ function MergedLane({
   query: { isError: boolean; data: unknown; refetch(): unknown };
 }) {
   return (
-    <section className="lane lane-merged" aria-label="Merged recently">
+    <section className="lane lane-merged" aria-label={t('Merged recently')}>
       <h3>
         <GitMergeIcon size={14} />
-        Merged recently
+        {t('Merged recently')}
         {/* Not a count pill: it is the newest few, not how many have merged. */}
         {merged.length > 0 && (
-          <span className="lane-note">Latest {merged.length}</span>
+          <span className="lane-note">
+            {t('Latest {n}', { n: merged.length })}
+          </span>
         )}
       </h3>
       {query.isError ? (
         <p className="muted small" role="status">
-          Merged pull requests did not load.{' '}
+          {t('Merged pull requests did not load.')}{' '}
           <button
             type="button"
             className="btn small quiet"
             onClick={() => void query.refetch()}
           >
-            Retry
+            {t('Retry')}
           </button>
         </p>
       ) : !query.data ? (
@@ -226,13 +241,13 @@ function MergedLane({
                 to={pullsHref(base, { view: 'list', state: 'closed' })}
                 className="lane-all"
               >
-                See all {total} merged
+                {t('See all {n} merged', { n: total })}
               </Link>
             </li>
           )}
         </ul>
       ) : (
-        <p className="muted small">Nothing has merged yet.</p>
+        <p className="muted small">{t('Nothing has merged yet.')}</p>
       )}
     </section>
   );
@@ -252,7 +267,7 @@ function PauseControl({ repo, resume }: { repo: RepoDetail; resume: boolean }) {
     <PendingButton
       className="small"
       pending={busy}
-      pendingLabel={resume ? 'Resuming…' : 'Pausing…'}
+      pendingLabel={resume ? t('Resuming…') : t('Pausing…')}
       error={error}
       onClick={() =>
         run(() =>
@@ -263,7 +278,7 @@ function PauseControl({ repo, resume }: { repo: RepoDetail; resume: boolean }) {
       }
     >
       {resume ? <PlayIcon size={14} /> : <PauseIcon size={14} />}
-      {resume ? 'Resume merging' : 'Pause merging'}
+      {resume ? t('Resume merging') : t('Pause merging')}
     </PendingButton>
   );
 }
@@ -301,14 +316,14 @@ export function PullBoard({ repo }: { repo: RepoDetail }) {
         <QueryError
           error={open.error}
           onRetry={() => void open.refetch()}
-          title="Pull requests did not load"
+          title={t('Pull requests did not load')}
         />
       </div>
     );
   if (!pulls) return <BoardSkeleton />;
 
   const { lanes, paused } = boardLanes(pulls, queue.data ?? []);
-  const pause = queue.data?.find((t) => t.paused)?.paused;
+  const pause = queue.data?.find((target) => target.paused)?.paused;
   const mergedLane = (
     <MergedLane
       merged={merged.data?.pulls ?? []}
@@ -334,23 +349,28 @@ export function PullBoard({ repo }: { repo: RepoDetail }) {
             ) : undefined
           }
         >
-          Merging is paused
           {pause
-            ? ` by ${pause.by.name || pause.by.login}, ${timeAgo(new Date(pause.at))}`
-            : ''}
-          . Nothing lands until it is resumed.
+            ? t(
+                'Merging is paused by {name}, {when}. Nothing lands until it is resumed.',
+                {
+                  name: pause.by.name || pause.by.login,
+                  when: timeAgo(new Date(pause.at)),
+                }
+              )
+            : t('Merging is paused. Nothing lands until it is resumed.')}
         </Banner>
       )}
       {queue.isError && (
         <p className="prboard-note muted small" role="status">
-          Blockers and estimates did not load, so cards say only what each pull
-          request reports.{' '}
+          {t(
+            'Blockers and estimates did not load, so cards say only what each pull request reports.'
+          )}{' '}
           <button
             type="button"
             className="btn small quiet"
             onClick={() => void queue.refetch()}
           >
-            Retry
+            {t('Retry')}
           </button>
         </p>
       )}
@@ -359,12 +379,14 @@ export function PullBoard({ repo }: { repo: RepoDetail }) {
           <div className="panel">
             <EmptyState
               picture={<GitPullRequestIcon size={24} />}
-              title="No open pull requests"
-              body="When a coding agent or a person opens one, it shows up here with who is reviewing it and when it should land."
+              title={t('No open pull requests')}
+              body={t(
+                'When a coding agent or a person opens one, it shows up here with who is reviewing it and when it should land.'
+              )}
               action={
                 repo.permissions.write ? (
                   <Link to={`${base}/compare`} className="btn primary small">
-                    New pull request
+                    {t('New pull request')}
                   </Link>
                 ) : undefined
               }
@@ -408,7 +430,7 @@ export function PullBoard({ repo }: { repo: RepoDetail }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted small">None</p>
+                  <p className="muted small">{t('None')}</p>
                 )}
               </section>
             );

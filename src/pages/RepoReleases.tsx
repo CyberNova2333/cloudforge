@@ -11,6 +11,7 @@ import {
 } from '@/lib/uiApi';
 import { ApiError, errorMessage } from '@/lib/api';
 import { fullDate, shortSha, timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import { bumpLabel, isVersion } from '@/lib/versionBump';
 import { refreshDraft, suggestedDraft } from '@/lib/releaseDraft';
 import { Markdown } from '@/components/Markdown';
@@ -21,9 +22,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHead } from '@/components/ui/PageHead';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { Section } from '@/components/ui/Section';
-
-const plural = (n: number, one: string, many: string) =>
-  `${n} ${n === 1 ? one : many}`;
 
 /**
  * Releases (`/:owner/:repo/releases`): the Unreleased section (what has landed on the default branch since the
@@ -37,20 +35,17 @@ export default function RepoReleases() {
     <>
       <PageHead
         icon="tag"
-        crumbs={[{ label: 'Releases' }]}
-        title="Releases"
+        crumbs={[{ label: t('Releases') }]}
+        title={t('Releases')}
         tab="releases"
-        lede={
-          <>
-            Each pull request says what it does to the version. Cut a release
-            when what has landed on <code>{repo.defaultBranch}</code> is ready;
-            the releases below are the changelog.
-          </>
-        }
+        lede={tx(
+          'Each pull request says what it does to the version. Cut a release when what has landed on {branch} is ready; the releases below are the changelog.',
+          { branch: <code>{repo.defaultBranch}</code> }
+        )}
         actions={
           <Link to={`${base}/tags`} className="btn">
             <TagIcon size={16} />
-            Tags
+            {t('Tags')}
           </Link>
         }
       />
@@ -69,10 +64,12 @@ function Unreleased({ repo }: { repo: RepoDetail }) {
   const u = q.data;
   return (
     <Section
-      title="Unreleased"
+      title={t('Unreleased')}
       actions={
         u?.latest ? (
-          <span className="muted small">since {u.latest}</span>
+          <span className="muted small">
+            {t('since {version}', { version: u.latest ?? '' })}
+          </span>
         ) : undefined
       }
     >
@@ -81,7 +78,7 @@ function Unreleased({ repo }: { repo: RepoDetail }) {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="The unreleased changes did not load"
+            title={t('The unreleased changes did not load')}
           />
         </div>
       ) : !u ? (
@@ -90,11 +87,16 @@ function Unreleased({ repo }: { repo: RepoDetail }) {
         <div className="panel">
           <EmptyState
             picture={<TagIcon size={24} />}
-            title="Nothing to release"
+            title={t('Nothing to release')}
             body={
               u.latest
-                ? `Nothing has landed on ${repo.defaultBranch} since ${u.latest}.`
-                : `No pull request has landed on ${repo.defaultBranch} yet.`
+                ? t('Nothing has landed on {branch} since {version}.', {
+                    branch: repo.defaultBranch,
+                    version: u.latest ?? '',
+                  })
+                : t('No pull request has landed on {branch} yet.', {
+                    branch: repo.defaultBranch,
+                  })
             }
           />
         </div>
@@ -110,7 +112,10 @@ function Unreleased({ repo }: { repo: RepoDetail }) {
                       {p.title}
                     </Link>{' '}
                     <span className="muted small">
-                      #{p.number} by {p.author}
+                      {t('#{number} by {author}', {
+                        number: p.number,
+                        author: p.author,
+                      })}
                     </span>
                   </span>
                   <Chip tone={p.bump ? 'info' : 'off'}>
@@ -122,14 +127,15 @@ function Unreleased({ repo }: { repo: RepoDetail }) {
           ) : (
             <p className="rel-count">
               <strong>
-                {plural(
+                {tn(
                   u.pulls.length,
-                  'pull request has',
-                  'pull requests have'
+                  '{n} pull request has',
+                  '{n} pull requests have'
                 )}
               </strong>{' '}
-              landed. The first release is a starting line: it records them
-              without listing them, and the changelog starts from there.
+              {t(
+                'landed. The first release is a starting line: it records them without listing them, and the changelog starts from there.'
+              )}
             </p>
           )}
           <CutRelease repo={repo} u={u} refetch={() => q.refetch()} />
@@ -202,13 +208,19 @@ function CutRelease({
 
   const typed = version.trim();
   const valid = isVersion(typed);
-  const label = first ? 'Cut first release' : `Cut ${u.next ?? 'release'}`;
+  const label = first
+    ? t('Cut first release')
+    : u.next
+      ? t('Cut {version}', { version: u.next })
+      : t('Cut release');
 
   return (
     <div className="rel-cut">
       {!first && (
         <p className="rel-next">
-          Next: <strong className="mono">{u.next ?? '—'}</strong>
+          {tx('Next: {version}', {
+            version: <strong className="mono">{u.next ?? '—'}</strong>,
+          })}
         </p>
       )}
       {!write ? null : !open ? (
@@ -217,7 +229,7 @@ function CutRelease({
           className="btn primary"
           onClick={start}
           disabled={!u.head}
-          title={u.head ? undefined : 'The default branch has no commits'}
+          title={u.head ? undefined : t('The default branch has no commits')}
         >
           <TagIcon size={16} />
           {label}
@@ -236,7 +248,7 @@ function CutRelease({
             </p>
           )}
           <div className="fld rel-version">
-            <label htmlFor="rel-version">Version</label>
+            <label htmlFor="rel-version">{t('Version')}</label>
             <input
               id="rel-version"
               className="form-control mono"
@@ -250,18 +262,23 @@ function CutRelease({
             />
             <span id="rel-version-hint" className="hint">
               {typed && !valid
-                ? 'A version is vX.Y.Z, like v0.1.0.'
+                ? t('A version is vX.Y.Z, like v0.1.0.')
                 : first
-                  ? 'The version to start from. Later ones follow from each pull request’s bump.'
-                  : `Tags the head of ${repo.defaultBranch}. A version you type must be higher than ${u.latest}.`}
+                  ? t(
+                      'The version to start from. Later ones follow from each pull request’s bump.'
+                    )
+                  : t(
+                      'Tags the head of {branch}. A version you type must be higher than {version}.',
+                      { branch: repo.defaultBranch, version: u.latest ?? '' }
+                    )}
             </span>
           </div>
           <div className="fld">
-            <span className="lbl">Notes</span>
+            <span className="lbl">{t('Notes')}</span>
             <MarkdownEditor
               value={notes}
               onChange={setNotes}
-              placeholder="What this release changes"
+              placeholder={t('What this release changes')}
               minHeight={160}
             />
           </div>
@@ -272,16 +289,16 @@ function CutRelease({
               onClick={() => setOpen(false)}
               disabled={busy}
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <PendingButton
               type="submit"
               className="primary"
               pending={busy}
-              pendingLabel="Cutting…"
+              pendingLabel={t('Cutting…')}
               disabled={!valid}
             >
-              {valid ? `Cut ${typed}` : label}
+              {valid ? t('Cut {version}', { version: typed }) : label}
             </PendingButton>
           </div>
         </form>
@@ -299,11 +316,11 @@ function Changelog({ repo }: { repo: RepoDetail }) {
   const list = q.data;
   return (
     <Section
-      title="Releases"
+      title={t('Releases')}
       actions={
         list?.length ? (
           <span className="muted small">
-            {plural(list.length, 'release', 'releases')}
+            {tn(list.length, '{n} release', '{n} releases')}
           </span>
         ) : undefined
       }
@@ -313,7 +330,7 @@ function Changelog({ repo }: { repo: RepoDetail }) {
           <QueryError
             error={q.error}
             onRetry={() => void q.refetch()}
-            title="The releases did not load"
+            title={t('The releases did not load')}
           />
         </div>
       ) : !list ? (
@@ -322,8 +339,10 @@ function Changelog({ repo }: { repo: RepoDetail }) {
         <div className="panel">
           <EmptyState
             picture={<TagIcon size={24} />}
-            title="No releases yet"
-            body="Once a release is cut, its notes appear here, newest first."
+            title={t('No releases yet')}
+            body={t(
+              'Once a release is cut, its notes appear here, newest first.'
+            )}
           />
         </div>
       ) : (
@@ -371,7 +390,9 @@ function ReleaseEntry({
           </time>
           {r.createdBy && (
             <span>
-              by <Link to={`/${r.createdBy}`}>{r.createdBy}</Link>
+              {tx('by {name}', {
+                name: <Link to={`/${r.createdBy}`}>{r.createdBy}</Link>,
+              })}
             </span>
           )}
           <Link to={`${base}/commit/${r.commitSha}`} className="mono">
@@ -382,7 +403,7 @@ function ReleaseEntry({
       {r.notes.trim() ? (
         <Markdown source={r.notes} className="rel-notes" />
       ) : (
-        <p className="muted small">No notes.</p>
+        <p className="muted small">{t('No notes.')}</p>
       )}
     </article>
   );

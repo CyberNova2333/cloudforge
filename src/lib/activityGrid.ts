@@ -2,6 +2,7 @@
  * An agent's activity as a contribution grid: one square per UTC day, a column per week (Sunday to Saturday), the
  * shade of a square its reviews that day against the busiest day. Pure layout; `ActivityGrid` draws it.
  */
+import { t, tn } from './i18n';
 
 export type ActivityLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -26,18 +27,18 @@ export interface ActivityGrid {
 }
 
 const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
+  t('Jan'),
+  t('Feb'),
+  t('Mar'),
+  t('Apr'),
+  t('May'),
+  t('Jun'),
+  t('Jul'),
+  t('Aug'),
+  t('Sep'),
+  t('Oct'),
+  t('Nov'),
+  t('Dec'),
 ];
 /** A month name is about two columns wide: a label closer than this to the next one is left out. */
 const MIN_LABEL_GAP = 3;
@@ -92,18 +93,25 @@ export function activityGrid(
   return { columns, months, max, total };
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const reviewCount = (n: number) => tn(n, '{n} review', '{n} reviews');
 
 /** "Oct 8: 3 reviews" (the square's tooltip). */
 export function activityTitle(cell: ActivityCell): string {
   const month = MONTHS[Number(cell.date.slice(5, 7)) - 1];
   const day = Number(cell.date.slice(8, 10));
-  return `${month} ${day}: ${cell.reviews === 0 ? 'no reviews' : plural(cell.reviews, 'review')}`;
+  return t('{month} {day}: {reviews}', {
+    month,
+    day,
+    reviews: cell.reviews === 0 ? t('no reviews') : reviewCount(cell.reviews),
+  });
 }
 
 /** "41 reviews in the last 26 weeks": what the grid says, for a screen reader. */
 export function activitySummary(days: number, total: number): string {
-  const span = days % 7 === 0 ? plural(days / 7, 'week') : plural(days, 'day');
-  const what = total === 0 ? 'No reviews' : plural(total, 'review');
-  return `${what} in the last ${span}`;
+  const span =
+    days % 7 === 0
+      ? tn(days / 7, '{n} week', '{n} weeks')
+      : tn(days, '{n} day', '{n} days');
+  const what = total === 0 ? t('No reviews') : reviewCount(total);
+  return t('{what} in the last {span}', { what, span });
 }

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircleIcon, MailIcon } from '@primer/octicons-react';
 import { api, qk, type AlternateEmail } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
+import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Chip } from '@/components/ui/Chip';
 import { PendingButton } from '@/components/ui/PendingButton';
@@ -23,8 +24,14 @@ export default function SettingsEmails() {
   const sentNotice = (to: string, emailed: boolean) =>
     setNotice(
       emailed
-        ? `We sent a verification link to ${to}. Open it while signed in to finish.`
-        : `${to} was added, but the verification email could not be sent. Try "Resend" later.`
+        ? t(
+            'We sent a verification link to {email}. Open it while signed in to finish.',
+            { email: to }
+          )
+        : t(
+            '{email} was added, but the verification email could not be sent. Try "Resend" later.',
+            { email: to }
+          )
     );
   const add = useMutation({
     mutationFn: () =>
@@ -62,32 +69,28 @@ export default function SettingsEmails() {
       <PageHead
         icon="mail"
         crumbs={[
-          { label: 'Settings', to: '/settings/tokens' },
-          { label: 'Emails' },
+          { label: t('Settings'), to: '/settings/tokens' },
+          { label: t('Emails') },
         ]}
-        title="Emails"
-        lede={
-          <>
-            Commits whose author or committer email is one of these are linked
-            to your profile. Add the addresses you set as{' '}
-            <code>user.email</code> in git. Other addresses must be verified
-            before they count.
-          </>
-        }
+        title={t('Emails')}
+        lede={tx(
+          'Commits whose author or committer email is one of these are linked to your profile. Add the addresses you set as {code} in git. Other addresses must be verified before they count.',
+          { code: <code>user.email</code> }
+        )}
       />
       <SettingsFrame>
         {data && !data.emailConfigured && (
           <Notice tone="warn">
-            This instance cannot send email, so verification links can&apos;t be
-            delivered and new addresses stay unverified. Ask a site admin to
-            configure email sending.
+            {t(
+              "This instance cannot send email, so verification links can't be delivered and new addresses stay unverified. Ask a site admin to configure email sending."
+            )}
           </Notice>
         )}
         {notice && <Notice tone="info">{notice}</Notice>}
         {error && <Notice tone="bad">{error}</Notice>}
-        <section className="panel" aria-label="Your email addresses">
+        <section className="panel" aria-label={t('Your email addresses')}>
           <div className="pad">
-            <h2>Email addresses</h2>
+            <h2>{t('Email addresses')}</h2>
           </div>
           {emails.isPending ? (
             <div className="pad">
@@ -96,7 +99,7 @@ export default function SettingsEmails() {
           ) : emails.isError ? (
             <div className="pad">
               <LoadError
-                what="your email addresses"
+                what={t('your email addresses')}
                 error={emails.error}
                 onRetry={() => emails.refetch()}
               />
@@ -107,10 +110,12 @@ export default function SettingsEmails() {
                 <MailIcon className="ic" />
                 <div className="grow">
                   <b className="wrap">{data!.primary}</b>
-                  <span className="muted small">Your account email.</span>
+                  <span className="muted small">
+                    {t('Your account email.')}
+                  </span>
                 </div>
                 <div className="ctl">
-                  <Chip tone="info">Primary</Chip>
+                  <Chip tone="info">{t('Primary')}</Chip>
                 </div>
               </li>
               {data!.alternates.map((e) => (
@@ -133,10 +138,10 @@ export default function SettingsEmails() {
               add.mutate();
             }}
           >
-            <h3 className="formtitle">Add an email address</h3>
+            <h3 className="formtitle">{t('Add an email address')}</h3>
             <div className="frow">
               <div className="fld grow2">
-                <label htmlFor="email-address">Email address</label>
+                <label htmlFor="email-address">{t('Email address')}</label>
                 <input
                   id="email-address"
                   type="email"
@@ -150,13 +155,13 @@ export default function SettingsEmails() {
               </div>
               <div className="fld">
                 <label htmlFor="email-label">
-                  Label <span className="muted">(optional)</span>
+                  {t('Label')} <span className="muted">{t('(optional)')}</span>
                 </label>
                 <input
                   id="email-label"
                   className="form-control"
                   maxLength={40}
-                  placeholder="Work, Personal…"
+                  placeholder={t('Work, Personal…')}
                   value={label}
                   onChange={(ev) => setLabel(ev.target.value)}
                 />
@@ -165,14 +170,15 @@ export default function SettingsEmails() {
                 type="submit"
                 className="primary"
                 pending={add.isPending}
-                pendingLabel="Adding…"
+                pendingLabel={t('Adding…')}
               >
-                Add
+                {t('Add')}
               </PendingButton>
             </div>
             <p className="small muted">
-              We send a link to verify it. Open the link while you are signed
-              in.
+              {t(
+                'We send a link to verify it. Open the link while you are signed in.'
+              )}
             </p>
           </form>
         </section>
@@ -225,8 +231,8 @@ function EmailRow({
               <input
                 className="form-control input-sm"
                 maxLength={40}
-                placeholder="Label"
-                aria-label={`Label for ${e.email}`}
+                placeholder={t('Label')}
+                aria-label={t('Label for {email}', { email: e.email })}
                 value={label}
                 autoFocus
                 onChange={(ev) => setLabel(ev.target.value)}
@@ -237,14 +243,14 @@ function EmailRow({
                 pending={save.isPending}
                 error={save.isError ? errorMessage(save.error) : null}
               >
-                Save
+                {t('Save')}
               </PendingButton>
               <button
                 type="button"
                 className="btn small quiet"
                 onClick={() => setEditing(false)}
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </form>
           ) : (
@@ -256,7 +262,9 @@ function EmailRow({
                 setEditing(true);
               }}
             >
-              {e.label ? `Label: ${e.label}` : 'Add label'}
+              {e.label
+                ? t('Label: {label}', { label: e.label })
+                : t('Add label')}
             </button>
           )}
         </div>
@@ -264,35 +272,37 @@ function EmailRow({
       <div className="ctl">
         {e.verified ? (
           <Chip tone="good" icon={<CheckCircleIcon size={12} />}>
-            Verified
+            {t('Verified')}
           </Chip>
         ) : (
           <Chip
             tone="warn"
             title={
               expired
-                ? 'The link expired; anyone may now claim this address. Resend to keep it.'
-                : 'Open the link we emailed to verify'
+                ? t(
+                    'The link expired; anyone may now claim this address. Resend to keep it.'
+                  )
+                : t('Open the link we emailed to verify')
             }
           >
-            Unverified{expired ? ' · link expired' : ''}
+            {expired ? t('Unverified · link expired') : t('Unverified')}
           </Chip>
         )}
         {!e.verified && (
           <PendingButton
             className="small"
             pending={resending}
-            pendingLabel="Sending…"
+            pendingLabel={t('Sending…')}
             onClick={onResend}
           >
-            Resend
+            {t('Resend')}
           </PendingButton>
         )}
         <InlineConfirm
-          label="Delete"
-          confirmLabel="Delete address"
-          pendingLabel="Deleting…"
-          accessibleName={`Delete ${e.email}`}
+          label={t('Delete')}
+          confirmLabel={t('Delete address')}
+          pendingLabel={t('Deleting…')}
+          accessibleName={t('Delete {email}', { email: e.email })}
           pending={removing}
           onConfirm={onRemove}
         />
@@ -322,20 +332,24 @@ export function VerifyEmail() {
       <PageHead
         icon="mail"
         crumbs={[
-          { label: 'Settings', to: '/settings/tokens' },
-          { label: 'Emails', to: '/settings/emails' },
-          { label: 'Verify email' },
+          { label: t('Settings'), to: '/settings/tokens' },
+          { label: t('Emails'), to: '/settings/emails' },
+          { label: t('Verify email') },
         ]}
-        title="Verify email"
+        title={t('Verify email')}
       />
       <SettingsFrame>
         <section className="panel pad verify" aria-live="polite">
           {!token ? (
-            <Notice tone="warn">This verification link is incomplete.</Notice>
+            <Notice tone="warn">
+              {t('This verification link is incomplete.')}
+            </Notice>
           ) : verify.isSuccess ? (
             <Notice tone="ok">
-              <b>{verify.data.email}</b> is verified. Commits authored with it
-              are now linked to your profile.
+              {tx(
+                '{email} is verified. Commits authored with it are now linked to your profile.',
+                { email: <b>{verify.data.email}</b> }
+              )}
             </Notice>
           ) : verify.isError ? (
             <Notice tone="bad">{errorMessage(verify.error)}</Notice>
@@ -344,7 +358,7 @@ export function VerifyEmail() {
           )}
           <div className="actions">
             <Link to="/settings/emails" className="btn small">
-              Back to email settings
+              {t('Back to email settings')}
             </Link>
           </div>
         </section>

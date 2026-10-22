@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertIcon,
   CheckIcon,
+  GlobeIcon,
   LockIcon,
   RepoIcon,
 } from '@primer/octicons-react';
@@ -11,6 +12,7 @@ import { api, qk, type Visibility } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
 import { errorMessage } from '@/lib/api';
 import { agentColor } from '@/lib/agentLook';
+import { t, tn, tx } from '@/lib/i18n';
 import {
   DESCRIPTION_MAX,
   REPO_NAME_MAX,
@@ -28,14 +30,26 @@ const VISIBILITIES = [
   {
     value: 'private',
     Icon: LockIcon,
-    title: 'Private',
-    body: 'Only you, collaborators you add, and site admins can see this repository.',
+    title: t('Private'),
+    body: t(
+      'Only you, collaborators you add, and site admins can see this repository.'
+    ),
   },
   {
     value: 'internal',
     Icon: RepoIcon,
-    title: 'Internal',
-    body: 'Every member of this instance can see this repository. You and collaborators you add can push.',
+    title: t('Internal'),
+    body: t(
+      'Every member of this instance can see this repository. You and collaborators you add can push.'
+    ),
+  },
+  {
+    value: 'public',
+    Icon: GlobeIcon,
+    title: t('Public'),
+    body: t(
+      'Anyone on the internet can see and clone this repository, without an account. You and collaborators you add can push.'
+    ),
   },
 ] as const;
 
@@ -115,7 +129,12 @@ export default function NewRepo() {
       if (note) toast(note, { icon: <AlertIcon size={16} /> });
       else if (reviewers.size)
         toast(
-          `Created ${repo.fullName}. ${reviewers.size === 1 ? 'The reviewer starts' : 'The reviewers start'} on its first pull request.`,
+          tn(
+            reviewers.size,
+            'Created {name}. The reviewer starts on its first pull request.',
+            'Created {name}. The reviewers start on its first pull request.',
+            { name: repo.fullName }
+          ),
           { icon: <CheckIcon size={16} /> }
         );
       navigate(`/${repo.fullName}`);
@@ -130,11 +149,13 @@ export default function NewRepo() {
       <PageHead
         icon="plus"
         crumbs={[
-          { label: 'Repositories', to: '/repos' },
-          { label: 'New repository' },
+          { label: t('Repositories'), to: '/repos' },
+          { label: t('New repository') },
         ]}
-        title="New repository"
-        lede="A repository holds a project's files and their full history. Moving a project from GitHub? Create it empty: the next page has the steps, including a prompt for your AI agent."
+        title={t('New repository')}
+        lede={t(
+          "A repository holds a project's files and their full history. Moving a project from GitHub? Create it empty: the next page has the steps, including a prompt for your AI agent."
+        )}
       />
       <div className="cols">
         <div className="col">
@@ -142,7 +163,7 @@ export default function NewRepo() {
           <form className="panel newrepo" onSubmit={submit} noValidate>
             <div className="newrepo-row">
               <div>
-                <label htmlFor="nr-owner">Owner</label>
+                <label htmlFor="nr-owner">{t('Owner')}</label>
                 <div className="newrepo-owner">
                   <Avatar
                     user={{ username: ownerLogin }}
@@ -160,7 +181,7 @@ export default function NewRepo() {
                     title={
                       team
                         ? undefined
-                        : 'A site admin can create the team in Site admin'
+                        : t('A site admin can create the team in Site admin')
                     }
                   >
                     <option value="user">{user.username}</option>
@@ -169,13 +190,14 @@ export default function NewRepo() {
                 </div>
                 {!team && (
                   <span id="nr-owner-hint" className="hint">
-                    Team repositories need a team: a site admin creates it in
-                    Site admin.
+                    {t(
+                      'Team repositories need a team: a site admin creates it in Site admin.'
+                    )}
                   </span>
                 )}
               </div>
               <div>
-                <label htmlFor="nr-name">Repository name</label>
+                <label htmlFor="nr-name">{t('Repository name')}</label>
                 <input
                   id="nr-name"
                   type="text"
@@ -183,7 +205,7 @@ export default function NewRepo() {
                   autoFocus
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="for example: client-portal"
+                  placeholder={t('for example: client-portal')}
                   value={name}
                   maxLength={REPO_NAME_MAX + 20}
                   aria-invalid={problem ? true : undefined}
@@ -195,23 +217,21 @@ export default function NewRepo() {
                   className={`hint${problem ? ' bad' : name.trim() && normalized !== name ? ' warn' : ''}`}
                   role={problem ? 'alert' : undefined}
                 >
-                  {problem ? (
-                    problem
-                  ) : name.trim() && normalized !== name ? (
-                    <>
-                      Your new repository will be created as{' '}
-                      <strong>{normalized}</strong>.
-                    </>
-                  ) : (
-                    'Great repository names are short and memorable.'
-                  )}
+                  {problem
+                    ? problem
+                    : name.trim() && normalized !== name
+                      ? tx('Your new repository will be created as {name}.', {
+                          name: <strong>{normalized}</strong>,
+                        })
+                      : t('Great repository names are short and memorable.')}
                 </span>
               </div>
             </div>
 
             <div style={{ display: 'grid', gap: 6 }}>
               <label htmlFor="nr-desc">
-                Description <span className="muted">(optional)</span>
+                {t('Description')}{' '}
+                <span className="muted">{t('(optional)')}</span>
               </label>
               <input
                 id="nr-desc"
@@ -224,22 +244,26 @@ export default function NewRepo() {
               />
               {tooLong && (
                 <span id="nr-desc-hint" className="hint bad" role="alert">
-                  A description can be at most {DESCRIPTION_MAX} characters.
+                  {t('A description can be at most {max} characters.', {
+                    max: DESCRIPTION_MAX,
+                  })}
                 </span>
               )}
             </div>
 
             <fieldset className="newrepo-visibility">
-              <legend>Who can see it</legend>
+              <legend>{t('Who can see it')}</legend>
               {forTeam ? (
                 <div className="fixed">
                   <RepoIcon size={20} />
                   <span>
-                    <b>Internal</b>
+                    <b>{t('Internal')}</b>
                     <br />
                     <span className="muted small">
-                      Team repositories are visible to every member of{' '}
-                      {team!.name}. You and collaborators you add can push.
+                      {t(
+                        'Team repositories are visible to every member of {team}. You and collaborators you add can push.',
+                        { team: team!.name }
+                      )}
                     </span>
                   </span>
                 </div>
@@ -265,13 +289,13 @@ export default function NewRepo() {
 
             {agents.isPending ? (
               <fieldset className="newrepo-crew" aria-busy="true">
-                <legend>Reviewer agents</legend>
+                <legend>{t('Reviewer agents')}</legend>
                 <div className="sk sk-line w50" />
                 <div className="sk sk-line w60" />
               </fieldset>
             ) : agents.isError ? (
               <fieldset className="newrepo-crew">
-                <legend>Reviewer agents</legend>
+                <legend>{t('Reviewer agents')}</legend>
                 <Notice
                   tone="warn"
                   action={
@@ -280,18 +304,19 @@ export default function NewRepo() {
                       className="btn small"
                       onClick={() => agents.refetch()}
                     >
-                      Retry
+                      {t('Retry')}
                     </button>
                   }
                 >
-                  Could not load the reviewer agents (
-                  {errorMessage(agents.error)}). You can add them in the
-                  repository's settings after creating it.
+                  {t(
+                    "Could not load the reviewer agents ({error}). You can add them in the repository's settings after creating it.",
+                    { error: errorMessage(agents.error) }
+                  )}
                 </Notice>
               </fieldset>
             ) : crew.length > 0 ? (
               <fieldset className="newrepo-crew">
-                <legend>Reviewer agents</legend>
+                <legend>{t('Reviewer agents')}</legend>
                 {crew.map((a) => (
                   <label key={a.username}>
                     <input
@@ -316,9 +341,9 @@ export default function NewRepo() {
                   </label>
                 ))}
                 <span className="hint">
-                  Reviewers read each pull request they are needed on. With at
-                  least one, GitOrange can merge on its own once they pass. You
-                  can change this later in the repository's settings.
+                  {t(
+                    "Reviewers read each pull request they are needed on. With at least one, GitOrange can merge on its own once they pass. You can change this later in the repository's settings."
+                  )}
                 </span>
               </fieldset>
             ) : null}
@@ -330,10 +355,11 @@ export default function NewRepo() {
                 onChange={(e) => setAddReadme(e.target.checked)}
               />
               <span>
-                <b>Add a README file</b>
+                <b>{t('Add a README file')}</b>
                 <span className="muted small">
-                  This is where you can write a long description for your
-                  project. Moving a project from GitHub? Leave this empty.
+                  {t(
+                    'This is where you can write a long description for your project. Moving a project from GitHub? Leave this empty.'
+                  )}
                 </span>
               </span>
             </label>
@@ -343,30 +369,30 @@ export default function NewRepo() {
                 type="submit"
                 className="primary"
                 pending={busy}
-                pendingLabel="Creating repository…"
+                pendingLabel={t('Creating repository…')}
                 disabled={!name.trim() || !!problem || tooLong}
               >
-                Create repository
+                {t('Create repository')}
               </PendingButton>
               <Link className="btn quiet" to="/repos">
-                Cancel
+                {t('Cancel')}
               </Link>
             </div>
           </form>
         </div>
         <aside className="col side">
           <section className="panel pad">
-            <h2>What you get</h2>
+            <h2>{t('What you get')}</h2>
             <ul className="ticks">
               {[
-                'Rebase-only merges with a safety check on main',
-                'Auto-merge when checks pass and reviewers approve',
-                'Actions that run your existing workflows',
-                'An audit log of every merge and every decision',
-              ].map((t) => (
-                <li key={t}>
+                t('Rebase-only merges with a safety check on main'),
+                t('Auto-merge when checks pass and reviewers approve'),
+                t('Actions that run your existing workflows'),
+                t('An audit log of every merge and every decision'),
+              ].map((point) => (
+                <li key={point}>
                   <CheckIcon size={16} className="ok" />
-                  {t}
+                  {point}
                 </li>
               ))}
             </ul>

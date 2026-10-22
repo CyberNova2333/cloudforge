@@ -4,6 +4,7 @@
  * (blockers, order, estimate), with no request per pull request.
  */
 import type { Tone } from './agentLook';
+import { t, tServer } from './i18n';
 import { blocking, isPaused, reasonText, stateLabel } from './pullState';
 import type { Pull, PullReviewer, PullState, QueueTarget } from './uiApi';
 
@@ -17,10 +18,10 @@ export const LANE_ORDER: readonly LaneId[] = [
 ];
 
 const LANE_LABEL: Record<LaneId, string> = {
-  needs: 'Needs you',
-  fixing: 'Being fixed',
-  checking: 'Checking',
-  queued: 'Queued',
+  needs: t('Needs you'),
+  fixing: t('Being fixed'),
+  checking: t('Checking'),
+  queued: t('Queued'),
 };
 
 /** Merging is paused, as this pull request's reasons say (whatever its state: a person's move carries it too). */
@@ -47,7 +48,7 @@ export function laneOf(state: PullState | null | undefined): LaneId {
 }
 
 export function laneLabel(lane: LaneId, mergingPaused: boolean): string {
-  return lane === 'queued' && mergingPaused ? 'Paused' : LANE_LABEL[lane];
+  return lane === 'queued' && mergingPaused ? t('Paused') : LANE_LABEL[lane];
 }
 
 const LANE_TONE: Record<LaneId, Tone> = {
@@ -91,10 +92,12 @@ export function sortReviewers(reviewers: PullReviewer[]): PullReviewer[] {
 export function etaText(minutes: number | null | undefined): string | null {
   if (minutes == null || !Number.isFinite(minutes)) return null;
   const m = Math.max(0, Math.round(minutes));
-  if (m < 1) return 'under a minute';
-  if (m < 60) return `about ${m} min`;
+  if (m < 1) return t('under a minute');
+  if (m < 60) return t('about {m} min', { m });
   const h = Math.floor(m / 60);
-  return m % 60 ? `about ${h} h ${m % 60} min` : `about ${h} h`;
+  return m % 60
+    ? t('about {h} h {m} min', { h, m: m % 60 })
+    : t('about {h} h', { h });
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -112,8 +115,8 @@ export function etaLine(
   const text = etaText(minutes);
   if (!text) return null;
   return lane === 'needs' || lane === 'fixing'
-    ? `${capital(text)} once it is unblocked`
-    : `Lands in ${text}`;
+    ? t('{eta} once it is unblocked', { eta: capital(text) })
+    : t('Lands in {eta}', { eta: text });
 }
 
 export interface BoardCard {
@@ -139,14 +142,18 @@ function blockerOf(
   state: PullState | null | undefined,
   lane: LaneId
 ): { text: string; more: string[] } {
+  // The queue's blockers are the server's sentences.
   if (entry?.blockers.length)
-    return { text: entry.blockers[0], more: entry.blockers.slice(1) };
+    return {
+      text: tServer(entry.blockers[0]),
+      more: entry.blockers.slice(1).map(tServer),
+    };
   if (entry)
     return {
       text:
         lane === 'queued' && entry.position === 1
-          ? 'Nothing is holding it back. It lands next.'
-          : 'Nothing is holding it back.',
+          ? t('Nothing is holding it back. It lands next.')
+          : t('Nothing is holding it back.'),
       more: [],
     };
   // No queue entry (the queue did not load): say what the pull request's own reasons say.
@@ -159,8 +166,8 @@ function blockerOf(
   return {
     text:
       lane === 'queued'
-        ? 'Nothing is holding it back.'
-        : 'Its state can’t be read right now.',
+        ? t('Nothing is holding it back.')
+        : t('Its state can’t be read right now.'),
     more: [],
   };
 }
@@ -171,8 +178,9 @@ function notesOf(state: PullState | null | undefined, shown: string): string[] {
   for (const r of state?.reasons ?? []) {
     const n = Number(r.pr);
     if (!Number.isFinite(n) || mentions(shown, n)) continue;
-    if (r.kind === 'stacked_on') notes.push(`Stacked on #${n}`);
-    else if (r.kind === 'waits_on') notes.push(`Waits on #${n}`);
+    // The translation must end in #{n}: `covered` below reads the number after the #.
+    if (r.kind === 'stacked_on') notes.push(t('Stacked on #{n}', { n }));
+    else if (r.kind === 'waits_on') notes.push(t('Waits on #{n}', { n }));
   }
   return notes;
 }
@@ -186,11 +194,11 @@ export function boardLanes(
   queue: QueueTarget[]
 ): { lanes: Record<LaneId, BoardCard[]>; paused: boolean } {
   const entries = new Map<number, Entry>();
-  for (const t of queue)
-    for (const e of t.entries)
+  for (const target of queue)
+    for (const e of target.entries)
       if (!entries.has(e.number)) entries.set(e.number, e);
   const mergingPaused =
-    queue.some((t) => !!t.paused) ||
+    queue.some((target) => !!target.paused) ||
     open.some((p) => mentionsPause(p.pullState));
   const lanes: Record<LaneId, BoardCard[]> = {
     needs: [],
@@ -219,7 +227,7 @@ export function boardLanes(
       position: entry?.position ?? null,
       blocker: {
         text: blocker.text,
-        more: blocker.more.filter((t) => !covered(t)),
+        more: blocker.more.filter((text) => !covered(text)),
       },
       reviewers: sortReviewers(pull.reviewers ?? []),
       notes,

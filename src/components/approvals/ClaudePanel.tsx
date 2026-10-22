@@ -5,6 +5,7 @@ import { ShieldIcon, UndoIcon } from '@primer/octicons-react';
 import { api, qk, type Delegations, type DelegatedEvent } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { AI_NAME, clockTime, delegatedText, possessive } from '@/lib/claudeLog';
+import { lang, t } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { useToast } from '@/components/ui/Toast';
@@ -24,7 +25,13 @@ export function ClaudeTile() {
 const andList = (names: string[]) =>
   names.length <= 1
     ? (names[0] ?? '')
-    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+    : t('{list} and {last}', {
+        list: names.slice(0, -1).join(lang === 'zh' ? '、' : ', '),
+        last: names[names.length - 1],
+      });
+
+/** An agent's name as the owner of its findings: "Security's" in English; Chinese says "Security 的" in the sentence. */
+const whose = (name: string) => (lang === 'zh' ? name : possessive(name));
 
 /** Guarded agents last (they can't be handed to Claude), otherwise as the server lists them. */
 const ordered = (agents: Delegations['agents']) => [
@@ -39,7 +46,7 @@ const ordered = (agents: Delegations['agents']) => [
 export function ClaudePanel({ myName }: { myName: string }) {
   const q = useQuery({ queryKey: qk.delegations, queryFn: api.delegations });
   return (
-    <aside className="ap-side" aria-label="Claude decisions">
+    <aside className="ap-side" aria-label={t('Claude decisions')}>
       <DelegationBox q={q} myName={myName} />
       {/* The box above already says the list didn't load, with Retry. */}
       {!(q.isError && !q.data) && <TodayBox q={q} myName={myName} />}
@@ -70,8 +77,11 @@ function DelegationBox({ q, myName }: { q: Q; myName: string }) {
       qc.setQueryData(qk.delegations, await api.setDelegations(next));
       toast(
         on
-          ? `${AI_NAME} now answers ${possessive(agent.name)} findings`
-          : `${possessive(agent.name)} findings come to you`
+          ? t('{ai} now answers {whose} findings', {
+              ai: AI_NAME,
+              whose: whose(agent.name),
+            })
+          : t('{whose} findings come to you', { whose: whose(agent.name) })
       );
     } catch (e) {
       setError(errorMessage(e));
@@ -86,38 +96,39 @@ function DelegationBox({ q, myName }: { q: Q; myName: string }) {
       <div className="ap-box-head">
         <h2 id={`${noteId}-h`}>
           <ClaudeTile />
-          Let {AI_NAME} decide for you
+          {t('Let {ai} decide for you', { ai: AI_NAME })}
         </h2>
       </div>
       <p className="ap-side-lede">
-        {AI_NAME} can answer findings on your pull requests for you. Each answer
-        is recorded as “by {AI_NAME} for {myName}”, and you can undo it while
-        the pull request is open.
+        {t(
+          '{ai} can answer findings on your pull requests for you. Each answer is recorded as “by {ai} for {me}”, and you can undo it while the pull request is open.',
+          { ai: AI_NAME, me: myName }
+        )}
       </p>
       {q.isError && !data ? (
         <QueryError
           error={q.error}
           onRetry={() => void q.refetch()}
-          title="Your reviewers did not load"
+          title={t('Your reviewers did not load')}
         />
       ) : !data ? (
         <div
           className="ap-pad"
           role="status"
           aria-busy="true"
-          aria-label="Loading"
+          aria-label={t('Loading')}
         >
           <div className="sk sk-row" />
           <div className="sk sk-row" />
         </div>
       ) : !data.agents.length ? (
         <p className="ap-side-lede muted">
-          No reviewer agents yet. A site admin adds them from Agents.
+          {t('No reviewer agents yet. A site admin adds them from Agents.')}
         </p>
       ) : (
         <ul
           className="ap-toggles"
-          aria-label={`Reviewers ${AI_NAME} answers for`}
+          aria-label={t('Reviewers {ai} answers for', { ai: AI_NAME })}
         >
           {ordered(data.agents).map((a) => {
             const on = !a.guarded && a.delegated;
@@ -127,7 +138,10 @@ function DelegationBox({ q, myName }: { q: Q; myName: string }) {
                   className={`ap-toggle${a.guarded ? ' is-locked' : ''}`}
                   title={
                     a.guarded
-                      ? `${possessive(a.name)} findings always come to a person: ${AI_NAME} never decides them.`
+                      ? t(
+                          '{whose} findings always come to a person: {ai} never decides them.',
+                          { whose: whose(a.name), ai: AI_NAME }
+                        )
                       : undefined
                   }
                 >
@@ -142,12 +156,12 @@ function DelegationBox({ q, myName }: { q: Q; myName: string }) {
                     <small>
                       {a.guarded ? (
                         <>
-                          <ShieldIcon size={11} /> Always comes to you
+                          <ShieldIcon size={11} /> {t('Always comes to you')}
                         </>
                       ) : on ? (
-                        `${AI_NAME} answers`
+                        t('{ai} answers', { ai: AI_NAME })
                       ) : (
-                        'You answer'
+                        t('You answer')
                       )}
                     </small>
                   </span>
@@ -170,8 +184,10 @@ function DelegationBox({ q, myName }: { q: Q; myName: string }) {
       <PanelError error={error} />
       {!!guarded?.length && (
         <p className="ap-note" id={noteId}>
-          {andList(guarded)} findings always come to you: {AI_NAME} never
-          decides them, and approving one needs your reason.
+          {t(
+            '{agents} findings always come to you: {ai} never decides them, and approving one needs your reason.',
+            { agents: andList(guarded), ai: AI_NAME }
+          )}
         </p>
       )}
     </section>
@@ -194,7 +210,7 @@ function TodayBox({ q, myName }: { q: Q; myName: string }) {
     setErrors((m) => ({ ...m, [e.id]: '' }));
     try {
       await api.undoFlag(owner, name, e.pull, e.data.finding);
-      toast('Undone. It’s back in your list.', {
+      toast(t('Undone. It’s back in your list.'), {
         icon: <UndoIcon size={16} />,
       });
     } catch (err) {
@@ -208,20 +224,20 @@ function TodayBox({ q, myName }: { q: Q; myName: string }) {
   return (
     <section className="ap-box" aria-labelledby={headId}>
       <div className="ap-box-head">
-        <h2 id={headId}>What {AI_NAME} did today</h2>
+        <h2 id={headId}>{t('What {ai} did today', { ai: AI_NAME })}</h2>
       </div>
       {!data ? (
         <div
           className="ap-pad"
           role="status"
           aria-busy="true"
-          aria-label="Loading"
+          aria-label={t('Loading')}
         >
           <div className="sk sk-row" />
         </div>
       ) : !data.today.length ? (
         <p className="ap-side-lede muted">
-          {AI_NAME} hasn’t answered anything for you today.
+          {t('{ai} hasn’t answered anything for you today.', { ai: AI_NAME })}
         </p>
       ) : (
         <ol className="ap-log">
@@ -251,28 +267,30 @@ function TodayBox({ q, myName }: { q: Q; myName: string }) {
                   {e.data.undone ? (
                     <p className="ap-small">
                       <UndoIcon size={13} />
-                      Undone. It’s back in your list.
+                      {t('Undone. It’s back in your list.')}
                     </p>
                   ) : (
                     <p className="ap-log-foot">
                       <span className="who">
                         <ClaudeTile />
-                        by {AI_NAME} for {myName}
+                        {t('by {ai} for {me}', { ai: AI_NAME, me: myName })}
                       </span>
                       {e.data.undoable ? (
                         <PendingButton
                           className="quiet small"
                           pending={undoing === e.id}
-                          pendingLabel="Undoing…"
+                          pendingLabel={t('Undoing…')}
                           disabled={undoing !== null}
-                          aria-label={`Undo: ${delegatedText(e, agent)}`}
+                          aria-label={t('Undo: {what}', {
+                            what: delegatedText(e, agent),
+                          })}
                           onClick={() => void undo(e)}
                         >
                           <UndoIcon size={14} />
-                          Undo
+                          {t('Undo')}
                         </PendingButton>
                       ) : e.data.decision === 'leave' ? (
-                        <span className="ap-small">Waiting for you</span>
+                        <span className="ap-small">{t('Waiting for you')}</span>
                       ) : null}
                     </p>
                   )}

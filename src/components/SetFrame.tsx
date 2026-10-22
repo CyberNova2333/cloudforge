@@ -16,6 +16,7 @@ import {
   type AdminSection,
   type SettingsSection,
 } from '@/lib/siteNav';
+import { t } from '@/lib/i18n';
 import { CrewIcon } from '@/components/shell/icons';
 
 interface NavItem<T extends string> {
@@ -30,50 +31,60 @@ interface NavItem<T extends string> {
 const SETTINGS: NavItem<SettingsSection>[] = [
   {
     id: 'tokens',
-    label: 'Access tokens',
+    label: t('Access tokens'),
     icon: <KeyIcon />,
     to: '/settings/tokens',
   },
-  { id: 'mcp', label: 'MCP server', icon: <PlugIcon />, to: '/settings/mcp' },
-  { id: 'emails', label: 'Emails', icon: <MailIcon />, to: '/settings/emails' },
+  {
+    id: 'mcp',
+    label: t('MCP server'),
+    icon: <PlugIcon />,
+    to: '/settings/mcp',
+  },
+  {
+    id: 'emails',
+    label: t('Emails'),
+    icon: <MailIcon />,
+    to: '/settings/emails',
+  },
 ];
 
 const ADMIN: NavItem<AdminSection>[] = [
   {
     id: 'people',
-    label: 'People and team',
+    label: t('People and team'),
     icon: <PeopleIcon />,
     to: '/admin',
   },
   {
     id: 'setup',
-    label: 'Setup checks',
+    label: t('Setup checks'),
     icon: <ChecklistIcon />,
     to: '/admin',
     hash: '#setup',
   },
   {
     id: 'settings',
-    label: 'Instance settings',
+    label: t('Instance settings'),
     icon: <SlidersIcon />,
     to: '/admin',
     hash: '#settings',
   },
   {
     id: 'agents',
-    label: 'Agents',
+    label: t('Agents'),
     icon: <CrewIcon />,
     to: '/admin/agents',
   },
   {
     id: 'usage',
-    label: 'Usage and cost',
+    label: t('Usage and cost'),
     icon: <CreditCardIcon />,
     to: '/admin/usage',
   },
   {
     id: 'audit',
-    label: 'Audit log',
+    label: t('Audit log'),
     icon: <HistoryIcon />,
     to: '/admin/audit',
   },
@@ -131,7 +142,7 @@ export function SettingsFrame({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   return (
     <Frame
-      label="Your settings"
+      label={t('Your settings')}
       items={SETTINGS}
       current={settingsSection(pathname)}
     >
@@ -145,7 +156,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const { pathname, hash } = useLocation();
   return (
     <Frame
-      label="Site admin"
+      label={t('Site admin')}
       items={ADMIN}
       current={adminSection(pathname, hash)}
     >
@@ -161,7 +172,7 @@ export function RowsSkeleton({ rows = 3 }: { rows?: number }) {
       className="sk-rows"
       role="status"
       aria-busy="true"
-      aria-label="Loading"
+      aria-label={t('Loading')}
     >
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="sk sk-row" />

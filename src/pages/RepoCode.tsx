@@ -3,6 +3,7 @@ import { useLocation, useOutletContext } from 'react-router-dom';
 import { useRepoAgent, useRepoSubPath } from '@/components/RepoLayout';
 import { api, qk, type RepoDetail } from '@/lib/uiApi';
 import { ApiError } from '@/lib/api';
+import { t } from '@/lib/i18n';
 import { usePageHead } from '@/components/ui/PageHead';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { BlobView, LfsFileView } from '@/components/code/BlobView';
@@ -69,7 +70,7 @@ export default function RepoCode() {
   if (repo.empty || data?.kind === 'empty')
     return (
       <div className={`code-page ${entering}`}>
-        <CodeHead title="Code" />
+        <CodeHead title={t('Code')} />
         <QuickSetup repo={repo} />
       </div>
     );
@@ -78,7 +79,7 @@ export default function RepoCode() {
   if (q.isError && !data)
     return (
       <LoadError
-        what="this page"
+        what={t('this page')}
         error={q.error}
         onRetry={() => void q.refetch()}
         retrying={q.isFetching}
@@ -98,14 +99,14 @@ export default function RepoCode() {
 
   return (
     <div className={`code-page ${entering}`}>
-      <CodeHead title={atRoot ? 'Code' : name} file={data.kind === 'blob'} />
+      <CodeHead title={atRoot ? t('Code') : name} file={data.kind === 'blob'} />
       {rootTree && (
         <header className="phead">
           <div className="phead-main">
             <h2 className="ph-title">{repo.name}</h2>
             <p className="lede">
               {repo.description || (
-                <span className="muted">No description provided.</span>
+                <span className="muted">{t('No description provided.')}</span>
               )}
             </p>
           </div>
@@ -133,7 +134,7 @@ export default function RepoCode() {
           )}
         </div>
         {rootTree && (
-          <aside className="col side" aria-label="About this repository">
+          <aside className="col side" aria-label={t('About this repository')}>
             {agent ? (
               <AgentAboutCard agent={agent} />
             ) : (

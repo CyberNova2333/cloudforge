@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { t } from '@/lib/i18n';
 import { Markdown } from '@/components/Markdown';
 import { dirOf, type RepoMarkdownContext } from '@/lib/repoUrls';
 import { splitFrontmatter } from '@/lib/codeView';
@@ -36,7 +37,7 @@ export function MarkdownFile({
     <div className="md">
       {frontmatter !== null && (
         <details className="frontmatter" open>
-          <summary>Front matter</summary>
+          <summary>{t('Front matter')}</summary>
           <pre>{frontmatter}</pre>
         </details>
       )}

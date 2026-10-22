@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom';
 import { GitBranchIcon, PencilIcon } from '@primer/octicons-react';
 import { api, type PullDetail, type RepoDetail } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
+import { t, tn, tx } from '@/lib/i18n';
 import { CoderChip } from '@/components/CoderChip';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { PullChip } from './PullChip';
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
  * The pull request's statement under the top band: its title and number (editable by its author and anyone who
@@ -47,7 +46,15 @@ export function PullHeader({
       setSaving(false);
     }
   };
-  const commits = plural(d.commitCount, 'commit');
+  const commits = tn(d.commitCount, '{n} commit', '{n} commits');
+  const head = d.headBranchExists ? (
+    <Link to={`${base}/tree/${pr.headRef}`} className="pr-branch">
+      <GitBranchIcon size={12} />
+      {pr.headRef}
+    </Link>
+  ) : (
+    <code className="pr-branch">{pr.headRef}</code>
+  );
   return (
     <header className="phead pr-head">
       <div className="phead-row">
@@ -55,7 +62,7 @@ export function PullHeader({
           {editing ? (
             <form className="pr-title-edit" onSubmit={save}>
               <label className="sr" htmlFor="pr-title-input">
-                Title
+                {t('Title')}
               </label>
               <input
                 id="pr-title-input"
@@ -73,17 +80,17 @@ export function PullHeader({
                   type="submit"
                   className="primary small"
                   pending={saving}
-                  pendingLabel="Saving…"
+                  pendingLabel={t('Saving…')}
                   disabled={!title.trim()}
                 >
-                  Save
+                  {t('Save')}
                 </PendingButton>
                 <button
                   type="button"
                   className="btn quiet small"
                   onClick={() => setEditing(false)}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
               {error && (
@@ -108,35 +115,35 @@ export function PullHeader({
             />
             {pr.createdVia && (
               <span className="muted">
-                for{' '}
-                <Link to={`/${pr.author.username}`}>{pr.author.username}</Link>
+                {tx('for {user}', {
+                  user: (
+                    <Link to={`/${pr.author.username}`}>
+                      {pr.author.username}
+                    </Link>
+                  ),
+                })}
               </span>
             )}
             <span className="muted pr-merge-line">
               {/* Like GitHub: a merged pull request credits whoever merged it. */}
-              {pr.state === 'merged' ? (
-                <>
-                  {pr.mergedBy ? (
-                    <Link to={`/${pr.mergedBy.username}`}>
-                      {pr.mergedBy.username}
-                    </Link>
-                  ) : (
-                    'GitOrange'
-                  )}{' '}
-                  merged {commits} into{' '}
-                </>
-              ) : (
-                <>wants to merge {commits} into </>
-              )}
-              <code className="pr-branch">{pr.baseRef}</code> from{' '}
-              {d.headBranchExists ? (
-                <Link to={`${base}/tree/${pr.headRef}`} className="pr-branch">
-                  <GitBranchIcon size={12} />
-                  {pr.headRef}
-                </Link>
-              ) : (
-                <code className="pr-branch">{pr.headRef}</code>
-              )}
+              {pr.state === 'merged'
+                ? tx('{who} merged {commits} into {base} from {head}', {
+                    who: pr.mergedBy ? (
+                      <Link to={`/${pr.mergedBy.username}`}>
+                        {pr.mergedBy.username}
+                      </Link>
+                    ) : (
+                      'GitOrange'
+                    ),
+                    commits,
+                    base: <code className="pr-branch">{pr.baseRef}</code>,
+                    head: head,
+                  })
+                : tx('wants to merge {commits} into {base} from {head}', {
+                    commits,
+                    base: <code className="pr-branch">{pr.baseRef}</code>,
+                    head: head,
+                  })}
             </span>
           </p>
         </div>
@@ -152,7 +159,7 @@ export function PullHeader({
               }}
             >
               <PencilIcon size={14} />
-              Edit title
+              {t('Edit title')}
             </button>
           </div>
         )}

@@ -19,6 +19,7 @@ import {
   type RepoDetail,
 } from '@/lib/uiApi';
 import { ApiError, errorMessage } from '@/lib/api';
+import { t, tx } from '@/lib/i18n';
 import { blocking, reasonText } from '@/lib/pullState';
 import {
   canRetryRebase,
@@ -65,24 +66,30 @@ export function PausedBanner({
           <PendingButton
             className="small"
             pending={busy}
-            pendingLabel="Resuming…"
+            pendingLabel={t('Resuming…')}
             error={error}
             onClick={() =>
               run(() => api.resumeMerging(repo.owner.username, repo.name))
             }
           >
             <PlayIcon size={14} />
-            Resume merging
+            {t('Resume merging')}
           </PendingButton>
         ) : undefined
       }
     >
-      <b>Merging is paused</b> on this repository. {by} paused it{' '}
-      <time title={fullDate(paused.at / 1000)}>
-        {timeAgo(paused.at / 1000)}
-      </time>
-      . Nothing merges, by the button or automatically, until someone resumes
-      it.
+      {tx(
+        '{paused} on this repository. {by} paused it {when}. Nothing merges, by the button or automatically, until someone resumes it.',
+        {
+          paused: <b>{t('Merging is paused')}</b>,
+          by,
+          when: (
+            <time title={fullDate(paused.at / 1000)}>
+              {timeAgo(paused.at / 1000)}
+            </time>
+          ),
+        }
+      )}
     </Banner>
   );
 }
@@ -120,8 +127,8 @@ function RebaseRow({
           <b>
             {headline?.title ??
               (d.headBranchExists
-                ? 'Checking the branch…'
-                : `The ${pr.headRef} branch is gone`)}
+                ? t('Checking the branch…')
+                : t('The {branch} branch is gone', { branch: pr.headRef }))}
           </b>
         </p>
         {headline && <p className="muted small">{headline.detail}</p>}
@@ -134,7 +141,7 @@ function RebaseRow({
         <PendingButton
           className="small"
           pending={retry.busy}
-          pendingLabel="Starting the rebase…"
+          pendingLabel={t('Starting the rebase…')}
           onClick={() =>
             retry.run(() =>
               api.retryRebase(repo.owner.username, repo.name, pr.number)
@@ -142,7 +149,7 @@ function RebaseRow({
           }
         >
           <SyncIcon size={14} />
-          Try the rebase again
+          {t('Try the rebase again')}
         </PendingButton>
       )}
     </div>
@@ -257,14 +264,14 @@ export function OpenBox({
       <div className="pr-next-top">
         <div className="pr-next-main">
           <span className="eyebrow" id="pr-next-title">
-            What happens next
+            {t('What happens next')}
           </span>
           <p className="pr-next-line">
             <b>{step.headline}</b>
           </p>
           {step.detail && <p className="muted">{step.detail}</p>}
           {step.listed.length > 0 && (
-            <ul className="pr-blockers" aria-label="What it waits on">
+            <ul className="pr-blockers" aria-label={t('What it waits on')}>
               {step.listed.map((b) => (
                 <li key={b}>{b}</li>
               ))}
@@ -272,7 +279,7 @@ export function OpenBox({
           )}
           {(spot || eta) && (
             <p className="muted small">
-              {eta && <>Estimate: {eta}. </>}
+              {eta && <>{t('Estimate: {eta}.', { eta })} </>}
               {spot && queueLine(spot)}
             </p>
           )}
@@ -283,7 +290,7 @@ export function OpenBox({
               className="btn primary"
               to={`/approvals/${encodeURIComponent(question.flag.id)}`}
             >
-              Answer {askedBy}&rsquo;s question
+              {t('Answer {name}’s question', { name: askedBy })}
             </Link>
           )}
           {canMergeNow && !confirming && (
@@ -293,17 +300,17 @@ export function OpenBox({
               // Paused merging stops the button too; the banner says who paused it and offers Resume.
               disabled={paused}
               title={
-                paused ? 'Merging is paused on this repository' : undefined
+                paused ? t('Merging is paused on this repository') : undefined
               }
               onClick={open}
             >
               <GitMergeIcon size={14} />
-              {needsApproval ? 'Approve and merge' : 'Rebase and merge'}
+              {needsApproval ? t('Approve and merge') : t('Rebase and merge')}
             </button>
           )}
           {!onFilesTab && (
             <Link className="btn quiet" to={`${base}/pull/${pr.number}/files`}>
-              View diff
+              {t('View diff')}
             </Link>
           )}
         </div>
@@ -319,50 +326,61 @@ export function OpenBox({
         </div>
       )}
       {confirming && canMergeNow && !paused && (
-        <div className="pr-confirm" role="group" aria-label="Confirm merge">
+        <div
+          className="pr-confirm"
+          role="group"
+          aria-label={t('Confirm merge')}
+        >
           {needsApproval && (
             <p>
-              Review isn&apos;t satisfied (
-              {d.pullState?.reasons
-                .filter(blocking)
-                .map(reasonText)
-                .join('; ') || 'not approved'}
-              ). Merging records your approval of this commit.
-              {changesRequested &&
-                ' Approval does not override an agent’s change request: dismiss it first, or the merge is refused.'}
+              {tx(
+                'Review isn’t satisfied ({reasons}). Merging records your approval of this commit.',
+                {
+                  reasons:
+                    d.pullState?.reasons
+                      .filter(blocking)
+                      .map(reasonText)
+                      .join('; ') || t('not approved'),
+                }
+              )}
+              {changesRequested && (
+                <>
+                  {' '}
+                  {t(
+                    'Approval does not override an agent’s change request: dismiss it first, or the merge is refused.'
+                  )}
+                </>
+              )}
             </p>
           )}
           <p className="muted small">
-            {behind ? (
-              <>
-                GitOrange rebases this branch onto <code>{d.rebase!.onto}</code>{' '}
-                first. If the rebased commits need checks, it lands once they
-                pass.
-              </>
-            ) : (
-              <>
-                <code>{pr.baseRef}</code> moves to this branch&apos;s head: its
-                commits land as they are, keeping history linear.
-              </>
-            )}
+            {behind
+              ? tx(
+                  'GitOrange rebases this branch onto {onto} first. If the rebased commits need checks, it lands once they pass.',
+                  { onto: <code>{d.rebase!.onto}</code> }
+                )
+              : tx(
+                  '{base} moves to this branch’s head: its commits land as they are, keeping history linear.',
+                  { base: <code>{pr.baseRef}</code> }
+                )}
           </p>
           <div className="actions">
             <PendingButton
               className="primary small"
               pending={busy}
-              pendingLabel={behind ? 'Rebasing and merging…' : 'Merging…'}
+              pendingLabel={behind ? t('Rebasing and merging…') : t('Merging…')}
               onClick={merge}
             >
               {needsApproval
-                ? 'Confirm approve and merge'
-                : 'Confirm rebase and merge'}
+                ? t('Confirm approve and merge')
+                : t('Confirm rebase and merge')}
             </PendingButton>
             <button
               type="button"
               className="btn quiet small"
               onClick={() => setConfirming(false)}
             >
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>
@@ -379,8 +397,9 @@ export function OpenBox({
               <LockIcon className="muted" />
             </span>
             <p className="pr-row-main muted">
-              Only those with write access to this repository can merge pull
-              requests.
+              {t(
+                'Only those with write access to this repository can merge pull requests.'
+              )}
             </p>
           </div>
         )}
@@ -435,7 +454,12 @@ export function MergedBox({
         pr.number
       );
       void onDone();
-      toast(`Opened #${made.number} to revert #${pr.number}`);
+      toast(
+        t('Opened #{made} to revert #{reverted}', {
+          made: made.number,
+          reverted: pr.number,
+        })
+      );
       navigate(`${base}/pull/${made.number}`);
     } catch (e) {
       // 409: not merged, or it doesn't revert cleanly; the server says which.
@@ -452,37 +476,43 @@ export function MergedBox({
       <div className="pr-next-top">
         <div className="pr-next-main">
           <span className="eyebrow" id="pr-next-title">
-            Merged
+            {t('Merged')}
           </span>
           <p className="pr-next-line">
             <b>
-              Merged into {pr.baseRef}{' '}
-              {pr.mergedAt && (
-                <time title={fullDate(pr.mergedAt)}>
-                  {timeAgo(pr.mergedAt)}
-                </time>
-              )}
+              {tx('Merged into {base} {when}', {
+                base: pr.baseRef,
+                when: pr.mergedAt ? (
+                  <time title={fullDate(pr.mergedAt)}>
+                    {timeAgo(pr.mergedAt)}
+                  </time>
+                ) : null,
+              })}
             </b>{' '}
-            {pr.mergedBy ? (
-              <>
-                by{' '}
-                <Link to={`/${pr.mergedBy.username}`}>
-                  {pr.mergedBy.username}
-                </Link>
-              </>
-            ) : pr.mergedAutomatically ? (
-              'automatically, by GitOrange'
-            ) : null}
+            {pr.mergedBy
+              ? tx('by {user}', {
+                  user: (
+                    <Link to={`/${pr.mergedBy.username}`}>
+                      {pr.mergedBy.username}
+                    </Link>
+                  ),
+                })
+              : pr.mergedAutomatically
+                ? t('automatically, by GitOrange')
+                : null}
             {pr.mergeCommitSha && (
               <>
                 {' '}
-                at{' '}
-                <Link
-                  to={`${base}/commit/${pr.mergeCommitSha}`}
-                  className="mono"
-                >
-                  {pr.mergeCommitSha.slice(0, 7)}
-                </Link>
+                {tx('at {commit}', {
+                  commit: (
+                    <Link
+                      to={`${base}/commit/${pr.mergeCommitSha}`}
+                      className="mono"
+                    >
+                      {pr.mergeCommitSha.slice(0, 7)}
+                    </Link>
+                  ),
+                })}
               </>
             )}
             .
@@ -490,14 +520,22 @@ export function MergedBox({
           <p className="muted">
             {branchThere ? (
               <>
-                The <code>{pr.headRef}</code> branch is still there.
-                {canDelete &&
-                  ' It has no newer work or open pull requests that need it, so it can be deleted.'}
+                {tx('The {branch} branch is still there.', {
+                  branch: <code>{pr.headRef}</code>,
+                })}
+                {canDelete && (
+                  <>
+                    {' '}
+                    {t(
+                      'It has no newer work or open pull requests that need it, so it can be deleted.'
+                    )}
+                  </>
+                )}
               </>
             ) : (
-              <>
-                The <code>{pr.headRef}</code> branch has been deleted.
-              </>
+              tx('The {branch} branch has been deleted.', {
+                branch: <code>{pr.headRef}</code>,
+              })
             )}
           </p>
         </div>
@@ -506,7 +544,7 @@ export function MergedBox({
             <PendingButton
               className="small"
               pending={del.busy}
-              pendingLabel="Deleting…"
+              pendingLabel={t('Deleting…')}
               onClick={async () => {
                 if (
                   await del.run(() =>
@@ -517,7 +555,7 @@ export function MergedBox({
               }}
             >
               <TrashIcon size={14} />
-              Delete branch
+              {t('Delete branch')}
             </PendingButton>
           )}
           {canRevert && !confirmRevert && (
@@ -530,7 +568,7 @@ export function MergedBox({
               }}
             >
               <HistoryIcon size={14} />
-              Revert
+              {t('Revert')}
             </button>
           )}
         </div>
@@ -541,29 +579,37 @@ export function MergedBox({
         </div>
       )}
       {confirmRevert && (
-        <div className="pr-confirm" role="group" aria-label="Confirm revert">
+        <div
+          className="pr-confirm"
+          role="group"
+          aria-label={t('Confirm revert')}
+        >
           <p>
-            Revert opens a new pull request, “Revert #{pr.number}: {pr.title}”,
-            that undoes these changes on top of <code>{pr.baseRef}</code> as it
-            is now. Nothing changes until it is reviewed and merged like any
-            other change.
+            {tx(
+              'Revert opens a new pull request, “Revert #{pr}: {title}”, that undoes these changes on top of {base} as it is now. Nothing changes until it is reviewed and merged like any other change.',
+              {
+                pr: pr.number,
+                title: pr.title,
+                base: <code>{pr.baseRef}</code>,
+              }
+            )}
           </p>
           <div className="actions">
             <PendingButton
               className="primary small"
               pending={reverting}
-              pendingLabel="Opening…"
+              pendingLabel={t('Opening…')}
               onClick={revert}
             >
               <HistoryIcon size={14} />
-              Open the revert pull request
+              {t('Open the revert pull request')}
             </PendingButton>
             <button
               type="button"
               className="btn quiet small"
               onClick={() => setConfirmRevert(false)}
             >
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
           <PanelError error={revertError} />
@@ -592,31 +638,28 @@ export function ClosedBox({
       <div className="pr-next-top">
         <div className="pr-next-main">
           <span className="eyebrow" id="pr-next-title">
-            Closed
+            {t('Closed')}
           </span>
           <p className="pr-next-line">
             <b>
-              Closed without merging{' '}
-              {pr.closedAt && (
-                <time title={fullDate(pr.closedAt)}>
-                  {timeAgo(pr.closedAt)}
-                </time>
-              )}
-              .
+              {tx('Closed without merging {when}.', {
+                when: pr.closedAt ? (
+                  <time title={fullDate(pr.closedAt)}>
+                    {timeAgo(pr.closedAt)}
+                  </time>
+                ) : null,
+              })}
             </b>
           </p>
           <p className="muted">
-            {d.headBranchExists ? (
-              <>
-                Its branch <code>{pr.headRef}</code> is still there, so it can
-                be reopened.
-              </>
-            ) : (
-              <>
-                The <code>{pr.headRef}</code> branch is gone, so it can&apos;t
-                be reopened.
-              </>
-            )}
+            {d.headBranchExists
+              ? tx(
+                  'Its branch {branch} is still there, so it can be reopened.',
+                  { branch: <code>{pr.headRef}</code> }
+                )
+              : tx("The {branch} branch is gone, so it can't be reopened.", {
+                  branch: <code>{pr.headRef}</code>,
+                })}
           </p>
           <PanelError error={reopen.error} />
         </div>
@@ -625,7 +668,7 @@ export function ClosedBox({
             <PendingButton
               className="small"
               pending={reopen.busy}
-              pendingLabel="Reopening…"
+              pendingLabel={t('Reopening…')}
               onClick={() =>
                 reopen.run(() =>
                   api.updatePull(repo.owner.username, repo.name, pr.number, {
@@ -634,7 +677,7 @@ export function ClosedBox({
                 )
               }
             >
-              Reopen pull request
+              {t('Reopen pull request')}
             </PendingButton>
           </div>
         )}

@@ -1,14 +1,15 @@
 /** Repository Insights: the period, how numbers read and how the reviewer bars are drawn. */
 import { dayLabel, spanOf } from './format';
+import { t } from './i18n';
 import { INSIGHT_PERIODS } from './uiApi';
 
 export type Period = (typeof INSIGHT_PERIODS)[number];
 
 const PERIOD_LABEL: Record<Period, string> = {
-  7: '1 week',
-  30: '1 month',
-  90: '3 months',
-  365: '1 year',
+  7: t('1 week'),
+  30: t('1 month'),
+  90: t('3 months'),
+  365: t('1 year'),
 };
 
 export const PERIOD_OPTIONS: { value: string; label: string }[] =

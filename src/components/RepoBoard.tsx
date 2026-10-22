@@ -13,12 +13,10 @@ import {
 } from '@/lib/board';
 import { agentColor, agentState, STATE_LOOK } from '@/lib/agentLook';
 import { timeAgo } from '@/lib/format';
+import { t, tn } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { Chip } from '@/components/ui/Chip';
 import { Spark } from '@/components/ui/Spark';
-
-const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
 
 /** "Private", "Internal", or "Team · internal" (team repositories are always internal), with what that means on hover. */
 export function VisChip({
@@ -32,15 +30,15 @@ export function VisChip({
       className="vis"
       title={
         repo.visibility === 'private'
-          ? 'Only you, collaborators, and site admins can see this'
-          : 'Every member can see this'
+          ? t('Only you, collaborators, and site admins can see this')
+          : t('Every member can see this')
       }
     >
       {team
-        ? 'Team · internal'
+        ? t('Team · internal')
         : repo.visibility === 'private'
-          ? 'Private'
-          : 'Internal'}
+          ? t('Private')
+          : t('Internal')}
     </span>
   );
 }
@@ -54,7 +52,7 @@ export function FlightBar({ pulls }: { pulls: RepoStats['pulls'] }) {
       <div
         className="flight-bar"
         role="img"
-        aria-label={segments.map((s) => `${s.count} ${s.label}`).join(', ')}
+        aria-label={segments.map((s) => `${s.count} ${s.label}`).join(t(', '))}
       >
         {segments.map((s) => (
           <i
@@ -136,10 +134,12 @@ export function CodeRow({ row }: { row: BoardRow }) {
           {s.branchCount !== null && (
             <span>
               <GitBranchIcon />
-              {plural(s.branchCount, 'branch', 'branches')}
+              {tn(s.branchCount, '{n} branch', '{n} branches')}
             </span>
           )}
-          <span>Updated {timeAgo(new Date(s.updatedAt))}</span>
+          <span>
+            {t('Updated {when}', { when: timeAgo(new Date(s.updatedAt)) })}
+          </span>
         </p>
         <div className="board-crew">
           {s.agents.map((a) => (
@@ -147,40 +147,40 @@ export function CodeRow({ row }: { row: BoardRow }) {
           ))}
           <span className="muted small">
             {s.agents.length
-              ? plural(s.agents.length, 'reviewer')
-              : 'No reviewer agents yet'}
+              ? tn(s.agents.length, '{n} reviewer', '{n} reviewers')
+              : t('No reviewer agents yet')}
           </span>
         </div>
       </div>
       <div className="board-flow">
-        <span className="eyebrow">In flight</span>
+        <span className="eyebrow">{t('In flight')}</span>
         <b className="board-big">
-          {s.pulls.open}{' '}
-          <span>open pull {s.pulls.open === 1 ? 'request' : 'requests'}</span>
+          {tn(s.pulls.open, '{n} open pull request', '{n} open pull requests')}
         </b>
         <FlightBar pulls={s.pulls} />
       </div>
       <div className="board-week">
-        <span className="eyebrow">Merged, last 7 days</span>
+        <span className="eyebrow">{t('Merged, last 7 days')}</span>
         <b className="board-big">
-          {s.merged7d}{' '}
-          <span>pull {s.merged7d === 1 ? 'request' : 'requests'}</span>
+          {tn(s.merged7d, '{n} pull request', '{n} pull requests')}
         </b>
         {s.merged7d > 0 && (
           <Spark
             values={s.mergedByDay}
             width={150}
             height={34}
-            label="Pull requests merged per day, last 7 days"
+            label={t('Pull requests merged per day, last 7 days')}
             labels={days}
-            unit=" merged"
+            unit={t(' merged')}
             trend="better"
           />
         )}
         <span className="muted small">
           {s.mergedAutomaticallyPct === null
-            ? 'Nothing merged this week'
-            : `${s.mergedAutomaticallyPct}% merged with no merge click`}
+            ? t('Nothing merged this week')
+            : t('{pct}% merged with no merge click', {
+                pct: s.mergedAutomaticallyPct,
+              })}
         </span>
       </div>
       <div className="board-health">
@@ -189,18 +189,20 @@ export function CodeRow({ row }: { row: BoardRow }) {
           <Link
             className="small"
             to="/approvals"
-            aria-label={`Decide in Approvals: ${repo.fullName}`}
+            aria-label={t('Decide in Approvals: {repo}', {
+              repo: repo.fullName,
+            })}
           >
-            Decide in Approvals
+            {t('Decide in Approvals')}
           </Link>
         )}
         <span className="board-actions">
           <Link
             className="btn small primary"
             to={`/${repo.fullName}`}
-            aria-label={`Open ${repo.fullName}`}
+            aria-label={t('Open {repo}', { repo: repo.fullName })}
           >
-            Open
+            {t('Open')}
           </Link>
         </span>
       </div>
@@ -235,7 +237,7 @@ export function AgentRow({
       <div className="board-id board-agent">
         <Link
           to={`/${handle}`}
-          aria-label={`${agent?.name ?? handle}'s profile`}
+          aria-label={t('{name}’s profile', { name: agent?.name ?? handle })}
         >
           <AgentAvatar
             handle={handle}
@@ -252,7 +254,7 @@ export function AgentRow({
                 <b>{handle}</b>
               </span>
             </Link>
-            <span className="vis">Agent instructions</span>
+            <span className="vis">{t('Agent instructions')}</span>
           </span>
           {(agent?.bio || repo.description) && (
             <p className="muted">{agent?.bio || repo.description}</p>
@@ -260,14 +262,18 @@ export function AgentRow({
           <p className="board-meta">
             <span>
               <FileIcon />
-              AGENT.md and knowledge/
+              {t('AGENT.md and knowledge/')}
             </span>
-            <span>Updated {timeAgo(new Date(repo.stats.updatedAt))}</span>
+            <span>
+              {t('Updated {when}', {
+                when: timeAgo(new Date(repo.stats.updatedAt)),
+              })}
+            </span>
           </p>
         </span>
       </div>
       <div className="board-flow">
-        <span className="eyebrow">Reviews</span>
+        <span className="eyebrow">{t('Reviews')}</span>
         {record.isPending ? (
           <>
             <div className="sk sk-line w50" />
@@ -276,35 +282,41 @@ export function AgentRow({
         ) : r ? (
           <>
             <b className="board-big">
-              {r.raised}{' '}
-              <span>{r.raised === 1 ? 'finding' : 'findings'} raised</span>
+              {tn(r.raised, '{n} finding raised', '{n} findings raised')}
             </b>
             <span className="small">
               {r.keptPct === null
                 ? r.raised
-                  ? 'None decided yet'
-                  : 'No reviews yet'
-                : `${r.keptPct}% kept · ${r.dismissed} dismissed`}
+                  ? t('None decided yet')
+                  : t('No reviews yet')
+                : t('{pct}% kept · {n} dismissed', {
+                    pct: r.keptPct,
+                    n: r.dismissed,
+                  })}
             </span>
           </>
         ) : (
-          <span className="small muted">Its record is not available.</span>
+          <span className="small muted">
+            {t('Its record is not available.')}
+          </span>
         )}
         <span className="small muted">
-          {repos.length ? `On ${repos.join(', ')}` : 'Not on a repository'}
+          {repos.length
+            ? t('On {repos}', { repos: repos.join(t(', ')) })
+            : t('Not on a repository')}
         </span>
       </div>
       <div className="board-week">
-        <span className="eyebrow">Learned</span>
+        <span className="eyebrow">{t('Learned')}</span>
         {r ? (
           <>
-            <b className="board-big">
-              {r.rules} <span>{r.rules === 1 ? 'rule' : 'rules'}</span>
-            </b>
+            <b className="board-big">{tn(r.rules, '{n} rule', '{n} rules')}</b>
             <span className="small">
               {r.rules
-                ? 'Saved from requests a person dismissed.'
-                : 'Nothing yet. Rules appear when a person dismisses a request.'}
+                ? t('Saved from requests a person dismissed.')
+                : t(
+                    'Nothing yet. Rules appear when a person dismisses a request.'
+                  )}
             </span>
           </>
         ) : (
@@ -313,24 +325,24 @@ export function AgentRow({
       </div>
       <div className="board-health">
         {onDuty ? (
-          <Chip tone="good">On duty</Chip>
+          <Chip tone="good">{t('On duty')}</Chip>
         ) : (
-          <Chip tone="off">Off</Chip>
+          <Chip tone="off">{t('Off')}</Chip>
         )}
         <span className="board-actions">
           <Link
             className="btn small"
             to={`/${handle}`}
-            aria-label={`${agent?.name ?? handle}'s profile`}
+            aria-label={t('{name}’s profile', { name: agent?.name ?? handle })}
           >
-            Profile
+            {t('Profile')}
           </Link>
           <Link
             className="btn small primary"
             to={`/${repo.fullName}`}
-            aria-label={`Open ${repo.fullName}`}
+            aria-label={t('Open {repo}', { repo: repo.fullName })}
           >
-            Open
+            {t('Open')}
           </Link>
         </span>
       </div>

@@ -5,6 +5,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import type { RepoDetail } from '@/lib/uiApi';
+import { t } from '@/lib/i18n';
 import { parsePullsView, pullsHref, type PullsView } from '@/lib/pullsView';
 import { PageHead } from '@/components/ui/PageHead';
 import { Seg } from '@/components/ui/Seg';
@@ -32,12 +33,12 @@ function rememberView(view: PullsView) {
 }
 
 const VIEWS = [
-  { value: 'board', label: 'Board' },
-  { value: 'list', label: 'List' },
-  { value: 'graph', label: 'Graph' },
+  { value: 'board', label: t('Board') },
+  { value: 'list', label: t('List') },
+  { value: 'graph', label: t('Graph') },
 ] as const satisfies readonly { value: PullsView; label: string }[];
 
-const count = (n: number) => `${n} open`;
+const count = (n: number) => t('{n} open', { n });
 
 /**
  * Pull requests: a board by whose move it is (`?view=board`, the default), a list with filters and search
@@ -55,31 +56,33 @@ export default function Pulls() {
   const lede =
     view === 'board'
       ? open
-        ? `${count(open)}, sorted by who has to act next.`
-        : 'Nothing is open. Merged pull requests are below.'
+        ? t('{count}, sorted by who has to act next.', { count: count(open) })
+        : t('Nothing is open. Merged pull requests are below.')
       : view === 'list'
-        ? 'Every pull request, open or closed. Filter them or search by number, title, person, branch or session.'
-        : 'How the open pull requests are slated to land, branch by branch.';
+        ? t(
+            'Every pull request, open or closed. Filter them or search by number, title, person, branch or session.'
+          )
+        : t('How the open pull requests are slated to land, branch by branch.');
 
   return (
     <>
       <PageHead
         icon="pull"
-        crumbs={[{ label: 'Pull requests' }]}
-        title="Pull requests"
+        crumbs={[{ label: t('Pull requests') }]}
+        title={t('Pull requests')}
         tab="pulls"
         lede={lede}
         actions={
           repo.permissions.write ? (
             <Link to={`${base}/compare`} className="btn primary">
-              New pull request
+              {t('New pull request')}
             </Link>
           ) : undefined
         }
       />
       <div className="pulls-bar">
         <Seg
-          label="View"
+          label={t('View')}
           options={VIEWS}
           value={view}
           onChange={(next) => {

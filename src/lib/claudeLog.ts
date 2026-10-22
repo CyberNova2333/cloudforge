@@ -3,6 +3,7 @@
  * A small local stand-in until the shared audit sentences (`auditText.ts`, crew redesign C12) land; the final
  * review may fold these into it.
  */
+import { lang, t } from './i18n';
 import { withVia } from './via';
 import type { AuditEvent, DelegatedEvent, PersonRef } from './uiApi';
 
@@ -13,8 +14,9 @@ export const AI_NAME = 'Claude';
 
 export const isAiVia = (via: string | null | undefined) => via === AI_VIA;
 
-/** "Data’s", "Features’". */
+/** "Data’s", "Features’" ("Data 的" in Chinese). */
 export function possessive(name: string): string {
+  if (lang === 'zh') return `${name} 的`;
   return /s$/i.test(name) ? `${name}’` : `${name}’s`;
 }
 
@@ -27,15 +29,18 @@ export function clockTime(ms: number): string {
 
 /** One line of "What Claude did today". */
 export function delegatedText(e: DelegatedEvent, agentName: string): string {
-  const whose = possessive(agentName);
-  const pr = `#${e.pull ?? '?'}`;
+  const vars = {
+    ai: AI_NAME,
+    whose: possessive(agentName),
+    pr: `#${e.pull ?? '?'}`,
+  };
   switch (e.data.decision) {
     case 'approve':
-      return `${AI_NAME} approved ${whose} finding on ${pr}`;
+      return t('{ai} approved {whose} finding on {pr}', vars);
     case 'request_changes':
-      return `${AI_NAME} requested changes on ${pr} for ${whose} finding`;
+      return t('{ai} requested changes on {pr} for {whose} finding', vars);
     default:
-      return `${AI_NAME} left ${whose} finding on ${pr} for you`;
+      return t('{ai} left {whose} finding on {pr} for you', vars);
   }
 }
 
@@ -47,8 +52,8 @@ function named(
   p: { login: string | null; name: string | null } | null,
   me: string | null
 ): string {
-  if (!p || (!p.login && !p.name)) return 'someone';
-  if (same(p.login, me)) return 'you';
+  if (!p || (!p.login && !p.name)) return t('someone');
+  if (same(p.login, me)) return t('you');
   return p.name || `@${p.login}`;
 }
 
@@ -59,20 +64,30 @@ export function decidedByText(
   me: string | null
 ): string {
   const who = named(by, me);
-  if (isAiVia(via)) return `${AI_NAME} for ${who}`;
+  if (isAiVia(via)) return t('{ai} for {who}', { ai: AI_NAME, who });
   return withVia(who, via);
 }
 
-const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-const sentence = (t: string) => (/[.!?”"]$/.test(t) ? t : `${t}.`);
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Ends `s` like a sentence, with the language's full stop. */
+const sentence = (s: string) =>
+  /[.!?”"。！？]$/.test(s) ? s : `${s}${lang === 'zh' ? '。' : '.'}`;
 const str = (v: unknown) =>
   typeof v === 'string' && v.trim() ? v.trim() : null;
 
-const UNDID: Record<string, string> = {
-  approved: 'approval',
-  dismissed: 'dismissal',
-  changes_requested: 'request for changes',
-};
+/** What an undo took back, by the decision it undid. */
+function undid(kind: string): string {
+  switch (kind) {
+    case 'approved':
+      return t('approval');
+    case 'dismissed':
+      return t('dismissal');
+    case 'changes_requested':
+      return t('request for changes');
+    default:
+      return t('decision');
+  }
+}
 
 /** One entry of a finding's history, as a sentence. */
 export function findingEventText(
@@ -87,45 +102,63 @@ export function findingEventText(
   switch (e.action) {
     case 'finding.approved': {
       const reason = str(d.reason);
-      const verb = d.kind === 'change_requested' ? 'dismissed' : 'approved';
+      const dismissed = d.kind === 'change_requested';
       return sentence(
-        `${who} ${verb} it${reason ? `. Reason: ${reason}` : ''}`
+        reason
+          ? dismissed
+            ? t('{who} dismissed it. Reason: {reason}', { who, reason })
+            : t('{who} approved it. Reason: {reason}', { who, reason })
+          : dismissed
+            ? t('{who} dismissed it', { who })
+            : t('{who} approved it', { who })
       );
     }
     case 'finding.changes_requested': {
       const note = str(d.note);
       return note
-        ? `${who} requested changes: “${note}”`
-        : `${who} requested changes.`;
+        ? t('{who} requested changes: “{note}”', { who, note })
+        : t('{who} requested changes.', { who });
     }
     case 'finding.assigned': {
       const to = str(d.assignee);
-      if (!to) return `${who} took the question back.`;
-      return `${who} asked ${same(to, ctx.me) ? 'you' : `@${to}`} to decide.`;
+      if (!to) return t('{who} took the question back.', { who });
+      return t('{who} asked {whom} to decide.', {
+        who,
+        whom: same(to, ctx.me) ? t('you') : `@${to}`,
+      });
     }
     case 'finding.delegated': {
       const reason = str(d.reason);
+      const vars = { ai: AI_NAME, whom: forWhom };
       const what =
         d.decision === 'approve'
-          ? `${AI_NAME} approved it for ${forWhom}`
+          ? t('{ai} approved it for {whom}', vars)
           : d.decision === 'request_changes'
-            ? `${AI_NAME} requested changes for ${forWhom}`
-            : `${AI_NAME} left it for ${forWhom}`;
-      return sentence(reason ? `${what}: ${reason}` : what);
+            ? t('{ai} requested changes for {whom}', vars)
+            : t('{ai} left it for {whom}', vars);
+      return sentence(reason ? t('{what}: {reason}', { what, reason }) : what);
     }
     case 'finding.undone': {
-      const thing = UNDID[String(d.undid)] ?? 'decision';
+      const thing = undid(String(d.undid));
       return isAiVia(str(d.via))
-        ? `${who} undid ${possessive(AI_NAME)} ${thing}.`
-        : `${who} undid the ${thing}.`;
+        ? t('{who} undid {whose} {thing}.', {
+            who,
+            whose: possessive(AI_NAME),
+            thing,
+          })
+        : t('{who} undid the {thing}.', { who, thing });
     }
     case 'finding.taught': {
       const teach = str(d.teach);
       return teach
-        ? `${who} taught ${ctx.agentName}: “${teach}”`
-        : `${who} taught ${ctx.agentName}.`;
+        ? t('{who} taught {agent}: “{teach}”', {
+            who,
+            agent: ctx.agentName,
+            teach,
+          })
+        : t('{who} taught {agent}.', { who, agent: ctx.agentName });
     }
     default:
-      return sentence(`${who}: ${e.action}`);
+      return sentence(t('{who}: {action}', { who, action: e.action }));
   }
 }

@@ -28,6 +28,7 @@ import {
 import { reasonText, blocking, stateText } from '@/lib/pullState';
 import { decidedByText } from '@/lib/claudeLog';
 import { timeAgo } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import type { AgentStatus } from '@/lib/agentLook';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { CoderChip } from '@/components/CoderChip';
@@ -86,7 +87,10 @@ export const rowHref = (r: InboxRow) =>
 /** "Security on #80": what a receipt was about. */
 export const rowContext = (r: InboxRow) =>
   r.type === 'finding' || r.type === 'reviewer-failed'
-    ? `${agentName(r.agent)} on #${r.pull.number}`
+    ? t('{agent} on #{n}', {
+        agent: agentName(r.agent),
+        n: r.pull.number,
+      })
     : `${r.repo} #${r.pull.number}`;
 
 /** An agent's name, linking to its profile. */
@@ -123,9 +127,12 @@ function Meta({ who, row }: { who: ReactNode; row: InboxRow }) {
           person={row.pull.author?.name || row.pull.author?.username}
         />
       </p>
-      <span className="ap-wait" title={`Updated ${row.pull.updatedAt}`}>
+      <span
+        className="ap-wait"
+        title={t('Updated {when}', { when: row.pull.updatedAt })}
+      >
         <ClockIcon size={13} />
-        <span className="sr">Updated </span>
+        <span className="sr">{t('Updated')} </span>
         {timeAgo(row.pull.updatedAt)}
       </span>
     </div>
@@ -138,7 +145,9 @@ function Author({ row, me }: { row: InboxRow; me: string | null }) {
   if (!a) return null;
   return (
     <span className="ap-auth">
-      Opened by {a.username === me ? 'you' : a.name || a.username}
+      {t('Opened by {who}', {
+        who: a.username === me ? t('you') : a.name || a.username,
+      })}
     </span>
   );
 }
@@ -245,19 +254,23 @@ export function InboxRowView({
     const sentence = findingSentence(f);
     if (owner)
       lead = (
-        <span className="ap-lock" title="A question for a person">
+        <span className="ap-lock" title={t('A question for a person')}>
           <PersonIcon size={14} />
-          <span className="sr">A question for a person</span>
+          <span className="sr">{t('A question for a person')}</span>
         </span>
       );
     else if (f.guarded)
       lead = (
         <span
           className="ap-lock"
-          title={`${name} findings can’t be approved in bulk`}
+          title={t('{agent} findings can’t be approved in bulk', {
+            agent: name,
+          })}
         >
           <ShieldIcon size={14} />
-          <span className="sr">{name} findings can’t be approved in bulk</span>
+          <span className="sr">
+            {t('{agent} findings can’t be approved in bulk', { agent: name })}
+          </span>
         </span>
       );
     else if (selectable(row))
@@ -270,7 +283,10 @@ export function InboxRowView({
             onChange={(e) => onPick(e.target.checked)}
           />
           <span className="sr">
-            Select {name}’s finding on #{row.pull.number}
+            {t('Select {agent}’s finding on #{n}', {
+              agent: name,
+              n: row.pull.number,
+            })}
           </span>
         </label>
       );
@@ -285,7 +301,7 @@ export function InboxRowView({
     const href = rowHref(row);
     const actions: ReactNode = owner ? (
       <Link className="btn small primary" to={href}>
-        Answer
+        {t('Answer')}
         <ArrowRightIcon size={14} />
       </Link>
     ) : f.guarded ? (
@@ -295,12 +311,12 @@ export function InboxRowView({
             'changes',
             <>
               <SyncIcon size={14} />
-              Request changes
+              {t('Request changes')}
             </>,
             true
           )}
         <Link className="btn small" to={href}>
-          Review and decide
+          {t('Review and decide')}
           <ArrowRightIcon size={14} />
         </Link>
       </>
@@ -310,9 +326,9 @@ export function InboxRowView({
           'approve',
           <>
             <CheckIcon size={14} />
-            {asked ? 'Approve instead' : 'Approve'}
+            {asked ? t('Approve instead') : t('Approve')}
           </>,
-          'Approving…',
+          t('Approving…'),
           { primary: true }
         )}
         {!asked &&
@@ -320,14 +336,14 @@ export function InboxRowView({
             'changes',
             <>
               <SyncIcon size={14} />
-              Request changes
+              {t('Request changes')}
             </>
           )}
         {toggle(
           'dismiss',
           <>
             <XIcon size={14} />
-            Dismiss
+            {t('Dismiss')}
           </>
         )}
       </>
@@ -343,45 +359,52 @@ export function InboxRowView({
         )}
         <p className="ap-by">
           {owner && (
-            <span className="ap-tag ap-tag-accent">Needs your answer</span>
+            <span className="ap-tag ap-tag-accent">
+              {t('Needs your answer')}
+            </span>
           )}
           {f.guarded && !owner && (
             <span className="ap-tag">
               <ShieldIcon size={11} />
-              Needs a reason to approve
+              {t('Needs a reason to approve')}
             </span>
           )}
           {asked && (
             <span className="ap-tag ap-tag-change">
               <SyncIcon size={11} />
-              Changes requested by{' '}
-              {decidedByText(
-                f.changesRequestedBy
-                  ? {
-                      login: f.changesRequestedBy.username,
-                      name: f.changesRequestedBy.name,
-                      isAgent: false,
-                      color: null,
-                    }
-                  : null,
-                f.decidedVia,
-                me
-              )}
+              {t('Changes requested by {who}', {
+                who: decidedByText(
+                  f.changesRequestedBy
+                    ? {
+                        login: f.changesRequestedBy.username,
+                        name: f.changesRequestedBy.name,
+                        isAgent: false,
+                        color: null,
+                      }
+                    : null,
+                  f.decidedVia,
+                  me
+                ),
+              })}
             </span>
           )}
           {f.assignee && (
             <span className="ap-tag">
               <PeopleIcon size={11} />
               {f.assignee.login === me
-                ? 'Assigned to you'
-                : `Assigned to ${f.assignee.name || `@${f.assignee.login}`}`}
+                ? t('Assigned to you')
+                : t('Assigned to {who}', {
+                    who: f.assignee.name || `@${f.assignee.login}`,
+                  })}
             </span>
           )}
           <Author row={row} me={me} />
           {claudeLeft && !decided && (
             <span className="ap-auto">
               <ClaudeTile />
-              Claude left this for you: {claudeLeft}
+              {t('Claude left this for you: {reason}', {
+                reason: claudeLeft,
+              })}
             </span>
           )}
         </p>
@@ -395,9 +418,9 @@ export function InboxRowView({
               'undo',
               <>
                 <UndoIcon size={14} />
-                Undo request
+                {t('Undo request')}
               </>,
-              'Reopening…',
+              t('Reopening…'),
               { quiet: true }
             )}
         </div>
@@ -440,9 +463,9 @@ export function InboxRowView({
       <>
         <Meta who={<AgentLink agent={row.agent} />} row={row} />
         <p className="ap-text" id={textId}>
-          {name}’s review failed.
+          {t('{agent}’s review failed.', { agent: name })}
         </p>
-        <p className="ap-text ap-soft">{row.error ?? 'Unknown error.'}</p>
+        <p className="ap-text ap-soft">{row.error ?? t('Unknown error.')}</p>
         {row.pull.author && (
           <p className="ap-by">
             <Author row={row} me={me} />
@@ -453,10 +476,12 @@ export function InboxRowView({
             'retry-reviewer',
             <>
               <SyncIcon size={14} />
-              Retry
+              {t('Retry')}
             </>,
-            'Starting…',
-            { aria: `Retry ${name}’s review` }
+            t('Starting…'),
+            {
+              aria: t('Retry {agent}’s review', { agent: name }),
+            }
           )}
         </div>
       </>
@@ -475,27 +500,27 @@ export function InboxRowView({
         ? {
             tone: 'critical',
             icon: <AlertIcon size={16} />,
-            who: 'Review',
-            text: `The review of #${n} failed.`,
+            who: t('Review'),
+            text: t('The review of #{n} failed.', { n }),
             soft: row.error,
             actions: btn(
               'retry-review',
               <>
                 <SyncIcon size={14} />
-                Try the review again
+                {t('Try the review again')}
               </>,
-              'Starting…'
+              t('Starting…')
             ),
           }
         : row.type === 'resolution-failed'
           ? {
               tone: 'serious',
               icon: <GitMergeIcon size={16} />,
-              who: 'Conflicts',
+              who: t('Conflicts'),
               text: row.message,
               actions: (
                 <Link className="btn small" to={row.prUrl}>
-                  Decide on the pull request
+                  {t('Decide on the pull request')}
                 </Link>
               ),
             }
@@ -503,15 +528,17 @@ export function InboxRowView({
             ? {
                 tone: 'warn',
                 icon: <StackIcon size={16} />,
-                who: 'Stack',
-                text: `Still must account for #${row.pr}.`,
-                soft: `Nothing new since ${timeAgo(row.since)}.`,
+                who: t('Stack'),
+                text: t('Still must account for #{n}.', { n: row.pr }),
+                soft: t('Nothing new since {when}.', {
+                  when: timeAgo(row.since),
+                }),
                 actions: (
                   <Link
                     className="btn small"
                     to={`/${row.repo}/pull/${row.pr}`}
                   >
-                    View #{row.pr}
+                    {t('View #{n}', { n: row.pr })}
                   </Link>
                 ),
               }
@@ -519,45 +546,51 @@ export function InboxRowView({
               ? {
                   tone: 'warn',
                   icon: <StackIcon size={16} />,
-                  who: 'Stack',
-                  text: `Couldn’t check against ${row.prs.map((p) => `#${p}`).join(', ')}.`,
+                  who: t('Stack'),
+                  text: t('Couldn’t check against {prs}.', {
+                    prs: row.prs.map((p) => `#${p}`).join(', '),
+                  }),
                   actions: btn(
                     'retry-stack',
                     <>
                       <SyncIcon size={14} />
-                      Check again
+                      {t('Check again')}
                     </>,
-                    'Starting…'
+                    t('Starting…')
                   ),
                 }
               : row.type === 'needs-approval'
                 ? {
                     tone: 'info',
                     icon: <ShieldCheckIcon size={16} />,
-                    who: 'Approval',
-                    text: 'No agent reviewed this commit: a person approves it.',
+                    who: t('Approval'),
+                    text: t(
+                      'No agent reviewed this commit: a person approves it.'
+                    ),
                     soft: row.changeRequested
-                      ? 'Approving does not override an agent’s change request: dismiss it, or wait for a fix.'
+                      ? t(
+                          'Approving does not override an agent’s change request: dismiss it, or wait for a fix.'
+                        )
                       : undefined,
                     actions: (
                       <>
                         <PendingButton
                           className="small primary"
                           pending={busy === 'approve-pull'}
-                          pendingLabel="Approving…"
+                          pendingLabel={t('Approving…')}
                           disabled={
                             disabled ||
                             (busy !== null && busy !== 'approve-pull') ||
                             !row.pull.headSha
                           }
-                          aria-label="Approve this commit"
+                          aria-label={t('Approve this commit')}
                           onClick={() => onAct({ kind: 'approve-pull' })}
                         >
                           <CheckIcon size={14} />
-                          Approve
+                          {t('Approve')}
                         </PendingButton>
                         <Link className="btn small" to={row.prUrl}>
-                          Review the changes
+                          {t('Review the changes')}
                         </Link>
                       </>
                     ),
@@ -565,7 +598,7 @@ export function InboxRowView({
                 : {
                     tone: 'warn',
                     icon: <PersonIcon size={16} />,
-                    who: 'Needs a person',
+                    who: t('Needs a person'),
                     text: stateText(row.state).label,
                     soft:
                       row.state.reasons
@@ -574,7 +607,7 @@ export function InboxRowView({
                         .join('; ') || undefined,
                     actions: (
                       <Link className="btn small" to={row.prUrl}>
-                        Decide on the pull request
+                        {t('Decide on the pull request')}
                       </Link>
                     ),
                   };
@@ -667,18 +700,18 @@ export function ReceiptView({
           </p>
           <span className="ap-rbtns">
             <Link className="btn quiet small" to={rowHref(r)}>
-              View
+              {t('View')}
             </Link>
             {receipt.undo && (
               <PendingButton
                 className="quiet small"
                 pending={undoing}
-                pendingLabel="Undoing…"
+                pendingLabel={t('Undoing…')}
                 disabled={locked && !undoing}
                 onClick={onUndo}
               >
                 <UndoIcon size={14} />
-                Undo
+                {t('Undo')}
               </PendingButton>
             )}
           </span>

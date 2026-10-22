@@ -4,18 +4,22 @@ import {
   type ParsedMessage,
   type Trailer,
 } from '@/lib/commitMessage';
+import { t, tx } from '@/lib/i18n';
 
 // A finding's id, as a `Dismissed-Finding` trailer carries it: safe to put in a path.
 const FINDING_ID = /^[A-Za-z0-9_-]+$/;
 
-function TrailerValue({ t }: { t: Trailer }) {
-  if (t.key.toLowerCase() === 'dismissed-finding' && FINDING_ID.test(t.value))
+function TrailerValue({ trailer }: { trailer: Trailer }) {
+  if (
+    trailer.key.toLowerCase() === 'dismissed-finding' &&
+    FINDING_ID.test(trailer.value)
+  )
     return (
-      <Link to={`/approvals/${t.value}`} title="Open the finding">
-        {t.value}
+      <Link to={`/approvals/${trailer.value}`} title={t('Open the finding')}>
+        {trailer.value}
       </Link>
     );
-  return <>{t.value}</>;
+  return <>{trailer.value}</>;
 }
 
 /**
@@ -25,12 +29,12 @@ function TrailerValue({ t }: { t: Trailer }) {
 export function CommitTrailers({ trailers }: { trailers: Trailer[] }) {
   if (!trailers.length) return null;
   return (
-    <dl className="trailers" aria-label="Trailers">
-      {trailers.map((t, i) => (
+    <dl className="trailers" aria-label={t('Trailers')}>
+      {trailers.map((tr, i) => (
         <div key={i}>
-          <dt>{t.key}</dt>
+          <dt>{tr.key}</dt>
           <dd>
-            <TrailerValue t={t} />
+            <TrailerValue trailer={tr} />
           </dd>
         </div>
       ))}
@@ -45,7 +49,9 @@ export function CoAuthored({ trailers }: { trailers: Trailer[] }) {
   return (
     <span className="color-fg-muted">
       {' '}
-      with <span className="co-authors">{names.join(', ')}</span>
+      {tx('with {names}', {
+        names: <span className="co-authors">{names.join(', ')}</span>,
+      })}
     </span>
   );
 }

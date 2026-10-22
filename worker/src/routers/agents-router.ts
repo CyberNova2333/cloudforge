@@ -383,7 +383,7 @@ repoAgentsRouter.openapi(listRepoAgentsRoute, async (c) => {
   const rows = await repositoryAgentList(
     c.get('db'),
     c.get('repo').id,
-    c.get('user')!
+    c.get('user')
   );
   return c.json(
     rows.map((r) => ({

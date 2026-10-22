@@ -2,13 +2,26 @@
  * The version bump a pull request asks for, in words. A pull request that lands without one counts as a patch, so
  * lists of unreleased changes say "patch (default)" rather than nothing.
  */
+import { t } from './i18n';
 import type { VersionBump } from './uiApi';
 
 export const BUMPS: readonly VersionBump[] = ['major', 'minor', 'patch'];
 
+/** Each bump as a list says it (lower case), and as a menu option says it (capitalised). */
+const BUMP_WORD: Record<VersionBump, string> = {
+  major: t('major'),
+  minor: t('minor'),
+  patch: t('patch'),
+};
+export const BUMP_OPTION: Record<VersionBump, string> = {
+  major: t('Major'),
+  minor: t('Minor'),
+  patch: t('Patch'),
+};
+
 /** The bump as a list shows it: "minor", or "patch (default)" when it asked for none. */
 export function bumpLabel(bump: VersionBump | null): string {
-  return bump ?? 'patch (default)';
+  return bump ? BUMP_WORD[bump] : t('patch (default)');
 }
 
 /** A `<select>` value back to a bump: '' is none. */

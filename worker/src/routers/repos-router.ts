@@ -138,7 +138,7 @@ reposRouter.openapi(listRoute, async (c) => {
     .from(repositories)
     .innerJoin(users, eq(users.id, repositories.ownerId))
     .leftJoin(teams, eq(teams.id, repositories.teamId))
-    .where(visibleTo(c.get('user')!))
+    .where(visibleTo(c.get('user')))
     .orderBy(desc(repositories.updatedAt))
     .all();
   const withStats = ['1', 'true'].includes(c.req.valid('query').stats ?? '');
@@ -173,9 +173,11 @@ const createRepoRoute = createRoute({
             name: z.string().min(1).max(100),
             description: z.string().max(350).optional(),
             addReadme: z.boolean().default(false),
-            // Personal repos default to private; team repos are always internal.
+            // Personal repos default to private; team repos are internal unless public.
             owner: z.enum(['user', 'team']).default('user'),
-            visibility: z.enum(['private', 'internal']).default('private'),
+            visibility: z
+              .enum(['private', 'internal', 'public'])
+              .default('private'),
           }),
         },
       },
@@ -266,7 +268,7 @@ const updateRepoRoute = createRoute({
             name: z.string().min(1).max(100).optional(),
             description: z.string().max(350).nullable().optional(),
             defaultBranch: z.string().min(1).optional(),
-            visibility: z.enum(['private', 'internal']).optional(),
+            visibility: z.enum(['private', 'internal', 'public']).optional(),
             // Replaces the list; [] or null clears it.
             protectedBranches: z
               .array(z.string())
@@ -312,7 +314,7 @@ reposRouter.openapi(updateRepoRoute, async (c) => {
   if (body.description !== undefined)
     patch.description = body.description?.trim() || null;
   if (body.visibility !== undefined && body.visibility !== repo.visibility) {
-    if (repo.teamId)
+    if (repo.teamId && body.visibility === 'private')
       return c.json(
         { error: 'Team repositories are always visible to every member' },
         400

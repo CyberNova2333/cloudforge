@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { GitBranchIcon, GitCompareIcon } from '@primer/octicons-react';
 import type { PullDetail, RepoDetail, User } from '@/lib/uiApi';
+import { t, tn, tx } from '@/lib/i18n';
 import { participants } from '@/lib/pullPage';
 import { Avatar } from '@/components/Avatar';
 import { AgentRunLink } from '@/components/AgentRunLink';
@@ -23,29 +24,35 @@ function ChecksPanel({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
   return (
     <section className="panel pad" aria-labelledby="pr-checks-title">
       <div className="pr-panel-head">
-        <h2 id="pr-checks-title">Checks</h2>
+        <h2 id="pr-checks-title">{t('Checks')}</h2>
         <span className="grow" />
         <Link to={checksTab} className="small">
-          Details
+          {t('Details')}
         </Link>
       </div>
       {!d.headSha ? (
-        <p className="muted small">The branch is gone, so nothing runs.</p>
+        <p className="muted small">
+          {t('The branch is gone, so nothing runs.')}
+        </p>
       ) : q.isError && !data ? (
         <p className="muted small">
-          The checks did not load.{' '}
+          {t('The checks did not load.')}{' '}
           <button
             type="button"
             className="btn quiet small"
             onClick={() => void q.refetch()}
           >
-            Retry
+            {t('Retry')}
           </button>
         </p>
       ) : !data ? (
-        <div className="sk sk-line w60" role="status" aria-label="Loading" />
+        <div
+          className="sk sk-line w60"
+          role="status"
+          aria-label={t('Loading')}
+        />
       ) : !data.state ? (
-        <p className="muted small">No checks ran on this commit.</p>
+        <p className="muted small">{t('No checks ran on this commit.')}</p>
       ) : (
         <p className="pr-checks-line">
           <RunStatusIcon {...STATE_ICON[data.state]} size={16} />
@@ -80,7 +87,10 @@ export function PullSide({
   const people: User[] = participants(pr, d.comments);
   const open = pr.state === 'open';
   return (
-    <aside className="col side pr-side" aria-label="About this pull request">
+    <aside
+      className="col side pr-side"
+      aria-label={t('About this pull request')}
+    >
       {d.review && (
         <ReviewersSidebar
           repo={repo}
@@ -92,7 +102,7 @@ export function PullSide({
       {open && <ChecksPanel repo={repo} d={d} />}
       <VersionPanel repo={repo} pr={pr} onSaved={refresh} />
       <section className="panel pad" aria-labelledby="pr-branch-title">
-        <h2 id="pr-branch-title">Branch</h2>
+        <h2 id="pr-branch-title">{t('Branch')}</h2>
         <p className="pr-branches">
           {d.headBranchExists ? (
             <Link to={`${base}/tree/${pr.headRef}`} className="mono">
@@ -102,12 +112,14 @@ export function PullSide({
           ) : (
             <span className="mono muted">
               <GitBranchIcon size={14} />
-              {pr.headRef} (deleted)
+              {t('{branch} (deleted)', { branch: pr.headRef })}
             </span>
           )}
           <span className="muted small">
-            into <span className="mono">{pr.baseRef}</span> · {d.commitCount}{' '}
-            commit{d.commitCount === 1 ? '' : 's'}
+            {tx('into {base} · {commits}', {
+              base: <span className="mono">{pr.baseRef}</span>,
+              commits: tn(d.commitCount, '{n} commit', '{n} commits'),
+            })}
           </span>
         </p>
         {open && d.headBranchExists && (
@@ -117,19 +129,19 @@ export function PullSide({
               to={`${base}/compare/${pr.baseRef}...${pr.headRef}`}
             >
               <GitCompareIcon size={14} />
-              Compare
+              {t('Compare')}
             </Link>
             <Link
               className="btn small quiet"
               to={`${base}/pull/${pr.number}/commits`}
             >
-              Commits
+              {t('Commits')}
             </Link>
           </p>
         )}
       </section>
       <section className="panel pad" aria-labelledby="pr-people-title">
-        <h2 id="pr-people-title">Participants</h2>
+        <h2 id="pr-people-title">{t('Participants')}</h2>
         <ul className="pr-participants">
           {people.map((u) => (
             <li key={u.id}>
@@ -142,7 +154,7 @@ export function PullSide({
         </ul>
       </section>
       <details className="panel pad pr-tech">
-        <summary>Technical details</summary>
+        <summary>{t('Technical details')}</summary>
         {d.pullState && (
           <div className="pr-tech-state">
             <PullStateLabel state={d.pullState} showReason />
@@ -150,7 +162,7 @@ export function PullSide({
           </div>
         )}
         <dl className="pr-tech-list">
-          <dt>Head</dt>
+          <dt>{t('Head')}</dt>
           <dd>
             {d.headSha ? (
               <Link to={`${base}/commit/${d.headSha}`} className="mono">
@@ -160,11 +172,11 @@ export function PullSide({
               '—'
             )}
           </dd>
-          <dt>Base</dt>
+          <dt>{t('Base')}</dt>
           <dd className="mono">{d.baseSha ? d.baseSha.slice(0, 7) : '—'}</dd>
           {d.pullState && (
             <>
-              <dt>State code</dt>
+              <dt>{t('State code')}</dt>
               <dd className="mono">
                 {d.pullState.state}
                 {d.pullState.reasons.length > 0 &&
@@ -174,7 +186,7 @@ export function PullSide({
           )}
           {d.review?.summaryModel && (
             <>
-              <dt>Summaries</dt>
+              <dt>{t('Summaries')}</dt>
               <dd className="mono">{d.review.summaryModel}</dd>
             </>
           )}
@@ -184,19 +196,19 @@ export function PullSide({
             repo={repo}
             number={pr.number}
             kind="review"
-            label="Review run"
+            label={t('Review run')}
           />
           <AgentRunLink
             repo={repo}
             number={pr.number}
             kind="stack_discovery"
-            label="Stack run"
+            label={t('Stack run')}
           />
           <AgentRunLink
             repo={repo}
             number={pr.number}
             kind="rebase"
-            label="Rebase run"
+            label={t('Rebase run')}
           />
         </p>
       </details>

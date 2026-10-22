@@ -6,6 +6,7 @@ import {
   XCircleIcon,
 } from '@primer/octicons-react';
 import { errorMessage } from '@/lib/api';
+import { t } from '@/lib/i18n';
 
 export type NoticeTone = 'info' | 'ok' | 'warn' | 'bad';
 
@@ -61,11 +62,11 @@ export function LoadError({
       tone="bad"
       action={
         <button type="button" className="btn small" onClick={onRetry}>
-          Retry
+          {t('Retry')}
         </button>
       }
     >
-      Could not load {what}. {errorMessage(error)}
+      {t('Could not load {what}.', { what })} {errorMessage(error)}
     </Notice>
   );
 }

@@ -4,6 +4,7 @@ import {
   activitySummary,
   activityTitle,
 } from '@/lib/activityGrid';
+import { t } from '@/lib/i18n';
 
 /**
  * An agent's reviews per day over the last 26 weeks: a square a day, a column a week, darker when busier. It starts
@@ -57,13 +58,13 @@ export function ActivityGrid({
       <div className="actlegend small muted" aria-hidden="true">
         <span>{summary}</span>
         <span className="grow" />
-        Less
+        {t('Less')}
         <i className="ac" />
         <i className="ac l1" />
         <i className="ac l2" />
         <i className="ac l3" />
         <i className="ac l4" />
-        More
+        {t('More')}
       </div>
     </div>
   );

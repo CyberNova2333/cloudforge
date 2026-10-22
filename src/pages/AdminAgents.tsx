@@ -5,6 +5,7 @@ import { PlusIcon } from '@primer/octicons-react';
 import { api, qk } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo, fullDate } from '@/lib/format';
+import { t, tn, tServer } from '@/lib/i18n';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { InlineConfirm } from '@/components/InlineConfirm';
 import { LoadError, Notice } from '@/components/Notice';
@@ -36,43 +37,49 @@ export default function AdminAgents() {
     <>
       <PageHead
         icon="shield"
-        crumbs={[{ label: 'Site admin', to: '/admin' }, { label: 'Agents' }]}
-        title="Agents"
-        lede="Reviewer agents are accounts that review pull requests in the repositories that invite them. Each one is defined by AGENT.md in its own repository, which anyone who can push there can edit."
+        crumbs={[
+          { label: t('Site admin'), to: '/admin' },
+          { label: t('Agents') },
+        ]}
+        title={t('Agents')}
+        lede={t(
+          'Reviewer agents are accounts that review pull requests in the repositories that invite them. Each one is defined by AGENT.md in its own repository, which anyone who can push there can edit.'
+        )}
         actions={
           <>
             <Link className="btn" to="/agents">
-              Agents directory
+              {t('Agents directory')}
             </Link>
             <Link className="btn primary" to="/agents/new">
               <PlusIcon />
-              New reviewer
+              {t('New reviewer')}
             </Link>
           </>
         }
       />
       <AdminFrame>
         <Section
-          title="Reviewer agents"
+          title={t('Reviewer agents')}
           actions={
             agents.data && (
               <span className="muted small">
-                {list.length === 1 ? '1 agent' : `${list.length} agents`}
+                {tn(list.length, '{n} agent', '{n} agents')}
               </span>
             )
           }
         >
           {deleted && (
             <Notice tone="ok">
-              Deleted @{deleted}. It’s removed from every repository; its past
-              reviews keep its name, and its repository stays until you delete
-              it.
+              {t(
+                'Deleted @{handle}. It’s removed from every repository; its past reviews keep its name, and its repository stays until you delete it.',
+                { handle: deleted }
+              )}
             </Notice>
           )}
           <div className="panel">
             {agents.isError ? (
               <LoadError
-                what="the agents"
+                what={t('the agents')}
                 error={agents.error}
                 onRetry={() => void agents.refetch()}
               />
@@ -81,11 +88,13 @@ export default function AdminAgents() {
             ) : list.length === 0 ? (
               <EmptyState
                 picture={<CrewIcon size={20} />}
-                title="No agents yet."
-                body="Create the recommended crew, or a reviewer of your own."
+                title={t('No agents yet.')}
+                body={t(
+                  'Create the recommended crew, or a reviewer of your own.'
+                )}
                 action={
                   <Link className="btn small primary" to="/agents/new">
-                    New reviewer
+                    {t('New reviewer')}
                   </Link>
                 }
               />
@@ -109,25 +118,29 @@ export default function AdminAgents() {
                         {a.repository ? (
                           <Link to={`/${a.repository}`}>{a.repository}</Link>
                         ) : (
-                          'Repository deleted'
+                          t('Repository deleted')
                         )}{' '}
                         ·{' '}
                         <span title={fullDate(a.createdAt)}>
-                          created {timeAgo(a.createdAt)}
+                          {t('created {when}', { when: timeAgo(a.createdAt) })}
                         </span>
                       </span>
                       {a.configError && (
                         <span className="small attention wrap">
-                          {a.configError}
+                          {tServer(a.configError)}
                         </span>
                       )}
                     </div>
                     <div className="ctl">
                       <InlineConfirm
-                        label="Delete"
-                        confirmLabel={`Delete @${a.username}`}
-                        pendingLabel="Deleting…"
-                        accessibleName={`Delete @${a.username}`}
+                        label={t('Delete')}
+                        confirmLabel={t('Delete @{handle}', {
+                          handle: a.username,
+                        })}
+                        pendingLabel={t('Deleting…')}
+                        accessibleName={t('Delete @{handle}', {
+                          handle: a.username,
+                        })}
                         pending={
                           remove.isPending && remove.variables === a.username
                         }
