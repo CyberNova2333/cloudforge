@@ -100,7 +100,7 @@ export async function prepareReview(
   row: PrReviewer
 ): Promise<{ ok: true; value: PreparedReview } | { ok: false; error: string }> {
   const own = await db
-    .select({ repo: repositories })
+    .select({ repo: repositories, language: agents.reviewLanguage })
     .from(agents)
     .innerJoin(repositories, eq(repositories.id, agents.repositoryId))
     .where(eq(agents.userId, row.agentId))
@@ -124,6 +124,7 @@ export async function prepareReview(
       changedPaths: [...ctx.changes, ...ctx.more].map((c) => c.path),
       input: {
         handle: ctx.reviewer.handle,
+        ...(own.language && { language: own.language }),
         agentSha: row.agentSha,
         instructions: config.config.instructions,
         knowledge,

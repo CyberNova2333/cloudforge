@@ -34,6 +34,8 @@ export type PersonRef = {
 /** A reviewer agent (Site admin → Agents). */
 export type Agent = User & {
   bio: string;
+  /** What its reviews (summary, findings, questions) are written in; a site admin chooses it. */
+  reviewLanguage: 'zh' | 'en';
   trigger: { ask: string; above: number };
   engine: 'pass' | 'pi';
   /** `#rrggbb`: AGENT.md's colour, else a stable one from the palette. */
@@ -1317,6 +1319,12 @@ export const api = {
   createAgentCrew: () =>
     apiFetch<CrewResult>('/api/admin/agents/crew', { method: 'POST' }),
   agentPresets: () => apiFetch<AgentPreset[]>('/api/agents/presets'),
+  /** Site admins: the language an agent writes its next reviews in. */
+  setAgentReviewLanguage: (handle: string, language: 'zh' | 'en') =>
+    apiFetch<{ agent: Agent }>(
+      `/api/admin/agents/${encodeURIComponent(handle)}/review-language`,
+      { method: 'PUT', json: { language } }
+    ),
   /** Clef and Fixer, with their last seven days. */
   agentsBuiltin: () => apiFetch<BuiltinAgent[]>('/api/agents/builtin'),
   agentStats: (handle: string) =>

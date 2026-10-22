@@ -55,6 +55,7 @@ export function serializeAgent(v: AgentView) {
     configError: v.repo ? v.agent.configError : null,
     createdAt: v.agent.createdAt.toISOString(),
     deletedAt: v.agent.deletedAt?.toISOString() ?? null,
+    reviewLanguage: v.agent.reviewLanguage ?? 'en',
   };
 }
 
@@ -150,6 +151,10 @@ export async function createAgent(
     };
   const nameError = displayNameError(name);
   if (nameError) return { ok: false, status: 400, error: nameError };
+  // The handle of a deleted agent: bring that agent back rather than refusing the name it still holds.
+  const deleted = await deletedAgentByHandle(db, handle);
+  if (deleted)
+    return restoreAgent(env, db, creator, deleted, { ...input, name });
   if (await namespaceTaken(db, handle))
     return {
       ok: false,
@@ -211,6 +216,45 @@ export async function createAgent(
       error: `"${handle}" is already a username or team name`,
     };
   }
+  try {
+    await seedAgentRepository(env, db, creator, user, files, now);
+  } catch (e) {
+    // Cascades to the agents and repository rows. A failed cleanup is logged; the original error is the one
+    // worth surfacing.
+    try {
+      await db.delete(users).where(eq(users.id, id));
+    } catch (cleanup) {
+      console.error(
+        '[agents] cleanup after a failed create failed',
+        id,
+        cleanup
+      );
+    }
+    throw e;
+  }
+  await recordAudit(db, {
+    repositoryId: null,
+    actorId: creator.id,
+    action: 'agent.created',
+    target: handle,
+    data: { name, preset: input.preset ?? null },
+  });
+  return { ok: true, agent: (await agentByHandle(db, handle, creator))! };
+}
+
+/**
+ * Makes the agent's `<handle>/<handle>` repository from `files` (its first commit by `creator`, who becomes a
+ * collaborator), and points the agent and its avatar at it. On failure deletes the repository it made and throws.
+ */
+async function seedAgentRepository(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  creator: SessionUser,
+  user: Parameters<typeof createRepository>[2] & { username: string },
+  files: Record<string, string | Uint8Array>,
+  now: Date
+): Promise<void> {
+  const handle = user.username;
   let repo: Repository | null = null;
   try {
     const created = await createRepository(env, db, user, {
@@ -234,7 +278,7 @@ export async function createAgent(
       db
         .update(agents)
         .set({ repositoryId: repo.id, configSha: sha })
-        .where(eq(agents.userId, id)),
+        .where(eq(agents.userId, user.id)),
       db.insert(repositoryCollaborators).values({
         repositoryId: repo.id,
         userId: creator.id,
@@ -243,29 +287,110 @@ export async function createAgent(
       db
         .update(users)
         .set({ image: avatarUrl(handle, sha) })
-        .where(eq(users.id, id)),
+        .where(eq(users.id, user.id)),
     ]);
   } catch (e) {
-    if (repo) await env.ARTIFACTS.delete(repo.artifactsName).catch(() => {});
-    // Cascades to the agents and repository rows. A failed cleanup is logged; the original error is the one
-    // worth surfacing.
-    try {
-      await db.delete(users).where(eq(users.id, id));
-    } catch (cleanup) {
-      console.error(
-        '[agents] cleanup after a failed create failed',
-        id,
-        cleanup
-      );
+    if (repo) {
+      await env.ARTIFACTS.delete(repo.artifactsName).catch(() => {});
+      // A restored agent keeps its user, so the half-made repository row must go here (a new agent's goes with
+      // its user). A failed cleanup must not hide the original error.
+      try {
+        await db.delete(repositories).where(eq(repositories.id, repo.id));
+      } catch (cleanup) {
+        console.error(
+          '[agents] could not remove a half-made repository',
+          cleanup
+        );
+      }
     }
     throw e;
   }
+}
+
+/** A deleted agent holding `handle` (its user row stays after deletion), or undefined. */
+async function deletedAgentByHandle(db: DrizzleDB, handle: string) {
+  const row = await db
+    .select({ agent: agents, user: users })
+    .from(agents)
+    .innerJoin(users, eq(users.id, agents.userId))
+    .where(eq(users.username, handle))
+    .get();
+  return row?.agent.deletedAt ? row : undefined;
+}
+
+/**
+ * Brings a deleted agent back under its handle: the same account, so its reviews, findings and lessons stay its
+ * own, and the same repository, AGENT.md and knowledge. If a site admin deleted that repository meanwhile, a new
+ * one is made from the template (`input.preset`'s AGENT.md when given) and the cached config is read from it.
+ * Recorded in the audit log as `agent.restored`.
+ */
+async function restoreAgent(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  creator: SessionUser,
+  deleted: NonNullable<Awaited<ReturnType<typeof deletedAgentByHandle>>>,
+  input: { name: string; preset?: PresetFacet }
+): Promise<CreateAgentResult> {
+  const { user } = deleted;
+  const handle = user.username!;
+  const repo = deleted.agent.repositoryId
+    ? await db
+        .select({ id: repositories.id })
+        .from(repositories)
+        .where(eq(repositories.id, deleted.agent.repositoryId))
+        .get()
+    : undefined;
+  if (!repo) {
+    const now = new Date();
+    const files = await agentTemplate(
+      handle,
+      input.name,
+      input.preset
+        ? presetAgentMd(PRESETS[input.preset], handle, input.name)
+        : undefined
+    );
+    const config = parseAgentConfig(files[AGENT_PATH] as string);
+    await db.batch([
+      db
+        .update(agents)
+        .set({
+          repositoryId: null,
+          name: config.name,
+          bio: config.bio,
+          triggerAsk: config.trigger.ask,
+          triggerAbove: config.trigger.above,
+          engine: config.engine,
+          color: config.color ?? null,
+          facet: config.facet ?? null,
+          guarded: guardedOf(config),
+          configSha: null,
+          configError: null,
+        })
+        .where(eq(agents.userId, user.id)),
+      db
+        .update(users)
+        .set({ name: input.name, updatedAt: now })
+        .where(eq(users.id, user.id)),
+    ]);
+    await seedAgentRepository(
+      env,
+      db,
+      creator,
+      { ...user, name: input.name, username: handle },
+      files,
+      now
+    );
+  }
+  await db
+    .update(agents)
+    .set({ deletedAt: null })
+    .where(eq(agents.userId, user.id));
   await recordAudit(db, {
     repositoryId: null,
     actorId: creator.id,
-    action: 'agent.created',
+    action: 'agent.restored',
     target: handle,
-    data: { name, preset: input.preset ?? null },
+    data: { newRepository: !repo },
   });
   return { ok: true, agent: (await agentByHandle(db, handle, creator))! };
 }

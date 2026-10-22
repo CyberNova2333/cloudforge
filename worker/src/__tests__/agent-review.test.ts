@@ -322,6 +322,32 @@ describe("an agent's review", () => {
     expect(calls.reviewed[0].diffs).toContain(
       'ALTER TABLE users ADD plan text;'
     );
+    // Nobody chose a language: English, as before.
+    expect(calls.reviewed[0].language).toBeUndefined();
+  });
+
+  it('writes in the language a site admin chose for the agent', async () => {
+    const { t, admin, repo } = await appRepo();
+    await invitedAgent(
+      t,
+      admin,
+      'dataagent',
+      AGENT_MD({ body: 'Check data.' })
+    );
+    const set = await call(t, '/api/admin/agents/dataagent/review-language', {
+      cookie: admin,
+      method: 'PUT',
+      json: { language: 'zh' },
+    });
+    expect(set.status).toBe(200);
+    await openPull(t, admin, repo, SCHEMA_CHANGE);
+    await startReview(t);
+    const { models, calls } = agentModels();
+    await runReviews(t, models);
+    expect(calls.reviewed[0]).toMatchObject({
+      handle: 'dataagent',
+      language: 'zh',
+    });
   });
 
   it('reviews at the agent commit the trigger pinned, even if the agent moves mid-review', async () => {

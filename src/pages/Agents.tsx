@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { PlusIcon, ShieldIcon } from '@primer/octicons-react';
 import { api, qk, type Agent, type AgentStats } from '@/lib/uiApi';
 import { useCurrentUser } from '@/lib/auth';
-import { t } from '@/lib/i18n';
+import { t, tServer } from '@/lib/i18n';
 import { agentColor } from '@/lib/agentLook';
 import {
   avatarStatusOf,
@@ -217,9 +217,12 @@ export default function Agents() {
                 color={agentColor(b.id)}
                 name={b.name}
                 subtitle={t('Built in')}
-                bio={b.job}
+                bio={tServer(b.job)}
                 status="idle"
-                stats={b.stats.map((s) => ({ value: s.value, label: s.label }))}
+                stats={b.stats.map((s) => ({
+                  value: s.value,
+                  label: tServer(s.label),
+                }))}
                 foot={
                   <>
                     <Chip tone="info" icon={<CrewIcon size={12} />}>

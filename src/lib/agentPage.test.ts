@@ -22,6 +22,7 @@ import type { Agent, AgentPreset, AgentStats, CrewResult, Repo } from './uiApi';
 const agent = (handle: string, extra: Partial<Agent> = {}): Agent => ({
   id: `id-${handle}`,
   username: handle,
+  reviewLanguage: 'en',
   name: handle,
   image: null,
   bio: '',

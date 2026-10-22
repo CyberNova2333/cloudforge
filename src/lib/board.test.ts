@@ -63,6 +63,7 @@ const repo = (
 const agent = (handle: string, over: Partial<Agent> = {}): Agent => ({
   id: handle,
   username: handle,
+  reviewLanguage: 'en',
   name: handle,
   image: null,
   bio: 'Checks things.',

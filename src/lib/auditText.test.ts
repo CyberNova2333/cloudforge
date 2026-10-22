@@ -236,6 +236,11 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud deleted the reviewer Security',
     ],
     [
+      'agent.restored',
+      { action: 'agent.restored', repo: null, target: 'securityagent' },
+      'mahmoud restored the reviewer Security',
+    ],
+    [
       'branch.deleted by a person',
       { action: 'branch.deleted', target: 'old-idea', data: { sha: 'abc' } },
       'mahmoud deleted branch old-idea in choyiny/gitorange',
@@ -564,6 +569,7 @@ describe('every audit action reads as one sentence', () => {
         'agent.removed',
         'agent.created',
         'agent.deleted',
+        'agent.restored',
         'branch.deleted',
         'branches.cleaned',
         'merging.paused',

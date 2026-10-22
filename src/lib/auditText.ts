@@ -31,6 +31,7 @@ export const AUDIT_ACTIONS = [
   'agent.removed',
   'agent.created',
   'agent.deleted',
+  'agent.restored',
   'branch.deleted',
   'branches.cleaned',
   'merging.paused',
@@ -317,6 +318,12 @@ export function auditParts(
     case 'agent.deleted':
       return say(
         t(' deleted the reviewer '),
+        agentLabel(e.target, names),
+        via()
+      );
+    case 'agent.restored':
+      return say(
+        t(' restored the reviewer '),
         agentLabel(e.target, names),
         via()
       );
@@ -762,6 +769,7 @@ export function auditCategory(action: string): AuditCategory {
     case 'agent.removed':
     case 'agent.created':
     case 'agent.deleted':
+    case 'agent.restored':
     case 'token.created':
     case 'token.deleted':
     case 'visibility.changed':

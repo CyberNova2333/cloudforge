@@ -136,6 +136,9 @@ export const agents = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
     // Set ⇒ a "deleted agent": uninvited everywhere; its user row keeps past reviews attributed.
     deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+    // What its reviews are written in (summary, findings, questions), chosen by a site admin; null ⇒ English.
+    // Not in AGENT.md: a display choice of this instance, not part of how the agent judges.
+    reviewLanguage: text('review_language', { enum: ['zh', 'en'] }),
   },
   // A push finds its repository's agent by this (one lookup per push).
   (t) => [uniqueIndex('agents_repository_uq').on(t.repositoryId)]
@@ -898,6 +901,7 @@ export const auditActions = [
   'agent.removed',
   'agent.created',
   'agent.deleted',
+  'agent.restored',
   'branch.deleted',
   'branches.cleaned',
   'merging.paused',

@@ -3,6 +3,7 @@ import { call, type TestEnv } from './app';
 export type AgentJson = {
   id: string;
   username: string;
+  reviewLanguage: 'zh' | 'en';
   name: string;
   image: string | null;
   bio: string;
