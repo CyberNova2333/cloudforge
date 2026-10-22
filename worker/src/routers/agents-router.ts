@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { requireAdmin } from '../auth/guards';
-import { repositoryAgents, teams } from '../db/app.schema';
+import { agents, repositoryAgents, teams } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -69,13 +69,22 @@ agentsRouter.openapi(listRoute, async (c) => {
   );
 });
 
-/** Which of `handles` are taken by a user (an agent's included) or the team. */
+/**
+ * Which of `handles` are taken by a user (a live agent's included) or the team. A deleted agent's handle is free:
+ * creating it again restores that agent (createAgent).
+ */
 async function takenHandles(db: DrizzleDB, handles: string[]) {
   const [byUsers, byTeam] = await db.batch([
     db
       .select({ name: sql<string>`lower(${users.username})` })
       .from(users)
-      .where(inArray(sql`lower(${users.username})`, handles)),
+      .leftJoin(agents, eq(agents.userId, users.id))
+      .where(
+        and(
+          inArray(sql`lower(${users.username})`, handles),
+          or(isNull(agents.userId), isNull(agents.deletedAt))
+        )
+      ),
     db
       .select({ name: teams.slug })
       .from(teams)
@@ -317,6 +326,50 @@ adminAgentsRouter.openapi(crewRoute, async (c) => {
     else skipped.push({ handle: p.handle, reason: result.error });
   }
   return c.json({ created, skipped }, 200);
+});
+
+const reviewLanguageRoute = createRoute({
+  method: 'put',
+  path: '/{handle}/review-language',
+  tags: ['Agents'],
+  summary: 'Choose the language an agent writes its reviews in',
+  description:
+    'Its next reviews are written in this language: the summary, each finding and the question for a person. ' +
+    'Reviews already written stay as they are.',
+  request: {
+    params: handleParams,
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ language: z.enum(['zh', 'en']) }),
+        },
+      },
+    },
+  },
+  responses: {
+    ...json200Response(z.object({ agent: agentSchema }), 'The agent now'),
+    ...json400Response,
+    ...json403Response,
+    ...json404Response,
+  },
+});
+adminAgentsRouter.openapi(reviewLanguageRoute, async (c) => {
+  const db = c.get('db');
+  const { handle } = c.req.valid('param');
+  const view = await agentByHandle(db, handle);
+  if (!view || view.agent.deletedAt)
+    return c.json({ error: 'Agent not found' }, 404);
+  const { language } = c.req.valid('json');
+  await db
+    .update(agents)
+    .set({ reviewLanguage: language })
+    .where(eq(agents.userId, view.agent.userId));
+  return c.json(
+    {
+      agent: serializeAgent((await agentByHandle(db, handle, c.get('user')!))!),
+    },
+    200
+  );
 });
 
 const deleteAgentRoute = createRoute({

@@ -10,6 +10,7 @@ import {
   reviewSystemPrompt,
   reviewUserPrompt,
   type AgentReviewInput,
+  type ReviewLanguage,
 } from './contract';
 
 /** The one prompt each DO runs; submitting it again joins the same run. */
@@ -280,6 +281,8 @@ export const PI_START_STOPPED = { stopped: true } as const;
 export type PiMeta = {
   startedAt: number;
   handle: string;
+  /** What the review is written in; absent (English) for runs started before reviews had a language. */
+  language?: ReviewLanguage;
   /** The untrusted tag's random suffix for this run. */
   suffix: string;
   changedPaths: string[];
@@ -303,7 +306,7 @@ export function piStartMeta(
   request: Pick<
     PiStartRequest,
     'handle' | 'changedPaths' | 'model' | 'limits' | 'notify'
-  >,
+  > & { input?: Pick<AgentReviewInput, 'language'> },
   earlier: PiMeta | undefined,
   now: number,
   suffix: () => string
@@ -313,6 +316,7 @@ export function piStartMeta(
     startedAt: now,
     suffix: suffix(),
     handle: request.handle,
+    ...(request.input?.language && { language: request.input.language }),
     changedPaths: request.changedPaths,
     model: request.model,
     wallClockMs: request.limits.wallClockMs,
@@ -387,8 +391,12 @@ export interface PiReviewerApi {
   stop(): Promise<void>;
 }
 
-export function piSystemPrompt(handle: string, maxToolCalls: number): string {
-  return `${reviewSystemPrompt(handle)}
+export function piSystemPrompt(
+  handle: string,
+  maxToolCalls: number,
+  language: ReviewLanguage = 'en'
+): string {
+  return `${reviewSystemPrompt(handle, language)}
 
 You review inside a workspace:
 - ${REPO_ROOT} is the repository at the pull request's head commit. ${NOT_CHECKED_OUT_PATH} lists the files that were left out (binary, ignored, or over the size budget).

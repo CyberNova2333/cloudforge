@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ClockIcon, GlobeIcon } from '@primer/octicons-react';
 import { api, qk } from '@/lib/uiApi';
-import { t, tx } from '@/lib/i18n';
+import { t, tServer, tx } from '@/lib/i18n';
 import { agentColor } from '@/lib/agentLook';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { useEnter } from '@/components/code/useEnter';
@@ -86,7 +86,7 @@ export default function AgentBuiltin() {
               {t('Built-in agent')}
             </Chip>
           </p>
-          <p className="pf-bio">{agent.job}</p>
+          <p className="pf-bio">{tServer(agent.job)}</p>
           <ul className="pf-meta">
             <li>
               <GlobeIcon />
@@ -117,7 +117,7 @@ export default function AgentBuiltin() {
               {agent.stats.map((s) => (
                 <div className="stat" key={s.label}>
                   <b>{s.value}</b>
-                  <span>{s.label}</span>
+                  <span>{tServer(s.label)}</span>
                 </div>
               ))}
             </div>

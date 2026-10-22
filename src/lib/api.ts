@@ -1,4 +1,5 @@
 import { tServer } from './i18n';
+import { localizeAgents } from './agentLocale';
 
 export class ApiError extends Error {
   status: number;
@@ -38,7 +39,8 @@ export async function apiFetch<T>(
       `Request failed: ${res.status}`;
     throw new ApiError(message, res.status, body);
   }
-  return body as T;
+  // Preset reviewer agents' names and bios arrive in English from their AGENT.md: shown in the interface language.
+  return localizeAgents(body) as T;
 }
 
 export function errorMessage(e: unknown): string {

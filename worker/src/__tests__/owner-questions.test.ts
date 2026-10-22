@@ -95,6 +95,11 @@ describe('owner questions in the review contract', () => {
       'Do customers pay monthly and/or yearly?',
     ])
       expect(plainQuestion(plain), plain).toBe(plain);
+    // A Chinese question ends with a full-width question mark.
+    expect(plainQuestion('要继续给老客户按旧价格收费吗？')).toBe(
+      '要继续给老客户按旧价格收费吗？'
+    );
+    expect(plainQuestion('要继续给老客户按旧价格收费。')).toBeNull();
     expect(plainQuestion('')).toBeNull();
     expect(plainQuestion(null)).toBeNull();
     expect(plainQuestion(42)).toBeNull();

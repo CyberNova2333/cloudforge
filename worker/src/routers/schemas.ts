@@ -20,6 +20,8 @@ export const publicUserSchema = z
 export const agentSchema = publicUserSchema
   .extend({
     bio: z.string(),
+    /** What its reviews (summary, findings, questions) are written in; a site admin chooses it. */
+    reviewLanguage: z.enum(['zh', 'en']),
     trigger: z.object({ ask: z.string(), above: z.number() }),
     engine: z.enum(['pass', 'pi']),
     /** `#rrggbb`: AGENT.md's colour, else a stable one from the palette. */

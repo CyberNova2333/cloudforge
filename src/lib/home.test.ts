@@ -324,6 +324,7 @@ describe('topByActivity', () => {
           name: 'Data',
           image: null,
           bio: '',
+          reviewLanguage: 'en',
           trigger: { ask: '', above: 0 },
           engine: 'pass',
           color: '#199e70',

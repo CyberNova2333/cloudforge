@@ -248,7 +248,10 @@ export function workersAiAgentModels(
         ids.review,
         {
           messages: [
-            { role: 'system', content: reviewSystemPrompt(input.handle) },
+            {
+              role: 'system',
+              content: reviewSystemPrompt(input.handle, input.language),
+            },
             { role: 'user', content: reviewUserPrompt(input) },
           ],
           response_format: {

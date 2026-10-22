@@ -349,7 +349,7 @@ export class AgentReviewer
           render: () =>
             learning
               ? learnSystemPrompt(meta.handle, meta.maxToolCalls)
-              : piSystemPrompt(meta.handle, meta.maxToolCalls),
+              : piSystemPrompt(meta.handle, meta.maxToolCalls, meta.language),
           tag: false,
         },
       ],

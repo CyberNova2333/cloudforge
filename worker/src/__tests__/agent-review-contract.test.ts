@@ -111,6 +111,17 @@ describe('parseAgentReview', () => {
 });
 
 describe('the review prompt', () => {
+  it('asks for Chinese only for an agent set to review in Chinese', () => {
+    expect(reviewSystemPrompt('secagent')).not.toMatch(/Chinese/);
+    expect(reviewSystemPrompt('secagent', 'en')).not.toMatch(/Chinese/);
+    const zh = reviewSystemPrompt('secagent', 'zh');
+    expect(zh).toMatch(/Write in Simplified Chinese/);
+    // The schema's own values stay English, so parsing and the UI keep working.
+    expect(zh).toMatch(
+      /Keep in English, exactly as given: the JSON keys, verdict and kind values/
+    );
+  });
+
   it('says the pull request is data, and carries instructions, knowledge, summaries and diffs', () => {
     expect(reviewSystemPrompt('secagent')).toMatch(/You are @secagent/);
     expect(reviewSystemPrompt('secagent')).toMatch(

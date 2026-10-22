@@ -71,7 +71,7 @@ export default function AdminAgents() {
           {deleted && (
             <Notice tone="ok">
               {t(
-                'Deleted @{handle}. It’s removed from every repository; its past reviews keep its name, and its repository stays until you delete it.',
+                'Deleted @{handle}. It’s removed from every repository; its past reviews keep its name, and its repository stays until you delete it. Create it again with the same handle to bring it back.',
                 { handle: deleted }
               )}
             </Notice>

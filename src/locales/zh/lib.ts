@@ -80,6 +80,7 @@ export const lib: Record<string, string> = {
   ' as a reviewer on ': ' 的评审身份，仓库：',
   ' created the reviewer ': ' 创建了评审 Agent ',
   ' deleted the reviewer ': ' 删除了评审 Agent ',
+  ' restored the reviewer ': ' 恢复了评审 Agent ',
   ' deleted branch ': ' 删除了分支 ',
   ' after ': '，在 ',
   merged: ' 合并后',

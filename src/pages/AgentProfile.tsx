@@ -1,9 +1,10 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClockIcon,
   CpuIcon,
+  GlobeIcon,
   RepoIcon,
   ShieldIcon,
   ZapIcon,
@@ -11,6 +12,8 @@ import {
 import { api, qk, type Namespace } from '@/lib/uiApi';
 import { fullDate, timeAgo } from '@/lib/format';
 import { t, tx } from '@/lib/i18n';
+import { useCurrentUser } from '@/lib/auth';
+import { errorMessage } from '@/lib/api';
 import {
   avatarStatusOf,
   engineText,
@@ -41,6 +44,56 @@ const TAB_LABEL: Record<ProfileTab, string> = {
  * reviews, its AGENT.md, its record and activity), Reviews, Rules learned and Configuration. The tab is in the
  * address (`?tab=reviews`).
  */
+/**
+ * The language the agent writes its reviews in: a choice for site admins, a fact for everyone else. Changing it
+ * applies from its next review; reviews already written stay as they are.
+ */
+function ReviewLanguage({ agent }: { agent: NonNullable<Namespace['agent']> }) {
+  const admin = useCurrentUser()?.role === 'admin';
+  const qc = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const change = useMutation({
+    mutationFn: (language: 'zh' | 'en') =>
+      api.setAgentReviewLanguage(agent.username, language),
+    onSuccess: async () => {
+      setError(null);
+      await qc.invalidateQueries({ queryKey: ['namespace'] });
+      await qc.invalidateQueries({ queryKey: qk.agents });
+    },
+    onError: (e) => setError(errorMessage(e)),
+  });
+  const name = (l: 'zh' | 'en') => (l === 'zh' ? '中文' : 'English');
+  return (
+    <li>
+      <GlobeIcon />
+      {admin && !agent.deletedAt ? (
+        <label className="pf-lang">
+          {t('Reviews in')}{' '}
+          <select
+            className="form-select input-sm"
+            value={agent.reviewLanguage}
+            disabled={change.isPending}
+            onChange={(e) => change.mutate(e.target.value as 'zh' | 'en')}
+            title={t(
+              'The language of its next reviews: the summary, each finding and the questions for you'
+            )}
+          >
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+          {error && <span className="small color-fg-danger"> {error}</span>}
+        </label>
+      ) : (
+        <span>
+          {t('Reviews in {language}', {
+            language: name(agent.reviewLanguage),
+          })}
+        </span>
+      )}
+    </li>
+  );
+}
+
 export default function AgentProfile({
   agent,
   repositories,
@@ -146,6 +199,7 @@ export default function AgentProfile({
             <CpuIcon />
             <span>{engineText(agent.engine)}</span>
           </li>
+          <ReviewLanguage agent={agent} />
           <li>
             <ClockIcon />
             <span title={fullDate(agent.createdAt)}>

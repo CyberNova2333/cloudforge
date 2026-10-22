@@ -191,7 +191,7 @@ describe('deleting an agent', () => {
     expect(
       await (await call(t, '/api/agents', { cookie: admin })).json()
     ).toEqual([]);
-    // Gone already; and the handle stays taken.
+    // Gone already.
     expect(
       (
         await call(t, '/api/admin/agents/secagent', {
@@ -200,13 +200,102 @@ describe('deleting an agent', () => {
         })
       ).status
     ).toBe(404);
+  });
+});
+
+describe('creating a deleted agent again', () => {
+  const create = (t: TestEnv, admin: string, json: unknown) =>
+    call(t, '/api/admin/agents', { cookie: admin, json });
+  const remove = (t: TestEnv, admin: string, handle = 'secagent') =>
+    call(t, `/api/admin/agents/${handle}`, { cookie: admin, method: 'DELETE' });
+
+  it('restores the same agent, with its repository, AGENT.md and history', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const agent = await newAgent(t, admin);
+    const before = (await agentRow(t))!;
+    const head = (await agentRepo(t)).refs.get('refs/heads/main');
+    await remove(t, admin);
+
+    const res = await create(t, admin, { handle: 'secagent', name: 'Again' });
+    expect(res.status).toBe(201);
+    const back = ((await res.json()) as { agent: AgentJson }).agent;
+    expect(back.id).toBe(agent.id);
+    const row = (await agentRow(t))!;
+    expect(row.deleted_at).toBeNull();
+    expect(row.repository_id).toBe(before.repository_id);
+    // Its AGENT.md and name stay as they were: nothing new was committed.
+    expect(row.name).toBe(before.name);
+    expect((await agentRepo(t)).refs.get('refs/heads/main')).toBe(head);
     expect(
       (
-        await call(t, '/api/admin/agents', {
+        (await (
+          await call(t, '/api/agents', { cookie: admin })
+        ).json()) as AgentJson[]
+      ).map((a) => a.username)
+    ).toEqual(['secagent']);
+    const audit = await t.env.DB.prepare(
+      "SELECT target FROM audit_events WHERE action = 'agent.restored'"
+    ).all<{ target: string }>();
+    expect(audit.results).toEqual([{ target: 'secagent' }]);
+  });
+
+  it('makes a new repository when the old one was deleted', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const agent = await newAgent(t, admin);
+    expect(
+      (
+        await call(t, '/api/repos/secagent/secagent', {
           cookie: admin,
-          json: { handle: 'secagent', name: 'Again' },
+          method: 'DELETE',
         })
       ).status
+    ).toBe(200);
+    await remove(t, admin);
+    const res = await create(t, admin, {
+      handle: 'secagent',
+      name: 'Security',
+      preset: 'security',
+    });
+    expect(res.status).toBe(201);
+    const row = (await agentRow(t))!;
+    expect(row.user_id).toBe(agent.id);
+    expect(row.repository_id).not.toBeNull();
+    expect(row.deleted_at).toBeNull();
+    expect(row.facet).toBe('security');
+    expect(
+      (await call(t, '/api/repos/secagent/secagent', { cookie: admin })).status
+    ).toBe(200);
+  });
+
+  it('lets the recommended crew bring back a deleted member', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const crew = () =>
+      call(t, '/api/admin/agents/crew', { cookie: admin, method: 'POST' });
+    await crew();
+    await remove(t, admin, 'securityagent');
+    const presets = (await (
+      await call(t, '/api/agents/presets', { cookie: admin })
+    ).json()) as { handle: string; exists: boolean }[];
+    expect(presets.find((p) => p.handle === 'securityagent')!.exists).toBe(
+      false
+    );
+    const again = (await (await crew()).json()) as {
+      created: AgentJson[];
+      skipped: { handle: string }[];
+    };
+    expect(again.created.map((a) => a.username)).toEqual(['securityagent']);
+    expect(again.skipped.map((s) => s.handle)).not.toContain('securityagent');
+  });
+
+  it('still refuses a handle a person or the team holds', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    await addMember(t, admin, 'bob');
+    expect(
+      (await create(t, admin, { handle: 'bob', name: 'Bob Agent' })).status
     ).toBe(409);
   });
 });
@@ -396,5 +485,38 @@ describe('the agent account while it is being created', () => {
       },
     });
     await expect(create(t, failing)).rejects.toThrow('database is locked');
+  });
+});
+
+describe('an agent’s review language', () => {
+  const set = (
+    t: TestEnv,
+    cookie: string,
+    language: unknown,
+    handle = 'secagent'
+  ) =>
+    call(t, `/api/admin/agents/${handle}/review-language`, {
+      cookie,
+      method: 'PUT',
+      json: { language },
+    });
+
+  it('is English until a site admin chooses Chinese, and only a site admin can', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const bob = await addMember(t, admin, 'bob');
+    expect((await newAgent(t, admin)).reviewLanguage).toBe('en');
+    expect((await set(t, bob, 'zh')).status).toBe(403);
+    expect((await set(t, admin, 'fr')).status).toBe(400);
+    expect((await set(t, admin, 'zh', 'nobody')).status).toBe(404);
+    const res = await set(t, admin, 'zh');
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as { agent: AgentJson }).agent.reviewLanguage
+    ).toBe('zh');
+    const list = (await (
+      await call(t, '/api/agents', { cookie: bob })
+    ).json()) as AgentJson[];
+    expect(list[0].reviewLanguage).toBe('zh');
   });
 });

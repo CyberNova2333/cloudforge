@@ -51,8 +51,8 @@ export const admin: Record<string, string> = {
   'Agents directory': 'Agent 目录',
   '{n} agent': '{n} 个 Agent',
   '{n} agents': '{n} 个 Agent',
-  'Deleted @{handle}. It’s removed from every repository; its past reviews keep its name, and its repository stays until you delete it.':
-    '已删除 @{handle}。它已从所有仓库中移除；过去的评审会保留它的名字，它的仓库会一直保留到你删除为止。',
+  'Deleted @{handle}. It’s removed from every repository; its past reviews keep its name, and its repository stays until you delete it. Create it again with the same handle to bring it back.':
+    '已删除 @{handle}。它已从所有仓库中移除；过去的评审会保留它的名字，它的仓库会一直保留到你删除为止。用同一个用户名重新创建即可恢复它。',
   'the agents': 'Agent 列表',
   'No agents yet.': '还没有 Agent。',
   'Create the recommended crew, or a reviewer of your own.':

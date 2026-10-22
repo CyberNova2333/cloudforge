@@ -284,4 +284,42 @@ export const agents: Record<string, string> = {
   'all agents': '所有 Agent',
   'Last seven days': '过去七天',
   'Counts only repositories you can see.': '只统计你能看到的仓库。',
+  // The seven presets' default names, bios and trigger questions (src/lib/agentLocale.ts).
+  Security: '安全',
+  'Makes sure nobody gets in who shouldn’t, and nothing leaks.':
+    '确保不该进来的人进不来，也不会泄露任何东西。',
+  'Could this change affect security: authentication, sessions, tokens, permissions or who can see what, user input reaching HTML, SQL, shell or URLs, secrets, file serving, or outbound requests?':
+    '这个改动会影响安全吗：身份认证、会话、令牌、权限或谁能看到什么，用户输入进入 HTML、SQL、shell 或 URL，密钥，文件服务，或对外请求？',
+  Data: '数据',
+  'Makes sure your saved data survives every change.':
+    '确保你保存的数据在每次改动后都完好无损。',
+  'Does this change how data is stored: the database schema, a migration, what columns or JSON fields hold, or how existing rows are read or rewritten?':
+    '这个改动会改变数据的存储方式吗：数据库结构、迁移、列或 JSON 字段存放的内容，或者已有数据的读取和改写方式？',
+  Speed: '性能',
+  'Watches how fast your app loads and answers.':
+    '关注你的应用加载和响应有多快。',
+  'Could this change make a page or request slower: queries, loops over data, bundle size, images or caching?':
+    '这个改动会让页面或请求变慢吗：查询、遍历数据的循环、打包体积、图片或缓存？',
+  Features: '功能',
+  'Notices when something people use is removed or broken.':
+    '发现大家在用的功能被移除或弄坏的情况。',
+  'Does this change what people or agents can do with the product: remove, rename or change a page, route, API field, MCP tool, setting or behaviour, or add a new one?':
+    '这个改动会改变人或 Agent 能用产品做的事吗：移除、重命名或修改页面、路由、API 字段、MCP 工具、设置或行为，或者新增一项？',
+  Reliability: '可靠性',
+  'Checks what happens when something goes wrong.': '检查出问题时会发生什么。',
+  'Does this change how failures are handled: errors, retries, timeouts, queues or calls to other services?':
+    '这个改动会改变故障的处理方式吗：错误、重试、超时、队列或对其他服务的调用？',
+  Privacy: '隐私',
+  'Keeps people’s personal details private.': '保护大家的个人信息不被泄露。',
+  'Does this change collect, store, log, share or delete personal information about people?':
+    '这个改动会收集、存储、记录、分享或删除个人信息吗？',
+  Shipping: '发布',
+  'Lists what must happen before a change goes live.':
+    '列出改动上线前必须完成的事项。',
+  'Will deploying this change need anything beyond a normal deploy: a migration, a new or changed binding, secret or environment variable, a dependency change, or a specific deploy order?':
+    '部署这个改动是否需要常规部署以外的操作：迁移、新增或修改的绑定、密钥或环境变量、依赖变更，或特定的部署顺序？',
+  'Reviews in': '评审语言',
+  'The language of its next reviews: the summary, each finding and the questions for you':
+    '它之后的评审所用的语言：评审结论、每条评审意见和问你的问题',
+  'Reviews in {language}': '评审语言：{language}',
 };
