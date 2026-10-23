@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 export type Comparison =
   | { kind: 'upgrade' | 'same' | 'downgrade' }
   | { kind: 'custom'; reason: string };

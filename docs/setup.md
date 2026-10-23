@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Setup
 
 Deploy CloudForge to your own Cloudflare account with one command, `npx @cybernova2333/cloudforge install`. It takes about 15 minutes, most of it waiting on DNS if your sending domain isn't on Email Sending yet. The same inputs always give the same resource names, the same `wrangler.jsonc`, and the same plan. The [`/cloudforge-onboarding`](../.claude/skills/cloudforge-onboarding/SKILL.md) Claude Code skill walks you through it. To set everything up by hand instead, see [Manual setup](#manual-setup).

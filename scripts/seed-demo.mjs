@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Fills a local CloudForge dev instance with a demo: a teammate, an invoicing project with ten days of history, eight
 // merged pull requests, six open ones, the reviewer crew, their findings and a week of test runs, so every page has
 // something to show. Development only: it refuses any host that is not local.

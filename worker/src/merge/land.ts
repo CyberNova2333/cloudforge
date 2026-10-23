@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, eq, ne, or } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
 import { queueLessons } from '../learn/lessons';

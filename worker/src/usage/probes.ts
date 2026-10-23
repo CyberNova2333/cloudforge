@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * What to ask Cloudflare's GraphQL Analytics API, filtered to this deployment's own resources
  * (named by vars, never hard-coded). Each probe is one small query for one UTC day, so a field

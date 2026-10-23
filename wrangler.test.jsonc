@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Test-only config: same D1 + assets as wrangler.jsonc, but no remote bindings.
 // Artifacts and Email Sending have no local emulator, so tests inject an in-memory
 // Artifacts fake via app.fetch(req, env) and never open a remote proxy session.

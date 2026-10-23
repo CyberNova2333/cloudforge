@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * The version bump a pull request asks for, in words. A pull request that lands without one counts as a patch, so
  * lists of unreleased changes say "patch (default)" rather than nothing.

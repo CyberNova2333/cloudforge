@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * Global search (top band): what is asked of `GET /api/search`, how results group, and what the keys do. Pure, so
  * the rules are unit-tested; `src/components/shell/GlobalSearch.tsx` draws it and fetches with `api.search(q, repo)`.

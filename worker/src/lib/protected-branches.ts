@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * Protected branches: per-repository branch name patterns (repositories.protected_branches) that CloudForge never
  * rebases (merge/rebase.ts rebaseBlocked). The default branch is always protected, whatever the patterns say.

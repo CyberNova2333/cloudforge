@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Step helpers for apply.ts: local files, wrangler/yarn invocations, the R2 key check and verify.
 // Nothing here puts a secret into argv, a log line, the state file or an error message.
 import { createHash } from 'node:crypto';

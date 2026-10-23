@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # CLAUDE.md
 
 CloudForge is a single-tenant GitHub Enterprise Server–style app. One Cloudflare Worker serves a Hono +

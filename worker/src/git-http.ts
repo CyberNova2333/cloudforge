@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { drizzle } from 'drizzle-orm/d1';
 import { refreshAgentConfig } from './agents/refresh';
 import { settleStates } from './pulls/settle';

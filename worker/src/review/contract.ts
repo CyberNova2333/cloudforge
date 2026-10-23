@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { DIAGRAM_SCHEMA, diagramSource } from './diagram';
 import type { Knowledge } from './knowledge';
 import type { ChangeRow, SnippetRef } from './models';

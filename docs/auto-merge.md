@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Reviewer agents, auto-merge, states and stacking
 
 Every review concern in CloudForge is a **reviewer agent**: an account like a person (`@securityagent`,

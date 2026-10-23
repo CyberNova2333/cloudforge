@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { createHash } from 'node:crypto';
 import type { ResourceNames } from './names.ts';
 import type { Observed } from './observe.ts';

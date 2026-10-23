@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { handleLfsRequest } from '../lfs-http';
 import { sha256Hex } from '../git/bytes';

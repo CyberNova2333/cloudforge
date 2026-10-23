@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { attributeCommits } from '../lib/commit-authors';
 import {

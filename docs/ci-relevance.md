@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Skipping tests a change can't affect (`cloudforge/relevance@v1`)
 
 `cloudforge/relevance@v1` is a CloudForge-only workflow step. It asks Clef, a fast decision model on Workers AI, whether a change could affect a workflow's tests (as a whole and per module), and sets outputs that later jobs read in their `if:`. It's made for many small pull requests: a docs change skips the test jobs, a change to one area runs only that area's tests.

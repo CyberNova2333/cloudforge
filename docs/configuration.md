@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Configuration
 
 CloudForge reads its configuration from `wrangler.jsonc` (generated from [`wrangler.jsonc.example`](../wrangler.jsonc.example) by `yarn cloudforge install`, or copied from it by hand; gitignored) and from Worker secrets. **Site admin → Setup** checks all of it on the running worker (secrets set and long enough, bindings present and reachable, variables, migrations, AI Gateway) and shows how to fix what's wrong.

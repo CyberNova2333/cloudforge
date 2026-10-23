@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { t } from '@/lib/i18n';
 
 /** Page-shaped placeholders for the first visit to a route; revisits paint at once. */
