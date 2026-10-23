@@ -396,7 +396,9 @@ describe('Actions jobs wait for a slot', () => {
     await setLimit(s, 2);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
     const [queued] = (await runs(s.t, s.admin)).runs;
-    const h = harness(s.t, slow);
+    // Its own event log: the queue reaches the Workflow of this run lazily, and a grant meant for
+    // another test's run must not be read here as this one's.
+    const h = harness(s.t, slow, { events: [] });
     expect(await h.run(queued.id)).toBe('success');
     expect(h.boots).toHaveLength(5);
     expect(h.peak()).toBe(2);
@@ -413,7 +415,7 @@ describe('Actions jobs wait for a slot', () => {
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
     const [queued] = (await runs(s.t, s.admin)).runs;
-    const h = harness(s.t, slow, { loseEvents: true });
+    const h = harness(s.t, slow, { loseEvents: true, events: [] });
     expect(await h.run(queued.id)).toBe('success');
     expect(h.boots).toHaveLength(5);
     expect(h.peak()).toBe(1);
