@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import {
   prEvents,
   pullRequestComments,
@@ -11,6 +11,7 @@ import {
 } from '../db/app.schema';
 import { findRepo, gitFor, permissionsFor } from '../lib/repos';
 import { usersById } from '../lib/users';
+import { inJsonArray } from '../lib/sql-set';
 import { addComment, openPull, pullShas } from '../lib/pulls';
 import { BUMPS, type Bump } from '../lib/semver';
 import { actionsConfigured, rerun } from '../actions/trigger';
@@ -1068,7 +1069,7 @@ const getRunLogs: ToolModule = {
           .select()
           .from(workflowSteps)
           .where(
-            inArray(
+            inJsonArray(
               workflowSteps.jobId,
               jobs.map((j) => j.id)
             )

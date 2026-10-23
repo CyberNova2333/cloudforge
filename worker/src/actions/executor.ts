@@ -42,7 +42,13 @@ import {
 import { WORKSPACE, type JobRunnerApi, type StepRequest } from './job-runner';
 import { mask } from './commands';
 import { jobValues, secretMasks } from './secrets';
-import { openState, sealState, StateHydrationError } from './state';
+import {
+  openState,
+  persistState,
+  sealState,
+  StateHydrationError,
+  type SealedState,
+} from './state';
 import { globToRegExp, instanceTypeFor, postStepIndexes } from './plan';
 import {
   artifactNameError,
@@ -163,7 +169,7 @@ function rememberMasks(runId: string, masks: string[], added: string[]) {
   runMasks.set(runId, [...new Set([...(runMasks.get(runId) ?? []), ...masks])]);
 }
 
-/** Only dynamic masks and static secrets actually retained in state need replay storage. */
+/** Dynamic/request masks and static secrets actually retained in state need replay storage. */
 function persistedMasks(masks: string[], state: unknown = {}) {
   const retained = new Set(replayMasks.get(masks));
   const json = JSON.stringify(state);
@@ -171,6 +177,22 @@ function persistedMasks(masks: string[], state: unknown = {}) {
     if (value && json.includes(JSON.stringify(value).slice(1, -1)))
       retained.add(value);
   return [...retained];
+}
+
+/** Only runner failures can justify the existing interrupted-container restart policy. */
+class RunnerInterruptedError extends Error {}
+
+async function executionState(
+  execute: () => Promise<SealedState>
+): Promise<SealedState> {
+  try {
+    return await execute();
+  } catch (error) {
+    if (error instanceof RunnerInterruptedError) throw error;
+    // Preparation/storage failures are unrelated to the container. Persist the
+    // failure so a completed earlier command is never replayed for one of them.
+    return { unavailable: true, preparation: true };
+  }
 }
 
 function maskingRunner(
@@ -182,12 +204,30 @@ function maskingRunner(
     boot: (instance, maxMs) => base.boot(instance, maxMs),
     destroy: () => base.destroy(),
     runStep: async (req) => {
-      const result = await base.runStep({
-        ...req,
-        masks: [...masks, ...req.masks],
-      });
+      // Built-in checkout/cache/artifact credentials are as sensitive as
+      // add-mask values, including if command files retain them for replay.
+      rememberMasks(runId, masks, req.masks);
+      let result: Awaited<ReturnType<JobRunnerApi['runStep']>>;
+      try {
+        result = await base.runStep({
+          ...req,
+          masks: [...masks],
+        });
+      } catch (error) {
+        throw new RunnerInterruptedError(
+          mask(error instanceof Error ? error.message : String(error), [
+            ...masks,
+            ...req.masks,
+          ])
+        );
+      }
       rememberMasks(runId, masks, result.masks ?? []);
-      return result;
+      return {
+        ...result,
+        ...(result.interrupted && {
+          interrupted: mask(result.interrupted, masks),
+        }),
+      };
     },
   };
 }
@@ -766,21 +806,23 @@ async function runJob(
               log = `Warning: the cache could not be saved: ${e instanceof Error ? e.message : String(e)}`;
             }
           }
-          await putLog(env, ctx, job.id, number, log);
-          // Saving is best effort, like GitHub's: it never fails the job.
-          await setStep(db, job.id, number, {
-            status: 'completed',
-            conclusion: ran ? 'success' : 'skipped',
-            completedAt: new Date(),
-            logR2Key: logKey(ctx.repoId, ctx.runId, job.id, number),
+          return persistState(async () => {
+            await putLog(env, ctx, job.id, number, log);
+            // Cache upload is best effort; inability to retain masks still fails closed.
+            await setStep(db, job.id, number, {
+              status: 'completed',
+              conclusion: ran ? 'success' : 'skipped',
+              completedAt: new Date(),
+              logR2Key: logKey(ctx.repoId, ctx.runId, job.id, number),
+            });
+            return sealState(
+              env,
+              ctx.repoId,
+              ctx.runId,
+              `${name}:post:${number}`,
+              { masks: persistedMasks(masks) }
+            );
           });
-          return sealState(
-            env,
-            ctx.repoId,
-            ctx.runId,
-            `${name}:post:${number}`,
-            { masks: persistedMasks(masks) }
-          );
         }
       )
       .then(async (saved) => {
@@ -851,47 +893,49 @@ async function runJob(
         ? 'failure'
         : 'success';
     const now = new Date();
-    await putLog(
-      env,
-      ctx,
-      job.id,
-      lastStep,
-      [
-        ...(stateError
-          ? [`Error: ${stateError}`, 'Completed commands were not retried.']
-          : []),
-        ...withheld.map(
-          (k) =>
-            `Warning: skipped the job output ${k}: it may contain a secret.`
-        ),
-        'Cleaning up: the runner was stopped and its disk discarded.',
-      ].join('\n')
-    );
-    await setStep(db, job.id, lastStep, {
-      status: 'completed',
-      conclusion: 'success',
-      startedAt: now,
-      completedAt: now,
-      logR2Key: logKey(ctx.repoId, ctx.runId, job.id, lastStep),
-    });
-    await db
-      .update(workflowJobs)
-      .set({
+    return persistState(async () => {
+      await putLog(
+        env,
+        ctx,
+        job.id,
+        lastStep,
+        [
+          ...(stateError
+            ? [`Error: ${stateError}`, 'Completed commands were not retried.']
+            : []),
+          ...withheld.map(
+            (k) =>
+              `Warning: skipped the job output ${k}: it may contain a secret.`
+          ),
+          'Cleaning up: the runner was stopped and its disk discarded.',
+        ].join('\n')
+      );
+      await setStep(db, job.id, lastStep, {
         status: 'completed',
-        conclusion: jobStatus === 'failure' ? 'failure' : 'success',
+        conclusion: 'success',
+        startedAt: now,
         completedAt: now,
-      })
-      .where(eq(workflowJobs.id, job.id));
-    return sealState(env, ctx.repoId, ctx.runId, `${name}:complete`, {
-      key: def.key,
-      result,
-      outputs,
-      ...(stateError
-        ? { error: stateError }
-        : setupError && {
-            error: `Job "${def.key}" could not start its runner: ${setupError}`,
-          }),
-    } satisfies JobOutcome);
+        logR2Key: logKey(ctx.repoId, ctx.runId, job.id, lastStep),
+      });
+      await db
+        .update(workflowJobs)
+        .set({
+          status: 'completed',
+          conclusion: jobStatus === 'failure' ? 'failure' : 'success',
+          completedAt: now,
+        })
+        .where(eq(workflowJobs.id, job.id));
+      return sealState(env, ctx.repoId, ctx.runId, `${name}:complete`, {
+        key: def.key,
+        result,
+        outputs,
+        ...(stateError
+          ? { error: stateError }
+          : setupError && {
+              error: `Job "${def.key}" could not start its runner: ${setupError}`,
+            }),
+      } satisfies JobOutcome);
+    });
   });
   try {
     return await openState<JobOutcome>(
@@ -906,7 +950,11 @@ async function runJob(
     await step.do(`${name}:state-unavailable`, async () => {
       await db
         .update(workflowJobs)
-        .set({ conclusion: 'failure' })
+        .set({
+          status: 'completed',
+          conclusion: 'failure',
+          completedAt: new Date(),
+        })
         .where(eq(workflowJobs.id, job.id));
       await putLog(
         env,
@@ -914,8 +962,12 @@ async function runJob(
         job.id,
         lastStep,
         `Error: ${error.message}\nCompleted commands were not retried.`
-      );
-      await setStep(db, job.id, lastStep, { conclusion: 'failure' });
+      ).catch(() => {}); // An R2 outage must not prevent the durable failure record.
+      await setStep(db, job.id, lastStep, {
+        status: 'completed',
+        conclusion: 'failure',
+        completedAt: new Date(),
+      });
       return true;
     });
     return {
@@ -1135,90 +1187,94 @@ async function runAttempt(
           ...NO_RETRY,
           timeout: `${Math.min(s.timeoutMinutes ?? def.timeoutMinutes, def.timeoutMinutes) + 5} minutes`,
         },
-        async () => {
-          await setStep(db, job.id, number, {
-            status: 'in_progress',
-            startedAt: new Date(),
-          });
-          let exitCode = 1;
-          let log = '';
-          let out: {
-            outputs: Record<string, string>;
-            envAdds: Record<string, string>;
-            pathAdds: string[];
-          } = {
-            outputs: {},
-            envAdds: {},
-            pathAdds: [],
-          };
-          let cache: CacheState | null = null;
-          let post: ActionPost | null = null;
-          if (prepError || !prepared) {
-            log = `Error: ${prepError}`;
-          } else {
-            const cmd = await buildCommand(env, ctx, wf, def, s, prepared, {
-              number,
-              jobId: job.id,
-              envAdds,
-              pathAdds,
-              remainingMs: deadline - Date.now(),
-              db,
-              relevance: deps.relevance ?? defaultRelevance(env),
+        async () =>
+          executionState(async () => {
+            await setStep(db, job.id, number, {
+              status: 'in_progress',
+              startedAt: new Date(),
             });
-            if ('error' in cmd) log = `Error: ${cmd.error}`;
-            else if ('composite' in cmd) {
-              const r = await runComposite(
-                env,
-                ctx,
-                wf,
-                def,
-                prepared,
-                {
-                  number,
-                  jobId: job.id,
-                  envAdds,
-                  pathAdds,
-                  remainingMs: deadline - Date.now(),
-                  db,
-                  relevance: deps.relevance ?? defaultRelevance(env),
-                },
-                runner,
-                cmd.composite
-              );
-              exitCode = r.exitCode;
-              log = r.log;
-              out = {
-                outputs: r.outputs,
-                envAdds: r.envAdds,
-                pathAdds: r.pathAdds,
-              };
+            let exitCode = 1;
+            let log = '';
+            let out: {
+              outputs: Record<string, string>;
+              envAdds: Record<string, string>;
+              pathAdds: string[];
+            } = {
+              outputs: {},
+              envAdds: {},
+              pathAdds: [],
+            };
+            let cache: CacheState | null = null;
+            let post: ActionPost | null = null;
+            if (prepError || !prepared) {
+              log = `Error: ${prepError}`;
             } else {
-              cache = cmd.cache ?? null;
-              const r = await runner.runStep(cmd.request);
-              if (cmd.post) post = { ...cmd.post, state: r.state ?? {} };
-              if (r.interrupted) throw new Error(r.interrupted);
-              exitCode = r.exitCode;
-              log = (cmd.preamble ? cmd.preamble + '\n' : '') + r.log;
-              if (exitCode !== 0)
-                log += `\nError: Process completed with exit code ${exitCode}.`;
-              out = {
-                outputs: r.outputs,
-                envAdds: r.envAdds,
-                pathAdds: r.pathAdds,
-              };
+              const cmd = await buildCommand(env, ctx, wf, def, s, prepared, {
+                number,
+                jobId: job.id,
+                envAdds,
+                pathAdds,
+                remainingMs: deadline - Date.now(),
+                db,
+                relevance: deps.relevance ?? defaultRelevance(env),
+              });
+              if ('error' in cmd) log = `Error: ${cmd.error}`;
+              else if ('composite' in cmd) {
+                const r = await runComposite(
+                  env,
+                  ctx,
+                  wf,
+                  def,
+                  prepared,
+                  {
+                    number,
+                    jobId: job.id,
+                    envAdds,
+                    pathAdds,
+                    remainingMs: deadline - Date.now(),
+                    db,
+                    relevance: deps.relevance ?? defaultRelevance(env),
+                  },
+                  runner,
+                  cmd.composite
+                );
+                exitCode = r.exitCode;
+                log = r.log;
+                out = {
+                  outputs: r.outputs,
+                  envAdds: r.envAdds,
+                  pathAdds: r.pathAdds,
+                };
+              } else {
+                cache = cmd.cache ?? null;
+                const r = await runner.runStep(cmd.request);
+                if (cmd.post) post = { ...cmd.post, state: r.state ?? {} };
+                if (r.interrupted)
+                  throw new RunnerInterruptedError(r.interrupted);
+                exitCode = r.exitCode;
+                log = (cmd.preamble ? cmd.preamble + '\n' : '') + r.log;
+                if (exitCode !== 0)
+                  log += `\nError: Process completed with exit code ${exitCode}.`;
+                out = {
+                  outputs: r.outputs,
+                  envAdds: r.envAdds,
+                  pathAdds: r.pathAdds,
+                };
+              }
             }
-          }
-          const outcome: Conclusion = exitCode === 0 ? 'success' : 'failure';
-          await putLog(env, ctx, job.id, number, log);
-          const state = { outcome, ...out, cache, post };
-          return sealState(
-            env,
-            ctx.repoId,
-            ctx.runId,
-            `${name}:step:${number}`,
-            { ...state, masks: persistedMasks(masks, state) }
-          );
-        }
+            const outcome: Conclusion = exitCode === 0 ? 'success' : 'failure';
+            return persistState(async () => {
+              await putLog(env, ctx, job.id, number, log);
+              const state = { outcome, ...out, cache, post };
+              return sealState(
+                env,
+                ctx.repoId,
+                ctx.runId,
+                `${name}:step:${number}`,
+                { ...state, masks: persistedMasks(masks, state) }
+              );
+            });
+          })
       )
       .then((saved) =>
         openState<{
@@ -1280,7 +1336,7 @@ async function runAttempt(
             (final && !result.hydrationFailure
               ? `\nThe runner was interrupted on all ${final} attempts, so the job was not restarted again.`
               : '')
-        );
+        ).catch(() => {}); // Diagnostics are best effort after an execution/state failure.
       await setStep(db, job.id, number, {
         status: 'completed',
         conclusion,
@@ -2031,7 +2087,7 @@ async function runComposite(
       timeoutMs: Math.max(60_000, Math.min(state.remainingMs, 10 * 60_000)),
       masks: [],
     });
-    if (r.interrupted) throw new Error(r.interrupted);
+    if (r.interrupted) throw new RunnerInterruptedError(r.interrupted);
     if (r.log.trim()) logs.push(r.log);
     if (r.exitCode !== 0) {
       logs.push(`Error: could not download ${refLabel(call.ref)}.`);
@@ -2129,7 +2185,7 @@ async function runComposite(
         pathAdds = [...r.pathAdds, ...pathAdds];
       } else {
         const r = await runner.runStep(cmd.request);
-        if (r.interrupted) throw new Error(r.interrupted);
+        if (r.interrupted) throw new RunnerInterruptedError(r.interrupted);
         exitCode = r.exitCode;
         outputs = r.outputs;
         logs.push((cmd.preamble ? `${cmd.preamble}\n` : '') + r.log);
@@ -2233,16 +2289,24 @@ async function runActionPost(
           if (r.exitCode !== 0)
             log += `\nError: Process completed with exit code ${r.exitCode}.`;
         }
-        await putLog(env, ctx, jobId, number, log);
-        await setStep(db, jobId, number, {
-          status: 'completed',
-          conclusion,
-          completedAt: new Date(),
-          logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
-        });
-        return sealState(env, ctx.repoId, ctx.runId, `${name}:post:${number}`, {
-          failed: conclusion === 'failure',
-          masks: persistedMasks(masks),
+        return persistState(async () => {
+          await putLog(env, ctx, jobId, number, log);
+          await setStep(db, jobId, number, {
+            status: 'completed',
+            conclusion,
+            completedAt: new Date(),
+            logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
+          });
+          return sealState(
+            env,
+            ctx.repoId,
+            ctx.runId,
+            `${name}:post:${number}`,
+            {
+              failed: conclusion === 'failure',
+              masks: persistedMasks(masks),
+            }
+          );
         });
       }
     )

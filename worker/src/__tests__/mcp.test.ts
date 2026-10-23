@@ -340,6 +340,49 @@ describe('MCP server', () => {
     expect((await rpc(t, access_token, 'tools/list')).status).toBe(401);
   });
 
+  it('disconnects an app with over 100 refresh tokens without revoking other connections', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const { clientId, access_token } = await connect(t, admin);
+    const otherClient = await connect(t, admin, 'Keep this app');
+    const bob = await addMember(t, admin, 'bob');
+    const bobTokens = await authorize(t, bob, clientId);
+    const adminId = (await t.env.DB.prepare(
+      "SELECT id FROM users WHERE username = 'octocat'"
+    ).first<string>('id'))!;
+    const count = async (table: string, userId: string, appId: string) =>
+      t.env.DB.prepare(
+        `SELECT count(*) AS n FROM ${table} WHERE user_id = ? AND client_id = ?`
+      )
+        .bind(userId, appId)
+        .first<number>('n');
+    await t.env.DB.prepare(
+      `WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i + 1 FROM n WHERE i < 100)
+      INSERT INTO oauth_refresh_tokens (id, token, client_id, user_id, scopes)
+      SELECT 'regression-refresh-' || n.i, 'regression-token-' || n.i, r.client_id, r.user_id, r.scopes
+      FROM n CROSS JOIN (SELECT * FROM oauth_refresh_tokens WHERE client_id = ? AND user_id = ? LIMIT 1) r`
+    )
+      .bind(clientId, adminId)
+      .run();
+    expect(await count('oauth_refresh_tokens', adminId, clientId)).toBe(101);
+    expect(
+      (
+        await call(t, `/api/mcp/connections/${clientId}`, {
+          cookie: admin,
+          method: 'DELETE',
+        })
+      ).status
+    ).toBe(200);
+    expect(await count('oauth_refresh_tokens', adminId, clientId)).toBe(0);
+    expect(await count('oauth_consents', adminId, clientId)).toBe(0);
+    expect((await rpc(t, access_token, 'ping')).status).toBe(401);
+    expect(
+      await count('oauth_refresh_tokens', adminId, otherClient.clientId)
+    ).toBe(1);
+    expect((await rpc(t, otherClient.access_token, 'ping')).status).toBe(200);
+    expect((await rpc(t, bobTokens.access_token, 'ping')).status).toBe(200);
+  });
+
   it('stops accepting tokens for a banned user', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);

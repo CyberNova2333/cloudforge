@@ -62,7 +62,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   AES-GCM under `ACTIONS_SECRETS_KEY`, decrypted only in `runJob` outside durable steps, masked by `maskingRunner`
   and `putLog`; routes in `routers/actions-variables-router.ts`. Secret-bearing durable results use `actions/state.ts`
   encryption bound to repository/run/step; large ciphertext spills to the run's R2 retention prefix. Dynamic masks
-  persist across steps and replay. Pull-request context is snapshotted in `workflow_runs.event_data` for reruns.
+  and request-scoped credentials persist across steps and replay as encrypted masks. Preparation/save failures return
+  durable failure markers instead of restarting completed commands. Pull-request context is snapshotted in `workflow_runs.event_data` for reruns.
 - MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. better-auth's `@better-auth/oauth-provider`
   (+ `jwt()`) is the OAuth 2.1 authorization server; `/mcp` verifies JWT access tokens (audience `<origin>/mcp`) locally
   and requires the user's consent row, so disconnecting an app is immediate. Discovery routes live at the origin root.
@@ -81,6 +82,10 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   branches). Landing writes a D1 intent and Git receipt before the target CAS; `merge/landing-recovery.ts` retries
   the D1 record and checkpointed follow-ups when the receipt and target ancestry prove the landing. Daily retention
   also runs recovery. Tests: `executeRebase` via `runRebases`/`fakeResolver` (`__tests__/helpers/rebase.ts`).
+  Ordinary closes use `pulls/close-recovery.ts`: PR state and a `pull_close_intents` outbox commit together;
+  child retargets and events are atomic, follow-ups have stable dispatch identities, and daily retention retries failures.
+  Reopening invalidates the old close generation. `state_revision` advances on real transitions (including merge)
+  and fences stale close/reopen cycles. Recovery runs before R2 cleanup. Stale edits cannot overwrite a concurrent merge or retarget.
 - Reviews (`worker/src/review/`): reviewer agents invited per repository (`repository_agents`). Per head commit
   (`pr_classifications`, id `<pr id>-<head sha>`): GLM one-liner per file → one Clef call over every agent's
   `trigger.ask` (`pr_reviewers`, requested iff p ≥ above; unsure = requested) → each requested agent reviews

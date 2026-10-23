@@ -3,7 +3,7 @@
  * Usage CloudForge attributes itself, as it happens: Actions runner containers (boot to destroy)
  * and Workers AI calls with their token counts. Recording never fails the work it describes.
  */
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import {
@@ -17,6 +17,7 @@ import { productOf } from './pricing';
 import type { DrizzleDB } from '../db/middleware';
 import type { AiFeature } from '../lib/ai-gateway';
 import { currentAgentStep, refreshStepUsage } from '../agent-runs/context';
+import { inJsonArray } from '../lib/sql-set';
 
 export interface TokenUsage {
   tokensIn: number | null;
@@ -188,7 +189,7 @@ export async function runnersStopped(db: DrizzleDB, jobIds: string[]) {
       .set({ stoppedAt: new Date() })
       .where(
         and(
-          inArray(runnerSessions.jobId, jobIds),
+          inJsonArray(runnerSessions.jobId, jobIds),
           isNull(runnerSessions.stoppedAt)
         )
       );

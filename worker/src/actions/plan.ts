@@ -299,9 +299,9 @@ function planJob(
 }
 
 /**
- * Whether a step has a "Post" phase: cache save, or a GitHub action's own post entry point. Whether a GitHub
- * action has one is only known from its action.yml, which planning never fetches, so every GitHub action gets
- * the slot and the executor skips it when there is nothing to run. Local actions (`./…`, mostly composite) don't.
+ * Whether a step has a "Post" phase: cache save, or an action's own post entry point. Whether an action
+ * has one is only known from its action.yml, which planning never fetches, so every GitHub or local action gets
+ * the slot and the executor skips it when there is nothing to run.
  * The trigger and the executor both call this, so the planned steps always match the ones run.
  */
 export function hasPostStep(s: StepDef): boolean {

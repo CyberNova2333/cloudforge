@@ -1,0 +1,1 @@
+ALTER TABLE `pull_requests` ADD `state_revision` integer DEFAULT 0 NOT NULL;

@@ -816,7 +816,7 @@ jobs:
       `/cloudforge-actions-cache-test/actions-cache/${await repoId(s.t)}/refs~2fheads~2fmain/node-modules-yarn-`
     );
     expect(url).toContain('X-Amz-Signature=');
-    expect(save.masks).toEqual([url]);
+    expect(save.masks).toEqual([h.requests[0].env.CLOUDFORGE_TOKEN, url]);
 
     // Simulate the upload, then rerun on a new commit with the same lockfile.
     // The URL path is the object key verbatim, so S3 decodes nothing differently.
@@ -833,7 +833,10 @@ jobs:
     expect(script(restore)).toContain('Restoring cache: node-modules-yarn-');
     expect(script(restore)).toContain('cache-hit=true');
     expect(restore.env.CACHE_URL).toContain('X-Amz-Signature=');
-    expect(restore.masks).toEqual([restore.env.CACHE_URL]);
+    expect(restore.masks).toEqual([
+      h.requests[0].env.CLOUDFORGE_TOKEN,
+      restore.env.CACHE_URL,
+    ]);
     // Exact hit: nothing to save, so the post step never reaches the runner.
     expect(h.requests).toHaveLength(3);
     const second = await runDetail(s.t, s.admin, 2);

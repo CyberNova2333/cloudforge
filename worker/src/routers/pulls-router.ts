@@ -74,8 +74,11 @@ import { chunks, stackTreeView, stackViewFor } from '../stack/view';
 import { agentColor } from '../agents/presets';
 import { pullSearch } from '../lib/pull-search';
 import { ensureStacking, retryFailedPairs } from '../stack/discover';
-import { dismissEdge, onPullClosed, startReconcile } from '../stack/retarget';
-import { queueLessons } from '../learn/lessons';
+import { dismissEdge, startReconcile } from '../stack/retarget';
+import {
+  finishPullClose,
+  updatePullWithCloseIntent,
+} from '../pulls/close-recovery';
 import { PULL_STATES, type PullState } from '../pulls/state';
 import { pullStates, pullStateFor } from '../pulls/signals';
 import { eventsFor } from '../pulls/events';
@@ -938,6 +941,7 @@ const updatePullRoute = createRoute({
     ...json400Response,
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 pullsRouter.openapi(updatePullRoute, async (c) => {
@@ -972,11 +976,12 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
     patch.state = 'open';
     patch.closedAt = null;
   }
-  await c
-    .get('db')
-    .update(pullRequests)
-    .set(patch)
-    .where(eq(pullRequests.id, pr.id));
+  const updated = await updatePullWithCloseIntent(c.get('db'), pr, patch);
+  if (!updated.changed)
+    return c.json(
+      { error: 'The pull request changed. Refresh and try again.' },
+      409
+    );
   if (bumpChanged) {
     const change = { from: pr.versionBump, to: body.versionBump ?? null };
     await recordAudit(c.get('db'), {
@@ -995,12 +1000,10 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
       actorId: user.id,
     });
   }
-  if (patch.state === 'closed') {
-    // Children stacked on its branch go back to the land target; a reconcile restacks them.
-    c.executionCtx.waitUntil(onPullClosed(c.env, c.get('db'), pr, 'closed'));
-    // The agents whose change requests on it were dismissed learn from them.
-    c.executionCtx.waitUntil(queueLessons(c.env, c.get('db'), pr));
-  }
+  if (updated.closeId)
+    c.executionCtx.waitUntil(
+      finishPullClose(c.env, c.get('db'), updated.closeId)
+    );
   if (patch.state === 'open') {
     // A reopened PR rebases onto everything that landed while it was closed.
     const shas = await landShas(c.get('git'), pr);

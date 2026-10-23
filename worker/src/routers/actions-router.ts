@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import {
   workflowJobs,
   workflowRuns,
@@ -267,7 +267,7 @@ actionsRouter.openapi(getRunRoute, async (c) => {
         .select()
         .from(workflowSteps)
         .where(
-          inArray(
+          inJsonArray(
             workflowSteps.jobId,
             jobs.map((j) => j.id)
           )

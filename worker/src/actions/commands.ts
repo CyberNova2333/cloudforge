@@ -31,10 +31,51 @@ export function parsePathFile(text: string): string[] {
 
 /** Replaces every registered secret, including short values. */
 export function mask(text: string, secrets: string[]): string {
-  let out = text;
-  for (const s of [...secrets].sort((a, b) => b.length - a.length))
-    if (s) out = out.split(s).join('***');
-  return out;
+  let covered: Uint8Array | undefined;
+  for (const secret of new Set(secrets)) {
+    if (!secret) continue;
+    const first = text.indexOf(secret);
+    if (first < 0) continue;
+    covered ??= new Uint8Array(text.length);
+    // KMP includes crossing/self-overlapping occurrences, without rescanning a
+    // long secret at every character or allocating an interval per match.
+    const prefix = new Uint32Array(secret.length);
+    for (let i = 1, matched = 0; i < secret.length; i++) {
+      while (matched && secret[i] !== secret[matched])
+        matched = prefix[matched - 1];
+      if (secret[i] === secret[matched]) matched++;
+      prefix[i] = matched;
+    }
+    let coveredEnd = first;
+    for (let i = first, matched = 0; i < text.length; i++) {
+      while (matched && text[i] !== secret[matched])
+        matched = prefix[matched - 1];
+      if (text[i] === secret[matched]) matched++;
+      if (matched === secret.length) {
+        const end = i + 1;
+        // Every character is marked at most once per secret, even for a long
+        // repeated value such as "aaaa" in a newline-free log.
+        covered.fill(1, Math.max(coveredEnd, end - secret.length), end);
+        coveredEnd = end;
+        matched = prefix[matched - 1];
+      }
+    }
+  }
+  if (!covered) return text;
+  const chunks: string[] = [];
+  let chunk = '';
+  for (let i = 0; i < text.length;) {
+    const start = i;
+    const hidden = covered[i];
+    while (i < text.length && covered[i] === hidden) i++;
+    chunk += hidden ? '***' : text.slice(start, i);
+    if (chunk.length >= 8192) {
+      chunks.push(chunk);
+      chunk = '';
+    }
+  }
+  chunks.push(chunk);
+  return chunks.join('');
 }
 
 /** Undoes GitHub's escaping of workflow command values (`%25` `%0D` `%0A`). */

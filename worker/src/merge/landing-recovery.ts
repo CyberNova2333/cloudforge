@@ -62,7 +62,8 @@ export async function recordLanding(
       .bind(now, intent.id, pr.id, intent.id, pr.id, intent.landHeadSha),
     d1
       .prepare(
-        `UPDATE pull_requests SET state = 'merged', merge_commit_sha = ?, landed_commits = ?,
+        `UPDATE pull_requests SET state_revision = state_revision + CASE WHEN state <> 'merged' THEN 1 ELSE 0 END,
+      state = 'merged', merge_commit_sha = ?, landed_commits = ?,
       merged_by_id = ?, merged_automatically = ?, merged_at = ${recordedAt}, closed_at = ${recordedAt},
       updated_at = MAX(updated_at, ${recordedAt}), land_target = ?
       WHERE id = ? AND ${recorded}`

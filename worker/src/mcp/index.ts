@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { Hono, type Context } from 'hono';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import {
   oauthAccessTokens,
   oauthClients,
@@ -297,16 +297,6 @@ mcpApiRouter.delete('/connections/:clientId', async (c) => {
   const db = c.get('db');
   const userId = c.get('user')!.id;
   const clientId = c.req.param('clientId');
-  const tokenRows = await db
-    .select({ id: oauthRefreshTokens.id })
-    .from(oauthRefreshTokens)
-    .where(
-      and(
-        eq(oauthRefreshTokens.userId, userId),
-        eq(oauthRefreshTokens.clientId, clientId)
-      )
-    )
-    .all();
   await db.batch([
     db
       .delete(oauthAccessTokens)
@@ -316,16 +306,14 @@ mcpApiRouter.delete('/connections/:clientId', async (c) => {
           eq(oauthAccessTokens.clientId, clientId)
         )
       ),
-    ...(tokenRows.length
-      ? [
-          db.delete(oauthRefreshTokens).where(
-            inArray(
-              oauthRefreshTokens.id,
-              tokenRows.map((t) => t.id)
-            )
-          ),
-        ]
-      : []),
+    db
+      .delete(oauthRefreshTokens)
+      .where(
+        and(
+          eq(oauthRefreshTokens.userId, userId),
+          eq(oauthRefreshTokens.clientId, clientId)
+        )
+      ),
     db
       .delete(mcpModerators)
       .where(
