@@ -1,4 +1,4 @@
-/* Actions: workflow runs, run and job pages, agent runs. Ported from docs/design/crew/repo.css (Actions) and
+/* Actions: workflow runs, run and job pages, agent runs. Ported from the upstream design prototype's repo.css (Actions) and
    views.css (steps). Tokens only, except the log, which is dark in every theme (as on GitHub). */
 
 .act-headline {

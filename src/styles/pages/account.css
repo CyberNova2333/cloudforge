@@ -1,5 +1,5 @@
 /* Settings, Site admin and the pieces they share: the side-nav frame, messages, forms, row lists, the audit log
-   rows. Ported from docs/design/crew/repo.css (.setlayout, .setnav, forms, rows) and views.css (.switch).
+   rows. Ported from the upstream design prototype's repo.css (.setlayout, .setnav, forms, rows) and views.css (.switch).
    Tokens only. */
 
 /* ---------- The frame: a side nav and the page beside it ---------- */

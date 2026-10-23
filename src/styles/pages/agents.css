@@ -1,5 +1,5 @@
 /* Agents: the directory, New reviewer, and profiles (an agent's, a person's, the team's). Ported from
-   docs/design/crew/views.css (agents directory, agent profile) and repo.css (profile, tabs). Tokens only. */
+   the upstream design prototype's views.css (agents directory, agent profile) and repo.css (profile, tabs). Tokens only. */
 
 .ag-page {
   display: grid;

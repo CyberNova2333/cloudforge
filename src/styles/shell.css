@@ -1,7 +1,7 @@
 /* The shell, after HQ: a rail that runs the full height and turns the corner across the top (the top band), with
    the work in a panel inset into it. The panel (.content) is the only scroller. Rail states: collapsed 64px
    (.snav.shut), hover peek overlay (.peeking), pinned 236px (.pinned), drawer below 900px (.app.nav-open).
-   Ported from docs/design/crew/app.css, repo.css (top band, repository header) and dev.css (GitHub shapes). */
+   Ported from the upstream design prototype's app.css, repo.css (top band, repository header) and dev.css (GitHub shapes). */
 
 /* While the shell is mounted the page never scrolls behind it. Pages outside the shell (sign-in) scroll as usual. */
 html:has(.app),

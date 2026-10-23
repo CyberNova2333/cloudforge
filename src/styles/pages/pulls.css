@@ -1,4 +1,4 @@
-/* Pull requests (board, list, graph) and compare. Ported from docs/design/crew/views.css (lanes, prcard) and
+/* Pull requests (board, list, graph) and compare. Ported from the upstream design prototype's views.css (lanes, prcard) and
    repo.css (rows). Tokens only. The board's cards are one link each: the title's ::after covers the card, and
    whatever else on it is interactive (the session chip, the checks badge) sits above it. */
 

@@ -63,8 +63,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   Moderator apps (`mcp_moderators`, `worker/src/mcp/moderators.ts`): only a connection the user marked as a moderator
   lists and calls the approve/dismiss tools; checked on every call, never cached; the tools reuse `decideFlag` /
   `approvePull` and record `via`.
-- Merging is rebase + fast-forward (spec `docs/superpowers/specs/2026-10-07-rebase-merging-design.md`, details in
-  `docs/architecture.md`). GitOrange rebases open PRs itself: engine `git/rebase.ts`, runs on `MERGE_RESOLUTION`
+- Merging is rebase + fast-forward (details in `docs/architecture.md`). GitOrange rebases open PRs itself: engine `git/rebase.ts`, runs on `MERGE_RESOLUTION`
   (`merge/rebase.ts`, `ensureRebase`; CAS on the old head, old head kept as `refs/pull/N/pre-rebase/<sha7>`); per-commit
   AI conflict resolution in `merge/commit-resolution.ts`; a stop is `rebase_conflict` or "Not rebased: …" (`rebaseBlocked`: default branch, a
   `repositories.protected_branches` glob, a head shared into another base). `review/carry.ts`
@@ -165,7 +164,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   kind `ordered_after`) and retargets `base_ref` (metadata only, CAS); `stackGate` blocks `landPull`, which also refuses a head carrying another
   open PR's commits (`carriedPull`). Tests drive
   `executeReconcile` with fake `StackModels` (`order`, `recheck`).
-- Installer (`scripts/gitorange/`, `yarn gitorange install|status` from a checkout, `npx gitorange install|upgrade|adopt|status` from the npm package `gitorange`, specs `docs/superpowers/specs/2026-10-16-deterministic-install-design.md` and `2026-10-19-npm-cli-design.md`):
+- Installer (`scripts/gitorange/`, `yarn gitorange install|status` from a checkout, `npx gitorange install|upgrade|adopt|status` from the npm package `gitorange`):
   pure modules (`names`, `plan`, `config`, `state`) plus ports for Cloudflare (`cloudflare.ts`) and processes (`runner.ts`) and
   the prompts (`collect.ts`), all injected through `Deps`/`Ctx`. Same inputs give the same names, plan digest and generated
   `wrangler.jsonc` (header marker; a hand-written one is never overwritten). State and lock live in `.gitorange/<id>.json`
