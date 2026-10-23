@@ -1,21 +1,18 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { and, eq, ne, or } from 'drizzle-orm';
-import { settleStates } from '../pulls/settle';
-import { queueLessons } from '../learn/lessons';
+import { and, desc, eq, ne, or } from 'drizzle-orm';
 import { publishChange } from '../live/publish';
 import type { DrizzleDB } from '../db/middleware';
 import {
   pullRequests,
   repositories,
+  landingIntents,
   type PullRequest,
   type Repository,
 } from '../db/app.schema';
 import { REBASE_COMMITTER } from '../git/rebase';
 import { GitPushError, ZERO_SHA } from '../git/remote';
 import type { GitService } from '../git/service';
-import { onRefsUpdated } from '../actions/trigger';
 import { recordAudit } from '../lib/audit';
-import { startSweep } from './auto';
 import { resolutionConfigured } from './resolution';
 import {
   afterRebase,
@@ -32,9 +29,13 @@ import { checksAt, reviewGateFor, reviewReasonText } from '../review/gate';
 import { landTargetIs, landTargetOf } from '../lib/land-target';
 import { protectedBy } from '../lib/protected-branches';
 import { stackGate } from '../stack/gate';
-import { onPullClosed } from '../stack/retarget';
-import { refreshAgentConfig } from '../agents/refresh';
 import { holdsWhole, lineageOf, sharedWith } from '../stack/lineage';
+import {
+  finishLanding,
+  landingReceipt,
+  landingWasPushed,
+  recordLanding,
+} from './landing-recovery';
 
 export const pullRef = (n: number) => `refs/pull/${n}/head`;
 
@@ -98,6 +99,26 @@ export async function mergingPause(
  */
 export async function landPull(opts: LandOpts): Promise<LandResult> {
   const { env, db, git, pr } = opts;
+  const attempts = await db
+    .select()
+    .from(landingIntents)
+    .where(eq(landingIntents.pullRequestId, pr.id))
+    .orderBy(desc(landingIntents.createdAt))
+    .all();
+  // Recovery precedes the ordinary gates: the authorized Git operation has already happened. This cannot turn
+  // an arbitrary contained head into a merge; both a pre-push durable intent and its remote receipt are required.
+  for (const previous of attempts) {
+    if (previous.finishedAt && !previous.recordedAt) continue;
+    if (!previous.recordedAt && !(await landingWasPushed(git, pr, previous)))
+      continue;
+    if (!previous.recordedAt && !(await recordLanding(db, pr, previous)))
+      continue;
+    if (!previous.finishedAt)
+      opts.after(
+        finishLanding(env, db, opts.repo, opts.repoFullName, pr, previous)
+      );
+    return { ok: true, sha: previous.landHeadSha, headSha: previous.headSha };
+  }
   if (pr.state !== 'open')
     return { ok: false, status: 400, error: 'Pull request is not open' };
   if (await mergingPause(db, pr.repositoryId))
@@ -192,20 +213,103 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     if (landHead !== headSha)
       rewrote = { rebased: landHead, rebasedFrom: headSha };
   }
+  // All Git reads needed to record the result happen before the commit point.
+  const landedCommits = await firstParentSteps(git, baseBefore, landHead);
+  const candidate = {
+    id: crypto.randomUUID(),
+    pullRequestId: pr.id,
+    repositoryId: pr.repositoryId,
+    target,
+    baseSha: baseBefore,
+    headSha,
+    landHeadSha: landHead,
+    pullRefBefore: refsBefore.get(pullRef(pr.number)) ?? ZERO_SHA,
+    landedCommits,
+    actorId: opts.by?.id ?? null,
+    automatic: !opts.by,
+    createdAt: new Date(),
+  };
+  // A transport error may have happened before push. Retain that attempt for late recovery, but do not let its
+  // obsolete tips block a newly authorized merge. Both attempts still CAS the target they actually reviewed.
+  let intent = attempts.find(
+    (a) =>
+      !a.finishedAt &&
+      a.baseSha === baseBefore &&
+      a.landHeadSha === landHead &&
+      a.target === target
+  );
+  if (!intent) {
+    [intent] = await db.insert(landingIntents).values(candidate).returning();
+  }
+  const pushRefs = (await git.client.listRefs()).refs;
   try {
+    // Prepare recoverable evidence before committing the target. Artifacts need not support atomic multi-ref
+    // pushes: a partially prepared receipt/pin cannot commit the target, and a committed target always has both.
     await git.client.push(
       [
-        { ref: `refs/heads/${target}`, old: baseBefore, new: landHead },
         {
           ref: pullRef(pr.number),
-          old: refsBefore.get(pullRef(pr.number)) ?? ZERO_SHA,
+          old:
+            pushRefs.get(pullRef(pr.number)) === landHead
+              ? landHead
+              : intent.pullRefBefore,
+          new: landHead,
+        },
+        {
+          ref: landingReceipt(pr.number, intent.id),
+          old: pushRefs.get(landingReceipt(pr.number, intent.id)) ?? ZERO_SHA,
           new: landHead,
         },
       ],
       []
     );
+    const live = await db
+      .select()
+      .from(pullRequests)
+      .where(eq(pullRequests.id, pr.id))
+      .get();
+    const freshRefs = (await git.client.listRefs()).refs;
+    if (
+      !live ||
+      live.state !== 'open' ||
+      landTargetOf(live) !== target ||
+      live.headRef !== pr.headRef ||
+      freshRefs.get(`refs/heads/${pr.headRef}`) !== landHead ||
+      (await mergingPause(db, pr.repositoryId))
+    ) {
+      await db
+        .update(landingIntents)
+        .set({ finishedAt: new Date() })
+        .where(eq(landingIntents.id, intent.id));
+      return {
+        ok: false,
+        status: 409,
+        error: 'The pull request or merge policy changed. Review it and retry.',
+      };
+    }
+    await git.client.push(
+      [{ ref: `refs/heads/${target}`, old: baseBefore, new: landHead }],
+      []
+    );
   } catch (e) {
-    if (e instanceof GitPushError)
+    // A lost response can hide a successful push. Keep the intent on transport errors so a retry or Cron can
+    // verify it. A rejected CAS with no committed landing can be retried with fresh gates and a new intent.
+    if (await landingWasPushed(git, pr, intent)) {
+      if (!(await recordLanding(db, pr, intent)))
+        return {
+          ok: false,
+          status: 409,
+          error:
+            'Another merge attempt completed this pull request. Refresh its state.',
+        };
+      opts.after(
+        finishLanding(env, db, opts.repo, opts.repoFullName, pr, intent)
+      );
+      return { ok: true, sha: landHead, headSha: intent.headSha };
+    }
+    if (e instanceof GitPushError) {
+      // Keep the attempted operation as evidence, including partial multi-ref pushes. Fresh tips can create a
+      // new attempt; recovery never guesses that receipt-only means the target moved.
       return {
         ok: false,
         status: 409,
@@ -213,79 +317,21 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
         // The branch was rebased (and pushed) before the target moved again: the agent's clone is stale either way.
         ...rewrote,
       };
+    }
     return {
       ok: false,
       status: 400,
       error: e instanceof Error ? e.message : 'Merge failed',
     };
   }
-  // The push is the commit point; record only after it succeeds.
-  const landedCommits = await firstParentSteps(git, baseBefore, landHead);
-  const now = new Date();
-  await db
-    .update(pullRequests)
-    .set({
-      state: 'merged',
-      mergeCommitSha: landHead,
-      landedCommits,
-      mergedById: opts.by?.id ?? null,
-      mergedAutomatically: !opts.by,
-      mergedAt: now,
-      closedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(pullRequests.id, pr.id));
-  await db
-    .update(repositories)
-    .set({ updatedAt: now })
-    .where(eq(repositories.id, pr.repositoryId));
-  await recordAudit(db, {
-    repositoryId: pr.repositoryId,
-    // CloudForge itself when it lands one on its own (auto-merge).
-    actorId: opts.by?.id ?? null,
-    action: 'pull.merged',
-    target: `#${pr.number}`,
-    pull: pr.number,
-    data: { title: pr.title, sha: landHead, into: target, automatic: !opts.by },
-  });
-  // Auto-merges happen in the background.
-  opts.after(publishChange(env, pr.repositoryId, { approvals: true }));
-  opts.after(settleStates(env, db, pr.repositoryId));
-  // The agents whose change requests on it were dismissed learn from them (worker/src/learn/).
-  opts.after(queueLessons(env, db, pr));
-  // Children stacked on its branch go back to the land target; a reconcile restacks them. Only then is the
-  // branch free to delete, if the repository deletes merged branches (the merge button and auto-merge alike).
-  opts.after(
-    onPullClosed(env, db, pr, 'landed').then(() =>
-      opts.repo.deleteMergedBranches
-        ? deleteMergedBranch({
-            env,
-            db,
-            repo: opts.repo,
-            git,
-            pr,
-            headSha: landHead,
-          })
-        : false
-    )
-  );
-  const updates = [
-    { ref: `refs/heads/${target}`, old: baseBefore, new: landHead },
-  ];
-  // Pull requests into the target are now behind: the sweep rebases them.
-  opts.after(startSweep(env, opts.repo, updates));
-  opts.after(
-    onRefsUpdated(
-      env,
-      db,
-      opts.repo,
-      opts.repoFullName,
-      updates,
-      opts.by?.id ?? pr.authorId
-    )
-  );
-  if (target === opts.repo.defaultBranch)
-    opts.after(refreshAgentConfig(env, db, opts.repo.id));
+  if (!(await recordLanding(db, pr, intent)))
+    return {
+      ok: false,
+      status: 409,
+      error:
+        'Another merge attempt completed this pull request. Refresh its state.',
+    };
+  opts.after(finishLanding(env, db, opts.repo, opts.repoFullName, pr, intent));
   return { ok: true, sha: landHead, headSha };
 }
 
@@ -460,6 +506,8 @@ export async function deleteMergedBranch(opts: {
   pr: Pick<PullRequest, 'id' | 'number' | 'repositoryId' | 'headRef'>;
   /** The head commit that landed. */
   headSha: string;
+  /** Landing recovery retries transient failures; ordinary callers keep best-effort cleanup. */
+  strict?: boolean;
 }): Promise<boolean> {
   const { env, db, repo, git, pr } = opts;
   const branch = pr.headRef;
@@ -490,6 +538,7 @@ export async function deleteMergedBranch(opts: {
     await git.deleteBranch(branch, opts.headSha);
   } catch (e) {
     console.warn('[merge] could not delete merged branch', pr.id, branch, e);
+    if (opts.strict) throw e;
     return false;
   }
   await recordAudit(db, {

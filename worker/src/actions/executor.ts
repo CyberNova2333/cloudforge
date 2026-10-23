@@ -42,6 +42,7 @@ import {
 import { WORKSPACE, type JobRunnerApi, type StepRequest } from './job-runner';
 import { mask } from './commands';
 import { jobValues, secretMasks } from './secrets';
+import { openState, sealState, StateHydrationError } from './state';
 import { globToRegExp, instanceTypeFor, postStepIndexes } from './plan';
 import {
   artifactNameError,
@@ -150,14 +151,44 @@ export function logKey(
  * persisted; secrets never are), read by putLog, dropped when the run's jobs are done.
  */
 const runMasks = new Map<string, string[]>();
+const replayMasks = new WeakMap<string[], Set<string>>();
 
 /** The job's runner, with every step's log also masking the run's secrets. */
-function maskingRunner(base: JobRunnerApi, masks: string[]): JobRunnerApi {
-  if (!masks.length) return base;
+function rememberMasks(runId: string, masks: string[], added: string[]) {
+  const retained = replayMasks.get(masks) ?? new Set<string>();
+  for (const value of added) if (value) retained.add(value);
+  replayMasks.set(masks, retained);
+  for (const value of added)
+    if (value && !masks.includes(value)) masks.push(value);
+  runMasks.set(runId, [...new Set([...(runMasks.get(runId) ?? []), ...masks])]);
+}
+
+/** Only dynamic masks and static secrets actually retained in state need replay storage. */
+function persistedMasks(masks: string[], state: unknown = {}) {
+  const retained = new Set(replayMasks.get(masks));
+  const json = JSON.stringify(state);
+  for (const value of masks)
+    if (value && json.includes(JSON.stringify(value).slice(1, -1)))
+      retained.add(value);
+  return [...retained];
+}
+
+function maskingRunner(
+  base: JobRunnerApi,
+  masks: string[],
+  runId: string
+): JobRunnerApi {
   return {
     boot: (instance, maxMs) => base.boot(instance, maxMs),
     destroy: () => base.destroy(),
-    runStep: (req) => base.runStep({ ...req, masks: [...masks, ...req.masks] }),
+    runStep: async (req) => {
+      const result = await base.runStep({
+        ...req,
+        masks: [...masks, ...req.masks],
+      });
+      rememberMasks(runId, masks, result.masks ?? []);
+      return result;
+    },
   };
 }
 
@@ -170,6 +201,7 @@ interface RunContext {
   defaultBranch: string;
   status: string;
   event: string;
+  eventData: typeof workflowRuns.$inferSelect.eventData;
   ref: string;
   headSha: string;
   runNumber: number;
@@ -222,6 +254,7 @@ async function loadRun(
     defaultBranch: found.repo.defaultBranch,
     status: run.status,
     event: run.event,
+    eventData: run.eventData,
     ref: run.ref,
     headSha: run.headSha,
     runNumber: run.runNumber,
@@ -302,6 +335,7 @@ export async function executeRun(
       actor: ctx.actor,
       workflow: wf.name ?? ctx.workflowPath,
       serverUrl: ctx.serverUrl,
+      ...ctx.eventData,
     }
   ) as Record<string, Value>;
 
@@ -571,7 +605,7 @@ async function runJob(
     return { key: def.key, result: 'skipped', outputs: {} };
   }
 
-  const runner = maskingRunner(deps.runner(job.id), masks);
+  const runner = maskingRunner(deps.runner(job.id), masks, ctx.runId);
   const posts = postStepIndexes(def.steps);
   const lastStep = def.steps.length + 2 + posts.length;
 
@@ -592,6 +626,7 @@ async function runJob(
       def,
       job,
       runner,
+      masks,
       exprCtx,
       prefix,
       `${restartNote ?? ''}${valuesNote}` || null,
@@ -648,24 +683,44 @@ async function runJob(
   }
   const { steps, caches, actionPosts, setupError } = attemptState;
   let { jobStatus } = attemptState;
+  let stateError = attemptState.stateError;
 
   // ── Post steps, in reverse: a JavaScript action's post entry point, or saving a cache (on success only) ──
   for (const [k, i] of posts.entries()) {
     const number = def.steps.length + 2 + k;
+    // State can carry credentials and cleanup inputs. Do not execute more commands when its recovery failed.
+    if (stateError) {
+      await step.do(`${name}:post:${number}:state-unavailable`, async () => {
+        await setStep(db, job.id, number, {
+          status: 'completed',
+          conclusion: 'skipped',
+          completedAt: new Date(),
+        });
+        return true;
+      });
+      continue;
+    }
     const usesAction = def.steps[i].uses?.split('@')[0];
     if (usesAction !== 'actions/cache' && usesAction !== 'actions/setup-node') {
-      const failed = await runActionPost(
-        deps,
-        ctx,
-        job.id,
-        name,
-        number,
-        runner,
-        actionPosts.get(i),
-        jobStatus,
-        exprCtx({ steps })
-      );
-      if (failed) jobStatus = 'failure';
+      try {
+        const failed = await runActionPost(
+          deps,
+          ctx,
+          job.id,
+          name,
+          number,
+          runner,
+          actionPosts.get(i),
+          jobStatus,
+          exprCtx({ steps }),
+          masks
+        );
+        if (failed) jobStatus = 'failure';
+      } catch (error) {
+        if (!(error instanceof StateHydrationError)) throw error;
+        stateError = error.message;
+        jobStatus = 'failure';
+      }
       continue;
     }
     const state = caches.get(i);
@@ -719,12 +774,33 @@ async function runJob(
             completedAt: new Date(),
             logR2Key: logKey(ctx.repoId, ctx.runId, job.id, number),
           });
-          return true;
+          return sealState(
+            env,
+            ctx.repoId,
+            ctx.runId,
+            `${name}:post:${number}`,
+            { masks: persistedMasks(masks) }
+          );
         }
       )
-      .catch(() =>
+      .then(async (saved) => {
+        const state = await openState<{ masks: string[] }>(
+          env,
+          ctx.repoId,
+          ctx.runId,
+          `${name}:post:${number}`,
+          saved
+        );
+        rememberMasks(ctx.runId, masks, state.masks);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof StateHydrationError) {
+          stateError = error.message;
+          jobStatus = 'failure';
+          return;
+        }
         // Interrupted mid-save: the job already finished, so record the miss and move on.
-        step.do(`${name}:post:${number}:interrupted`, async () => {
+        return step.do(`${name}:post:${number}:interrupted`, async () => {
           await putLog(
             env,
             ctx,
@@ -739,12 +815,12 @@ async function runJob(
             logR2Key: logKey(ctx.repoId, ctx.runId, job.id, number),
           });
           return true;
-        })
-      );
+        });
+      });
   }
 
   // ── Complete job ──
-  return step.do(`${name}:complete`, async () => {
+  const completed = await step.do(`${name}:complete`, async () => {
     try {
       await runner.destroy();
     } catch (e) {
@@ -754,14 +830,14 @@ async function runJob(
     await releaseSlot(env, job.id);
     const outputs: Record<string, string> = {};
     const withheld: string[] = [];
-    for (const [k, v] of Object.entries(def.outputs)) {
+    for (const [k, v] of Object.entries(stateError ? {} : def.outputs)) {
       try {
         outputs[k] = interpolate(v, exprCtx({ steps }));
       } catch {
         outputs[k] = '';
       }
       // As on GitHub: an output that may carry a secret doesn't reach other jobs.
-      if (masks.some((m) => m.length >= 4 && outputs[k].includes(m))) {
+      if (masks.some((m) => m && outputs[k].includes(m))) {
         outputs[k] = '';
         withheld.push(k);
       }
@@ -771,7 +847,9 @@ async function runJob(
         ? safeTruthy(def.continueOnError, exprCtx())
         : def.continueOnError;
     const result: Conclusion =
-      jobStatus === 'failure' && !jobContinue ? 'failure' : 'success';
+      stateError || (jobStatus === 'failure' && !jobContinue)
+        ? 'failure'
+        : 'success';
     const now = new Date();
     await putLog(
       env,
@@ -779,6 +857,9 @@ async function runJob(
       job.id,
       lastStep,
       [
+        ...(stateError
+          ? [`Error: ${stateError}`, 'Completed commands were not retried.']
+          : []),
         ...withheld.map(
           (k) =>
             `Warning: skipped the job output ${k}: it may contain a secret.`
@@ -801,15 +882,49 @@ async function runJob(
         completedAt: now,
       })
       .where(eq(workflowJobs.id, job.id));
-    return {
+    return sealState(env, ctx.repoId, ctx.runId, `${name}:complete`, {
       key: def.key,
       result,
       outputs,
-      ...(setupError && {
-        error: `Job "${def.key}" could not start its runner: ${setupError}`,
-      }),
-    } satisfies JobOutcome;
+      ...(stateError
+        ? { error: stateError }
+        : setupError && {
+            error: `Job "${def.key}" could not start its runner: ${setupError}`,
+          }),
+    } satisfies JobOutcome);
   });
+  try {
+    return await openState<JobOutcome>(
+      env,
+      ctx.repoId,
+      ctx.runId,
+      `${name}:complete`,
+      completed
+    );
+  } catch (error) {
+    if (!(error instanceof StateHydrationError)) throw error;
+    await step.do(`${name}:state-unavailable`, async () => {
+      await db
+        .update(workflowJobs)
+        .set({ conclusion: 'failure' })
+        .where(eq(workflowJobs.id, job.id));
+      await putLog(
+        env,
+        ctx,
+        job.id,
+        lastStep,
+        `Error: ${error.message}\nCompleted commands were not retried.`
+      );
+      await setStep(db, job.id, lastStep, { conclusion: 'failure' });
+      return true;
+    });
+    return {
+      key: def.key,
+      result: 'failure',
+      outputs: {},
+      error: error.message,
+    };
+  }
 }
 
 interface AttemptState {
@@ -821,6 +936,8 @@ interface AttemptState {
   actionPosts: Map<number, ActionPost>;
   /** Why Set up job failed, when the runner never started. */
   setupError?: string;
+  /** A completed command's result cannot be restored; fail without restarting its side effects. */
+  stateError?: string;
   /** The step whose runner went away, when this attempt should be restarted. */
   interrupted?: { number: number; name: string; message: string };
 }
@@ -837,6 +954,7 @@ async function runAttempt(
   def: JobDef,
   job: RunContext['jobs'][number],
   runner: JobRunnerApi,
+  masks: string[],
   exprCtx: (extra?: Record<string, Value>) => Record<string, Value>,
   name: string,
   restartNote: string | null,
@@ -945,6 +1063,7 @@ async function runAttempt(
     });
 
   let jobStatus: JobStatus = setup.ok ? 'success' : 'failure';
+  let stateError: string | undefined;
   let runnerGone: string | null = setup.ok ? null : 'The runner did not start.';
   const steps: Record<string, Value> = {};
   let envAdds: Record<string, string> = {};
@@ -1091,8 +1210,26 @@ async function runAttempt(
           }
           const outcome: Conclusion = exitCode === 0 ? 'success' : 'failure';
           await putLog(env, ctx, job.id, number, log);
-          return { outcome, ...out, cache, post };
+          const state = { outcome, ...out, cache, post };
+          return sealState(
+            env,
+            ctx.repoId,
+            ctx.runId,
+            `${name}:step:${number}`,
+            { ...state, masks: persistedMasks(masks, state) }
+          );
         }
+      )
+      .then((saved) =>
+        openState<{
+          outcome: Conclusion;
+          outputs: Record<string, string>;
+          envAdds: Record<string, string>;
+          pathAdds: string[];
+          cache: CacheState | null;
+          post: ActionPost | null;
+          masks: string[];
+        }>(env, ctx.repoId, ctx.runId, `${name}:step:${number}`, saved)
       )
       .catch((e: unknown) => ({
         outcome: 'failure' as Conclusion,
@@ -1101,9 +1238,12 @@ async function runAttempt(
         pathAdds: [],
         cache: null,
         post: null,
+        masks: [] as string[],
         crash: e instanceof Error ? e.message : String(e),
+        hydrationFailure: e instanceof StateHydrationError,
       }));
-    if ('crash' in result && final === null)
+    rememberMasks(ctx.runId, masks, result.masks);
+    if ('crash' in result && !result.hydrationFailure && final === null)
       return {
         jobStatus,
         steps,
@@ -1116,6 +1256,7 @@ async function runAttempt(
         },
       };
     if ('crash' in result) runnerGone = result.crash;
+    if ('crash' in result && result.hydrationFailure) stateError = result.crash;
     if (result.cache && result.outcome === 'success')
       caches.set(i, result.cache);
     if (result.post) actionPosts.set(i, result.post);
@@ -1125,7 +1266,7 @@ async function runAttempt(
         ? safeTruthy(s.continueOnError, prepared?.ctx ?? exprCtx())
         : s.continueOnError;
     const conclusion: Conclusion =
-      result.outcome === 'failure' && continueOnError
+      !stateError && result.outcome === 'failure' && continueOnError
         ? 'success'
         : result.outcome;
     await step.do(`${name}:step:${number}:done`, async () => {
@@ -1136,7 +1277,7 @@ async function runAttempt(
           job.id,
           number,
           `Error: ${result.crash}` +
-            (final
+            (final && !result.hydrationFailure
               ? `\nThe runner was interrupted on all ${final} attempts, so the job was not restarted again.`
               : '')
         );
@@ -1158,7 +1299,14 @@ async function runAttempt(
     pathAdds = [...result.pathAdds, ...pathAdds];
     if (conclusion === 'failure') jobStatus = 'failure';
   }
-  return { jobStatus, steps, caches, actionPosts, setupError: setup.error };
+  return {
+    jobStatus,
+    steps,
+    caches,
+    actionPosts,
+    setupError: setup.error,
+    stateError,
+  };
 }
 
 function safeTruthy(expr: string, ctx: Record<string, Value>) {
@@ -1250,6 +1398,8 @@ async function buildCommand(
     GITHUB_REPOSITORY_OWNER: ctx.repoFullName.split('/')[0],
     GITHUB_ACTOR: ctx.actor,
     GITHUB_EVENT_NAME: ctx.event,
+    GITHUB_BASE_REF: String(g.base_ref),
+    GITHUB_HEAD_REF: String(g.head_ref),
     GITHUB_RUN_ID: ctx.runId,
     GITHUB_RUN_NUMBER: String(ctx.runNumber),
     GITHUB_RUN_ATTEMPT: '1',
@@ -2037,7 +2187,8 @@ async function runActionPost(
   runner: JobRunnerApi,
   post: ActionPost | undefined,
   jobStatus: JobStatus,
-  exprCtx: Record<string, Value>
+  exprCtx: Record<string, Value>,
+  masks: string[]
 ): Promise<boolean> {
   const { db, step, env } = deps;
   return step
@@ -2089,11 +2240,26 @@ async function runActionPost(
           completedAt: new Date(),
           logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
         });
-        return conclusion === 'failure';
+        return sealState(env, ctx.repoId, ctx.runId, `${name}:post:${number}`, {
+          failed: conclusion === 'failure',
+          masks: persistedMasks(masks),
+        });
       }
     )
-    .catch(() =>
-      step.do(`${name}:post:${number}:interrupted`, async () => {
+    .then(async (saved) => {
+      const result = await openState<{ failed: boolean; masks: string[] }>(
+        env,
+        ctx.repoId,
+        ctx.runId,
+        `${name}:post:${number}`,
+        saved
+      );
+      rememberMasks(ctx.runId, masks, result.masks);
+      return result.failed;
+    })
+    .catch((error: unknown) => {
+      if (error instanceof StateHydrationError) throw error;
+      return step.do(`${name}:post:${number}:interrupted`, async () => {
         await putLog(
           env,
           ctx,
@@ -2108,6 +2274,6 @@ async function runActionPost(
           logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
         });
         return false;
-      })
-    );
+      });
+    });
 }

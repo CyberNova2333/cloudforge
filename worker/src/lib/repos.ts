@@ -13,8 +13,16 @@ import type { DrizzleDB } from '../db/middleware';
 import { ArtifactsRepoClient } from '../git/remote';
 import { GitService } from '../git/service';
 import type { AppEnv, SessionUser } from '../variables';
+import { inJsonArray } from './sql-set';
 
 export const REPO_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
+
+/** A normalized name must remain a single addressable URL/Git path segment. */
+export const isValidRepoName = (name: string) =>
+  REPO_NAME_RE.test(name) &&
+  name !== '.' &&
+  name !== '..' &&
+  !name.endsWith('.git');
 
 export function normalizeRepoName(name: string): string {
   return name.trim().replace(/[^A-Za-z0-9._-]+/g, '-');
@@ -116,7 +124,7 @@ export async function findReposByIds(db: DrizzleDB, ids: string[]) {
     .from(repositories)
     .innerJoin(users, eq(users.id, repositories.ownerId))
     .leftJoin(teams, eq(teams.id, repositories.teamId))
-    .where(inArray(repositories.id, unique))
+    .where(inJsonArray(repositories.id, unique))
     .all();
   return new Map<string, FoundRepo>(
     rows.map(({ repo, owner, team }) => [
@@ -188,7 +196,7 @@ export async function permissionsForMany(
             .where(
               and(
                 eq(repositoryCollaborators.userId, user!.id),
-                inArray(repositoryCollaborators.repositoryId, ask)
+                inJsonArray(repositoryCollaborators.repositoryId, ask)
               )
             )
             .all()

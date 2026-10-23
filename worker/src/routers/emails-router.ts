@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { invitations, userEmails, type UserEmail } from '../db/app.schema';
@@ -5,6 +6,7 @@ import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { emailConfigured, sendEmailVerification } from '../lib/email';
 import { hashToken, randomToken } from '../lib/tokens';
+import { emailClaimedByOther } from '../lib/email-claims';
 import type { AppEnv } from '../variables';
 import {
   json200Response,
@@ -318,6 +320,7 @@ const resendRoute = createRoute({
     ...json400Response,
     ...json404Response,
     ...json429Response,
+    ...json409Response,
   },
 });
 emailsRouter.openapi(resendRoute, async (c) => {
@@ -327,6 +330,8 @@ emailsRouter.openapi(resendRoute, async (c) => {
   if (!row) return c.json({ error: 'Not Found' }, 404);
   if (row.verifiedAt)
     return c.json({ error: 'That email is already verified' }, 400);
+  if (await emailClaimedByOther(db, row.email, user.id))
+    return c.json({ error: 'That email belongs to another member' }, 409);
   if (
     row.verificationSentAt &&
     Date.now() - row.verificationSentAt.getTime() < RESEND_INTERVAL_MS
@@ -360,6 +365,7 @@ const verifyRoute = createRoute({
     ...json200Response(alternateSchema, 'Verified'),
     ...json400Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 emailsRouter.openapi(verifyRoute, async (c) => {
@@ -383,6 +389,8 @@ emailsRouter.openapi(verifyRoute, async (c) => {
       { error: 'This verification link has expired. Send a new one.' },
       400
     );
+  if (await emailClaimedByOther(db, row.email, user.id))
+    return c.json({ error: 'That email belongs to another member' }, 409);
   const verified = {
     verifiedAt: new Date(),
     verificationTokenHash: null,

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import DOMPurify from 'dompurify';
 
 type MermaidApi = typeof import('mermaid').default;
@@ -24,6 +25,9 @@ function loadMermaid(dark: boolean): Promise<MermaidApi> {
       // Diagrams come from repositories, models and PR titles: no scripts, links, or raw HTML.
       securityLevel: 'strict',
       theme: dark ? 'dark' : 'default',
+      // Preserve existing diagrams when Mermaid 12 changes its default layout and appearance.
+      layout: 'dagre',
+      look: 'classic',
       fontFamily: font.fontFamily,
       themeVariables: font,
     });

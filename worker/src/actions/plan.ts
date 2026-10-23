@@ -174,6 +174,21 @@ function excludes(entry: Value, value: Value): boolean {
  */
 export function expandMatrix(m: MatrixDef): Record<string, Value>[] {
   const keys = Object.keys(m.axes);
+  // Bound work before allocating. Exclusions do not make an enormous intermediate
+  // product safe: users can express sparse matrices directly with include.
+  let product = keys.length ? 1 : 0;
+  const planningLimit = m.exclude.length ? 1024 : MAX_MATRIX_JOBS;
+  for (const k of keys) {
+    if (product > planningLimit / m.axes[k].length)
+      throw new WorkflowFileError(
+        `strategy.matrix expands to ${product * m.axes[k].length} jobs before exclude; the planning limit is ${planningLimit}. Use include for a sparse matrix`
+      );
+    product *= m.axes[k].length;
+  }
+  if (m.include.length > MAX_MATRIX_JOBS)
+    throw new WorkflowFileError(
+      `strategy.matrix.include exceeds the ${MAX_MATRIX_JOBS} entry limit`
+    );
   let combos: Record<string, Value>[] = keys.length ? [{}] : [];
   for (const k of keys)
     combos = combos.flatMap((c) => m.axes[k].map((v) => ({ ...c, [k]: v })));
@@ -298,7 +313,7 @@ export function hasPostStep(s: StepDef): boolean {
     return true;
   if (!s.uses) return false;
   try {
-    return parseUses(s.uses)?.kind === 'github';
+    return parseUses(s.uses) !== null;
   } catch {
     return false;
   }

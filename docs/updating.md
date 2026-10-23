@@ -34,6 +34,14 @@ If `npx` offers an older version right after a release, its registry cache is st
 
 A deploy restarts any running Actions jobs (each restarts from the beginning, up to 3 attempts), so deploying when no CI is running avoids that.
 
+The audit hardening update adds migrations `0036` and `0037` for recoverable landings and stored Actions event
+context. Apply them before deploying the Worker. As a conservative upgrade procedure, finish or cancel existing
+Actions runs first: this update does not retroactively encrypt old durable results, and the new decoder cannot
+read their plaintext format. Existing-instance version handling across deployment has not been verified for
+this update. Start a fresh run if one cannot resume.
+Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
+`BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
+
 ## Adopt an existing installation
 
 `adopt` takes over an installation that was made some other way, so `upgrade` can manage it. It changes nothing on Cloudflare.

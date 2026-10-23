@@ -115,6 +115,41 @@ export async function holdsWhole(
 }
 
 /**
+ * All whole-lineage containment for a discovery snapshot. An inverted identity index excludes disjoint pairs
+ * before the expensive comparison. Actual candidates still use holdsWhole (including patch-id verification).
+ */
+export async function lineageOwnership(
+  git: GitService,
+  lineages: Iterable<Lineage>
+): Promise<Map<Lineage, Set<Lineage>>> {
+  const all = [...lineages];
+  const holders = new Map(all.map((l) => [l, new Set<Lineage>()]));
+  const byIdentity = new Map<string, Set<Lineage>>();
+  for (const outer of all) {
+    if (outer.truncated) continue;
+    for (const id of new Set(outer.ids)) {
+      if (!byIdentity.has(id)) byIdentity.set(id, new Set());
+      byIdentity.get(id)!.add(outer);
+    }
+  }
+  for (const inner of all) {
+    if (inner.truncated || !inner.ids.length) continue;
+    // Every containing lineage must hold even the rarest identity. This changes only the search, never verdicts.
+    const candidates = inner.ids.reduce<Set<Lineage> | undefined>(
+      (smallest, id) => {
+        const found = byIdentity.get(id)!;
+        return !smallest || found.size < smallest.size ? found : smallest;
+      },
+      undefined
+    )!;
+    for (const outer of candidates)
+      if (outer !== inner && (await holdsWhole(git, outer, inner)))
+        holders.get(outer)!.add(inner);
+  }
+  return holders;
+}
+
+/**
  * The commit `x`'s own changes start from: the last of its leading commits that belong to `owned` (the commits of
  * open pull requests it holds whole). Null when none lead (its changes start at the target).
  */

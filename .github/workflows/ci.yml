@@ -128,6 +128,8 @@ jobs:
           worker/src/__tests__/stacking-discovery.test.ts
           worker/src/__tests__/stacking-landing.test.ts
           worker/src/__tests__/stack-tree.test.ts
+          worker/src/__tests__/stack-safety.test.ts
+          worker/src/__tests__/stacking-retarget-atomic.test.ts
           worker/src/__tests__/land-target.test.ts
           worker/src/__tests__/stacking-rebase.test.ts
           worker/src/__tests__/stacking-git.test.ts
@@ -190,6 +192,8 @@ jobs:
           worker/src/__tests__/git-rebase.test.ts
           worker/src/__tests__/merge-generated.test.ts
           worker/src/__tests__/rebase-landing.test.ts
+          worker/src/__tests__/landing-recovery.test.ts
+          worker/src/__tests__/sweep-pagination.test.ts
           worker/src/__tests__/agent-runs.test.ts
           worker/src/__tests__/queue.test.ts
           worker/src/__tests__/revert.test.ts
@@ -229,9 +233,11 @@ jobs:
           worker/src/__tests__/actions-remote.test.ts
           worker/src/__tests__/actions-artifacts.test.ts
           worker/src/__tests__/actions-secrets.test.ts
+          worker/src/__tests__/actions-security.test.ts
           worker/src/__tests__/cron.test.ts
           worker/src/__tests__/git-http.test.ts
           worker/src/__tests__/git-objects.test.ts
+          worker/src/__tests__/git-blob-limits.test.ts
           worker/src/__tests__/lfs.test.ts
           worker/src/__tests__/raw-files.test.ts
 
@@ -263,6 +269,8 @@ jobs:
         run: >-
           yarn test
           worker/src/__tests__/repos-pulls.test.ts
+          worker/src/__tests__/auth-boundaries.test.ts
+          worker/src/__tests__/d1-set-boundaries.test.ts
           worker/src/__tests__/protected-branches.test.ts
           worker/src/__tests__/setup-code.test.ts
           worker/src/__tests__/setup-invites.test.ts

@@ -4,8 +4,13 @@
 
 ## Prerequisites
 
-- Node.js v20+ and yarn
+- Node.js v22.18+ and yarn
 - `yarn wrangler login` on a Cloudflare account on Workers Paid (Artifacts is in open beta there). Artifacts has no local emulator, so `yarn dev` talks to the real service (namespace `cloudforge-dev`). D1 is local.
+
+Mermaid 12 requires an ES2024-capable browser (including Safari 17.4+). Diagrams explicitly use the Dagre layout
+and classic appearance to retain their existing presentation. React Router 7 keeps the declarative routing API.
+The Yarn resolutions for Vite, Undici, Sharp, and Drizzle's transitive esbuild pin patched dependency versions;
+review the resolved dependency graph and run `yarn audit` when changing them.
 
 ## First run
 

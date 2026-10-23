@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, desc, eq, inArray, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -30,7 +31,13 @@ import { landTargetIs, landTargetOf } from '../lib/land-target';
 import { maybeAutoMerge } from '../review/auto-merge';
 import { executeReconcile } from './reconcile';
 import { acyclicVerdict } from './acyclic';
-import { holdsWhole, lineageOf, ownBase, type Lineage } from './lineage';
+import {
+  holdsWhole,
+  lineageOf,
+  lineageOwnership,
+  ownBase,
+  type Lineage,
+} from './lineage';
 
 export type StackParams = { pullRequestId: string };
 
@@ -192,9 +199,10 @@ export async function executeStacking(
       h: string,
       base: string,
       landed: boolean,
-      trimmed = false
+      trimmed = false,
+      preparedChanges?: FileChange[]
     ): Promise<Side & { paths: string[] }> => {
-      const changes = await changesFor(git, base, h);
+      const changes = preparedChanges ?? (await changesFor(git, base, h));
       const paths = changes.map((c) => c.path);
       return {
         id: p.id,
@@ -243,16 +251,16 @@ export async function executeStacking(
     }
     if (!lineages.has(pr.id))
       lineages.set(pr.id, await lineageOf(git, target, head));
-    const baseOf = async (id: string) => {
+    const ownership = await lineageOwnership(git, lineages.values());
+    const baseOf = (id: string) => {
       const x = lineages.get(id)!;
       const owned = new Set<string>();
-      for (const [z, l] of lineages)
-        if (z !== id && (await holdsWhole(git, x, l)))
-          for (const i of l.ids) owned.add(i);
+      for (const l of ownership.get(x) ?? [])
+        for (const i of l.ids) owned.add(i);
       return ownBase(x, owned);
     };
     const myLineage = lineages.get(pr.id)!;
-    const myBase = await baseOf(pr.id);
+    const myBase = baseOf(pr.id);
     const { paths: myPaths, ...me } = await side(
       pr,
       head,
@@ -271,27 +279,37 @@ export async function executeStacking(
       holds,
     });
     const holder = async (theirs: Lineage): Promise<Candidate['holds']> =>
-      (await holdsWhole(git, myLineage, theirs))
+      (
+        ownership.has(theirs)
+          ? ownership.get(myLineage)!.has(theirs)
+          : await holdsWhole(git, myLineage, theirs)
+      )
         ? 'me'
-        : (await holdsWhole(git, theirs, myLineage))
+        : (
+              ownership.has(theirs)
+                ? ownership.get(theirs)!.has(myLineage)
+                : await holdsWhole(git, theirs, myLineage)
+            )
           ? 'other'
           : null;
     const candidates: Candidate[] = [];
     let triaged = 0;
-    // Every push to the target re-runs every open PR's stack run, so a push costs O(N²) diffTrees across
-    // the runs. Fine at max_open 20; revisit before raising the cap.
+    // Every path set remains checked, including older PRs beyond max_open: skipping these could lose a dependency.
+    // Only selected sides load summaries and descriptions; whole-lineage containment above is shared per snapshot.
     for (const o of others) {
       if (o.id === pr.id) continue;
       const h = refs.get(`refs/heads/${o.headRef}`);
       if (!h) continue;
-      const base = await baseOf(o.id);
+      const base = baseOf(o.id);
+      const changes = await changesFor(git, base ?? target, h);
+      const shares = changes.some((c) => mine.has(c.path));
+      const include = triaged++ < policy.max_open - 1 || shares;
+      if (!include) continue;
       const s = candidate(
-        await side(o, h, base ?? target, false, !!base),
+        await side(o, h, base ?? target, false, !!base, changes),
         await holder(lineages.get(o.id)!)
       );
-      const shares = s.shared.length > 0;
-      if (triaged < policy.max_open - 1 || shares) candidates.push(s);
-      triaged++;
+      candidates.push(s);
     }
 
     // PRs landed into the target recently that this PR's head doesn't contain.

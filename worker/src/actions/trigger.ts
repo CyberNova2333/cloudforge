@@ -27,6 +27,7 @@ import {
   type WorkflowDef,
 } from './workflow-file';
 import { landTargetOf } from '../lib/land-target';
+import type { Value } from './expressions';
 
 type Db = DrizzleD1Database<typeof schema>;
 
@@ -105,6 +106,8 @@ export function githubContext(
     baseRef?: string;
     headRef?: string;
     serverUrl?: string;
+    number?: number;
+    title?: string;
   } = {}
 ) {
   const refName = run.ref.replace(/^refs\/(heads|tags)\//, '');
@@ -125,7 +128,17 @@ export function githubContext(
     head_ref: extra.headRef ?? '',
     server_url: extra.serverUrl ?? '',
     workspace: '/workspace',
-    event: {},
+    event: (extra.number
+      ? {
+          number: extra.number,
+          pull_request: {
+            number: extra.number,
+            title: extra.title ?? '',
+            base: { ref: extra.baseRef ?? '' },
+            head: { ref: extra.headRef ?? '', sha: run.headSha },
+          },
+        }
+      : {}) as Record<string, Value>,
   };
 }
 
@@ -138,7 +151,8 @@ export async function queueRuns(
   db: Db,
   repo: Repository,
   repoFullName: string,
-  event: ActionsEvent
+  event: ActionsEvent,
+  eventId?: string
 ): Promise<string[]> {
   if (!actionsConfigured(env)) return [];
   const git = gitFor(env, repo);
@@ -206,6 +220,18 @@ export async function queueRuns(
       path: file.path,
       name: wf?.name ?? file.path,
       event: event.kind,
+      eventData:
+        event.kind === 'pull_request'
+          ? {
+              baseRef: event.baseRef,
+              headRef: event.headRef,
+              number: event.number,
+              title: event.title,
+            }
+          : null,
+      triggerKey: eventId
+        ? JSON.stringify([eventId, event.kind, ref, file.path])
+        : null,
       ref,
       headSha,
       displayTitle,
@@ -213,17 +239,39 @@ export async function queueRuns(
       jobs,
       error,
     });
-    if (!error) await startRun(env, db, id);
+    if (!error) await startRun(env, db, id, Boolean(eventId));
     created.push(id);
   }
   return created;
 }
 
 /** Starts a queued run's Workflow; a start failure is recorded on the run. */
-async function startRun(env: CloudflareBindings, db: Db, id: string) {
+async function startRun(
+  env: CloudflareBindings,
+  db: Db,
+  id: string,
+  strict = false
+) {
+  const run = await db
+    .select({ status: workflowRuns.status })
+    .from(workflowRuns)
+    .where(eq(workflowRuns.id, id))
+    .get();
+  if (run?.status === 'completed') return;
   try {
     await env.ACTIONS_RUN.create({ id, params: { runId: id } });
   } catch (e) {
+    // Creation may have committed before its response was lost. The fixed id
+    // identifies that same instance on retry; never start a second execution.
+    if (strict) {
+      try {
+        await (await env.ACTIONS_RUN.get(id)).status();
+        return;
+      } catch {
+        // There is no observable instance yet: retain queued state for strict delivery.
+      }
+      throw e;
+    }
     console.error('[actions] could not start run', id, e);
     await db
       .update(workflowRuns)
@@ -258,7 +306,7 @@ export async function rerun(
       const wf = parseWorkflow(file.text);
       name = wf.name ?? file.path;
       jobs = planJobs(wf, {
-        ...githubContext(repoFullName, run),
+        ...githubContext(repoFullName, run, run.eventData ?? {}),
         workflow: name,
       });
     } catch (e) {
@@ -271,6 +319,8 @@ export async function rerun(
     path: run.workflowPath,
     name,
     event: run.event,
+    eventData: run.eventData,
+    triggerKey: null,
     ref: run.ref,
     headSha: run.headSha,
     displayTitle: run.displayTitle,
@@ -292,6 +342,8 @@ async function insertRun(
     path: string;
     name: string;
     event: 'push' | 'pull_request';
+    eventData: typeof workflowRuns.$inferSelect.eventData;
+    triggerKey: string | null;
     ref: string;
     headSha: string;
     displayTitle: string;
@@ -300,38 +352,25 @@ async function insertRun(
     error: string | null;
   }
 ): Promise<string> {
+  if (r.triggerKey) {
+    const existing = await db
+      .select({ id: workflowRuns.id })
+      .from(workflowRuns)
+      .where(
+        and(
+          eq(workflowRuns.repositoryId, r.repo.id),
+          eq(workflowRuns.triggerKey, r.triggerKey)
+        )
+      )
+      .get();
+    if (existing) return existing.id;
+  }
   const id = crypto.randomUUID();
   const now = new Date();
-  // Run number is claimed in the INSERT; concurrent pushes retry on the unique index.
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await db.insert(workflowRuns).values({
-        id,
-        repositoryId: r.repo.id,
-        runNumber:
-          sql`(SELECT COALESCE(MAX(run_number), 0) + 1 FROM workflow_runs WHERE repository_id = ${r.repo.id})` as unknown as number,
-        workflowPath: r.path,
-        name: r.name,
-        event: r.event,
-        ref: r.ref,
-        headSha: r.headSha,
-        displayTitle: r.displayTitle.slice(0, 500),
-        actorId: r.actorId,
-        status: r.error ? 'completed' : 'queued',
-        conclusion: r.error ? 'failure' : null,
-        errorMessage: r.error,
-        createdAt: now,
-        completedAt: r.error ? now : null,
-      });
-      break;
-    } catch (e) {
-      if (attempt >= 4 || !String(e).includes('UNIQUE')) throw e;
-    }
-  }
-  const stmts = [];
+  const children = [];
   for (const job of r.jobs) {
     const jobId = crypto.randomUUID();
-    stmts.push(
+    children.push(
       db.insert(workflowJobs).values({
         id: jobId,
         runId: id,
@@ -343,7 +382,7 @@ async function insertRun(
       })
     );
     for (let i = 0; i < job.steps.length; i += ROWS_PER_INSERT)
-      stmts.push(
+      children.push(
         db.insert(workflowSteps).values(
           job.steps.slice(i, i + ROWS_PER_INSERT).map((s) => ({
             id: crypto.randomUUID(),
@@ -354,8 +393,50 @@ async function insertRun(
         )
       );
   }
-  if (stmts.length)
-    await db.batch(stmts as [(typeof stmts)[0], ...typeof stmts]);
+  // Run number is claimed in the INSERT; concurrent pushes retry on the unique index.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await db.batch([
+        db.insert(workflowRuns).values({
+          id,
+          repositoryId: r.repo.id,
+          runNumber:
+            sql`(SELECT COALESCE(MAX(run_number), 0) + 1 FROM workflow_runs WHERE repository_id = ${r.repo.id})` as unknown as number,
+          workflowPath: r.path,
+          name: r.name,
+          event: r.event,
+          eventData: r.eventData,
+          triggerKey: r.triggerKey,
+          ref: r.ref,
+          headSha: r.headSha,
+          displayTitle: r.displayTitle.slice(0, 500),
+          actorId: r.actorId,
+          status: r.error ? 'completed' : 'queued',
+          conclusion: r.error ? 'failure' : null,
+          errorMessage: r.error,
+          createdAt: now,
+          completedAt: r.error ? now : null,
+        }),
+        ...children,
+      ]);
+      break;
+    } catch (e) {
+      if (r.triggerKey) {
+        const existing = await db
+          .select({ id: workflowRuns.id })
+          .from(workflowRuns)
+          .where(
+            and(
+              eq(workflowRuns.repositoryId, r.repo.id),
+              eq(workflowRuns.triggerKey, r.triggerKey)
+            )
+          )
+          .get();
+        if (existing) return existing.id;
+      }
+      if (attempt >= 4 || !String(e).includes('UNIQUE')) throw e;
+    }
+  }
   return id;
 }
 
@@ -366,7 +447,8 @@ export async function onRefsUpdated(
   repo: Repository,
   repoFullName: string,
   updates: RefUpdate[],
-  actorId: string | null
+  actorId: string | null,
+  eventId?: string
 ): Promise<void> {
   if (!actionsConfigured(env)) return;
   for (const u of updates) {
@@ -374,13 +456,20 @@ export async function onRefsUpdated(
     if (!u.ref.startsWith('refs/heads/') && !u.ref.startsWith('refs/tags/'))
       continue;
     try {
-      await queueRuns(env, db, repo, repoFullName, {
-        kind: 'push',
-        ref: u.ref,
-        before: u.old,
-        after: u.new,
-        actorId,
-      });
+      await queueRuns(
+        env,
+        db,
+        repo,
+        repoFullName,
+        {
+          kind: 'push',
+          ref: u.ref,
+          before: u.old,
+          after: u.new,
+          actorId,
+        },
+        eventId
+      );
       if (!u.ref.startsWith('refs/heads/')) continue;
       const branch = u.ref.slice('refs/heads/'.length);
       const prs = await db
@@ -394,16 +483,24 @@ export async function onRefsUpdated(
           )
         );
       for (const pr of prs)
-        await queueRuns(env, db, repo, repoFullName, {
-          kind: 'pull_request',
-          number: pr.number,
-          title: pr.title,
-          baseRef: landTargetOf(pr),
-          headRef: pr.headRef,
-          headSha: u.new,
-          actorId,
-        });
+        await queueRuns(
+          env,
+          db,
+          repo,
+          repoFullName,
+          {
+            kind: 'pull_request',
+            number: pr.number,
+            title: pr.title,
+            baseRef: landTargetOf(pr),
+            headRef: pr.headRef,
+            headSha: u.new,
+            actorId,
+          },
+          eventId
+        );
     } catch (e) {
+      if (eventId) throw e;
       console.error('[actions] could not queue runs for', u.ref, e);
     }
   }

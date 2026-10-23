@@ -1,10 +1,12 @@
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { users } from '../db/auth.schema';
 import { userEmails } from '../db/app.schema';
 import { AGENT_EMAIL_DOMAIN } from '../agents/identity';
 import type { Commit } from '../git/service';
 import { toPublicUser, type PublicUser } from './users';
+import { inJsonArray } from './sql-set';
 
 type Identity = { name: string; email: string };
 export type AttributedCommit<C extends Commit = Commit> = Omit<
@@ -16,7 +18,7 @@ export type AttributedCommit<C extends Commit = Commit> = Omit<
 };
 
 /**
- * Members by commit email: their account (primary) email or a *verified* alternate. Two queries
+ * Members by commit email: a verified account (primary) email or verified alternate. Two queries
  * for any number of emails, so a page of commits never costs a lookup per commit. An agent's
  * `@agents.invalid` address never matches: anyone who can push could write it into a commit.
  */
@@ -36,21 +38,32 @@ export async function usersByCommitEmail(
     db
       .select()
       .from(users)
-      .where(inArray(sql`lower(${users.email})`, wanted))
+      .where(
+        and(
+          inJsonArray(sql`lower(${users.email})`, wanted),
+          eq(users.emailVerified, true)
+        )
+      )
       .all(),
     db
       .select({ email: userEmails.email, user: users })
       .from(userEmails)
       .innerJoin(users, eq(users.id, userEmails.userId))
       .where(
-        and(inArray(userEmails.email, wanted), isNotNull(userEmails.verifiedAt))
+        and(
+          inJsonArray(userEmails.email, wanted),
+          isNotNull(userEmails.verifiedAt)
+        )
       )
       .all(),
   ]);
   const found = new Map<string, PublicUser>();
   for (const r of alternates) found.set(r.email, toPublicUser(r.user));
-  // The account email wins if an address were ever both.
-  for (const u of primary) found.set(u.email.toLowerCase(), toPublicUser(u));
+  // Preserve an already verified alternate if legacy data contains a conflicting primary.
+  for (const u of primary) {
+    const email = u.email.toLowerCase();
+    if (!found.has(email)) found.set(email, toPublicUser(u));
+  }
   return found;
 }
 

@@ -13,6 +13,7 @@ import { isAgentUser } from '../agents/identity';
 import { eq } from 'drizzle-orm';
 import { mcpModerators } from '../db/app.schema';
 import { sendSignupVerification } from '../lib/email';
+import { emailClaimedByOther } from '../lib/email-claims';
 import {
   checkResend,
   checkSignup,
@@ -261,6 +262,10 @@ function createAuth(env?: CloudflareBindings) {
           // Only a self sign-up starts unverified (and so may have to confirm its email before signing in).
           // Setup, invitations and the admin API vouch for the address: those accounts start verified.
           before: async (user, ctx) => {
+            if (env && (await emailClaimedByOther(db, user.email)))
+              throw new APIError('CONFLICT', {
+                message: 'That email belongs to another member.',
+              });
             if (ctx?.path === '/sign-up/email') return;
             return { data: { ...user, emailVerified: true } };
           },
@@ -291,7 +296,18 @@ function createAuth(env?: CloudflareBindings) {
               });
             }
             const username = (data as { username?: string }).username;
-            const userId = ctx?.context.session?.user.id;
+            const userId =
+              typeof target === 'string'
+                ? target
+                : ctx?.context.session?.user.id;
+            if (
+              env &&
+              typeof fields.email === 'string' &&
+              (await emailClaimedByOther(db, fields.email, userId))
+            )
+              throw new APIError('CONFLICT', {
+                message: 'That email belongs to another member.',
+              });
             if (
               username &&
               env &&

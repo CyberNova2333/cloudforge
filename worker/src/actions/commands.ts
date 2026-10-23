@@ -29,11 +29,11 @@ export function parsePathFile(text: string): string[] {
     .filter(Boolean);
 }
 
-/** Replaces secrets with `***`; values under 4 chars are left alone, like GitHub. */
+/** Replaces every registered secret, including short values. */
 export function mask(text: string, secrets: string[]): string {
   let out = text;
-  for (const s of secrets)
-    if (s && s.length >= 4) out = out.split(s).join('***');
+  for (const s of [...secrets].sort((a, b) => b.length - a.length))
+    if (s) out = out.split(s).join('***');
   return out;
 }
 

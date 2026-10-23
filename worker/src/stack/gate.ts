@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import type { DrizzleDB } from '../db/middleware';
 import type { PullRequest } from '../db/app.schema';
 import type { GitService } from '../git/service';
@@ -5,7 +6,7 @@ import type { TreeNode } from './tree';
 import { stackViewFor } from './view';
 
 export type StackBlock = {
-  kind: 'must_account_for' | 'stacked_on' | 'waits_on';
+  kind: 'must_account_for' | 'stacked_on' | 'waits_on' | 'cycle';
   pr: number;
   message: string;
 };
@@ -22,6 +23,13 @@ export type StackGate = {
 export function gateFor(node: TreeNode | null): StackGate {
   if (!node) return { checking: false, blocks: [] };
   const blocks: StackBlock[] = [];
+  // buildTree removes cyclic edges from parent/waitsOn; that must never turn a cycle into permission to land.
+  for (const number of node.cycleWith)
+    blocks.push({
+      kind: 'cycle',
+      pr: number,
+      message: `Dependency cycle with #${number}: dismiss or resolve the circular dependency before merging`,
+    });
   for (const d of node.mustAccountFor)
     if (!d.accounted)
       blocks.push({

@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import { inJsonArray } from './lib/sql-set';
 import { lfsObjects } from './db/app.schema';
 import { authenticateRepoRequest, type GitAccess } from './git-http';
 import {
@@ -147,7 +148,7 @@ async function handleBatch(
         .where(
           and(
             eq(lfsObjects.repositoryId, repo.id),
-            inArray(lfsObjects.oid, [...new Set(valid.map((o) => o.oid))])
+            inJsonArray(lfsObjects.oid, [...new Set(valid.map((o) => o.oid))])
           )
         )
         .all()
