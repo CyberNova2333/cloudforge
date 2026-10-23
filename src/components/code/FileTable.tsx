@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { Link } from 'react-router-dom';
 import { t } from '@/lib/i18n';
 import { useQuery } from '@tanstack/react-query';

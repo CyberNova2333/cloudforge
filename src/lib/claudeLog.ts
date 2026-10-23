@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * Sentences for CloudForge AI's answers ("Let Claude decide", shown as Claude) and for one finding's history.
  * A small local stand-in until the shared audit sentences (`auditText.ts`, crew redesign C12) land; the final

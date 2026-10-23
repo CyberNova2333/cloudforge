@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Stacking: the stack gate, retargeting, maintainer controls, and stack surfaces. Fixtures: helpers/stacking.ts.
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';

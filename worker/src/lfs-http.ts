@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, eq, inArray } from 'drizzle-orm';
 import { lfsObjects } from './db/app.schema';
 import { authenticateRepoRequest, type GitAccess } from './git-http';

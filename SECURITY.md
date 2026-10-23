@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Security policy
 
 Please report vulnerabilities privately to the maintainer, [CyberNova](https://cnb.cool/CyberNova2333), on CNB rather

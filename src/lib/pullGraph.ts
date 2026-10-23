@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { t } from './i18n';
 import { reasonText, stateLabel } from './pullState';
 import type { PullStateName, StackDependency, StackTree } from './uiApi';

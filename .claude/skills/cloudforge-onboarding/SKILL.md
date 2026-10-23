@@ -3,6 +3,8 @@ name: cloudforge-onboarding
 description: Interactive setup wizard for deploying your own CloudForge instance to Cloudflare. Use when the user wants to set up, install, deploy, or get started with CloudForge, configure its Cloudflare resources or wrangler.jsonc, or says "onboarding", "setup", or "deploy cloudforge".
 ---
 
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # CloudForge onboarding wizard
 
 Deploy a production CloudForge instance to **the user's own Cloudflare account**. This wizard is deployment-only; local development is covered in `docs/development.md`. The project's "humans deploy" rule is satisfied here because the user is running this wizard and confirms before anything is created — never deploy outside it.

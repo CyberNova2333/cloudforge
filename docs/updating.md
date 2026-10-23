@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # Updating
 
 CloudForge ships as an npm package, `@cybernova2333/cloudforge`, that carries a built release and deploys it to your Cloudflare account with its own pinned wrangler. Installing and upgrading need Node.js 22 or later and Docker, running: deploying builds the Actions runner image.

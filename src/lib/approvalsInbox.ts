@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * The Approvals inbox as rows: one per thing that waits on a person (a finding, a failed review, a pull request
  * that needs approval, a stack item), what keyboard shortcuts do on each, and the pieces of a finding's recorded

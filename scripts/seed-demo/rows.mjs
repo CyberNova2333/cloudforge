@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // The database rows the demo seed writes directly (the API cannot): backdating, provenance, reviews and findings,
 // test runs, lessons and a few timeline entries. Each function returns SQL statements for local D1; times come from
 // the clock, so history always ends "just now".

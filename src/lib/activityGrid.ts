@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * An agent's activity as a contribution grid: one square per UTC day, a column per week (Sunday to Saturday), the
  * shade of a square its reviews that day against the busiest day. Pure layout; `ActivityGrid` draws it.

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * "Let Claude decide": CloudForge AI answers a reviewer agent's findings for a person, as that person, with the
  * instance's reasoning model (Site admin → AI models → Agent review model) over the AI binding. It never decides a

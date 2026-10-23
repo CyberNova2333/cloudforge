@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * How reviewer agents look: their colour, head shape, status words and what their robot avatar does.
  *

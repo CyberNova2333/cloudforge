@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * The Site admin "Usage & cost" report for one calendar month (UTC): CloudForge's own usage, its
  * cost at list price, the cost if CloudForge had the account's included allowances to itself,

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // The side navs of Settings and Site admin: which entry is current for a location, and whether an entry is an
 // in-page jump (a section of /admin) rather than a page of its own.
 

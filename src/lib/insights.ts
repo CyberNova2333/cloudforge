@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /** Repository Insights: the period, how numbers read and how the reviewer bars are drawn. */
 import { dayLabel, spanOf } from './format';
 import { t } from './i18n';

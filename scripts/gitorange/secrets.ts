@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Secrets, the setup code, credential checks and prefilled token links for the installer.
 // Nothing here ever puts a secret or token into a returned message.
 import { createHash, randomBytes, randomInt } from 'node:crypto';

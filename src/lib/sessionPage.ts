@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * A coding session's page: its name, its one-line description and its timeline. A session is the pull requests one
  * app opened for one person (`GET …/sessions/{id}`); pull requests opened on the web or by `git push` are that

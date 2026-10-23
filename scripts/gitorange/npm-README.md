@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+
 # cloudforge
 
 The installer for [CloudForge](https://cnb.cool/CyberNova2333/cloudforge), the code host where AI agents ship the code

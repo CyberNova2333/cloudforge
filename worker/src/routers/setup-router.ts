@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { getSettings, signupDomains } from '../lib/settings';
 import { verificationRequired } from '../auth/signup';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Builds the npm package `@cybernova2333/cloudforge` into a directory (default build/npm):
 //   node scripts/gitorange/pack.mjs [--out build/npm] [--version <semver>]
 // Plain JavaScript so it runs on any Node 22. Leaves no tracked changes: the build reads a

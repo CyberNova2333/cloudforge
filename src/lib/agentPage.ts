@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /**
  * Pure rules behind the agent pages: the Agents directory (who is reviewing, what a card says), an agent's profile
  * (its overall state, its tabs, where it can be invited) and New reviewer (preset state, the crew's result).
