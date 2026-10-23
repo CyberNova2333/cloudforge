@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { env } from 'cloudflare:test';
 import { app } from '../../index';
 import { createFakeArtifacts } from './fake-artifacts';
@@ -121,8 +122,7 @@ export async function signIn(
   const res = await call(t, '/api/auth/sign-in/username', {
     json: { username, password },
   });
-  if (!res.ok)
-    throw new Error(`sign-in failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`登录失败： ${res.status} ${await res.text()}`);
   return res.headers
     .getSetCookie()
     .map((c) => c.split(';')[0])
@@ -140,7 +140,7 @@ export async function bootstrapAdmin(t: TestEnv, username = 'octocat') {
     },
   });
   if (!res.ok)
-    throw new Error(`setup failed: ${res.status} ${await res.text()}`);
+    throw new Error(`初始化失败： ${res.status} ${await res.text()}`);
   return signIn(t, username, 'password123');
 }
 
@@ -159,6 +159,6 @@ export async function addMember(
   const acc = await call(t, '/api/invites/accept', {
     json: { token, name: username, username, password: 'password123' },
   });
-  if (!acc.ok) throw new Error(`accept failed: ${await acc.text()}`);
+  if (!acc.ok) throw new Error(`接受邀请失败： ${await acc.text()}`);
   return signIn(t, username, 'password123');
 }

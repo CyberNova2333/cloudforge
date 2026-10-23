@@ -9,8 +9,8 @@ import {
 
 const view = { onto: 'main', commit: null, files: [], error: null };
 
-describe('rebase status text', () => {
-  it('says where the branch stands against its base', () => {
+describe('变基状态文字', () => {
+  it('说明分支相对基础分支的位置', () => {
     expect(
       rebaseHeadline({ ...view, status: 'up_to_date' }, 'feature').title
     ).toBe('Up to date with main');
@@ -24,7 +24,7 @@ describe('rebase status text', () => {
     ).toBe('This branch is up to date');
   });
 
-  it('names the conflicting commit, and what to do', () => {
+  it('指出冲突提交和处理方法', () => {
     expect(
       rebaseHeadline(
         {
@@ -52,7 +52,7 @@ describe('rebase status text', () => {
     ).toBe('Resolving commit abc1234’s conflict with AI');
   });
 
-  it('offers to try a stopped rebase again, except on a branch CloudForge never rebases', () => {
+  it('允许重试已停止的变基，但排除 CloudForge 从不变基的分支', () => {
     expect(
       canRetryRebase({
         ...view,
@@ -73,7 +73,7 @@ describe('rebase status text', () => {
     expect(canRetryRebase(null)).toBe(false);
   });
 
-  it('describes a rebase on the timeline', () => {
+  it('在时间线上描述变基', () => {
     expect(
       rebasedText({
         from: 'aaaaaaa1',
@@ -96,7 +96,7 @@ describe('rebase status text', () => {
     ).toBe('CloudForge rebased this branch onto main (aaaaaaa → bbbbbbb)');
   });
 
-  it('tells a merge that rebased first and waits apart from a refusal', () => {
+  it('区分先变基后等待的合并与被拒绝的合并', () => {
     const rebased = 'b'.repeat(40);
     expect(rebasedFirst(409, { error: 'x', reason: 'checks', rebased })).toBe(
       true

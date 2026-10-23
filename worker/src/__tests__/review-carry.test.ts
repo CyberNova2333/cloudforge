@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -82,8 +83,8 @@ type View = {
   };
 };
 
-describe('review carry-over', () => {
-  it('moves findings, verdicts and approvals to the head a clean rebase made', async () => {
+describe('审查结果沿用', () => {
+  it('将意见、审查结论及批准转移到干净变基产生的新分支头', async () => {
     const { t, admin, repo, head, flag } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -118,7 +119,7 @@ describe('review carry-over', () => {
     expect(review.earlier).toEqual([]);
   });
 
-  it('starts a fresh review, and keeps old approvals on the old head, after an AI resolution', async () => {
+  it('经 AI 解决冲突后重新审查，并将原批准保留在旧分支头', async () => {
     const { t, repo, head } = await reviewedAndApproved({
       'src/app.ts': 'export const a = 2;\n',
     });
@@ -141,7 +142,7 @@ describe('review carry-over', () => {
     expect(await heads(t, 'pr_approvals')).toEqual([head]);
   });
 
-  it('starts a fresh review when a replayed commit no longer makes the same change', async () => {
+  it('重放提交不再产生相同变更时重新审查', async () => {
     const { t, repo, head } = await reviewedAndApproved({
       'src/app.ts': 'export const a = 2;\n',
       'src/b.ts': 'export const b = 1;\n',
@@ -161,7 +162,7 @@ describe('review carry-over', () => {
     expect(reviewPayloadsFor(t, `${await prId(t)}-${now}`)).toHaveLength(1);
   });
 
-  it('keeps the review when a commit is left out because the target already has it', async () => {
+  it('因目标已包含变更而省略提交时保留审查结果', async () => {
     const { t, repo } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -197,7 +198,7 @@ describe('review carry-over', () => {
     ).toEqual({ status: 'done' });
   });
 
-  it('starts a fresh review when a commit is left out for a change the target landed and then reverted', async () => {
+  it('因目标曾合入再撤销该变更而省略提交时重新审查', async () => {
     const { t, admin, repo } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -233,7 +234,7 @@ describe('review carry-over', () => {
     expect(await heads(t, 'pr_approvals')).not.toContain(now);
   });
 
-  it('does not carry a failed review while an agent on it is still reviewing', async () => {
+  it('代理仍在审查时，不沿用其失败的审查结果', async () => {
     const { t, repo, head } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -261,7 +262,7 @@ describe('review carry-over', () => {
     expect(reviewPayloadsFor(t, `${id}-${now}`)).toHaveLength(1);
   });
 
-  it('auto-merges a pull request whose carried review and approval leave nothing to wait on', async () => {
+  it('沿用的审查及批准已满足全部条件时自动合入拉取请求', async () => {
     const { t, repo } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -280,7 +281,7 @@ describe('review carry-over', () => {
     ).toEqual({ state: 'merged' });
   });
 
-  it('leaves a review still running with the old head, and still carries approvals', async () => {
+  it('正在进行的审查留在旧分支头，但仍沿用批准', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const { head } = await openPull(t, admin, repo, {
@@ -309,7 +310,7 @@ describe('review carry-over', () => {
     expect(await heads(t, 'pr_approvals')).toEqual([now]);
   });
 
-  it('is idempotent: carrying again, or onto a head that has its own review, moves nothing twice', async () => {
+  it('重复沿用或目标分支头已有审查时保持幂等，不重复迁移', async () => {
     const { t, repo, head, flag } = await reviewedAndApproved({
       'src/auth.ts': 'export const t = 1;\n',
     });
@@ -360,7 +361,7 @@ describe('review carry-over', () => {
   });
 });
 
-describe('approvals over a commit that changes no files', () => {
+describe('不修改文件的提交批准', () => {
   const FILES = { 'src/auth.ts': 'export const t = 1;\n' };
 
   async function pushed(files: Record<string, string>) {
@@ -392,7 +393,7 @@ describe('approvals over a commit that changes no files', () => {
     return { t, head, next, carry };
   }
 
-  it('carries a person’s approval to a new head with the same tree, once', async () => {
+  it('将人工批准沿用到目录树相同的新分支头，且只执行一次', async () => {
     const { t, next, carry } = await pushed({ ...BASE, ...FILES });
     expect(await carry()).toHaveLength(1);
     expect(await heads(t, 'pr_approvals')).toEqual([next]);
@@ -400,7 +401,7 @@ describe('approvals over a commit that changes no files', () => {
     expect(await count(t, 'pr_approvals')).toBe(1);
   });
 
-  it('leaves the approval on the old head when the tree changed', async () => {
+  it('目录树变化时将批准保留在旧分支头', async () => {
     const { t, head, carry } = await pushed({
       ...BASE,
       'src/auth.ts': 'export const t = 2;\n',

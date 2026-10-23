@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   sessionLede,
@@ -14,8 +15,8 @@ const mahmoud: PersonRef = {
   color: null,
 };
 
-describe('sessionName', () => {
-  it('names an app’s session by the app and its label', () => {
+describe('sessionName：会话名称', () => {
+  it('根据应用名和标签命名应用会话', () => {
     expect(
       sessionName({ client: 'Claude Code', label: 's4', author: mahmoud })
     ).toBe('Claude Code · s4');
@@ -23,7 +24,7 @@ describe('sessionName', () => {
       'Codex'
     );
   });
-  it('names pull requests opened by hand after their author', () => {
+  it('手动创建的拉取请求以作者命名', () => {
     expect(sessionName({ client: null, label: null, author: mahmoud })).toBe(
       'Mahmoud H. by hand'
     );
@@ -37,8 +38,8 @@ describe('sessionName', () => {
   });
 });
 
-describe('sessionLede', () => {
-  it('says whose session it is and how big', () => {
+describe('sessionLede：会话摘要', () => {
+  it('说明会话所属者和规模', () => {
     expect(
       sessionLede({ client: 'Claude Code', author: mahmoud, pulls: [1, 2] })
     ).toBe('Claude Code session for Mahmoud H. · 2 pull requests');
@@ -48,7 +49,7 @@ describe('sessionLede', () => {
   });
 });
 
-describe('sessionTimeline', () => {
+describe('sessionTimeline：会话时间线', () => {
   const pull = (over: Partial<TimelinePull>): TimelinePull => ({
     number: 1,
     title: 'One',
@@ -62,7 +63,7 @@ describe('sessionTimeline', () => {
     ...over,
   });
 
-  it('keeps the session’s own pull requests, oldest first', () => {
+  it('仅保留会话自身的拉取请求，最早在前', () => {
     const events = sessionTimeline(
       [
         pull({
@@ -111,7 +112,7 @@ describe('sessionTimeline', () => {
     ]);
   });
 
-  it('records who merged it, and a close without a merge', () => {
+  it('记录合并者，并记录未合并的关闭操作', () => {
     const events = sessionTimeline(
       [
         pull({
@@ -137,7 +138,7 @@ describe('sessionTimeline', () => {
     ]);
   });
 
-  it('orders events at the same moment by pull request, opening first', () => {
+  it('同一时刻的事件按拉取请求排序，打开事件优先', () => {
     const at = '2026-10-07T10:00:00.000Z';
     const events = sessionTimeline(
       [

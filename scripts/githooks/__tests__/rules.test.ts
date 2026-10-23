@@ -15,8 +15,8 @@ const OK = `feat(actions): 新增 Secrets 与 Variables
 Co-authored-by: Claude <noreply@anthropic.com>
 `;
 
-describe('commit message rules (legacy-client standard)', () => {
-  it('passes a message that follows them', () => {
+describe('提交信息规则（与 legacy-client 同一标准）', () => {
+  it('符合规则的提交信息通过', () => {
     expect(problems(OK)).toEqual([]);
     // A full-width colon, a breaking-change mark and no scope are fine too.
     expect(
@@ -63,7 +63,7 @@ describe('commit message rules (legacy-client standard)', () => {
     expect(found[0]).toMatch(message);
   });
 
-  it('lets through what git writes itself, and a flush-left [skip-hooks]', () => {
+  it('放行 git 自动生成的信息和顶格独占一行的 [skip-hooks]', () => {
     expect(problems("Merge branch 'x' into main\n")).toEqual([]);
     expect(problems('Revert "feat: x"\n')).toEqual([]);
     expect(problems('fixup! feat(ui): 改按钮\n')).toEqual([]);
@@ -72,7 +72,7 @@ describe('commit message rules (legacy-client standard)', () => {
     expect(problems('docs: fix a typo\n\n [skip-hooks]\n')).not.toEqual([]);
   });
 
-  it('ignores the diff after the scissors line, and git comments only in commit-msg mode', () => {
+  it('忽略剪刀线之后的 diff，且只在 commit-msg 模式下忽略 git 注释', () => {
     const scissors =
       'docs: fix a typo\n# ------------------------ >8 ------------------------\n[skip-hooks]\n';
     expect(problems(scissors, true)).not.toEqual([]);
@@ -83,7 +83,7 @@ describe('commit message rules (legacy-client standard)', () => {
   });
 });
 
-describe('the pre-push hook', () => {
+describe('pre-push 钩子', () => {
   const hook = resolve(__dirname, '../pre-push.mjs');
   let dir = '';
   afterEach(() => dir && rmSync(dir, { recursive: true, force: true }));
@@ -111,7 +111,7 @@ describe('the pre-push hook', () => {
       encoding: 'utf8',
     });
 
-  it('checks only the commits the remote does not have', () => {
+  it('只检查远端还没有的提交', () => {
     dir = mkdtempSync(join(tmpdir(), 'cf-prepush-'));
     git('init', '-q', '-b', 'main');
     git('config', 'user.email', 't@example.com');

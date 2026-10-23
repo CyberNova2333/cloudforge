@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { encoder } from '../git/bytes';
 import { makeBlob, makeCommit, makeTree } from '../git/objects';
@@ -5,8 +6,8 @@ import { parseRefAdvertisement, pktLine, FLUSH } from '../git/pktline';
 import { concat } from '../git/bytes';
 
 // Expected hashes are what `git hash-object` / `git mktree` produce for the same content.
-describe('git object encoding', () => {
-  it('hashes blobs exactly like git', async () => {
+describe('Git 对象编码', () => {
+  it('blob 哈希与 Git 完全一致', async () => {
     expect((await makeBlob('')).sha).toBe(
       'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
     );
@@ -15,13 +16,13 @@ describe('git object encoding', () => {
     );
   });
 
-  it('hashes the empty tree exactly like git', async () => {
+  it('空树哈希与 Git 完全一致', async () => {
     expect((await makeTree([])).sha).toBe(
       '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
     );
   });
 
-  it('orders directories as if suffixed with a slash', async () => {
+  it('排序目录时视其名称带有斜杠后缀', async () => {
     const blob = await makeBlob('x');
     const tree = await makeTree([
       {
@@ -35,7 +36,7 @@ describe('git object encoding', () => {
     expect(text.indexOf('a.txt')).toBeLessThan(text.indexOf('40000 a\0'));
   });
 
-  it('produces a stable commit hash for fixed input', async () => {
+  it('固定输入生成稳定的提交哈希', async () => {
     const c = await makeCommit({
       tree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
       parents: [],
@@ -47,8 +48,8 @@ describe('git object encoding', () => {
   });
 });
 
-describe('ref advertisement', () => {
-  it('parses refs and the HEAD symref', () => {
+describe('引用公告', () => {
+  it('解析引用及 HEAD 符号引用', () => {
     const body = concat([
       pktLine('# service=git-upload-pack\n'),
       FLUSH,
@@ -65,7 +66,7 @@ describe('ref advertisement', () => {
     expect(ad.refs.get('refs/heads/main')).toBe('a'.repeat(40));
   });
 
-  it('keeps the commit an annotated tag peels to apart from the refs', () => {
+  it('将附注标签最终指向的提交与引用分开处理', () => {
     const body = concat([
       pktLine(`${'a'.repeat(40)} refs/heads/main\0agent=x\n`),
       pktLine(`${'c'.repeat(40)} refs/tags/v1.0.0\n`),
@@ -78,7 +79,7 @@ describe('ref advertisement', () => {
     expect(ad.peeled.get('refs/tags/v1.0.0')).toBe('a'.repeat(40));
   });
 
-  it('treats an empty repo advertisement as having no refs', () => {
+  it('将空仓库公告视为没有引用', () => {
     const body = concat([
       pktLine(`${'0'.repeat(40)} capabilities^{}\0agent=x\n`),
       FLUSH,
@@ -86,7 +87,7 @@ describe('ref advertisement', () => {
     expect(parseRefAdvertisement(body).refs.size).toBe(0);
   });
 
-  it('encodes pkt-line lengths in hex including the 4-byte prefix', () => {
+  it('以十六进制编码 pkt-line 长度，并计入 4 字节前缀', () => {
     expect(new TextDecoder().decode(pktLine('hi\n'))).toBe('0007hi\n');
     expect(encoder.encode('0000')).toEqual(FLUSH);
   });

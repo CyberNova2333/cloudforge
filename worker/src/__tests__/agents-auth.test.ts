@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { createAuth } from '../auth';
 import { handleGitRequest } from '../git-http';
@@ -60,8 +61,8 @@ function gitInfoRefs(t: TestEnv, token: string) {
   );
 }
 
-describe('agents and the auth layer', () => {
-  it('refuses to sign an agent in, even when it has a password', async () => {
+describe('智能体与认证层', () => {
+  it('即使智能体有密码，也拒绝其登录', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -74,7 +75,7 @@ describe('agents and the auth layer', () => {
     expect(await sessionsOf(t, agent.id)).toBe(0);
   });
 
-  it('refuses the email sign-in route too', async () => {
+  it('同样拒绝邮箱登录路由', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -91,7 +92,7 @@ describe('agents and the auth layer', () => {
     expect(await sessionsOf(t, agent.id)).toBe(0);
   });
 
-  it('refuses a deleted agent the same way', async () => {
+  it('以相同方式拒绝已删除智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -114,7 +115,7 @@ describe('agents and the auth layer', () => {
     );
   });
 
-  it('refuses every session better-auth would create for an agent', async () => {
+  it('拒绝 better-auth 为智能体创建任何会话', async () => {
     // All routes (sign-in, impersonation, email verification, magic links…) create sessions here.
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
@@ -126,7 +127,7 @@ describe('agents and the auth layer', () => {
     expect(await sessionsOf(t, agent.id)).toBe(0);
   });
 
-  it('refuses to let a site admin impersonate an agent', async () => {
+  it('拒绝站点管理员模拟智能体身份', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -141,7 +142,7 @@ describe('agents and the auth layer', () => {
     expect(await sessionsOf(t, agent.id)).toBe(0);
   });
 
-  it('refuses a password a site admin sets for an agent', async () => {
+  it('拒绝使用站点管理员为智能体设置的密码', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -161,7 +162,7 @@ describe('agents and the auth layer', () => {
     expect(await sessionsOf(t, agent.id)).toBe(0);
   });
 
-  it('refuses any account better-auth would link to an agent', async () => {
+  it('拒绝 better-auth 为智能体关联任何账户', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -177,7 +178,7 @@ describe('agents and the auth layer', () => {
     expect(await accountsOf(t, agent.id)).toBe(0);
   });
 
-  it('won’t make an agent a site admin', async () => {
+  it('不允许将智能体设为站点管理员', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -200,7 +201,7 @@ describe('agents and the auth layer', () => {
     expect(row!.role).toBe('user');
   });
 
-  it('won’t change an agent’s username or email', async () => {
+  it('不允许修改智能体的用户名或邮箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -230,7 +231,7 @@ describe('agents and the auth layer', () => {
     });
   });
 
-  it('won’t remove an agent’s user through better-auth', async () => {
+  it('不允许通过 better-auth 删除智能体用户', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -250,7 +251,7 @@ describe('agents and the auth layer', () => {
     expect(left).toEqual({ users: 1, agents: 1 });
   });
 
-  it('never attributes a commit to an agent by its email', async () => {
+  it('不依据智能体邮箱将提交归属于智能体', async () => {
     // Anyone with push access could write an agent's `.invalid` address into a commit.
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
@@ -277,7 +278,7 @@ describe('agents and the auth layer', () => {
     });
   });
 
-  it('offers no password reset, magic link or email code', async () => {
+  it('不提供密码重置、魔法链接或邮箱验证码', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -301,7 +302,7 @@ describe('agents and the auth layer', () => {
     expect(t.sent).toEqual([]);
   });
 
-  it('won’t invite an agent’s email address', async () => {
+  it('不向智能体邮箱发送邀请', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -312,7 +313,7 @@ describe('agents and the auth layer', () => {
     expect(res.status).toBe(409);
   });
 
-  it('treats an agent’s personal access token as unknown on the git endpoint', async () => {
+  it('在 Git 端点将智能体个人访问令牌视为未知令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -320,7 +321,7 @@ describe('agents and the auth layer', () => {
     expect(res.status).toBe(401);
   });
 
-  it('and on the LFS endpoint', async () => {
+  it('在 LFS 端点也视为未知令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -344,7 +345,7 @@ describe('agents and the auth layer', () => {
     expect(res.status).toBe(401);
   });
 
-  it('leaves agents out of the member list and refuses them as collaborators', async () => {
+  it('从成员列表排除智能体，并拒绝将其设为协作者', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await newAgent(t, admin);

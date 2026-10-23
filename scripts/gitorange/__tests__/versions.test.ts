@@ -16,28 +16,28 @@ const offline = (async () => {
   throw new Error('offline');
 }) as unknown as typeof fetch;
 const never = (async () => {
-  throw new Error('must not fetch');
+  throw new Error('不应发起网络请求');
 }) as unknown as typeof fetch;
 
-describe('compareRunning', () => {
-  it('semver older is upgrade', async () =>
+describe('compareRunning：比较运行版本', () => {
+  it('语义版本较旧时判为升级', async () =>
     expect(await compareRunning('1.1.9', pkg, never)).toEqual({
       kind: 'upgrade',
     }));
-  it('semver equal is same', async () =>
+  it('语义版本相等时判为相同', async () =>
     expect(await compareRunning('v1.2.0', pkg, never)).toEqual({
       kind: 'same',
     }));
-  it('semver newer is downgrade', async () =>
+  it('语义版本较新时判为降级', async () =>
     expect(await compareRunning('1.10.0', pkg, never)).toEqual({
       kind: 'downgrade',
     }));
-  it('1.2.0-rc.1 < 1.2.0', () => {
+  it('预发布版排序：1.2.0-rc.1 < 1.2.0', () => {
     expect(compareSemver('1.2.0-rc.1', '1.2.0')).toBe(-1);
     expect(compareSemver('1.2.0', '1.2.0-rc.1')).toBe(1);
     expect(compareSemver('1.2.0-rc.2', '1.2.0-rc.10')).toBe(-1);
   });
-  it('commit behind release is upgrade', async () => {
+  it('提交落后于发行版本时判为升级', async () => {
     const f = fakeFetch(200, { status: 'ahead' });
     expect(await compareRunning('abc1234', pkg, f.fn)).toEqual({
       kind: 'upgrade',
@@ -49,7 +49,7 @@ describe('compareRunning', () => {
     expect(h.Accept).toBe('application/vnd.github+json');
     expect(h['User-Agent']).toBe('cloudforge-cli');
   });
-  it('identical', async () =>
+  it('完全相同', async () =>
     expect(
       await compareRunning(
         'abc1234',
@@ -57,7 +57,7 @@ describe('compareRunning', () => {
         fakeFetch(200, { status: 'identical' }).fn
       )
     ).toEqual({ kind: 'same' }));
-  it('commit ahead is downgrade', async () =>
+  it('提交领先时判为降级', async () =>
     expect(
       await compareRunning(
         'abc1234',
@@ -65,7 +65,7 @@ describe('compareRunning', () => {
         fakeFetch(200, { status: 'behind' }).fn
       )
     ).toEqual({ kind: 'downgrade' }));
-  it('diverged is custom', async () =>
+  it('分叉提交判为自定义版本', async () =>
     expect(
       await compareRunning(
         'abc1234',
@@ -76,50 +76,50 @@ describe('compareRunning', () => {
       kind: 'custom',
       reason: 'commits that are not in the release',
     }));
-  it('dirty is custom', async () =>
+  it('有未提交改动时判为自定义版本', async () =>
     expect(await compareRunning('abc1234-dirty', pkg, never)).toEqual({
       kind: 'custom',
       reason: 'uncommitted changes',
     }));
-  it('unknown commit (404) is custom', async () =>
+  it('未知提交（404）判为自定义版本', async () =>
     expect(await compareRunning('abc1234', pkg, fakeFetch(404, {}).fn)).toEqual(
       {
         kind: 'custom',
         reason: 'could not check commit abc1234 against choyiny/gitorange',
       }
     ));
-  it('offline is custom', async () =>
+  it('离线时判为自定义版本', async () =>
     expect(await compareRunning('abc1234', pkg, offline)).toEqual({
       kind: 'custom',
       reason: 'could not check commit abc1234 against choyiny/gitorange',
     }));
-  it('null is custom', async () =>
+  it('空值判为自定义版本', async () =>
     expect(await compareRunning(null, pkg, never)).toEqual({
       kind: 'custom',
       reason: 'the running version is unknown',
     }));
-  it('an empty package commit is custom without fetching', async () =>
+  it('软件包提交为空时直接判为自定义版本且不请求网络', async () =>
     expect(
       await compareRunning('abc1234', { version: '1.2.0', commit: '' }, never)
     ).toEqual({
       kind: 'custom',
       reason: 'could not check commit abc1234 against choyiny/gitorange',
     }));
-  it('a value that is neither release nor commit is custom', async () =>
+  it('既不是发行版本也不是提交的值判为自定义版本', async () =>
     expect(await compareRunning('banana', pkg, never)).toEqual({
       kind: 'custom',
       reason: 'the running version "banana" is not a release or a commit',
     }));
 });
 
-describe('latestOnNpm', () => {
-  it('reads dist-tags.latest', async () => {
+describe('latestOnNpm：npm 最新版本', () => {
+  it('读取 dist-tags.latest', async () => {
     const f = fakeFetch(200, { 'dist-tags': { latest: '1.4.0' } });
     expect(await latestOnNpm(f.fn)).toBe('1.4.0');
     expect(f.calls[0]!.url).toBe(
       'https://registry.npmjs.org/@cybernova2333%2fcloudforge'
     );
   });
-  it('offline is null', async () =>
+  it('离线时返回 null', async () =>
     expect(await latestOnNpm(offline)).toBeNull());
 });

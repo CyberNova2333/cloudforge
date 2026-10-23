@@ -5,8 +5,8 @@ import { usersByCommitEmail } from '../lib/commit-authors';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 import { commitFiles } from './helpers/seed';
 
-describe('primary and alternate mailbox ownership', () => {
-  it('rejects signup, admin creation and admin email updates using another member’s alternate', async () => {
+describe('主邮箱与备用邮箱所有权', () => {
+  it('拒绝使用其他成员备用邮箱注册、由管理员创建用户或更新邮箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'bob');
@@ -73,7 +73,7 @@ describe('primary and alternate mailbox ownership', () => {
     ).toBe('octocat');
   });
 
-  it('never attributes an unverified primary, including legacy primary/alternate collisions', async () => {
+  it('不归属未验证的主邮箱，包括历史主邮箱与备用邮箱冲突', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/admin/settings/signup.enabled', {
@@ -113,7 +113,7 @@ describe('primary and alternate mailbox ownership', () => {
     ).toBe('octocat');
   });
 
-  it('does not revive an expired alternate claim after its address became a primary', async () => {
+  it('地址已成为主邮箱后，不恢复过期的备用邮箱认领', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const address = 'new-primary@example.com';
@@ -162,8 +162,8 @@ describe('primary and alternate mailbox ownership', () => {
   });
 });
 
-describe('repository path and file boundaries', () => {
-  it('rejects the same reserved names when creating and renaming, keeping the old URL usable', async () => {
+describe('仓库路径与文件边界', () => {
+  it('创建和重命名时拒绝相同的保留名称，并保持旧 URL 可用', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     expect(
@@ -206,7 +206,7 @@ describe('repository path and file boundaries', () => {
     ).toBe(200);
   });
 
-  it('checks a large file or README size without reading its body', async () => {
+  it('检查大文件或 README 大小时不读取正文', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -225,13 +225,13 @@ describe('repository path and file boundaries', () => {
     const buffer = vi
       .spyOn(Blob.prototype, 'arrayBuffer')
       .mockImplementation(function (this: Blob) {
-        if (this.size === size) throw new Error('large body must not be read');
+        if (this.size === size) throw new Error('不应读取过大文件的正文');
         return originalBuffer.call(this);
       });
     const text = vi.spyOn(Blob.prototype, 'text').mockImplementation(function (
       this: Blob
     ) {
-      if (this.size === size) throw new Error('large text must not be read');
+      if (this.size === size) throw new Error('不应读取过大文件的文本');
       return originalText.call(this);
     });
     try {

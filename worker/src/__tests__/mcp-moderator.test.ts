@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
@@ -70,8 +71,8 @@ const moderatorRows = async (t: TestEnv) =>
     ).all<{ user_id: string; client_id: string }>()
   ).results;
 
-describe('marking a connected app as a moderator', () => {
-  it('lists each app with its moderator flag, and turns it on and off', async () => {
+describe('将已连接应用设为审核应用', () => {
+  it('列出各应用的审核权限，并允许开启和关闭', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -103,14 +104,14 @@ describe('marking a connected app as a moderator', () => {
     expect(await moderatorRows(t)).toEqual([]);
   });
 
-  it('says where each app redirects, so two apps named alike can be told apart', async () => {
+  it('展示各应用的重定向地址以区分同名应用', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await connect(t, admin, 'Claude Code');
     expect((await apps(t, admin))[0].redirectHost).toBe('127.0.0.1');
   });
 
-  it("refuses an app the user hasn't connected", async () => {
+  it('拒绝用户尚未连接的应用', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -126,7 +127,7 @@ describe('marking a connected app as a moderator', () => {
     expect((await apps(t, bob))[0].moderator).toBe(false);
   });
 
-  it('takes the setting only from a signed-in session, never an MCP token', async () => {
+  it('仅接受已登录会话修改设置，不接受 MCP 令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -151,7 +152,7 @@ describe('marking a connected app as a moderator', () => {
     ).toBe(401);
   });
 
-  it('forgets the setting when the app is disconnected', async () => {
+  it('断开应用连接后清除设置', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -171,7 +172,7 @@ describe('marking a connected app as a moderator', () => {
     });
   });
 
-  it('does not come back after a consent is revoked outside Connected apps and the app re-authorises', async () => {
+  it('在已连接应用之外撤销授权后，重新授权不会恢复审核权限', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -212,8 +213,8 @@ describe('marking a connected app as a moderator', () => {
   });
 });
 
-describe('the name a moderator app is recorded under', () => {
-  it('drops control and bidi characters and keeps it to 80 characters', async () => {
+describe('审核应用的记录名称', () => {
+  it('移除控制字符和双向文本控制字符，并限制为 80 个字符', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const spoof = await connect(
@@ -332,8 +333,8 @@ const detail = async (t: TestEnv, cookie: string) =>
     await call(t, '/api/repos/octocat/app/pulls/1', { cookie })
   ).json()) as Detail;
 
-describe('the web decision paths, with a moderator app', () => {
-  it('records the app on a finding decided through it, and nothing on the web', async () => {
+describe('通过审核应用调用网页决策路径', () => {
+  it('通过应用处理审查意见时记录应用来源，网页操作不记录', async () => {
     const { t, admin, head, person, change } = await reviewed();
     const { db, pr, git, after } = await target(t);
     const me = await userId(t);
@@ -375,7 +376,7 @@ describe('the web decision paths, with a moderator app', () => {
     await settle(t);
   });
 
-  it('refuses a finding of the other kind', async () => {
+  it('拒绝类型不匹配的审查意见', async () => {
     const { t, head, person, change } = await reviewed();
     const { db, pr, git, after } = await target(t);
     const me = await userId(t);
@@ -415,7 +416,7 @@ describe('the web decision paths, with a moderator app', () => {
     expect((await flagRow(t, change.id))!.approved_at).toBeNull();
   });
 
-  it("refuses a head the decider didn't see, and a finding raised on an earlier head", async () => {
+  it('拒绝决策者未查看的分支头和旧分支头上的审查意见', async () => {
     const { t, repo, head, person } = await reviewed();
     const { db, pr, git, after } = await target(t);
     const me = await userId(t);
@@ -454,7 +455,7 @@ describe('the web decision paths, with a moderator app', () => {
     });
   });
 
-  it('keeps the first decision on a finding', async () => {
+  it('保留对审查意见的首次决策', async () => {
     const { t, admin, head, person } = await reviewed();
     const web = await call(
       t,
@@ -484,7 +485,7 @@ describe('the web decision paths, with a moderator app', () => {
     await settle(t);
   });
 
-  it('records the app on a commit approved through it, in the approval and its timeline event', async () => {
+  it('通过应用批准提交时，在批准记录及时间线事件中记录应用来源', async () => {
     const { t, admin, head } = await reviewed();
     const { db, pr, git, after } = await target(t);
     const res = await approvePull(t.env, db, git, pr, await userId(t), after, {
@@ -504,7 +505,7 @@ describe('the web decision paths, with a moderator app', () => {
     await settle(t);
   });
 
-  it('keeps the first approval of a commit, and its via', async () => {
+  it('保留提交的首次批准及其来源', async () => {
     const { t, admin, head } = await reviewed();
     const web = await call(t, '/api/repos/octocat/app/pulls/1/approval', {
       cookie: admin,
@@ -588,8 +589,8 @@ async function moderated() {
   };
 }
 
-describe('moderator tools', () => {
-  it('lists them, and says so, only to a moderator connection', async () => {
+describe('审核工具', () => {
+  it('仅向具有审核权限的连接列出并说明这些工具', async () => {
     const { t, admin, mod, coder } = await moderated();
     const modTools = await toolNames(t, mod);
     const coderTools = await toolNames(t, coder);
@@ -618,7 +619,7 @@ describe('moderator tools', () => {
     expect(page.moderatorTools.map((x) => x.name)).toEqual(MOD_TOOLS);
   });
 
-  it('refuses them from any other connection, and records nothing', async () => {
+  it('拒绝其他连接调用且不写入记录', async () => {
     const { t, coder, head, person, change } = await moderated();
     for (const [name, extra] of [
       ['gitorange_approve_review_finding', { finding_id: person.id }],
@@ -637,7 +638,7 @@ describe('moderator tools', () => {
     await nothingDecided(t, person.id, change.id);
   });
 
-  it('checks on every call: turning it off or disconnecting takes effect at once', async () => {
+  it('每次调用都检查权限，关闭权限或断开连接立即生效', async () => {
     const { t, admin, mod, modClient, head, person } = await moderated();
     expect(await toolNames(t, mod)).toEqual(expect.arrayContaining(MOD_TOOLS));
     // Off: the same token loses the tools on its very next call.
@@ -670,7 +671,7 @@ describe('moderator tools', () => {
     await settle(t);
   });
 
-  it("needs a reason for a guarded agent's finding, as the web does", async () => {
+  it('与网页一致，批准受保护代理的审查意见时必须提供理由', async () => {
     const { t, mod, head, person } = await moderated();
     await t.env.DB.prepare(
       "UPDATE agents SET guarded = 1, facet = 'security'"
@@ -707,7 +708,7 @@ describe('moderator tools', () => {
     await settle(t);
   });
 
-  it('approves a finding for a person as the web does, recorded via the app', async () => {
+  it('与网页一致，代表用户批准审查意见并记录应用来源', async () => {
     const { t, mod, head, person } = await moderated();
     const res = await tool(
       t,
@@ -736,7 +737,7 @@ describe('moderator tools', () => {
     expect(got.state).toBe('open');
   });
 
-  it("dismisses an agent's change request; then the pull request lands as it would from the web", async () => {
+  it('驳回代理的修改请求后，拉取请求按网页操作相同的规则合入', async () => {
     const { t, mod, head, person, change } = await moderated();
     for (const [name, id] of [
       ['gitorange_approve_review_finding', person.id],
@@ -759,7 +760,7 @@ describe('moderator tools', () => {
     });
   });
 
-  it('approves the pull request over findings for a person, but not over a change request', async () => {
+  it('允许覆盖需人工处理的意见以批准拉取请求，但不能覆盖修改请求', async () => {
     const { t, mod, head, change } = await moderated();
     const res = await tool(
       t,
@@ -793,7 +794,7 @@ describe('moderator tools', () => {
     expect(got).toMatchObject({ state: 'merged' });
   });
 
-  it('records nothing when the pull request has moved since the moderator looked', async () => {
+  it('审核应用查看后拉取请求发生变化时不写入记录', async () => {
     const { t, mod, repo, head, person, change } = await moderated();
     await commitPaths(
       repo,
@@ -821,7 +822,7 @@ describe('moderator tools', () => {
     await nothingDecided(t, person.id, change.id);
   });
 
-  it('asks for the full head_sha, not an abbreviation', async () => {
+  it('要求完整 head_sha，不接受缩写', async () => {
     const { t, mod, head, person, change } = await moderated();
     for (const sha of [head.slice(0, 7), `${head.slice(0, 39)}z`, 'main']) {
       const res = await tool(
@@ -844,7 +845,7 @@ describe('moderator tools', () => {
     await nothingDecided(t, person.id, change.id);
   });
 
-  it('refuses the wrong kind of finding', async () => {
+  it('拒绝类型错误的审查意见', async () => {
     const { t, mod, head, person, change } = await moderated();
     const approveChange = await tool(
       t,
@@ -872,7 +873,7 @@ describe('moderator tools', () => {
     await nothingDecided(t, person.id, change.id);
   });
 
-  it("still needs push access: a moderator acts with its user's permissions", async () => {
+  it('仍要求推送权限，审核应用使用所属用户的权限', async () => {
     const { t, admin, head, person, change } = await moderated();
     // bob can read octocat/app (internal) but not push.
     const bob = await addMember(t, admin, 'bob');
@@ -898,7 +899,7 @@ describe('moderator tools', () => {
     await nothingDecided(t, person.id, change.id);
   });
 
-  it('refuses in the handler too, should a call ever reach it without a moderator', async () => {
+  it('处理器也拒绝没有审核权限的调用', async () => {
     const { t, head, person, change } = await moderated();
     const { db } = await target(t);
     const user = { id: await userId(t) };
@@ -959,8 +960,8 @@ const consentIds = async (t: TestEnv) =>
     ).all<{ id: string; client_id: string }>()
   ).results;
 
-describe('authorising a moderator app again', () => {
-  it('always shows the consent screen, and consenting keeps the same consent (and moderator)', async () => {
+describe('重新授权审核应用', () => {
+  it('始终显示授权页面，并在同意时保留原授权及审核权限', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -984,7 +985,7 @@ describe('authorising a moderator app again', () => {
     expect((await apps(t, admin))[0].moderator).toBe(true);
   });
 
-  it('leaves an ordinary app with consent as it was: a code with no screen', async () => {
+  it('普通应用沿用已有授权，直接签发授权码', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const coder = await connect(t, admin, 'Claude Code');
@@ -993,7 +994,7 @@ describe('authorising a moderator app again', () => {
     expect(back.searchParams.get('code')).toBeTruthy();
   });
 
-  it('shows the screen after signing in too, and as a form post', async () => {
+  it('登录后也显示授权页面，并支持表单提交', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');
@@ -1035,7 +1036,7 @@ describe('authorising a moderator app again', () => {
     );
   });
 
-  it('never issues a code silently, even when asked to (prompt=none)', async () => {
+  it('即使请求 prompt=none，也不静默签发授权码', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mod = await connect(t, admin, 'Claude Mod');

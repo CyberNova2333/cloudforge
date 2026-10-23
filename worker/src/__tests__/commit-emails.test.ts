@@ -37,7 +37,7 @@ async function addEmail(
 /** The token from the most recent verification email. */
 function lastToken(t: TestEnv) {
   const m = t.sent.at(-1)?.text?.match(/verify\?token=(\S+)/);
-  if (!m) throw new Error('no verification email');
+  if (!m) throw new Error('未收到验证邮件');
   return m[1];
 }
 
@@ -50,8 +50,8 @@ async function addVerified(t: TestEnv, cookie: string, email: string) {
   expect((await verify(t, cookie, lastToken(t))).status).toBe(200);
 }
 
-describe('Settings → Emails', () => {
-  it('adds an alternate unverified, lowercased, with a label, and emails a link', async () => {
+describe('设置 → 邮箱', () => {
+  it('添加小写、未验证且带标签的备用邮箱，并发送链接邮件', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await addEmail(t, admin, '  Me@Work.Example ', 'Work');
@@ -85,7 +85,7 @@ describe('Settings → Emails', () => {
     expect(list.alternates.map((a) => a.email)).toEqual(['me@work.example']);
   });
 
-  it('validates format and label length', async () => {
+  it('验证邮箱格式和标签长度', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     expect((await addEmail(t, admin, 'not-an-email')).status).toBe(400);
@@ -94,7 +94,7 @@ describe('Settings → Emails', () => {
     ).toBe(400);
   });
 
-  it('keeps an address unique across members and primaries', async () => {
+  it('确保邮箱在成员与主邮箱之间唯一', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -115,7 +115,7 @@ describe('Settings → Emails', () => {
     ).toBe(409);
   });
 
-  it('lets another member claim an address whose verification expired', async () => {
+  it('允许其他成员认领验证已过期的邮箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -132,7 +132,7 @@ describe('Settings → Emails', () => {
     expect(mine.alternates).toEqual([]);
   });
 
-  it('verifies only with a correct, unexpired token of the signed-in member', async () => {
+  it('仅使用当前登录成员正确且未过期的令牌进行验证', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -168,7 +168,7 @@ describe('Settings → Emails', () => {
     expect(row?.verified_at).toBeTruthy();
   });
 
-  it('rate-limits resends to one a minute and issues a fresh link', async () => {
+  it('限制重发频率为每分钟一次，并生成新链接', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { email } = (await (
@@ -194,7 +194,7 @@ describe('Settings → Emails', () => {
     expect((await resend()).status).toBe(400); // already verified
   });
 
-  it('keeps the row unverified and says so when email is not configured', async () => {
+  it('未配置邮件时保持未验证状态，并说明原因', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     (t.env as { EMAIL?: unknown }).EMAIL = undefined;
@@ -209,7 +209,7 @@ describe('Settings → Emails', () => {
     expect(list.emailConfigured).toBe(false);
   });
 
-  it('edits labels and deletes only your own rows', async () => {
+  it('仅允许编辑自己的标签和删除自己的记录', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -247,8 +247,8 @@ describe('Settings → Emails', () => {
   });
 });
 
-describe('profile email', () => {
-  it("shows a member's account email to other members, never for the team", async () => {
+describe('资料邮箱', () => {
+  it('向其他成员显示用户账户邮箱，团队不显示邮箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -258,7 +258,7 @@ describe('profile email', () => {
   });
 });
 
-describe('commit attribution', () => {
+describe('提交归属', () => {
   async function repoWithCommits() {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
@@ -306,7 +306,7 @@ describe('commit attribution', () => {
     return { t, admin, bob };
   }
 
-  it('links commits by account email and verified alternates only', async () => {
+  it('仅通过账户邮箱和已验证的备用邮箱关联提交', async () => {
     const { t, bob } = await repoWithCommits();
     const res = await call(t, '/api/repos/octocat/app/commits?ref=main', {
       cookie: bob,
@@ -328,7 +328,7 @@ describe('commit attribution', () => {
     });
   });
 
-  it('attributes the single-commit, latest-commit, and tree views', async () => {
+  it('为单提交、最新提交及树视图标注归属', async () => {
     const { t, bob } = await repoWithCommits();
     const contents = (await (
       await call(t, '/api/repos/octocat/app/contents?refPath=', {
@@ -350,7 +350,7 @@ describe('commit attribution', () => {
     expect(tree['a'].author).toHaveProperty('user', null);
   });
 
-  it('looks up any number of emails in a fixed number of queries', async () => {
+  it('以固定次数的查询查找任意数量邮箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addVerified(t, admin, 'alt@example.com');

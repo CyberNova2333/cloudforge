@@ -10,8 +10,8 @@ import {
   signIn,
 } from './helpers/app';
 
-describe('first-run setup', () => {
-  it('reports setup required until the first admin exists, then closes', async () => {
+describe('首次初始化', () => {
+  it('首个管理员创建前报告需要初始化，之后关闭入口', async () => {
     const t = makeEnv();
     expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
@@ -38,7 +38,7 @@ describe('first-run setup', () => {
     expect(again.status).toBe(403);
   });
 
-  it('makes the first user a site admin', async () => {
+  it('将首个用户设为站点管理员', async () => {
     const t = makeEnv();
     const cookie = await bootstrapAdmin(t);
     const res = await call(t, '/api/auth/get-session', { cookie });
@@ -49,7 +49,7 @@ describe('first-run setup', () => {
     expect(session.user.username).toBe('octocat');
   });
 
-  it('rejects reserved usernames', async () => {
+  it('拒绝保留用户名', async () => {
     const t = makeEnv();
     const res = await call(t, '/api/setup', {
       json: {
@@ -62,7 +62,7 @@ describe('first-run setup', () => {
     expect(res.status).toBe(400);
   });
 
-  it('reserves the first path segment of every web app and worker route', async () => {
+  it('保留所有网页应用和 Worker 路由的首个路径段', async () => {
     // The web app's top-level routes (src/App.tsx), plus what the worker serves at the root.
     const routes = [
       ...new Set(
@@ -86,7 +86,7 @@ describe('first-run setup', () => {
     expect(res.status).toBe(400);
   });
 
-  it('does not allow public sign-up', async () => {
+  it('不允许公开注册', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     const res = await call(t, '/api/auth/sign-up/email', {
@@ -96,8 +96,8 @@ describe('first-run setup', () => {
   });
 });
 
-describe('invitations', () => {
-  it('emails an invite link that creates a member exactly once', async () => {
+describe('邀请', () => {
+  it('通过邮件发送邀请链接，且只能创建一次成员', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/invites', {
@@ -139,7 +139,7 @@ describe('invitations', () => {
     expect(reuse.status).toBe(400);
   });
 
-  it('stores only a hash of the invite token', async () => {
+  it('只存储邀请令牌的哈希值', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/invites', {
@@ -155,7 +155,7 @@ describe('invitations', () => {
     expect(row!.token_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('forbids members from inviting', async () => {
+  it('禁止普通成员发送邀请', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -173,7 +173,7 @@ describe('invitations', () => {
     ).toBe(401);
   });
 
-  it('refuses to invite an existing user', async () => {
+  it('拒绝邀请已有用户', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/invites', {
@@ -184,8 +184,8 @@ describe('invitations', () => {
   });
 });
 
-describe('usernames', () => {
-  it('rejects renaming to a reserved username through better-auth', async () => {
+describe('用户名', () => {
+  it('拒绝通过 better-auth 改为保留用户名', async () => {
     const t = makeEnv();
     const cookie = await bootstrapAdmin(t);
     const res = await call(t, '/api/auth/update-user', {
@@ -199,7 +199,7 @@ describe('usernames', () => {
     expect(session.user.username).toBe('octocat');
   });
 
-  it('still allows renaming to an ordinary username', async () => {
+  it('仍允许改为普通用户名', async () => {
     const t = makeEnv();
     const cookie = await bootstrapAdmin(t);
     const res = await call(t, '/api/auth/update-user', {

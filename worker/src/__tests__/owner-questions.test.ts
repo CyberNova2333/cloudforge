@@ -49,8 +49,8 @@ const inbox = async (t: TestEnv, cookie: string) => {
   return (await res.json()) as Inbox;
 };
 
-describe('owner questions in the review contract', () => {
-  it('asks the model for a plain yes/no question on findings for a person', () => {
+describe('审查约定中的负责人问题', () => {
+  it('要求模型为需人工处理的意见提出简单的是非问题', () => {
     const item = REVIEW_SCHEMA.properties.findings.items;
     expect(item.required).toContain('question');
     expect(item.properties.question).toMatchObject({
@@ -62,7 +62,7 @@ describe('owner questions in the review contract', () => {
     expect(prompt).toMatch(/yes\/no/);
   });
 
-  it('keeps a plain question on a finding for a person, and none on a change request', () => {
+  it('为需人工处理的意见保留简单问题，不为修改请求保留问题', () => {
     const review = parseAgentReview(
       JSON.stringify({
         verdict: 'findings',
@@ -87,7 +87,7 @@ describe('owner questions in the review contract', () => {
     expect(review.findings.map((f) => f.question)).toEqual([QUESTION, null]);
   });
 
-  it('drops a question that is too long, not a question, or full of code words', () => {
+  it('丢弃过长、非问句或含有大量代码术语的问题', () => {
     expect(plainQuestion(QUESTION)).toBe(QUESTION);
     // Plain English that only looks like code stays.
     for (const plain of [
@@ -122,7 +122,7 @@ describe('owner questions in the review contract', () => {
     );
   });
 
-  it('stores the question on the flag and shows it on Approvals', async () => {
+  it('在审查意见中存储问题，并展示在待审批页面', async () => {
     const { t, admin, person, change } = await questionedPull();
     expect((await flagState(t, person.id))!.question).toBe(QUESTION);
     expect((await flagState(t, change.id))!.question).toBeNull();
@@ -139,7 +139,7 @@ describe('owner questions in the review contract', () => {
   });
 });
 
-describe('one finding (GET /api/approvals/flags/{id})', () => {
+describe('获取单条审查意见（GET /api/approvals/flags/{id}）', () => {
   type Detail = {
     id: string;
     kind: string;
@@ -169,7 +169,7 @@ describe('one finding (GET /api/approvals/flags/{id})', () => {
   const get = async (t: TestEnv, cookie: string, id: string) =>
     call(t, `/api/approvals/flags/${id}`, { cookie });
 
-  it('returns the finding with its pull request, agent, excerpts and history', async () => {
+  it('返回审查意见及其拉取请求、代理、代码片段和历史', async () => {
     const { t, admin, head, person } = await questionedPull();
     const res = await get(t, admin, person.id);
     expect(res.status).toBe(200);
@@ -213,7 +213,7 @@ describe('one finding (GET /api/approvals/flags/{id})', () => {
     expect(after.history[0].actor.login).toBe('octocat');
   });
 
-  it("is a 404 for a finding nobody has, and for a private repository's finding to someone who can't read it", async () => {
+  it('意见不存在或调用者无权读取私有仓库时返回 404', async () => {
     const { t, admin, person } = await questionedPull();
     expect((await get(t, admin, 'nope')).status).toBe(404);
     const bob = await addMember(t, admin, 'bob');
@@ -232,8 +232,8 @@ describe('one finding (GET /api/approvals/flags/{id})', () => {
   });
 });
 
-describe('assigning a finding', () => {
-  it('needs push rights for both the assigner and the assignee', async () => {
+describe('指派审查意见', () => {
+  it('指派人和被指派人都需要推送权限', async () => {
     const { t, admin, person } = await questionedPull();
     const bob = await addMember(t, admin, 'bob');
     const cho = await addMember(t, admin, 'cho');
@@ -287,7 +287,7 @@ describe('assigning a finding', () => {
     expect((await flagState(t, person.id))!.assignee_id).toBeNull();
   });
 
-  it('counts findings assigned to you on Approvals, and shows the assignee', async () => {
+  it('在待审批页面统计指派给自己的意见，并展示被指派人', async () => {
     const { t, admin, person } = await questionedPull();
     const cho = await addMember(t, admin, 'cho');
     await collaborate(t, admin, 'cho');
@@ -307,7 +307,7 @@ describe('assigning a finding', () => {
     expect((await inbox(t, cho)).assignedToMe).toBe(0);
   });
 
-  it('refuses once the pull request is closed', async () => {
+  it('拉取请求关闭后拒绝指派', async () => {
     const { t, admin, person } = await questionedPull();
     await call(t, '/api/repos/octocat/app/pulls/1', {
       cookie: admin,
@@ -322,8 +322,8 @@ describe('assigning a finding', () => {
   });
 });
 
-describe('guarded decisions', () => {
-  it("won't approve a guarded agent's finding without a reason", async () => {
+describe('受保护意见的决策', () => {
+  it('批准受保护代理的意见时必须提供理由', async () => {
     const { t, admin, person, change } = await questionedPull({
       guarded: true,
     });
@@ -356,7 +356,7 @@ describe('guarded decisions', () => {
     expect((await inbox(t, admin)).items).toEqual([]);
   });
 
-  it("shows a guarded agent's findings as guarded", async () => {
+  it('将受保护代理的意见标记为受保护', async () => {
     const { t, admin, person } = await questionedPull({ guarded: true });
     expect((await inbox(t, admin)).items[0].agents[0].flags[0]).toMatchObject({
       id: person.id,
@@ -364,7 +364,7 @@ describe('guarded decisions', () => {
     });
   });
 
-  it("refuses a moderator app's approval without a reason the same way", async () => {
+  it('同样拒绝审核应用在没有理由时批准', async () => {
     const { t, person } = await questionedPull({ guarded: true });
     const db = drizzle(t.env.DB, { schema });
     const pr = (await db.query.pullRequests.findFirst())!;
@@ -399,7 +399,7 @@ describe('guarded decisions', () => {
     await settle(t);
   });
 
-  it("doesn't let a person's approval of the commit stand over a guarded finding", async () => {
+  it('不允许用户对提交的批准覆盖受保护意见', async () => {
     const { t, admin, head, person } = await questionedPull({
       guarded: true,
     });
@@ -429,8 +429,8 @@ describe('guarded decisions', () => {
   });
 });
 
-describe('teaching with a decision', () => {
-  it('stores the teach note with an approval or a request for changes, and records it', async () => {
+describe('通过决策提供教学反馈', () => {
+  it('随批准或修改请求保存教学说明并记录操作', async () => {
     const { t, admin, person } = await questionedPull();
     const res = await flagCall(t, admin, person.id, 'request-changes', {
       note: 'Ask which invoices were in US dollars.',
@@ -466,7 +466,7 @@ describe('teaching with a decision', () => {
     ).toBe(400);
   });
 
-  it('refuses a teach note on a finding that is already approved, instead of dropping it', async () => {
+  it('拒绝为已批准的意见添加教学说明，而不是静默丢弃', async () => {
     const { t, admin, person } = await questionedPull();
     expect((await flagCall(t, admin, person.id, 'approve', {})).status).toBe(
       200
@@ -488,8 +488,8 @@ describe('teaching with a decision', () => {
   });
 });
 
-describe('undoing a decision', () => {
-  it('reopens your own decision while the pull request is open, and records it', async () => {
+describe('撤销决策', () => {
+  it('拉取请求仍打开时允许撤销自己的决策，并记录操作', async () => {
     const { t, admin, person } = await questionedPull();
     await flagCall(t, admin, person.id, 'approve', {
       reason: 'Intended behaviour',
@@ -518,7 +518,7 @@ describe('undoing a decision', () => {
     expect((await flagCall(t, admin, person.id, 'undo')).status).toBe(409);
   });
 
-  it("refuses someone else's decision", async () => {
+  it('拒绝撤销他人的决策', async () => {
     const { t, admin, person } = await questionedPull();
     const cho = await addMember(t, admin, 'cho');
     await collaborate(t, admin, 'cho');

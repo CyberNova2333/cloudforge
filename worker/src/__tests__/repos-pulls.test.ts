@@ -20,8 +20,8 @@ async function withRepo() {
   return { t, admin, repo };
 }
 
-describe('repositories', () => {
-  it('creates an Artifacts repo named by id, with an initial README commit', async () => {
+describe('仓库', () => {
+  it('创建以标识命名的 Artifacts 仓库，并提交初始 README', async () => {
     const { t, admin, repo } = await withRepo();
     expect(repo.name).toMatch(/^r_[0-9a-f-]{36}$/);
     const contents = await call(t, '/api/repos/octocat/app/contents?refPath=', {
@@ -37,7 +37,7 @@ describe('repositories', () => {
     expect(body.readme.text).toContain('# app');
   });
 
-  it('rejects a duplicate name for the same owner', async () => {
+  it('拒绝同一所有者下重名的仓库', async () => {
     const { t, admin } = await withRepo();
     expect(
       (await call(t, '/api/repos', { cookie: admin, json: { name: 'app' } }))
@@ -45,7 +45,7 @@ describe('repositories', () => {
     ).toBe(409);
   });
 
-  it('lets every member read but only admins change settings', async () => {
+  it('允许所有成员读取，但仅管理员能更改设置', async () => {
     const { t, admin } = await withRepo();
     const bob = await addMember(t, admin, 'bob');
     const detail = (await (
@@ -70,7 +70,7 @@ describe('repositories', () => {
     ).toBe(404);
   });
 
-  it('resolves branch names containing slashes in tree paths', async () => {
+  it('在目录树路径中解析包含斜杠的分支名', async () => {
     const { t, admin, repo } = await withRepo();
     await commitFiles(repo, 'feature/x', { 'a.txt': 'a' }, 'feat');
     const res = await call(
@@ -93,7 +93,7 @@ describe('repositories', () => {
   });
 });
 
-describe('pull requests', () => {
+describe('拉取请求', () => {
   async function withBranch() {
     const ctx = await withRepo();
     const main = ctx.repo.refs.get('refs/heads/main')!;
@@ -110,7 +110,7 @@ describe('pull requests', () => {
     return ctx;
   }
 
-  it('numbers pull requests sequentially per repository', async () => {
+  it('按仓库顺序分配拉取请求编号', async () => {
     const { t, admin, repo } = await withBranch();
     const a = await call(t, '/api/repos/octocat/app/pulls', {
       cookie: admin,
@@ -127,7 +127,7 @@ describe('pull requests', () => {
     expect(((await b.json()) as { number: number }).number).toBe(2);
   });
 
-  it('refuses a second open PR for the same branches', async () => {
+  it('拒绝为相同分支对创建第二个打开的请求', async () => {
     const { t, admin } = await withBranch();
     await call(t, '/api/repos/octocat/app/pulls', {
       cookie: admin,
@@ -140,7 +140,7 @@ describe('pull requests', () => {
     expect(dup.status).toBe(409);
   });
 
-  it('requires push access to open a PR', async () => {
+  it('创建拉取请求需要推送权限', async () => {
     const { t, admin } = await withBranch();
     const bob = await addMember(t, admin, 'bob');
     const res = await call(t, '/api/repos/octocat/app/pulls', {
@@ -163,7 +163,7 @@ describe('pull requests', () => {
     ).toBe(201);
   });
 
-  it('shows the diff, rebases a diverged branch and fast-forwards onto it', async () => {
+  it('展示差异，为分叉分支变基并快进合入', async () => {
     const { t, admin, repo } = await withBranch();
     await commitFiles(
       repo,
@@ -229,7 +229,7 @@ describe('pull requests', () => {
     expect(still).toHaveLength(2);
   });
 
-  it('reports conflicts and refuses to merge them', async () => {
+  it('报告冲突并拒绝合入', async () => {
     const { t, admin, repo } = await withBranch();
     await commitFiles(
       repo,
@@ -259,7 +259,7 @@ describe('pull requests', () => {
     expect(res.status).toBe(409);
   });
 
-  it('does not let a collaborator-less member merge', async () => {
+  it('不允许非协作者成员合入', async () => {
     const { t, admin } = await withBranch();
     const bob = await addMember(t, admin, 'bob');
     await call(t, '/api/repos/octocat/app/pulls', {
@@ -277,8 +277,8 @@ describe('pull requests', () => {
   });
 });
 
-describe('hardening', () => {
-  it('rejects pull requests whose base or head is not a branch', async () => {
+describe('安全加固', () => {
+  it('拒绝以非分支引用作为基准或分支头的拉取请求', async () => {
     const { t, admin, repo } = await withRepo();
     const main = repo.refs.get('refs/heads/main')!;
     await commitFiles(repo, 'feature', { 'x.txt': 'x' }, 'x', [main]);
@@ -289,7 +289,7 @@ describe('hardening', () => {
     expect(res.status).toBe(400);
   });
 
-  it('shows member emails only to site admins and the member themself', async () => {
+  it('仅向站点管理员及成员本人展示成员邮箱', async () => {
     const { t, admin } = await withRepo();
     const bob = await addMember(t, admin, 'bob');
     await addMember(t, admin, 'carol');

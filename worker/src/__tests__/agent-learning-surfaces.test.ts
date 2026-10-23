@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, call } from './helpers/app';
 import { connect, tool } from './helpers/mcp';
@@ -22,8 +23,8 @@ async function learned() {
   return { ...s, lesson: (await lessons(s.t))[0] };
 }
 
-describe('what agents learned, where people look', () => {
-  it("lists the agent's lessons on its profile, as the viewer may see them", async () => {
+describe('供用户查看的智能体学习记录', () => {
+  it('在智能体资料页列出查看者有权访问的学习任务', async () => {
     const { t, admin, lesson } = await learned();
     const bob = await addMember(t, admin, 'bob');
     const profile = async (cookie: string) =>
@@ -55,7 +56,7 @@ describe('what agents learned, where people look', () => {
     expect(await profile(admin)).toEqual([expected]);
   });
 
-  it("adds a learned event to the pull request's timeline", async () => {
+  it('向拉取请求时间线添加已学习事件', async () => {
     const { t, admin, lesson } = await learned();
     const body = (await (
       await call(t, '/api/repos/octocat/app/pulls/1', { cookie: admin })
@@ -76,7 +77,7 @@ describe('what agents learned, where people look', () => {
     expect(event.actor?.username).toBe('secagent');
   });
 
-  it("gitorange_list_agents includes each agent's latest lessons", async () => {
+  it('gitorange_list_agents 包含各智能体最新的学习记录', async () => {
     const { t, admin, lesson } = await learned();
     const token = (await connect(t, admin)).access_token as string;
     const listed = await tool(t, token, 'gitorange_list_agents');
@@ -97,7 +98,7 @@ describe('what agents learned, where people look', () => {
     ]);
   });
 
-  it('counts, per agent, the change requests people dismissed and the lessons it committed', async () => {
+  it('按智能体统计人工驳回的修改请求及其已提交的学习任务', async () => {
     const { t, admin } = await learned();
     const body = (await (
       await call(t, '/api/repos/octocat/app/insights', { cookie: admin })

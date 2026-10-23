@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { bootstrapAdmin, call, makeEnv } from './helpers/app';
 import { commitFiles } from './helpers/seed';
@@ -18,8 +19,8 @@ async function setup(files: Record<string, string>) {
     });
 }
 
-describe('raw file endpoint', () => {
-  it('serves SVG as an image, sandboxed, so Markdown <img> tags render it', async () => {
+describe('原始文件端点', () => {
+  it('以沙箱图片方式提供 SVG，使 Markdown 的 <img> 标签正常显示', async () => {
     const svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><script>alert(1)</script></svg>';
     const raw = await setup({ 'logo.svg': svg, 'BADGE.SVG': svg });
@@ -34,7 +35,7 @@ describe('raw file endpoint', () => {
     }
   });
 
-  it('never serves HTML as a document, and sandboxes every raw file', async () => {
+  it('不将 HTML 作为文档提供，并对所有原始文件应用沙箱限制', async () => {
     const raw = await setup({
       'page.html': '<script>alert(1)</script>',
       'notes.txt': 'hi',

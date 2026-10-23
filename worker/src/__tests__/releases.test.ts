@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { repositories } from '../db/app.schema';
@@ -137,8 +138,8 @@ async function releaseRows(s: CrewRepo) {
   ).results.map((r) => r.tag);
 }
 
-describe('unreleased changes', () => {
-  it('unreleased lists merged PRs into the default branch, with bumps', async () => {
+describe('未发布变更', () => {
+  it('列出合入默认分支的未发布拉取请求及其版本升级级别', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor', { title: 'Add search' });
     await landed(s, 2, null, { title: 'Fix typo' });
@@ -161,14 +162,14 @@ describe('unreleased changes', () => {
     expect(u.latest).toBeNull();
   });
 
-  it('a PR into another branch is not unreleased', async () => {
+  it('合入其他分支的拉取请求不计入未发布变更', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor');
     await landed(s, 2, 'major', { base: 'feature/stack' });
     expect((await pending(s)).pulls.map((p) => p.number)).toEqual([1]);
   });
 
-  it('renaming the default branch', async () => {
+  it('重命名默认分支', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor');
     await commitPaths(s.repo, 'trunk', FILES, 'trunk');
@@ -179,8 +180,8 @@ describe('unreleased changes', () => {
   });
 });
 
-describe('cutting a release', () => {
-  it('first release must be typed', async () => {
+describe('创建发布版本', () => {
+  it('首次发布必须手动指定版本号', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor');
     const u = await pending(s);
@@ -194,7 +195,7 @@ describe('cutting a release', () => {
     expect(await releaseRows(s)).toEqual([]);
   });
 
-  it('first release records everything without listing it', async () => {
+  it('首次发布记录全部历史内容但不逐项列出', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor');
     await landed(s, 2, null);
@@ -221,7 +222,7 @@ describe('cutting a release', () => {
     expect(audit.results).toEqual([{ target: 'v0.1.0' }]);
   });
 
-  it('next version takes the largest bump', async () => {
+  it('下一版本采用最大的升级级别', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'major');
     expect((await cut(s, { version: 'v0.1.0' })).ok).toBe(true);
@@ -256,7 +257,7 @@ describe('cutting a release', () => {
     expect(r.release.notes).toBe(u.notesPreview);
   });
 
-  it('missing bump counts as patch', async () => {
+  it('缺省升级级别按 patch 处理', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     expect((await cut(s, { version: 'v0.2.0' })).ok).toBe(true);
@@ -267,7 +268,7 @@ describe('cutting a release', () => {
     expect(r.ok && r.release.tag).toBe('v0.2.1');
   });
 
-  it('override must be greater and free', async () => {
+  it('手动指定的版本必须更高且未被占用', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     expect((await cut(s, { version: 'v0.2.0' })).ok).toBe(true);
@@ -292,7 +293,7 @@ describe('cutting a release', () => {
     expect(r.ok && r.release.tag).toBe('v1.0.0');
   });
 
-  it('a hand-pushed tag blocks the computed version', async () => {
+  it('手动推送的同名标签阻止使用计算出的版本', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     expect((await cut(s, { version: 'v0.2.9' })).ok).toBe(true);
@@ -321,7 +322,7 @@ describe('cutting a release', () => {
     ).toEqual(['v0.3.1', 'v0.2.9']);
   });
 
-  it('a moved default branch is 409 with the new head', async () => {
+  it('默认分支移动时返回 409，并附带新分支头', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     const seen = head(s);
@@ -340,7 +341,7 @@ describe('cutting a release', () => {
     expect(s.repo.refs.get('refs/tags/v0.1.0')).toBeUndefined();
   });
 
-  it('nothing to release is 409', async () => {
+  it('没有可发布内容时返回 409', async () => {
     const s = await crewRepo();
     expect(await cut(s, { version: 'v0.1.0' })).toEqual({
       ok: false,
@@ -357,7 +358,7 @@ describe('cutting a release', () => {
     expect(s.repo.refs.get('refs/tags/v0.1.1')).toBeUndefined();
   });
 
-  it('concurrent cuts', async () => {
+  it('并发创建发布版本', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     const results = await Promise.all([
@@ -372,7 +373,7 @@ describe('cutting a release', () => {
     expect(s.repo.refs.get('refs/tags/v0.1.0')).toBe(head(s));
   });
 
-  it('retry after a half-finished cut', async () => {
+  it('重试未完成的版本发布', async () => {
     const s = await crewRepo({ actions: true });
     await commitPaths(
       s.repo,
@@ -394,7 +395,7 @@ describe('cutting a release', () => {
     ]);
   });
 
-  it('a hand-pushed tag at the head that queued its runs is not adopted', async () => {
+  it('不接管位于分支头且已触发运行的手动推送标签', async () => {
     const s = await crewRepo({ actions: true });
     await commitPaths(
       s.repo,
@@ -426,7 +427,7 @@ describe('cutting a release', () => {
     expect(await workflowRuns(s)).toHaveLength(1);
   });
 
-  it('a pull request that has pushed but is not yet marked merged blocks the cut', async () => {
+  it('已推送但尚未标记为已合入的拉取请求阻止发布', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     // landPull pushed the default branch and refs/pull/2/head to the same commit, and has not recorded it yet.
@@ -446,7 +447,7 @@ describe('cutting a release', () => {
     expect(await releaseRows(s)).toEqual([]);
   });
 
-  it('concurrent cuts of different versions leave no orphan tag', async () => {
+  it('并发创建不同版本不会遗留孤立标签', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     const results = await Promise.all([
@@ -465,7 +466,7 @@ describe('cutting a release', () => {
     expect(s.repo.refs.get(`refs/tags/${lost}`)).toBeUndefined();
   });
 
-  it('the tag queues push runs', async () => {
+  it('版本标签触发推送工作流运行', async () => {
     const s = await crewRepo({ actions: true });
     await commitPaths(
       s.repo,
@@ -486,7 +487,7 @@ describe('cutting a release', () => {
     ]);
   });
 
-  it('contents freeze', async () => {
+  it('发布内容冻结', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     expect((await cut(s, { version: 'v0.1.0' })).ok).toBe(true);
@@ -518,7 +519,7 @@ describe('cutting a release', () => {
     ).toEqual({ 1: 'v0.1.0', 2: 'v0.2.0', 3: null });
   });
 
-  it('tags lists every tag, hand-pushed too', async () => {
+  it('标签列表包含所有标签，包括手动推送的标签', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     expect((await cut(s, { version: 'v0.1.0' })).ok).toBe(true);
@@ -537,7 +538,7 @@ describe('cutting a release', () => {
 
   // The pulls land in one write: one INSERT per pull request here takes about 2 s on a laptop but minutes on a CI
   // container, and D1 writes are what the chunking is about, not how many statements it took to get there.
-  it('a first release over many landed pull requests records them all', async () => {
+  it('首次发布覆盖大量已合入拉取请求时完整记录', async () => {
     const s = await crewRepo();
     await landedMany(s, 120);
     const r = await cut(s, { version: 'v0.1.0' });
@@ -554,7 +555,7 @@ describe('cutting a release', () => {
     expect(next.release.pulls).toHaveLength(60);
   });
 
-  it('lists a changelog of many releases', async () => {
+  it('列出包含大量版本的变更日志', async () => {
     const s = await crewRepo();
     const admin = (await s.t.env.DB.prepare(
       "SELECT id FROM users WHERE username = 'octocat'"

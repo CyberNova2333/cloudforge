@@ -22,15 +22,15 @@ function chain(
   const out: [string, string][] = [];
   for (let sha = head; sha !== stop;) {
     const c = repo.parseCommit(sha);
-    if (!c) throw new Error(`${stop} is not an ancestor`);
+    if (!c) throw new Error(`${stop} 不是祖先提交`);
     out.push([sha, c.message]);
     sha = c.parents[0];
   }
   return out;
 }
 
-describe('rebase runs', () => {
-  it('rebases an open pull request when its target moves, keeping the old head and recording it', async () => {
+describe('变基运行', () => {
+  it('目标移动时为打开的拉取请求变基，保留并记录旧分支头', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     expect((await detail(t, admin)).rebase!.status).toBe('behind');
     await moved(t, 'main', root);
@@ -52,7 +52,7 @@ describe('rebase runs', () => {
     expect(await rows(t)).toEqual([]);
   });
 
-  it('queues a rebase when a pull request behind its base opens', async () => {
+  it('创建落后于基准分支的拉取请求时排队变基', async () => {
     const { t, admin, repo, root } = await divergedPull();
     await commitFiles(
       repo,
@@ -72,7 +72,7 @@ describe('rebase runs', () => {
     ]);
   });
 
-  it('starts over from the new head when the agent pushes during the rebase', async () => {
+  it('变基过程中代理推送新提交时，从新分支头重新开始', async () => {
     const { t, repo, f2, root } = await divergedPull();
     await moved(t, 'main', root);
     let pushed = '';
@@ -107,7 +107,7 @@ describe('rebase runs', () => {
     );
   });
 
-  it('records a conflict for the agent, and leaves the branch alone, when AI isn’t there', async () => {
+  it('未配置 AI 时为代理记录冲突，并保留原分支', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t); // no resolver
@@ -138,7 +138,7 @@ describe('rebase runs', () => {
     });
   });
 
-  it('records a conflict AI can’t take: a file deleted on one side and changed on the other', async () => {
+  it('记录 AI 无法处理的冲突：一侧删除文件，另一侧修改文件', async () => {
     const { t, admin, repo, root } = await divergedPull();
     await commitFiles(repo, 'gone', { 'b.txt': 'b\n' }, 'Delete notes', [root]);
     await call(t, '/api/repos/octocat/app/pulls', {
@@ -158,7 +158,7 @@ describe('rebase runs', () => {
     expect(gone.error).toMatch(/deleted on one side and changed on the other/);
   });
 
-  it('reports too many commits, to squash locally', async () => {
+  it('提交过多时提示在本地压缩提交', async () => {
     const { t, repo, root } = await divergedPull();
     for (let i = 0; i < 100; i++)
       await commitFiles(
@@ -179,7 +179,7 @@ describe('rebase runs', () => {
     ]);
   });
 
-  it('rebases again after the agent force-pushes the old head', async () => {
+  it('代理强推旧分支头后重新变基', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     await moved(t, 'main', root);
     await runRebases(t);
@@ -196,7 +196,7 @@ describe('rebase runs', () => {
     expect(first).not.toBe(f2);
   });
 
-  it('two runs at the same tips write once', async () => {
+  it('两个运行处理相同分支端点时只写入一次', async () => {
     const { t, admin, repo, root } = await divergedPull();
     await moved(t, 'main', root);
     await detail(t, admin); // a page view starts a second run before the first ran
@@ -219,7 +219,7 @@ describe('rebase runs', () => {
     ).toHaveLength(2);
   });
 
-  it('ends quietly when the branch is deleted before the write', async () => {
+  it('写入前分支已删除时安静结束', async () => {
     const { t, repo, root } = await divergedPull();
     await moved(t, 'main', root);
     const { step } = namedSteps((name) => {
@@ -232,7 +232,7 @@ describe('rebase runs', () => {
     );
   });
 
-  it('rebases a stacked child onto its parent’s branch when the parent moves', async () => {
+  it('父级分支移动时将堆叠子请求变基到父级分支', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     // #2 from `child`, built on feature, stacked on it by hand (as a reconcile would).
     const child = await commitFiles(
@@ -263,7 +263,7 @@ describe('rebase runs', () => {
     expect(repo.parseCommit(head)!.message).toBe('Add c');
   });
 
-  it('rebases children onto the land target once their parent closes', async () => {
+  it('父级关闭后将子请求变基到合入目标', async () => {
     const { t, admin, repo, f2 } = await divergedPull();
     await commitFiles(
       repo,
@@ -292,7 +292,7 @@ describe('rebase runs', () => {
     ).toEqual(['Add c', 'Elaborate on three', 'Add b']);
   });
 
-  it('leaves the branch alone and shows nothing to merge when the base already has every change', async () => {
+  it('基准已包含所有变更时保留分支，并显示没有可合入内容', async () => {
     const { t, admin, repo, root } = await divergedPull();
     const same = await commitFiles(
       repo,
@@ -331,7 +331,7 @@ describe('rebase runs', () => {
     expect(await runRebases(t)).toBe(0);
   });
 
-  it('starts a new rebase when the run resolving a commit died, but not while one is running', async () => {
+  it('冲突解决运行已终止时启动新变基，仍在运行时不启动', async () => {
     const { t, admin, repo, f2 } = await divergedPull({ conflict: true });
     await settle(t);
     const pr = (await t.env.DB.prepare(
@@ -367,7 +367,7 @@ describe('rebase runs', () => {
     expect(started()).toBe(before + 1);
   });
 
-  it('never rebases the default branch, and says why', async () => {
+  it('不为默认分支变基，并说明原因', async () => {
     const { t, admin, repo, root } = await divergedPull();
     const release = await commitFiles(
       repo,
@@ -411,7 +411,7 @@ describe('rebase runs', () => {
     });
   });
 
-  it('rebases neither of two open pull requests sharing a head into different bases, until one closes', async () => {
+  it('两个打开请求共享分支头但基准不同时均不变基，直到其中一个关闭', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     await commitFiles(
       repo,
@@ -453,7 +453,7 @@ describe('rebase runs', () => {
     expect((await detail(t, admin, 1)).rebase!.status).toBe('up_to_date');
   });
 
-  it('never rewrites a branch matching a protected pattern, in a run or when landing, and says why', async () => {
+  it('运行或合入时均不改写匹配保护模式的分支，并说明原因', async () => {
     const { t, admin, repo, root } = await divergedPull();
     const release = await commitFiles(
       repo,
@@ -512,7 +512,7 @@ describe('rebase runs', () => {
     ]);
   });
 
-  it('rebases and lands a parent whose child was opened directly against its branch (hand-stacked)', async () => {
+  it('为直接以父级分支为基准的手动堆叠父请求变基并合入', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     await commitFiles(
       repo,
@@ -548,7 +548,7 @@ describe('rebase runs', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(parent);
   });
 
-  it('still rebases a parent whose stacked child has its branch as base_ref', async () => {
+  it('堆叠子请求的 base_ref 为父级分支时，仍为父请求变基', async () => {
     const { t, admin, repo, f2, root } = await divergedPull();
     await commitFiles(
       repo,
@@ -577,7 +577,7 @@ describe('rebase runs', () => {
     expect(d.rebase!.error).toBeNull();
   });
 
-  it('ignores a squash-era failed row (commit_sha NULL) written at the same tips during the deploy gap', async () => {
+  it('忽略部署过渡期间在相同端点写入的压缩合并旧失败记录（commit_sha 为 NULL）', async () => {
     const { t, admin, repo, f2, tip } = await divergedPull();
     const pr = (await t.env.DB.prepare(
       'SELECT id FROM pull_requests WHERE number = 1'
@@ -602,7 +602,7 @@ describe('rebase runs', () => {
     expect((await detail(t, admin)).rebase!.status).toBe('up_to_date');
   });
 
-  it('queues another rebase when the target moves while a run that then stops is running', async () => {
+  it('目标在运行期间移动且当前运行随后中止时，排队另一次变基', async () => {
     const { t, repo, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const first = t.actions.resolutions.find(
@@ -635,7 +635,7 @@ describe('rebase runs', () => {
     expect((await rows(t)).map((r) => r.base)).toContain(tip);
   });
 
-  it('a block that lifts never hides the real conflict at the same tips, nor queues a run per page view', async () => {
+  it('阻塞解除后不隐藏相同端点的真实冲突，也不在每次查看页面时排队运行', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t); // #1 stops at a real conflict

@@ -22,8 +22,8 @@ import {
   type Run,
 } from './helpers/actions';
 
-describe('Actions triggers', () => {
-  it("names each workflow after its own latest run, not the repository's latest run", async () => {
+describe('Actions 触发器', () => {
+  it('按各工作流自身的最新运行命名，而非仓库的最新运行', async () => {
     const s = await setup();
     const format = (name: string) => `name: ${name}
 on: push
@@ -54,7 +54,7 @@ jobs:
     ]);
   });
 
-  it('queues a run when a push adds a workflow, and starts its Workflow', async () => {
+  it('推送新增工作流时创建排队运行，并启动其 Workflow', async () => {
     const s = await setup();
     const sha = await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': CI,
@@ -91,7 +91,7 @@ jobs:
     ]);
   });
 
-  it('respects branch filters and ignores pushes without workflows', async () => {
+  it('遵循分支过滤规则，忽略不包含工作流的推送', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { 'README.md': 'no workflows' });
     await pushFiles(s, 'feature', { '.github/workflows/ci.yml': CI });
@@ -99,7 +99,7 @@ jobs:
     expect(s.t.actions.started).toHaveLength(0);
   });
 
-  it('records an invalid workflow file as a failed run without starting it', async () => {
+  it('将无效工作流文件记录为失败运行，且不启动执行', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/bad.yml': 'on: push\njobs:\n  a:\n    steps: []\n',
@@ -112,7 +112,7 @@ jobs:
     expect(s.t.actions.started).toHaveLength(0);
   });
 
-  it('runs pull_request workflows when a PR opens and when its branch moves', async () => {
+  it('PR 创建或其分支变化时运行 pull_request 工作流', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     await pushFiles(s, 'feature', {
@@ -145,7 +145,7 @@ jobs:
     ]);
   });
 
-  it('runs push workflows for the base branch after a merge', async () => {
+  it('合并后为目标分支运行 push 工作流', async () => {
     const s = await setup();
     const main = await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     // Branched from main's tip: merging fast-forwards main to the head, whose checks passed.
@@ -178,7 +178,7 @@ jobs:
     });
   });
 
-  it('does nothing when Actions is not configured', async () => {
+  it('未配置 Actions 时不执行任何操作', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -207,8 +207,8 @@ jobs:
   });
 });
 
-describe('Actions execution', () => {
-  it('settles pull request states when a run finishes', async () => {
+describe('Actions 执行', () => {
+  it('运行结束时确定拉取请求状态', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -217,7 +217,7 @@ describe('Actions execution', () => {
     expect(h.stepNames).toContain('states');
   });
 
-  it('runs steps in order, checks out with a masked token, and stores logs', async () => {
+  it('按顺序执行步骤，使用脱敏令牌检出代码并存储日志', async () => {
     const s = await setup();
     const sha = await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -265,7 +265,7 @@ describe('Actions execution', () => {
     expect(await setupLog.text()).toContain('standard-2');
   });
 
-  it('skips later steps after a failure but runs if: always() steps', async () => {
+  it('失败后跳过后续步骤，但仍运行 if: always() 步骤', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -309,7 +309,7 @@ jobs:
     expect(await log.text()).toContain('Process completed with exit code 1');
   });
 
-  it('passes outputs, GITHUB_ENV, and needs between steps and jobs', async () => {
+  it('在步骤和作业间传递输出、GITHUB_ENV 和 needs', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -347,7 +347,7 @@ jobs:
     expect(h.requests[1].env.GREETING).toBe('hello');
   });
 
-  it('skips jobs whose needs failed and runs matrix jobs separately', async () => {
+  it('跳过 needs 依赖失败的作业，并分别运行矩阵作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -381,7 +381,7 @@ jobs:
     });
   });
 
-  it('fails clearly on actions it cannot run, unless continue-on-error', async () => {
+  it('无法执行动作时明确报告失败，除非启用 continue-on-error', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -419,7 +419,7 @@ jobs:
   });
 });
 
-describe('Actions restarts after interruptions', () => {
+describe('Actions 中断后的重启', () => {
   const stepLog = async (
     s: Awaited<ReturnType<typeof setup>>,
     jobId: string,
@@ -434,7 +434,7 @@ describe('Actions restarts after interruptions', () => {
     ).text();
   const ranScripts = (h: ReturnType<typeof harness>) => h.requests.map(script);
 
-  it('restarts a job whose runner was interrupted, from the start in a new container', async () => {
+  it('运行器中断后，在新容器中从头重启作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -488,7 +488,7 @@ describe('Actions restarts after interruptions', () => {
     }
   });
 
-  it('restarts when the runner reports its container stopped under the step', async () => {
+  it('运行器报告步骤执行期间容器停止时重启', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -502,7 +502,7 @@ describe('Actions restarts after interruptions', () => {
     expect(h.boots).toHaveLength(2);
   });
 
-  it('never retries a step that failed on its own', async () => {
+  it('不重试自身执行失败的步骤', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -516,7 +516,7 @@ describe('Actions restarts after interruptions', () => {
     expect(await stepLog(s, jobs[0].id, 1)).not.toContain('Restarted');
   });
 
-  it('gives up after three interrupted attempts with a clear message', async () => {
+  it('连续三次中断后停止尝试，并给出明确提示', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -549,7 +549,7 @@ describe('Actions restarts after interruptions', () => {
     );
   });
 
-  it('records a failed container start in the Set up job log and the run error', async () => {
+  it('将容器启动失败记录到 Set up job 日志和运行错误中', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -566,7 +566,7 @@ describe('Actions restarts after interruptions', () => {
     );
   });
 
-  it('records why Set up job failed as a whole when it logged nothing', async () => {
+  it('Set up job 未产生日志时，记录其整体失败原因', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -583,7 +583,7 @@ describe('Actions restarts after interruptions', () => {
     );
   });
 
-  it('does not restart a job whose run was cancelled', async () => {
+  it('所属运行已取消时，不重启作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -609,8 +609,8 @@ describe('Actions restarts after interruptions', () => {
   });
 });
 
-describe('Actions API', () => {
-  it('cancels a run, terminating its Workflow and containers', async () => {
+describe('Actions 接口', () => {
+  it('取消运行并终止其 Workflow 和容器', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -641,7 +641,7 @@ describe('Actions API', () => {
     expect(jobs[0].steps.every((x) => x.status === 'completed')).toBe(true);
   });
 
-  it("marks a cancelled job's runner as stopped for usage", async () => {
+  it('将已取消作业的运行器标记为停止，以统计用量', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -669,7 +669,7 @@ describe('Actions API', () => {
     expect(row?.stopped_at).toBeGreaterThan(0);
   });
 
-  it('re-runs a workflow at the same commit as a new run', async () => {
+  it('在同一提交上将工作流重新运行一次', async () => {
     const s = await setup();
     const sha = await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const res = await call(s.t, '/api/repos/octocat/app/actions/runs/1/rerun', {
@@ -687,7 +687,7 @@ describe('Actions API', () => {
     expect(s.t.actions.started).toHaveLength(2);
   });
 
-  it('reports a commit status from the latest run of each workflow', async () => {
+  it('根据每个工作流的最新运行报告提交状态', async () => {
     const s = await setup();
     const sha = await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const status = async () =>
@@ -711,7 +711,7 @@ describe('Actions API', () => {
     expect(after.runs.map((r) => r.runNumber)).toEqual([2]);
   });
 
-  it('marks a run whose Workflow crashed as failed when viewed', async () => {
+  it('查看运行时，将 Workflow 已崩溃的运行标记为失败', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -724,7 +724,7 @@ describe('Actions API', () => {
     expect(after.errorMessage).toContain('stopped unexpectedly');
   });
 
-  it('serves the live log of a running step from its runner', async () => {
+  it('从运行器提供运行中步骤的实时日志', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const { jobs } = await runDetail(s.t, s.admin, 1);
@@ -740,7 +740,7 @@ describe('Actions API', () => {
     expect(await res.text()).toBe('Fetching…');
   });
 
-  it('deletes step logs with the repository', async () => {
+  it('删除仓库时一并删除步骤日志', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -762,7 +762,7 @@ describe('Actions API', () => {
   });
 });
 
-describe('Actions cache', () => {
+describe('Actions 缓存', () => {
   const NODE_CI = `on: push
 jobs:
   test:
@@ -785,7 +785,7 @@ jobs:
       id: string;
     }>())!.id;
 
-  it('caches node_modules for setup-node: a miss saves after the job, the next run restores', async () => {
+  it('为 setup-node 缓存 node_modules：未命中时在作业结束后保存，下次运行时恢复', async () => {
     const s = await setup();
     await pushFiles(s, 'main', files);
     let [queued] = (await runs(s.t, s.admin)).runs;
@@ -846,7 +846,7 @@ jobs:
     });
   });
 
-  it('lets a branch restore from the default branch, but saves only to its own', async () => {
+  it('允许分支从默认分支恢复缓存，但只能保存到自身分支', async () => {
     const s = await setup();
     const id = await repoId(s.t);
     await s.t.env.ACTIONS_CACHE.put(
@@ -882,7 +882,7 @@ jobs:
     expect(script(h.requests[2])).toContain("'/root/.cache/tool'");
   });
 
-  it('does not save after a failed job', async () => {
+  it('作业失败后不保存缓存', async () => {
     const s = await setup();
     await pushFiles(s, 'main', files);
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -895,7 +895,7 @@ jobs:
     expect(jobs[0].steps[4]).toMatchObject({ conclusion: 'skipped' });
   });
 
-  it('runs without a cache when the server has none set up', async () => {
+  it('服务器未配置缓存时，无缓存运行', async () => {
     const s = await setup();
     (
       s.t.env as { ACTIONS_CACHE_BUCKET_NAME?: string }
@@ -908,7 +908,7 @@ jobs:
     expect(h.requests).toHaveLength(3);
   });
 
-  it('evicts the oldest entries past the per-repository cap, and deletes with the repository', async () => {
+  it('超出仓库上限时淘汰最早条目，并在删除仓库时清除缓存', async () => {
     const { enforceCacheLimit, deleteRepositoryCache } =
       await import('../actions/cache');
     const s = await setup();
@@ -931,8 +931,8 @@ jobs:
   });
 });
 
-describe('Commit checks for lists', () => {
-  it("returns each commit's combined checks in one request, and pull requests list their head commit", async () => {
+describe('列表中的提交检查', () => {
+  it('在一次请求中返回各提交的合并检查结果，且拉取请求列出其头提交', async () => {
     const s = await setup();
     const first = await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': CI,

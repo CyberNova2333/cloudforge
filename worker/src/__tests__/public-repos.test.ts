@@ -74,8 +74,8 @@ async function setup() {
   return { t, admin };
 }
 
-describe('public repositories, signed out', () => {
-  it('lists only public repositories', async () => {
+describe('未登录时访问公开仓库', () => {
+  it('仅列出公开仓库', async () => {
     const { t } = await setup();
     const res = await call(t, '/api/repos');
     expect(res.status).toBe(200);
@@ -83,7 +83,7 @@ describe('public repositories, signed out', () => {
     expect(list.map((r) => r.fullName)).toEqual(['octocat/open']);
   });
 
-  it('reads a public repository and its pages, read-only', async () => {
+  it('以只读方式访问公开仓库及其页面', async () => {
     const { t } = await setup();
     const repo = await call(t, '/api/repos/octocat/open');
     expect(repo.status).toBe(200);
@@ -107,7 +107,7 @@ describe('public repositories, signed out', () => {
     }
   });
 
-  it('cannot see internal or private repositories', async () => {
+  it('无法查看内部或私有仓库', async () => {
     const { t, admin } = await setup();
     await call(t, '/api/repos', { cookie: admin, json: { name: 'diary' } });
     expect((await call(t, '/api/repos/octocat/inside')).status).toBe(404);
@@ -117,7 +117,7 @@ describe('public repositories, signed out', () => {
     );
   });
 
-  it('keeps writes and members-only pages behind sign-in', async () => {
+  it('写操作和成员专属页面仍要求登录', async () => {
     const { t } = await setup();
     expect(
       (
@@ -137,7 +137,7 @@ describe('public repositories, signed out', () => {
     expect((await call(t, '/api/users')).status).toBe(401);
   });
 
-  it('clones a public repository without a token, but never pushes', async () => {
+  it('无需令牌即可克隆公开仓库，但不能推送', async () => {
     const { t } = await setup();
     const clone = await git(
       t,
@@ -161,7 +161,7 @@ describe('public repositories, signed out', () => {
     expect(inside.status).toBe(401);
   });
 
-  it('downloads LFS objects of a public repository without a token, but never uploads', async () => {
+  it('无需令牌即可下载公开仓库的 LFS 对象，但不能上传', async () => {
     const { t } = await setup();
     const content = 'public asset';
     const oid = await sha256Hex(content);
@@ -203,8 +203,8 @@ describe('public repositories, signed out', () => {
   });
 });
 
-describe('public repositories, signed in', () => {
-  it('are readable by every member, writable only by collaborators', async () => {
+describe('已登录时访问公开仓库', () => {
+  it('所有成员均可读取，只有协作者可以写入', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     const list = (await (
@@ -230,7 +230,7 @@ describe('public repositories, signed in', () => {
     expect(push.status).toBe(403);
   });
 
-  it('lets the owner make a repository public and private again', async () => {
+  it('允许所有者将仓库公开后再改回私有', async () => {
     const { t, admin } = await setup();
     const open = await call(t, '/api/repos/octocat/inside', {
       cookie: admin,
@@ -263,7 +263,7 @@ describe('public repositories, signed in', () => {
     );
   });
 
-  it('lets a team repository be public, but never private', async () => {
+  it('允许团队仓库公开，但不允许设为私有', async () => {
     const { t, admin } = await setup();
     await call(t, '/api/team', {
       cookie: admin,
@@ -290,8 +290,8 @@ describe('public repositories, signed in', () => {
   });
 });
 
-describe('isPublicRepoRead', () => {
-  it('allows the list and a repository’s pages, except members-only ones', () => {
+describe('isPublicRepoRead 公开仓库读取判定', () => {
+  it('允许读取列表及仓库页面，但排除成员专属页面', () => {
     expect(isPublicRepoRead('/api/repos')).toBe(true);
     expect(isPublicRepoRead('/api/repos/o/r')).toBe(true);
     expect(isPublicRepoRead('/api/repos/o/r/pulls/3/files')).toBe(true);

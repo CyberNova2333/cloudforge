@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   compareHref,
@@ -7,8 +8,8 @@ import {
 } from './compareForm';
 import type { Commit, Compare } from './uiApi';
 
-describe('parseRange', () => {
-  it('reads base and head from base...head', () => {
+describe('parseRange：解析比较范围', () => {
+  it('从 base...head 中读取基础分支和头分支', () => {
     expect(parseRange('main...feature/x', 'main')).toEqual({
       base: 'main',
       head: 'feature/x',
@@ -19,14 +20,14 @@ describe('parseRange', () => {
     });
   });
 
-  it('reads a lone branch as the head, against the default branch', () => {
+  it('单个分支作为头分支，与默认分支比较', () => {
     expect(parseRange('feature/x', 'main')).toEqual({
       base: 'main',
       head: 'feature/x',
     });
   });
 
-  it('uses the default branch for a missing base and no head for a missing head', () => {
+  it('缺少基础分支时使用默认分支，缺少头分支时保持为空', () => {
     expect(parseRange('...feature', 'main')).toEqual({
       base: 'main',
       head: 'feature',
@@ -36,8 +37,8 @@ describe('parseRange', () => {
   });
 });
 
-describe('compareHref', () => {
-  it('writes the range after the repository', () => {
+describe('compareHref：比较链接', () => {
+  it('将比较范围写在仓库路径之后', () => {
     expect(compareHref('/o/r', 'main', 'claude/s4-usd')).toBe(
       '/o/r/compare/main...claude/s4-usd'
     );
@@ -47,20 +48,20 @@ describe('compareHref', () => {
 const commit = (message: string): Commit =>
   ({ hash: 'a'.repeat(40), message }) as Commit;
 
-describe('prefillTitle', () => {
-  it('uses the message of a single commit, first line only', () => {
+describe('prefillTitle：预填标题', () => {
+  it('单个提交使用提交消息的首行', () => {
     expect(
       prefillTitle([commit('Bill in US dollars\n\nMore detail.')], 'x')
     ).toBe('Bill in US dollars');
   });
 
-  it('makes a title out of the branch name for several commits', () => {
+  it('多个提交时根据分支名生成标题', () => {
     expect(
       prefillTitle([commit('a'), commit('b')], 'claude/s4-usd_invoices')
     ).toBe('Claude s4 usd invoices');
   });
 
-  it('makes a title out of the branch name for no commits', () => {
+  it('没有提交时根据分支名生成标题', () => {
     expect(prefillTitle([], 'rate-limit')).toBe('Rate limit');
   });
 });
@@ -76,8 +77,8 @@ const cmp = (extra: Partial<Compare>): Compare => ({
   ...extra,
 });
 
-describe('comparison', () => {
-  it('is ready with commits that are ahead', () => {
+describe('比较状态', () => {
+  it('有领先提交时准备就绪', () => {
     expect(comparison(cmp({}))).toMatchObject({
       ready: true,
       canRebase: true,
@@ -85,7 +86,7 @@ describe('comparison', () => {
     });
   });
 
-  it('has nothing to compare without commits or when the head is behind', () => {
+  it('无提交或头分支落后时没有可比较内容', () => {
     expect(comparison(cmp({ commits: [] })).ready).toBe(false);
     expect(comparison(cmp({ status: 'behind' })).ready).toBe(false);
     expect(comparison(cmp({ status: 'identical', commits: [] })).ready).toBe(
@@ -93,7 +94,7 @@ describe('comparison', () => {
     );
   });
 
-  it('says it can be rebased when it is mergeable or simply ahead', () => {
+  it('可合并或仅领先时说明可以变基', () => {
     expect(
       comparison(cmp({ status: 'diverged', mergeable: true })).canRebase
     ).toBe(true);
@@ -102,7 +103,7 @@ describe('comparison', () => {
     ).toBe(true);
   });
 
-  it('says it cannot be rebased on its own when there are conflicts', () => {
+  it('存在冲突时说明无法自动变基', () => {
     expect(
       comparison(
         cmp({ status: 'diverged', mergeable: false, conflicts: ['a.ts'] })
@@ -110,7 +111,7 @@ describe('comparison', () => {
     ).toMatchObject({ canRebase: false, conflicts: true, ready: true });
   });
 
-  it('says nothing either way when it is neither mergeable nor in conflict', () => {
+  it('既不可合并也无冲突时不作判断', () => {
     expect(
       comparison(cmp({ status: 'diverged', mergeable: false, conflicts: [] }))
     ).toMatchObject({ canRebase: false, conflicts: false });

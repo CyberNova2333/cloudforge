@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
@@ -92,8 +93,8 @@ const retry = (
     method: 'POST',
   });
 
-describe('Retry on a reviewer', () => {
-  it("re-reviews a failed agent at its repository's current AGENT.md", async () => {
+describe('重试审查器', () => {
+  it('使用智能体仓库当前的 AGENT.md 重新执行失败的审查', async () => {
     const { t, admin, agent } = await failedReview();
     const { models, calls } = agentModels();
     await runReviews(t, models);
@@ -115,7 +116,7 @@ describe('Retry on a reviewer', () => {
     expect(calls.reviewed[0].instructions).toBe('Fixed.');
   });
 
-  it('stays failed, with the current error, while AGENT.md is still invalid', async () => {
+  it('AGENT.md 仍无效时保持失败状态，并展示当前错误', async () => {
     const { t, admin } = await failedReview();
     await runReviews(t, agentModels().models);
     const [failed] = await reviewers(t);
@@ -126,7 +127,7 @@ describe('Retry on a reviewer', () => {
     expect((await reviewers(t))[0].error).toContain('trigger.above');
   });
 
-  it('reviews again after the review model failed', async () => {
+  it('审查模型失败后重新审查', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     const [failed] = await reviewers(t);
@@ -136,7 +137,7 @@ describe('Retry on a reviewer', () => {
     expect((await reviewers(t))[0].status).toBe('approved');
   });
 
-  it('refuses reviews that did not fail, reviews of older commits, and people without merge access', async () => {
+  it('拒绝重试未失败的审查、旧提交审查及没有合并权限的用户请求', async () => {
     const { t, admin, repo } = await failedReview();
     await runReviews(t, agentModels().models);
     const [failed] = await reviewers(t);
@@ -150,8 +151,8 @@ describe('Retry on a reviewer', () => {
   });
 });
 
-describe('Retry on a reviewer, when things go wrong', () => {
-  it('leaves the review failed, not running, when its Workflow cannot start', async () => {
+describe('审查器重试的异常情况', () => {
+  it('Workflow 无法启动时保持审查失败，而非运行中', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     const [failed] = await reviewers(t);
@@ -167,7 +168,7 @@ describe('Retry on a reviewer, when things go wrong', () => {
     expect(await headReviewStatus(t)).toBe('done');
   });
 
-  it("a retry that lost the race keeps the winner's findings", async () => {
+  it('重试竞争失败时保留胜出者的审查意见', async () => {
     const { t, admin, head } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     const [failed] = await reviewers(t);
@@ -209,8 +210,8 @@ describe('Retry on a reviewer, when things go wrong', () => {
   });
 });
 
-describe('the reviewer Workflow', () => {
-  it("runs a retry with Workers AI, its usage counted against the commit's review", async () => {
+describe('审查器 Workflow', () => {
+  it('使用 Workers AI 进行重试，并将用量计入该提交的审查', async () => {
     const { t, admin, head } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     const [failed] = await reviewers(t);
@@ -260,8 +261,8 @@ describe('the reviewer Workflow', () => {
   });
 });
 
-describe('a failed review of the whole commit', () => {
-  it('starts again on retry', async () => {
+describe('整个提交的审查失败', () => {
+  it('重试时重新启动', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const binding = (
@@ -290,7 +291,7 @@ describe('a failed review of the whole commit', () => {
     expect((await reviewers(t))[0].status).toBe('approved');
   });
 
-  it('starts again from the review Retry button', async () => {
+  it('点击审查重试按钮后重新启动', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const binding = workflows(t);
@@ -312,7 +313,7 @@ describe('a failed review of the whole commit', () => {
   });
 });
 
-describe('a review that stopped without finishing (its Workflow died)', () => {
+describe('Workflow 终止导致审查未完成', () => {
   const STOPPED = 'The review stopped unexpectedly. Try again.';
   const HOURS = 3600;
   /** Moves every head review's and reviewer's created_at `hours` into the past. */
@@ -345,7 +346,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     return { t, admin };
   }
 
-  it('is stopped when the commit is next looked at, after 2 hours, and Retry starts it again', async () => {
+  it('两小时后再次查看提交时停止审查，且可通过重试重新启动', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     // Never run: its Workflow died. Under 2 hours it's still reused as running.
     expect((await startReview(t))!.status).toBe('summarizing');
@@ -366,7 +367,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     expect((await reviewers(t))[0].status).toBe('approved');
   });
 
-  it('is stopped by the daily retention after 2 hours, with its reviewers, and Retry starts it again', async () => {
+  it('每日保留清理在两小时后停止审查及其审查器，且可通过重试重新启动', async () => {
     const { t, admin } = await stuck();
     await age(t, 1);
     await retention(t);
@@ -388,7 +389,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     expect(await headReviewStatus(t)).toBe('done');
   });
 
-  it("stops a reviewer's retry left reviewing for 2 hours, and Retry on it works", async () => {
+  it('停止持续审查两小时的审查器重试，且仍可再次重试', async () => {
     const { t, admin } = await stuck('done', 'reviewing');
     await age(t, 3);
     const status = await retention(t);
@@ -423,7 +424,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     return calls;
   }
 
-  it('an old run that is still going never revives the review once stopped, and makes no more model calls', async () => {
+  it('仍在运行的旧任务不恢复已停止的审查，也不再调用模型', async () => {
     const { t } = await failedReview(AGENT_MD());
     const calls = await slowRun(t, async () => {
       await retention(t);
@@ -434,7 +435,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     expect(await reviewers(t)).toEqual([]);
   });
 
-  it('an old run that is still going never writes onto the review Retry started again', async () => {
+  it('仍在运行的旧任务不覆盖通过重试重新启动的审查', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     const calls = await slowRun(t, async () => {
       await retention(t);
@@ -454,7 +455,7 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
     expect(await reviewers(t)).toEqual([]);
   });
 
-  it('counts 2 hours from the retry, not from when the commit was first reviewed', async () => {
+  it('从重试时而非首次审查提交时开始计算两小时', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     await age(t, 3);
@@ -468,8 +469,8 @@ describe('a review that stopped without finishing (its Workflow died)', () => {
   });
 });
 
-describe('removing and deleting agents', () => {
-  it('cancels a review in flight when the agent is removed from the repository', async () => {
+describe('移除与删除智能体', () => {
+  it('从仓库移除智能体时取消其进行中的审查', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(
       t,
@@ -507,7 +508,7 @@ describe('removing and deleting agents', () => {
     expect(await flags(t)).toEqual([]);
   });
 
-  it('cancels its reviews everywhere when the agent is deleted', async () => {
+  it('删除智能体时取消其在所有仓库中的审查', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(
       t,
@@ -527,7 +528,7 @@ describe('removing and deleting agents', () => {
     });
   });
 
-  it('never invites more than 10, even when invitations race', async () => {
+  it('即使邀请并发发生，也不超过 10 个智能体', async () => {
     const { t, admin } = await appRepo();
     for (let i = 0; i < 9; i++)
       await invitedAgent(t, admin, `agent${i}`, AGENT_MD());
@@ -552,7 +553,7 @@ describe('removing and deleting agents', () => {
     expect(n).toBe(10);
   });
 
-  it('invites at most 10 agents to a repository', async () => {
+  it('每个仓库最多邀请 10 个智能体', async () => {
     const { t, admin } = await appRepo();
     for (let i = 0; i < 10; i++)
       await invitedAgent(t, admin, `agent${i}`, AGENT_MD());
@@ -585,8 +586,8 @@ function renewingBefore(t: T, name: string): StepRunner {
   } as unknown as StepRunner;
 }
 
-describe('generation fencing', () => {
-  it('writes nothing when the row was renewed before its review step started', async () => {
+describe('审查代次隔离', () => {
+  it('审查步骤启动前记录已更新代次时，不写入任何内容', async () => {
     const { t } = await failedReview(AGENT_MD());
     const { models, calls } = agentModels({ review: () => FINDING });
     await settle(t);
@@ -606,7 +607,7 @@ describe('generation fencing', () => {
     expect(await flags(t)).toEqual([]);
   });
 
-  it("doesn't fail a retried row that was renewed after its retry couldn't load", async () => {
+  it('重试无法加载后记录又更新了代次时，不将新记录标记为失败', async () => {
     const { t, admin } = await failedReview(AGENT_MD());
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     const [failed] = await reviewers(t);
@@ -632,7 +633,7 @@ describe('generation fencing', () => {
     });
   });
 
-  it('drops a review that finished for an earlier attempt of the reviewer row', async () => {
+  it('丢弃针对审查器记录较早尝试完成的审查', async () => {
     const { t } = await failedReview(AGENT_MD());
     const { models } = agentModels({
       review: async () => {
@@ -648,7 +649,7 @@ describe('generation fencing', () => {
     expect(await flags(t)).toEqual([]);
   });
 
-  it("doesn't fail a reviewer row that was renewed while its model call failed", async () => {
+  it('模型调用失败期间记录更新了代次时，不将新记录标记为失败', async () => {
     const { t } = await failedReview(AGENT_MD());
     const { models } = agentModels({
       review: async () => {

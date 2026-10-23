@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { AGENT_PATH, AVATAR_PATH, parseAgentConfig } from '../agents/config';
 import {
@@ -33,8 +34,8 @@ async function inflate(data: Uint8Array) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-describe('identiconPng', () => {
-  it('matches the web app identicon for a pinned seed', () => {
+describe('identiconPng 标识头像', () => {
+  it('固定种子生成的头像与网页应用一致', () => {
     // Expected values computed independently from src/components/Avatar.tsx: FNV-1a of 'secagent' gives
     // hsl(351, 55%, 51%), and the mirrored 5x5 grid below (# = filled).
     const { cells, rgb } = identicon('secagent');
@@ -48,7 +49,7 @@ describe('identiconPng', () => {
     ]);
   });
 
-  it('draws the identicon as an RGB PNG', async () => {
+  it('以 RGB PNG 绘制标识头像', async () => {
     const seed = 'secagent';
     const size = 240;
     const png = await identiconPng(seed, size);
@@ -80,7 +81,7 @@ describe('identiconPng', () => {
         ).toEqual(cells[y][x] ? rgb : IDENTICON_BACKGROUND);
   });
 
-  it('is the same for the same seed and differs between seeds', async () => {
+  it('相同种子生成相同头像，不同种子生成不同头像', async () => {
     expect(await identiconPng('secagent')).toEqual(
       await identiconPng('secagent')
     );
@@ -90,8 +91,8 @@ describe('identiconPng', () => {
   });
 });
 
-describe('agentTemplate', () => {
-  it('seeds a valid AGENT.md named after the agent, knowledge and an avatar', async () => {
+describe('agentTemplate 智能体模板', () => {
+  it('初始化以智能体命名的有效 AGENT.md、知识目录和头像', async () => {
     const files = await agentTemplate('dataagent', 'Data: "the" Agent');
     expect(Object.keys(files).sort()).toEqual([
       AGENT_PATH,
@@ -114,8 +115,8 @@ describe('agentTemplate', () => {
   });
 });
 
-describe('GitService.initialCommit', () => {
-  it('writes nested paths and binary files', async () => {
+describe('GitService.initialCommit 初始提交', () => {
+  it('写入嵌套路径和二进制文件', async () => {
     const fake = createFakeArtifacts();
     await fake.binding.create('r_seed');
     const git = new GitService(new ArtifactsRepoClient(fake.binding, 'r_seed'));

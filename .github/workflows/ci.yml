@@ -88,6 +88,7 @@ jobs:
           skip-below: 0.2
           # Shared test setup and the schema every test runs against (added to the defaults).
           always-run-paths: |
+            scripts/test-reporter.ts
             worker/src/__tests__/helpers/**
             worker/test/**
             worker/src/db/**

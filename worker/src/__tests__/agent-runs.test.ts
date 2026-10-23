@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -258,8 +259,8 @@ async function runReview(
   );
 }
 
-describe('agent runs: recording', () => {
-  it('passes waits for an event through to the Workflow, never as steps', async () => {
+describe('智能体运行：记录', () => {
+  it('将事件等待直接传递给 Workflow，不作为步骤记录', async () => {
     const { t, review } = await reviewPull();
     const { step, waited } = durableSteps();
     const payload = review.params as MergeResolutionParams;
@@ -281,7 +282,7 @@ describe('agent runs: recording', () => {
     expect((await stepsOf(t, run.id)).map((x) => x.name)).toEqual(['load']);
   });
 
-  it('has no wait for an event where the runner it wraps has none', async () => {
+  it('被包装的运行器不支持事件等待时，不提供该能力', async () => {
     const { t, review } = await reviewPull();
     const { step } = durableSteps({ wait: false });
     const payload = review.params as MergeResolutionParams;
@@ -298,7 +299,7 @@ describe('agent runs: recording', () => {
     expect(wait).toBeUndefined();
   });
 
-  it('records a review run with its steps, models, tokens, cost and decisions', async () => {
+  it('记录审查运行及其步骤、模型、令牌、费用和决定', async () => {
     const { t, head, review } = await reviewPull();
     await runReview(t, review, reviewModels(t));
 
@@ -363,7 +364,7 @@ describe('agent runs: recording', () => {
     ).toBe(by('trigger').id);
   });
 
-  it('marks the run failed when a step fails, with a short error', async () => {
+  it('步骤失败时将运行标记为失败，并附简短错误', async () => {
     const { t, review } = await reviewPull();
     await runReview(t, review, reviewModels(t, { failReview: true }));
     const [run] = await runs(t);
@@ -379,7 +380,7 @@ describe('agent runs: recording', () => {
     expect(reviewStep.attempts).toBe(4);
   });
 
-  it('marks the run failed and rethrows when the Workflow body throws', async () => {
+  it('Workflow 主体抛出异常时，将运行标记为失败并重新抛出', async () => {
     const { t, review } = await reviewPull();
     const db = dbOf(t);
     const { step } = durableSteps();
@@ -409,7 +410,7 @@ describe('agent runs: recording', () => {
     ]);
   });
 
-  it('never fails the Workflow when recording fails', async () => {
+  it('记录失败不导致 Workflow 失败', async () => {
     const { t, review } = await reviewPull();
     // Reads work; every write through the recorder's database fails.
     const broken = watchedDb(t, (sql) =>
@@ -425,7 +426,7 @@ describe('agent runs: recording', () => {
     expect(await runs(t)).toEqual([]);
   });
 
-  it('keeps the Workflow going when step writes fail after the run is recorded', async () => {
+  it('运行已记录后步骤写入失败时，Workflow 继续执行', async () => {
     const { t, review } = await reviewPull();
     const broken = watchedDb(t, (sql) =>
       /^\s*(insert into|update)\s+"?agent_steps/i.test(sql)
@@ -442,7 +443,7 @@ describe('agent runs: recording', () => {
     expect(await stepsOf(t, run.id)).toEqual([]);
   });
 
-  it('fails the steps a closed run left unfinished', async () => {
+  it('将已关闭运行遗留的未完成步骤标记为失败', async () => {
     const { t } = await reviewPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -473,7 +474,7 @@ describe('agent runs: recording', () => {
     expect(steps[1].finished_at).toBeTruthy();
   });
 
-  it('repairs a step whose finish write was lost when the Workflow replays', async () => {
+  it('Workflow 重放时修复结束写入丢失的步骤', async () => {
     const { t, review } = await reviewPull();
     const durable = durableSteps();
     await runReview(t, review, reviewModels(t), { step: durable.step });
@@ -488,7 +489,7 @@ describe('agent runs: recording', () => {
     expect(finish.finished_at).toBeTruthy();
   });
 
-  it('lets a real finish override a stale close, for the run and its step', async () => {
+  it('允许运行和步骤的真实结束结果覆盖过期关闭结果', async () => {
     const { t, review } = await reviewPull();
     const db = dbOf(t);
     await recordAgentRun(
@@ -515,7 +516,7 @@ describe('agent runs: recording', () => {
     expect(slow).toMatchObject({ status: 'succeeded', error: null });
   });
 
-  it('closes a stale-closed run for real', async () => {
+  it('以真实结果关闭先前因过期而关闭的运行', async () => {
     const { t } = await reviewPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -538,7 +539,7 @@ describe('agent runs: recording', () => {
     expect((await runs(t))[0].status).toBe('succeeded');
   });
 
-  it('clears a decision when a step is retried', async () => {
+  it('步骤重试时清除决定', async () => {
     const { t, review } = await reviewPull();
     let tried = false;
     await recordAgentRun(
@@ -568,7 +569,7 @@ describe('agent runs: recording', () => {
     });
   });
 
-  it('does not duplicate a run or its steps when the Workflow replays', async () => {
+  it('Workflow 重放时不重复创建运行或步骤', async () => {
     const { t, review } = await reviewPull();
     const durable = durableSteps();
     await runReview(t, review, reviewModels(t), { step: durable.step });
@@ -592,7 +593,7 @@ describe('agent runs: recording', () => {
     expect(usage?.n).toBe(3);
   });
 
-  it('records a Pi review: its start, its checks, and its spend on the last check; waits are not steps', async () => {
+  it('记录 Pi 审查的启动、检查及最终检查中的消耗，等待不计为步骤', async () => {
     const { t, review } = await reviewPull(AGENT_MD({ engine: 'pi' }));
     const pi = fakePi((n) =>
       n < 2
@@ -684,8 +685,8 @@ async function conflictingPull() {
   return { t, admin };
 }
 
-describe('agent runs: rebase, sweep, stack discovery', () => {
-  it('records a rebase run, step by step', async () => {
+describe('智能体运行：变基、扫描和堆叠发现', () => {
+  it('逐步记录变基运行', async () => {
     const { t } = await conflictingPull();
     const pr = (await t.env.DB.prepare('SELECT id FROM pull_requests').first<{
       id: string;
@@ -722,7 +723,7 @@ describe('agent runs: rebase, sweep, stack discovery', () => {
     );
   });
 
-  it('records a sweep', async () => {
+  it('记录扫描运行', async () => {
     const { t } = await conflictingPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -755,7 +756,7 @@ describe('agent runs: rebase, sweep, stack discovery', () => {
     expect(steps[1].decision).toBe('1 open pull request to check');
   });
 
-  it('records a stack discovery run with Clef and the reasoning model', async () => {
+  it('记录使用 Clef 和推理模型的堆叠发现运行', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -815,10 +816,10 @@ describe('agent runs: rebase, sweep, stack discovery', () => {
         };
       },
       recheck: async () => {
-        throw new Error('not used');
+        throw new Error('不应调用此方法');
       },
       order: async () => {
-        throw new Error('not used');
+        throw new Error('不应调用此方法');
       },
     };
     const db = dbOf(t);
@@ -899,8 +900,8 @@ async function seedRuns(t: TestEnv, repoId: string, prId: string | null) {
   await db.batch(stmts);
 }
 
-describe('agent runs: API', () => {
-  it('lists runs newest first with a cursor and a kind filter; shows a run with its steps', async () => {
+describe('智能体运行：API', () => {
+  it('按最新优先列出运行，支持游标和类型过滤，并展示运行的步骤', async () => {
     const { t, admin, review } = await reviewPull();
     await runReview(t, review, reviewModels(t));
     const repoId = (await t.env.DB.prepare(
@@ -1023,7 +1024,7 @@ describe('agent runs: API', () => {
     expect(missing.status).toBe(404);
   });
 
-  it('hides a private repository’s runs from non-collaborators', async () => {
+  it('向非协作者隐藏私有仓库的运行', async () => {
     const { t, admin, review } = await reviewPull();
     await runReview(t, review, reviewModels(t));
     const outsider = await addMember(t, admin, 'mallory');
@@ -1034,7 +1035,7 @@ describe('agent runs: API', () => {
       expect((await call(t, path, { cookie: outsider })).status).toBe(404);
   });
 
-  it('shows a run left running for hours as not finished', async () => {
+  it('将持续数小时的运行显示为未完成', async () => {
     const { t, admin } = await reviewPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -1067,7 +1068,7 @@ describe('agent runs: API', () => {
     });
   });
 
-  it('names stack steps by the other pull request', async () => {
+  it('按另一个拉取请求命名堆叠步骤', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -1100,8 +1101,8 @@ describe('agent runs: API', () => {
   });
 });
 
-describe('agent runs: retention', () => {
-  it('says there is more when the last prune batch was full', async () => {
+describe('智能体运行：保留清理', () => {
+  it('最后一批清理达到上限时，说明仍有更多内容', async () => {
     const { t } = await reviewPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -1124,7 +1125,7 @@ describe('agent runs: retention', () => {
     ).toEqual({ deleted: 1, more: false });
   });
 
-  it('closes runs left running for over 2 hours, with their open steps', async () => {
+  it('关闭运行超过两小时的任务及其未完成步骤', async () => {
     const { t } = await reviewPull();
     const repoId = (await t.env.DB.prepare(
       "SELECT id FROM repositories WHERE name = 'app'"
@@ -1156,7 +1157,7 @@ describe('agent runs: retention', () => {
     expect((await stepsOf(t, 'fresh'))[0].status).toBe('running');
   });
 
-  it('prunes runs older than the Actions retention, with their steps', async () => {
+  it('清理早于 Actions 保留期限的运行及其步骤', async () => {
     const { t, review } = await reviewPull();
     await runReview(t, review, reviewModels(t));
     const repoId = (await t.env.DB.prepare(

@@ -8,7 +8,7 @@ import type { StepRunner } from '../merge/resolution';
 import { appRepo, openPull } from './helpers/reviews';
 import { settle } from './helpers/app';
 
-it('pages sweep identities below the durable-result limit and visits every PR once across matching branch chunks', async () => {
+it('按页读取低于持久化结果限制的扫描标识，在匹配分支分块间每个拉取请求只访问一次', async () => {
   const { t, admin, repo } = await appRepo();
   await openPull(t, admin, repo, { 'a.txt': 'change\n' });
   await settle(t);

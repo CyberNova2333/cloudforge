@@ -18,7 +18,7 @@ import {
 
 function token(t: TestEnv) {
   const value = t.sent.at(-1)?.text?.match(/verify\?token=(\S+)/)?.[1];
-  if (!value) throw new Error('no verification email');
+  if (!value) throw new Error('未收到验证邮件');
   return value;
 }
 
@@ -62,9 +62,9 @@ async function setup(expired = true) {
   return { t, db, admin, bob, address, existing, row, read, resend, oldToken };
 }
 
-describe('alternate email mutation races', () => {
+describe('备用邮箱变更竞争', () => {
   it.each([false, true])(
-    'preserves the prior owner when an expired snapshot is refreshed (verified: %s)',
+    '过期快照已被刷新时保留原所有者（已验证：%s）',
     async (verify) => {
       const s = await setup();
       expect((await s.resend()).status).toBe(200);
@@ -85,7 +85,7 @@ describe('alternate email mutation races', () => {
     }
   );
 
-  it('does not replace a changed token generation even when its expiry returns to the old value', async () => {
+  it('即使过期时间恢复为旧值，也不替换已更新代次的令牌', async () => {
     const s = await setup();
     expect((await s.resend()).status).toBe(200);
     await s.t.env.DB.prepare(
@@ -100,7 +100,7 @@ describe('alternate email mutation races', () => {
     expect(await s.read()).toEqual(current);
   });
 
-  it('still replaces an unchanged expired alternate atomically', async () => {
+  it('仍以原子方式替换未发生变化的过期备用邮箱', async () => {
     const s = await setup();
     expect(await claimAlternateEmail(s.db, s.row, s.existing, new Date())).toBe(
       true
@@ -109,7 +109,7 @@ describe('alternate email mutation races', () => {
     expect(await s.db.select().from(userEmails).all()).toHaveLength(1);
   });
 
-  it('does not consume an old token snapshot after resend replaced it', async () => {
+  it('重发已替换令牌后，不消耗旧令牌快照', async () => {
     const s = await setup(false);
     expect((await s.resend()).status).toBe(200);
     const current = await s.read();
@@ -125,7 +125,7 @@ describe('alternate email mutation races', () => {
     ).toBe(200);
   });
 
-  it('does not verify a token that expired after the request read it', async () => {
+  it('请求读取后令牌才过期时，不进行验证', async () => {
     const s = await setup(false);
     expect(
       await verifyAlternateEmail(
@@ -137,7 +137,7 @@ describe('alternate email mutation races', () => {
     expect((await s.read())?.verifiedAt).toBeNull();
   });
 
-  it('does not send a stale resend after verification consumed the token', async () => {
+  it('验证已消耗令牌后，不发送过期的重发邮件', async () => {
     const s = await setup(false);
     expect(
       (
@@ -161,7 +161,7 @@ describe('alternate email mutation races', () => {
     expect(s.t.sent).toHaveLength(sent);
   });
 
-  it('returns 409 when the replacement mutation loses its claim', async () => {
+  it('替换变更失去认领时返回 409', async () => {
     const s = await setup();
     await s.t.env.DB.prepare(
       'CREATE TRIGGER retain_email BEFORE DELETE ON user_emails BEGIN SELECT RAISE(IGNORE); END'
@@ -178,7 +178,7 @@ describe('alternate email mutation races', () => {
     }
   });
 
-  it('returns 409 when token consumption no longer updates a row', async () => {
+  it('消耗令牌不再更新任何记录时返回 409', async () => {
     const s = await setup(false);
     await s.t.env.DB.prepare(
       'CREATE TRIGGER retain_verification BEFORE UPDATE ON user_emails WHEN NEW.verified_at IS NOT NULL BEGIN SELECT RAISE(IGNORE); END'
@@ -195,7 +195,7 @@ describe('alternate email mutation races', () => {
     }
   });
 
-  it('returns 409 without sending a link when resend no longer updates a row', async () => {
+  it('重发不再更新任何记录时返回 409，且不发送链接', async () => {
     const s = await setup(false);
     const sent = s.t.sent.length;
     await s.t.env.DB.prepare(

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { env, runInDurableObject } from 'cloudflare:test';
 import type { ToolRegistration } from '@earendil-works/pi-durable';
@@ -72,8 +73,8 @@ const request = (
   notify: null,
 });
 
-describe('the learn contract', () => {
-  it('reads only under /agent, and writes only AGENT.md and knowledge/', () => {
+describe('学习约束', () => {
+  it('仅读取 /agent 下的内容，仅写入 AGENT.md 和 knowledge/', () => {
     for (const [name, path] of [
       ['read', '/agent/AGENT.md'],
       ['ls', '/agent'],
@@ -103,7 +104,7 @@ describe('the learn contract', () => {
     ).toBe('A file can be at most 64 KB.');
   });
 
-  it('refuses .git lookalikes, backslashes and other spellings of AGENT.md', () => {
+  it('拒绝类似 .git 的名称、反斜杠和 AGENT.md 的其他拼写', () => {
     for (const path of [
       '/agent/knowledge/.GIT/x',
       '/agent/knowledge/.git./x',
@@ -118,7 +119,7 @@ describe('the learn contract', () => {
         expect(learnToolBlock(name, { path, content: 'x' })).not.toBeNull();
   });
 
-  it('allows an edit to the instructions, refuses one to the front matter or a file over 64 KB', () => {
+  it('允许编辑指令，拒绝编辑前置元数据或超过 64 KB 的文件', () => {
     const body = MD.replace(
       'Look for leaked secrets.',
       'Look for leaked secrets.\nFixtures are fake.'
@@ -138,7 +139,7 @@ describe('the learn contract', () => {
     expect(learnEditProblem('knowledge/a.md', null, 'notes\n')).toBeNull();
   });
 
-  it('reports the files that differ from the checkout', async () => {
+  it('报告与检出内容不同的文件', async () => {
     const sha = async (s: string) => (await makeBlob(s)).sha;
     const baseline = {
       'AGENT.md': await sha(MD),
@@ -158,7 +159,7 @@ describe('the learn contract', () => {
     });
   });
 
-  it("fences the pull request and the findings, and a finding can't close the fence", () => {
+  it('隔离拉取请求和审查意见，且审查意见不能闭合隔离标记', () => {
     const hostile: LessonInput = {
       ...INPUT,
       findings: [
@@ -191,7 +192,7 @@ describe('the learn contract', () => {
     );
   });
 
-  it('tells the learner to keep a lesson from a private repository general', () => {
+  it('告知学习器将私有仓库中的经验保持为通用知识', () => {
     const workspace = { baseSha: 'a'.repeat(40), files: 3, skipped: 0 };
     const secret = learnUserPrompt(
       { ...INPUT, pull: { ...INPUT.pull, private: true } },
@@ -216,7 +217,7 @@ describe('the learn contract', () => {
     expect(secret).toContain('A pull request in a private repository');
   });
 
-  it('says who it maintains, what it may change, and how to answer', () => {
+  it('说明维护对象、允许的修改及答复格式', () => {
     const system = learnSystemPrompt('secagent', 30);
     expect(system).toContain('You maintain @secagent');
     expect(system).toContain('front matter');
@@ -272,15 +273,15 @@ async function seeded(learner: AgentReviewer, state: DurableObjectState) {
 
 const fresh = () => learnerName(crypto.randomUUID(), 1);
 
-describe('AgentReviewer in learn mode', () => {
-  it('offers read, ls, find, grep, write and edit: no delete, exec or publish', async () => {
+describe('学习模式下的 AgentReviewer', () => {
+  it('提供 read、ls、find、grep、write 和 edit，不提供 delete、exec 或 publish', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       expect(tools.map((t) => t.name).sort()).toEqual([...LEARN_TOOLS].sort());
     });
   });
 
-  it('writes only AGENT.md and knowledge/, and fences what it reads', async () => {
+  it('仅写入 AGENT.md 和 knowledge/，并隔离读取的内容', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       const fs = learner.workspace.fs;
@@ -312,7 +313,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('undoes and refuses an edit to the front matter, and keeps one to the instructions', async () => {
+  it('撤销并拒绝前置元数据编辑，保留指令编辑', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       const fs = learner.workspace.fs;
@@ -349,7 +350,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('checks parallel edits one at a time, so a refused one never leaves its front matter behind', async () => {
+  it('逐一检查并发编辑，确保被拒绝的编辑不残留前置元数据变更', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       const [renamed, body] = await Promise.all([
@@ -375,7 +376,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('leaves AGENT.md byte-for-byte unchanged when a front matter write takes another path to it', async () => {
+  it('通过其他路径写入前置元数据时，保持 AGENT.md 逐字节不变', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       for (const path of ['/agent//AGENT.md', '/agent/knowledge/../AGENT.md'])
@@ -398,7 +399,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('undoes an edit that grows a file past 64 KB', async () => {
+  it('撤销导致文件超过 64 KB 的编辑', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       const grown = await run(tools, 'edit', {
@@ -415,7 +416,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('learned() returns only the files that changed since the checkout', async () => {
+  it('learned() 仅返回检出后发生变化的文件', async () => {
     await inLearner(fresh(), async (learner, state) => {
       const tools = await seeded(learner, state);
       expect(await learner.learned()).toEqual({ files: {} });
@@ -441,7 +442,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('a stopped learner never starts, on this instance or a fresh one (evicted)', async () => {
+  it('已停止的学习器在当前实例或逐出后的新实例上都不启动', async () => {
     const name = fresh();
     await env.AGENT_REVIEWER.getByName(name).stop();
     await inLearner(name, async (learner, state) => {
@@ -457,7 +458,7 @@ describe('AgentReviewer in learn mode', () => {
     });
   });
 
-  it('starts only for the run that claimed the lesson', async () => {
+  it('仅为认领该学习任务的运行启动', async () => {
     const { t, admin } = await reviewedPull();
     for (const f of (await findings(t)).filter(
       (f) => f.kind === 'change_requested'

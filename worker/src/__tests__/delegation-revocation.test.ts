@@ -12,9 +12,9 @@ import {
   userId,
 } from './helpers/findings';
 
-describe('AI decisions after authorization changes', () => {
+describe('授权变更后的 AI 决策', () => {
   it.each(['owner', 'collaborator', 'admin'])(
-    'preserves an explicit decision by a current %s without automatic delegation',
+    '保留当前 %s 的明确决定，无需自动委托',
     async (kind) => {
       const { t, admin, person } = await questionedPull();
       let actor = await userId(t);
@@ -55,7 +55,7 @@ describe('AI decisions after authorization changes', () => {
     'close',
     'remove-collaborator',
     'guard',
-  ])('%s while the model runs prevents applying its answer', async (change) => {
+  ])('模型运行期间发生 %s 时，不应用其答复', async (change) => {
     const { t, admin, person } = await questionedPull();
     let actor = await userId(t);
     if (change === 'remove-collaborator') {
@@ -100,7 +100,7 @@ describe('AI decisions after authorization changes', () => {
   });
 
   it.each(['approve', 'request_changes'])(
-    'revoking automatic delegation while the model runs prevents %s',
+    '模型运行期间撤销自动委托时，阻止 %s',
     async (decision) => {
       const { t, admin, person } = await questionedPull();
       expect(

@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { generatedMatcher } from '../merge/generated';
 
-describe('generated files are never sent to the model', () => {
-  it('matches paths listed in the target branch .orangeignore', () => {
+describe('生成文件不会发送给模型', () => {
+  it('匹配目标分支 .orangeignore 中列出的路径', () => {
     const generated = generatedMatcher(
       'generated/\n*.pb.go\n!generated/keep.ts\n'
     );
@@ -12,7 +13,7 @@ describe('generated files are never sent to the model', () => {
     expect(generated('src/api.ts')).toBe(false);
   });
 
-  it('matches lockfiles without an .orangeignore', () => {
+  it('没有 .orangeignore 时仍匹配锁文件', () => {
     const generated = generatedMatcher(null);
     expect(generated('yarn.lock')).toBe(true);
     expect(generated('web/package-lock.json')).toBe(true);
@@ -20,7 +21,7 @@ describe('generated files are never sent to the model', () => {
     expect(generated('src/lock.ts')).toBe(false);
   });
 
-  it('keeps lockfiles and drizzle metadata generated whatever .orangeignore negates', () => {
+  it('无论 .orangeignore 如何排除，锁文件和 Drizzle 元数据始终视为生成文件', () => {
     const generated = generatedMatcher(
       '!yarn.lock\n!migrations/meta/0008_snapshot.json\n'
     );
@@ -28,7 +29,7 @@ describe('generated files are never sent to the model', () => {
     expect(generated('migrations/meta/0008_snapshot.json')).toBe(true);
   });
 
-  it('matches drizzle migration snapshots and the journal', () => {
+  it('匹配 Drizzle 迁移快照和日志', () => {
     const generated = generatedMatcher(null);
     expect(generated('migrations/meta/0008_snapshot.json')).toBe(true);
     expect(generated('migrations/meta/_journal.json')).toBe(true);

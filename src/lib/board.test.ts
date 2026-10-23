@@ -81,8 +81,8 @@ const agent = (handle: string, over: Partial<Agent> = {}): Agent => ({
   ...over,
 });
 
-describe('boardRows', () => {
-  it('pairs a repository with the agent whose instructions it holds', () => {
+describe('boardRows：看板行', () => {
+  it('将仓库与保存其指令的代理配对', () => {
     const rows = boardRows(
       [repo('mahmoud', 'invoices'), repo('dataagent', 'dataagent')],
       [agent('dataagent')]
@@ -93,7 +93,7 @@ describe('boardRows', () => {
     ]);
   });
 
-  it('needs both the owner and the name to be the agent handle', () => {
+  it('仓库所有者和名称都必须与代理账号名一致', () => {
     const rows = boardRows(
       [repo('mahmoud', 'dataagent'), repo('dataagent', 'notes')],
       [agent('dataagent')]
@@ -101,7 +101,7 @@ describe('boardRows', () => {
     expect(rows.every((r) => r.agent === null)).toBe(true);
   });
 
-  it('ignores a deleted agent', () => {
+  it('忽略已删除的代理', () => {
     const rows = boardRows(
       [repo('dataagent', 'dataagent')],
       [agent('dataagent', { deletedAt: '2026-10-02T00:00:00Z' })]
@@ -110,8 +110,8 @@ describe('boardRows', () => {
   });
 });
 
-describe('needsAttention', () => {
-  it('is a person having a move, not an agent', () => {
+describe('needsAttention：需要关注', () => {
+  it('仅人在待行动时需要关注，代理待行动不算', () => {
     expect(
       needsAttention(
         boardRows([repo('a', 'b', { pulls: { needsPerson: 1 } })], [])[0]
@@ -125,7 +125,7 @@ describe('needsAttention', () => {
   });
 });
 
-describe('filterBoard', () => {
+describe('filterBoard：筛选看板', () => {
   const rows: BoardRow[] = boardRows(
     [
       repo('mahmoud', 'website', { updatedAt: 10 }, 'Marketing site'),
@@ -141,7 +141,7 @@ describe('filterBoard', () => {
   );
   const names = (r: BoardRow[]) => r.map((x) => x.repo.fullName);
 
-  it('sorts by most recently updated, or by name', () => {
+  it('按最近更新时间或名称排序', () => {
     expect(
       names(filterBoard(rows, { query: '', filter: 'all', sort: 'updated' }))
     ).toEqual(['mahmoud/invoices', 'dataagent/dataagent', 'mahmoud/website']);
@@ -150,7 +150,7 @@ describe('filterBoard', () => {
     ).toEqual(['dataagent/dataagent', 'mahmoud/invoices', 'mahmoud/website']);
   });
 
-  it('filters code, agent instructions and what needs attention', () => {
+  it('筛选代码、代理指令和需要关注的条目', () => {
     expect(
       names(filterBoard(rows, { query: '', filter: 'code', sort: 'name' }))
     ).toEqual(['mahmoud/invoices', 'mahmoud/website']);
@@ -162,7 +162,7 @@ describe('filterBoard', () => {
     ).toEqual(['mahmoud/invoices']);
   });
 
-  it('searches the name and the description, ignoring case', () => {
+  it('忽略大小写搜索名称和描述', () => {
     expect(
       names(filterBoard(rows, { query: 'PDF', filter: 'all', sort: 'name' }))
     ).toEqual(['mahmoud/invoices']);
@@ -180,7 +180,7 @@ describe('filterBoard', () => {
     ).toEqual([]);
   });
 
-  it('counts each filter within the search', () => {
+  it('在搜索结果范围内统计各筛选项', () => {
     expect(filterCounts(rows, '')).toEqual({
       all: 3,
       attention: 1,
@@ -196,8 +196,8 @@ describe('filterBoard', () => {
   });
 });
 
-describe('boardTotals', () => {
-  it('adds up open and merged, and weights the share merged on its own', () => {
+describe('boardTotals：看板总计', () => {
+  it('累加开放和已合并数量，并加权计算自动合并比例', () => {
     const rows = boardRows(
       [
         repo('a', 'one', {
@@ -223,7 +223,7 @@ describe('boardTotals', () => {
     });
   });
 
-  it('has no share when nothing merged', () => {
+  it('没有合并记录时无比例', () => {
     expect(boardTotals(boardRows([repo('a', 'one')], [])).automaticPct).toBe(
       null
     );
@@ -237,8 +237,8 @@ describe('boardTotals', () => {
   });
 });
 
-describe('flightSegments', () => {
-  it('lists the buckets that have pull requests, in the order of whose move it is', () => {
+describe('flightSegments：进行中分组', () => {
+  it('按当前应行动角色的顺序列出有拉取请求的分组', () => {
     expect(
       flightSegments({
         open: 6,
@@ -255,7 +255,7 @@ describe('flightSegments', () => {
     ]);
   });
 
-  it('leaves out empty buckets, and may add up to less than open', () => {
+  it('省略空分组，合计可少于开放数量', () => {
     expect(
       flightSegments({
         open: 5,
@@ -277,7 +277,7 @@ describe('flightSegments', () => {
   });
 });
 
-describe('pullChip', () => {
+describe('pullChip：拉取请求标签', () => {
   const p = (o: Partial<RepoStats['pulls']>) => ({
     open: 0,
     needsPerson: 0,
@@ -286,7 +286,7 @@ describe('pullChip', () => {
     queued: 0,
     ...o,
   });
-  it('leads with a person having a move', () => {
+  it('优先显示人工待行动', () => {
     expect(pullChip(p({ open: 3, needsPerson: 1, checking: 2 }))).toEqual({
       tone: 'warn',
       label: '1 needs a person',
@@ -296,7 +296,7 @@ describe('pullChip', () => {
       label: '2 need a person',
     });
   });
-  it('then changes an agent has to make, checks running and the merge line', () => {
+  it('其次显示代理待修改、检查运行中和合并队列', () => {
     expect(pullChip(p({ open: 2, changesRequested: 2 }))).toEqual({
       tone: 'serious',
       label: '2 with changes requested',
@@ -310,7 +310,7 @@ describe('pullChip', () => {
       label: '2 queued to merge',
     });
   });
-  it('is neutral with nothing open, and plain when the buckets miss a pull request', () => {
+  it('无开放请求时使用中性色，分组遗漏请求时显示普通标签', () => {
     expect(pullChip(p({}))).toEqual({
       tone: 'off',
       label: 'No open pull requests',
@@ -319,8 +319,8 @@ describe('pullChip', () => {
   });
 });
 
-describe('mostPressing and crewActivity', () => {
-  it('picks what blocks a merge before what is in progress before what is done', () => {
+describe('mostPressing 和 crewActivity：紧迫程度与团队活动', () => {
+  it('优先级依次为阻塞合并、进行中、已完成', () => {
     expect(mostPressing(['idle', 'approved', 'reviewing'])).toBe('reviewing');
     expect(mostPressing(['approved', 'flagged', 'changes_requested'])).toBe(
       'changes_requested'
@@ -330,7 +330,7 @@ describe('mostPressing and crewActivity', () => {
     expect(mostPressing([])).toBe('idle');
   });
 
-  it('folds an agent across repositories', () => {
+  it('汇总代理在多个仓库中的状态', () => {
     const a = { handle: 'dataagent', name: 'Data', color: '#199e70' };
     const rows = boardRows(
       [
@@ -358,8 +358,8 @@ describe('mostPressing and crewActivity', () => {
   });
 });
 
-describe('dayLabels', () => {
-  it('names the last days in UTC, oldest first, today last', () => {
+describe('dayLabels：日期标签', () => {
+  it('以 UTC 命名最近日期，从最早到今天排列', () => {
     const labels = dayLabels(7, Date.UTC(2026, 9, 9, 23, 30));
     expect(labels).toHaveLength(7);
     expect(labels[6]).toBe('Fri, Oct 9');
@@ -367,8 +367,8 @@ describe('dayLabels', () => {
   });
 });
 
-describe('languageColor', () => {
-  it('knows the languages the board names, and falls back to grey', () => {
+describe('languageColor：语言颜色', () => {
+  it('识别看板中的语言，未知时回退为灰色', () => {
     expect(languageColor('TypeScript')).toBe('#3178c6');
     expect(languageColor('Python')).toBe('#3572a5');
     expect(languageColor('Brainfuck')).toBe('#8b949e');
@@ -376,8 +376,8 @@ describe('languageColor', () => {
   });
 });
 
-describe('parseBoardParams', () => {
-  it('reads the search, filter and sort from the address, ignoring junk', () => {
+describe('parseBoardParams：解析看板参数', () => {
+  it('从地址读取搜索、筛选和排序，忽略无效内容', () => {
     expect(
       parseBoardParams(new URLSearchParams('q=inv&filter=agent&sort=name'))
     ).toEqual({ query: 'inv', filter: 'agent', sort: 'name' });

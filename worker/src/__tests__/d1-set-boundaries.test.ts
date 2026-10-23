@@ -14,8 +14,8 @@ import { handleLfsRequest } from '../lfs-http';
 import { TOOL_HANDLERS } from '../mcp/tools';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 
-describe('D1 set queries above 100 members', () => {
-  it('lists 200 repositories through MCP with correct read/write permissions and resolves their IDs', async () => {
+describe('超过 100 个成员的 D1 集合查询', () => {
+  it('通过 MCP 列出 200 个仓库，正确返回读写权限并解析其 ID', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'bob');
@@ -87,7 +87,7 @@ describe('D1 set queries above 100 members', () => {
     );
   });
 
-  it('looks up more than 100 verified authors and users without losing any matches', async () => {
+  it('查询超过 100 个已验证作者和用户，不丢失任何匹配', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     const db = drizzle(t.env.DB, { schema });
@@ -119,7 +119,7 @@ describe('D1 set queries above 100 members', () => {
     expect(await findReposByIds(db, [])).toEqual(new Map());
   });
 
-  it('serves the documented 100-SHA commit-status request', async () => {
+  it('支持文档所述包含 100 个 SHA 的提交状态请求', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -139,7 +139,7 @@ describe('D1 set queries above 100 members', () => {
     expect(statuses[shas[99]]).toEqual({ state: null, runs: [] });
   });
 
-  it('downloads a full 100-object LFS batch, keeping every object’s scoped URL', async () => {
+  it('下载完整的 100 对象 LFS 批次，保留各对象限定作用域的 URL', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {

@@ -25,8 +25,8 @@ function io(
 }
 const base = { message: 'Name?', flagName: '--name' };
 
-describe('collect', () => {
-  it('prefers flag, then env, then draft, then prompt', async () => {
+describe('collect：收集输入', () => {
+  it('优先顺序为参数、环境变量、草稿、询问', async () => {
     const i = io(true);
     expect(await collect(i, { ...base, flag: 'f', env: 'e', draft: 'd' })).toBe(
       'f'
@@ -37,17 +37,17 @@ describe('collect', () => {
     expect(await collect(i, base)).toBe('prompted');
     expect(i.asked).toBe(1);
   });
-  it('treats empty strings as undefined', async () => {
+  it('将空字符串视为 undefined', async () => {
     expect(
       await collect(io(true), { ...base, flag: '', env: '', draft: 'd' })
     ).toBe('d');
   });
-  it('fails naming the flag without a terminal', async () => {
+  it('非终端环境中失败时指出参数名', async () => {
     await expect(collect(io(false), base)).rejects.toThrow(
       '--name is required when not running in a terminal.'
     );
   });
-  it('throws the validator message for a bad flag or env value', async () => {
+  it('参数或环境变量无效时抛出验证器消息', async () => {
     const validate = (v: string) => (v === 'bad' ? 'nope' : undefined);
     await expect(
       collect(io(true), { ...base, flag: 'bad', validate })
@@ -56,7 +56,7 @@ describe('collect', () => {
       collect(io(true), { ...base, env: 'bad', validate })
     ).rejects.toThrow('nope');
   });
-  it('ignores an invalid draft: prompts in a terminal, fails otherwise', async () => {
+  it('忽略无效草稿：终端中询问，否则失败', async () => {
     const validate = (v: string) => (v === 'bad' ? 'nope' : undefined);
     expect(await collect(io(true), { ...base, draft: 'bad', validate })).toBe(
       'prompted'
@@ -65,12 +65,12 @@ describe('collect', () => {
       collect(io(false), { ...base, draft: 'bad', validate })
     ).rejects.toThrow('--name is required');
   });
-  it('without a terminal, returns the fallback instead of failing', async () => {
+  it('非终端环境中返回回退值而非失败', async () => {
     expect(await collect(io(false), { ...base, fallback: 'cloudforge' })).toBe(
       'cloudforge'
     );
   });
-  it('passes the initial value to the prompt', async () => {
+  it('将初始值传给输入提示', async () => {
     let seen: string | undefined;
     const i = io(true);
     i.prompt = async (_m, opts) => {
@@ -80,7 +80,7 @@ describe('collect', () => {
     expect(await collect(i, { ...base, initial: 'cloudforge' })).toBe('x');
     expect(seen).toBe('cloudforge');
   });
-  it('a cancelled prompt throws', async () => {
+  it('取消输入时抛出错误', async () => {
     await expect(collect(io(true, null), base)).rejects.toThrow('Cancelled.');
   });
 });

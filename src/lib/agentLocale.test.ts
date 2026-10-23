@@ -14,8 +14,8 @@ const presetsSource = Object.values(
 
 const mark = (s: string) => `中:${s}`;
 
-describe('preset agents in the interface language', () => {
-  it('knows each preset’s exact English, as the server has it', () => {
+describe('与界面语言一致的预设代理', () => {
+  it('识别每个预设与服务端一致的准确英文', () => {
     const fromServer: typeof PRESET_TEXT = {};
     for (const block of presetsSource.split(/\n {4}facet: /).slice(1)) {
       const field = (key: string) =>
@@ -31,14 +31,14 @@ describe('preset agents in the interface language', () => {
     expect(fromServer).toEqual(PRESET_TEXT);
   });
 
-  it('has Chinese for every preset name, bio and trigger question', () => {
+  it('每个预设的名称、简介和触发问题都有中文', () => {
     const missing = Object.values(PRESET_TEXT)
       .flatMap((p) => [p.name, p.bio, p.ask])
       .filter((s) => !zh[s]);
     expect(missing).toEqual([]);
   });
 
-  it('translates only a preset agent’s own words, wherever they appear', () => {
+  it('无论出现在哪里，都仅翻译预设代理自带的文案', () => {
     const p = PRESET_TEXT.securityagent;
     const body = {
       agents: [

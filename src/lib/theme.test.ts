@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   MODE_KEY,
@@ -9,8 +10,8 @@ import {
   rootAttributes,
 } from './theme';
 
-describe('THEMES', () => {
-  it('lists the seven HQ colourways and GitHub, in menu order', () => {
+describe('THEMES：主题集合', () => {
+  it('按菜单顺序列出七种 HQ 配色和 GitHub', () => {
     expect(THEMES.map((t) => t.id)).toEqual([
       'navy',
       'ink',
@@ -27,14 +28,14 @@ describe('THEMES', () => {
     for (const t of THEMES) expect(t.swatch).toHaveLength(2);
   });
 
-  it('stores the preference under the go- keys', () => {
+  it('使用 go- 前缀键保存偏好', () => {
     expect(THEME_KEY).toBe('go-theme-id');
     expect(MODE_KEY).toBe('go-mode');
   });
 });
 
-describe('resolveTheme', () => {
-  it('puts GitHub on the Dev skin', () => {
+describe('resolveTheme：解析主题', () => {
+  it('GitHub 使用 Dev 外观', () => {
     expect(resolveTheme('github', 'light', false).skin).toBe('dev');
     expect(resolveTheme('github', 'dark', false)).toMatchObject({
       skin: 'dev',
@@ -43,7 +44,7 @@ describe('resolveTheme', () => {
     expect(resolveTheme('navy', 'light', false).skin).toBe('hq');
   });
 
-  it('turns Paper into the midnight chrome in dark mode', () => {
+  it('深色模式下将 Paper 转为 midnight 界面配色', () => {
     expect(resolveTheme('paper', 'dark', false)).toEqual({
       skin: 'hq',
       chrome: 'midnight',
@@ -52,7 +53,7 @@ describe('resolveTheme', () => {
     expect(resolveTheme('paper', 'light', true).chrome).toBe('paper');
   });
 
-  it('keeps the other colourways in dark mode', () => {
+  it('深色模式下保留其他配色', () => {
     expect(resolveTheme('claret', 'dark', false)).toEqual({
       skin: 'hq',
       chrome: 'claret',
@@ -61,21 +62,21 @@ describe('resolveTheme', () => {
     expect(resolveTheme('forest', 'dark', true).chrome).toBe('forest');
   });
 
-  it('follows the system in System mode', () => {
+  it('系统模式跟随系统', () => {
     expect(resolveTheme('navy', 'system', true).dark).toBe(true);
     expect(resolveTheme('navy', 'system', false).dark).toBe(false);
     expect(resolveTheme('paper', 'system', true).chrome).toBe('midnight');
     expect(resolveTheme('paper', 'system', false).chrome).toBe('paper');
   });
 
-  it('ignores the system when the mode is chosen', () => {
+  it('手动指定模式时忽略系统', () => {
     expect(resolveTheme('navy', 'light', true).dark).toBe(false);
     expect(resolveTheme('navy', 'dark', false).dark).toBe(true);
   });
 });
 
-describe('stored values', () => {
-  it('falls back to Navy and System for anything unknown', () => {
+describe('已保存的值', () => {
+  it('未知值回退到 Navy 和系统模式', () => {
     expect(parseThemeId('claret')).toBe('claret');
     expect(parseThemeId('neon')).toBe('navy');
     expect(parseThemeId(null)).toBe('navy');
@@ -85,8 +86,8 @@ describe('stored values', () => {
   });
 });
 
-describe('rootAttributes', () => {
-  it('leaves data-theme off in System mode and lets Primer follow the system', () => {
+describe('rootAttributes：根元素属性', () => {
+  it('系统模式不设置 data-theme，让 Primer 跟随系统', () => {
     expect(rootAttributes('navy', 'system')).toEqual({
       'data-skin': 'hq',
       'data-theme': null,
@@ -96,7 +97,7 @@ describe('rootAttributes', () => {
     });
   });
 
-  it('pins both our tokens and Primer to the chosen mode', () => {
+  it('将自有样式变量和 Primer 都固定为所选模式', () => {
     expect(rootAttributes('github', 'dark')).toEqual({
       'data-skin': 'dev',
       'data-theme': 'dark',

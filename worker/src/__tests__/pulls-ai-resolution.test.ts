@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { call, type TestEnv } from './helpers/app';
 import { commitFiles } from './helpers/seed';
@@ -16,15 +17,15 @@ export async function listed(t: TestEnv, cookie: string, state = 'open') {
   return Object.fromEntries(body.pulls.map((p) => [p.number, p.aiResolution]));
 }
 
-describe('pull request list: AI resolving a rebase conflict', () => {
-  it("doesn't call a stop AI never attempted (model none) an AI resolution", async () => {
+describe('拉取请求列表：AI 正在解决变基冲突', () => {
+  it('不把 AI 从未尝试的中止（模型为 none）称为 AI 冲突解决', async () => {
     const { t, admin, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t); // no resolver: the run stops for the agent
     expect(await listed(t, admin)).toEqual({ 1: null });
   });
 
-  it('shows a running resolution, then a failed one, on its PR only', async () => {
+  it('仅在所属拉取请求上展示运行中及随后失败的冲突解决记录', async () => {
     const { t, admin, repo, root } = await divergedPull({ conflict: true });
     await commitFiles(
       repo,
@@ -48,7 +49,7 @@ describe('pull request list: AI resolving a rebase conflict', () => {
     expect(await listed(t, admin)).toEqual({ 1: 'failed', 2: null });
   });
 
-  it('ignores a row for tips the branches moved past, and leaves closed PRs out', async () => {
+  it('忽略分支已越过的旧端点记录，并排除已关闭的拉取请求', async () => {
     const { t, admin, repo, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t, {

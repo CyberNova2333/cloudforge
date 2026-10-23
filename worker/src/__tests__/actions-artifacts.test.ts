@@ -50,8 +50,8 @@ const repoId = async (s: Setup) =>
     "SELECT id FROM repositories WHERE name = 'app'"
   ).first<{ id: string }>())!.id;
 
-describe('build artifacts', () => {
-  it('uploads in one job and downloads in the next', async () => {
+describe('构建产物', () => {
+  it('在一个作业中上传并在下一个作业中下载', async () => {
     const s = await setup();
     const queued = await start(
       s,
@@ -152,7 +152,7 @@ jobs:
     );
   });
 
-  it('lists, serves and deletes a run’s artifacts over the API', async () => {
+  it('通过 API 列出、获取和删除运行产物', async () => {
     const s = await setup();
     const queued = await start(
       s,
@@ -225,7 +225,7 @@ jobs:
     ).toHaveLength(0);
   });
 
-  it('refuses a second upload of a name unless overwrite, which replaces it', async () => {
+  it('拒绝重复上传同名产物，除非启用覆盖以替换原产物', async () => {
     const s = await setup();
     const queued = await start(
       s,
@@ -273,7 +273,7 @@ jobs:
     ]);
   });
 
-  it('checks names like GitHub', () => {
+  it('按 GitHub 规则检查名称', () => {
     expect(artifactNameError('my-artifact_1.0 (linux)')).toBeNull();
     expect(artifactNameError('')).toMatch(/empty/);
     expect(artifactNameError('a:b')).toMatch(/contains ':'/);

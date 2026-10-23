@@ -39,7 +39,7 @@ const errorOf = async (res: Response) =>
 function verifyLink(t: TestEnv, to: string): string {
   const mail = [...t.sent].reverse().find((m) => m.to === to);
   const url = mail?.text?.match(/https?:\/\/\S+verify-email\S+/)?.[0];
-  if (!url) throw new Error(`no verification email to ${to}`);
+  if (!url) throw new Error(`未找到发送给 ${to} 的验证邮件`);
   return url.replace('http://test.local', '');
 }
 
@@ -49,15 +49,15 @@ async function setup() {
   return { t, admin };
 }
 
-describe('self sign-up', () => {
-  it('is refused before the first admin exists', async () => {
+describe('自主注册', () => {
+  it('首个管理员创建前拒绝自主注册', async () => {
     const t = makeEnv();
     const res = await signUp(t, { username: 'eve', email: 'eve@example.com' });
     expect(res.status).toBe(403);
     expect((await errorOf(res)).message).toBe('Set up the instance first.');
   });
 
-  it('is off by default, and creates nobody', async () => {
+  it('默认关闭，且不创建用户', async () => {
     const { t } = await setup();
     const res = await signUp(t, { username: 'eve', email: 'eve@example.com' });
     expect(res.status).toBe(403);
@@ -67,7 +67,7 @@ describe('self sign-up', () => {
     await expect(signIn(t, 'eve', 'password123')).rejects.toThrow();
   });
 
-  it('asks a new account to confirm its email before the first sign-in', async () => {
+  it('要求新账户首次登录前验证邮箱', async () => {
     const { t, admin } = await setup();
     expect((await setting(t, admin, 'signup.enabled', true)).status).toBe(200);
     const res = await signUp(t, { username: 'eve', email: 'eve@example.com' });
@@ -91,7 +91,7 @@ describe('self sign-up', () => {
     ).toMatchObject({ username: 'eve', role: 'user' });
   });
 
-  it('signs in at once while verification is off', async () => {
+  it('关闭邮箱验证时可立即登录', async () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     await setting(t, admin, 'signup.require_verification', false);
@@ -105,7 +105,7 @@ describe('self sign-up', () => {
     );
   });
 
-  it('accepts only the allowed email domains', async () => {
+  it('仅接受允许的邮箱域名', async () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     expect(
@@ -137,7 +137,7 @@ describe('self sign-up', () => {
     ).toBe(200);
   });
 
-  it('needs a username the URL namespace does not hold', async () => {
+  it('用户名不能占用已有 URL 命名空间', async () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     await call(t, '/api/team', {
@@ -156,7 +156,7 @@ describe('self sign-up', () => {
     expect((await errorOf(none)).message).toBe('Choose a username.');
   });
 
-  it('sends the link again only to a sign-up still waiting for it', async () => {
+  it('仅向仍等待验证的注册用户重发链接', async () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     await signUp(t, { username: 'eve', email: 'eve@example.com' });
@@ -178,7 +178,7 @@ describe('self sign-up', () => {
     expect(t.sent.length).toBe(before + 1);
   });
 
-  it('never holds back invited members, even while verification is on', async () => {
+  it('即使开启邮箱验证，也不阻止受邀成员登录', async () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     // addMember signs the new member in; it throws if sign-in is refused.
@@ -186,7 +186,7 @@ describe('self sign-up', () => {
   });
 });
 
-describe('verified emails', () => {
+describe('已验证邮箱', () => {
   const verified = async (t: TestEnv, username: string) =>
     (await t.env.DB.prepare(
       'SELECT email_verified AS v FROM users WHERE username = ?'
@@ -194,7 +194,7 @@ describe('verified emails', () => {
       .bind(username)
       .first<{ v: number }>())!.v === 1;
 
-  it('start verified for setup, invitations and the admin API; unverified only for self sign-up', async () => {
+  it('初始化、邀请和管理员 API 创建的用户默认已验证，仅自主注册用户未验证', async () => {
     const { t, admin } = await setup();
     await addMember(t, admin, 'bob');
     const created = await call(t, '/api/auth/admin/create-user', {
@@ -219,7 +219,7 @@ describe('verified emails', () => {
     );
   });
 
-  it('migration 0032 marks earlier people verified, never agents', async () => {
+  it('迁移 0032 将既有用户标记为已验证，但不标记代理', async () => {
     const { t, admin } = await setup();
     const agent = await newAgent(t, admin);
     // As before the migration: nobody verified.
@@ -239,8 +239,8 @@ describe('verified emails', () => {
   });
 });
 
-describe('setup status', () => {
-  it('tells the sign-in page about sign-up and the default language', async () => {
+describe('初始化状态', () => {
+  it('向登录页提供注册设置及默认语言', async () => {
     const { t, admin } = await setup();
     type Status = {
       defaultLanguage: string;
@@ -266,7 +266,7 @@ describe('setup status', () => {
     });
   });
 
-  it('gives Site admin a control for each new setting', async () => {
+  it('为每项新增设置提供站点管理控件', async () => {
     const { t, admin } = await setup();
     const { settings } = (await (
       await call(t, '/api/admin/settings', { cookie: admin })
@@ -298,8 +298,8 @@ describe('setup status', () => {
   });
 });
 
-describe('preferences', () => {
-  it('keeps a member’s language with their account', async () => {
+describe('偏好设置', () => {
+  it('将成员语言偏好保存在其账户中', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     const get = async (cookie: string) =>
@@ -323,7 +323,7 @@ describe('preferences', () => {
     expect((await call(t, '/api/me/preferences')).status).toBe(401);
   });
 
-  it('keeps one row per changed preference, and none for a default', async () => {
+  it('每项变更后的偏好仅存一行，默认值不存储', async () => {
     const { t, admin } = await setup();
     const rows = async () =>
       (

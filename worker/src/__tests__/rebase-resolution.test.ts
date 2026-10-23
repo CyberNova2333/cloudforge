@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { commitFiles } from './helpers/seed';
 import { settle } from './helpers/app';
@@ -31,8 +32,8 @@ function fileAt(
   return e ? decoder.decode(repo.objects.get(e.hash)!.data) : null;
 }
 
-describe('AI resolution of a conflicting commit', () => {
-  it('resolves the commit, which keeps its author and message and gets the trailer, then goes on', async () => {
+describe('由 AI 解决提交冲突', () => {
+  it('解决冲突并保留作者及提交说明、添加尾注，然后继续处理', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const { resolver, requests } = fakeResolver(() => ({
@@ -68,7 +69,7 @@ describe('AI resolution of a conflicting commit', () => {
     expect((await detail(t, admin)).rebase!.status).toBe('up_to_date');
   });
 
-  it('resolves several conflicting commits, one resolution each', async () => {
+  it('多个冲突提交分别创建冲突解决记录', async () => {
     const { t, repo, root } = await divergedPull();
     // Rewrite feature: two commits, each conflicting with main on its own line.
     repo.refs.set('refs/heads/feature', root);
@@ -134,7 +135,7 @@ describe('AI resolution of a conflicting commit', () => {
     ]);
   });
 
-  it('shows rebase_conflict when the AI fails, and leaves the branch for the agent', async () => {
+  it('AI 失败时显示 rebase_conflict，并将分支留给代理处理', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const { resolver } = fakeResolver(() => ({
@@ -158,7 +159,7 @@ describe('AI resolution of a conflicting commit', () => {
     });
   });
 
-  it('fails a resolution that still has conflict markers', async () => {
+  it('冲突标记仍存在时将解决判为失败', async () => {
     const { t, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const { resolver } = fakeResolver((req) => ({
@@ -171,7 +172,7 @@ describe('AI resolution of a conflicting commit', () => {
     });
   });
 
-  it('records a model that can’t be reached as a failed resolution', async () => {
+  it('将无法访问的模型记录为冲突解决失败', async () => {
     const { t, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t, {
@@ -187,7 +188,7 @@ describe('AI resolution of a conflicting commit', () => {
     });
   });
 
-  it('never asks the model about a binary conflict', async () => {
+  it('不请求模型处理二进制冲突', async () => {
     const { t, repo, root } = await divergedPull();
     const old = repo.refs.get('refs/heads/main')!;
     repo.refs.set('refs/heads/feature', root);
@@ -214,7 +215,7 @@ describe('AI resolution of a conflicting commit', () => {
     });
   });
 
-  it('never asks the model about generated files', async () => {
+  it('不请求模型处理生成文件', async () => {
     const { t, repo, root } = await divergedPull();
     const old = repo.refs.get('refs/heads/main')!;
     repo.refs.set('refs/heads/feature', root);
@@ -239,7 +240,7 @@ describe('AI resolution of a conflicting commit', () => {
     );
   });
 
-  it(`stops after ${MAX_AI_COMMITS} commits resolved by AI in one run`, async () => {
+  it(`单次运行由 AI 解决 ${MAX_AI_COMMITS} 个提交后停止`, async () => {
     const { t, repo, root } = await divergedPull();
     const n = MAX_AI_COMMITS + 1;
     const line = (j: number, tag: string) => `l${j}${tag}`;
@@ -288,7 +289,7 @@ describe('AI resolution of a conflicting commit', () => {
     expect(last).toMatchObject({ commit: shas[MAX_AI_COMMITS], model: 'none' });
     expect(last.error).toMatch(/AI already resolved 20 commits of this rebase/);
   });
-  it('turns an AI claim left running by a dead run into the stop of a run without AI', async () => {
+  it('将已终止运行遗留的 AI 处理中记录转换为无 AI 运行的中止结果', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const pr = (await t.env.DB.prepare(
@@ -317,7 +318,7 @@ describe('AI resolution of a conflicting commit', () => {
     );
   });
 
-  it('never asks again about a commit AI failed at these tips, and keeps that failure', async () => {
+  it('相同分支端点下不重复请求 AI 处理已失败的提交，并保留失败记录', async () => {
     const { t, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     await runRebases(t, {
@@ -341,7 +342,7 @@ describe('AI resolution of a conflicting commit', () => {
     expect(repo.refs.get('refs/heads/feature')).toBe(f2);
   });
 
-  it('reuses the applied resolution when the agent force-pushes the old head', async () => {
+  it('代理强推旧分支头时复用已应用的冲突解决结果', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const { resolver, requests } = fakeResolver(() => ({
@@ -361,7 +362,7 @@ describe('AI resolution of a conflicting commit', () => {
     expect(fileAt(repo, again, 'notes.txt')).toBe(RESOLVED);
     expect(first).not.toBe(f2);
   });
-  it('shows the AI failure again when the agent pushes back the head it was for, and queues no more runs', async () => {
+  it('代理推回对应旧分支头时再次显示 AI 失败，且不排队更多运行', async () => {
     const { t, admin, repo, f2, root } = await divergedPull({ conflict: true });
     await moved(t, 'main', root);
     const failing = fakeResolver(() => ({

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
@@ -254,8 +255,8 @@ async function insights(t: TestEnv, cookie: string, query = '', repo = 'app') {
   return { status: res.status, body: (await res.json()) as RepoInsights };
 }
 
-describe('repository insights', () => {
-  it('counts pull requests, auto-merges, human review, resolutions, and CI over 30 days', async () => {
+describe('仓库洞察', () => {
+  it('统计 30 天内的拉取请求、自动合并、人工审查、冲突解决和 CI', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await seed(t, admin);
@@ -320,7 +321,7 @@ describe('repository insights', () => {
     });
   });
 
-  it('narrows to the chosen period, and reports nothing for an idle repository', async () => {
+  it('限定为所选时间段，空闲仓库返回空统计', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await seed(t, admin);
@@ -353,7 +354,7 @@ describe('repository insights', () => {
     expect(idle.ci.passRate).toBeNull();
   });
 
-  it('follows the read permission: hidden from people who cannot see a private repository', async () => {
+  it('遵循读取权限，向无权访问私有仓库的用户隐藏', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const mona = await addMember(t, admin, 'mona');
@@ -366,7 +367,7 @@ describe('repository insights', () => {
     expect((await insights(t, mona)).status).toBe(200);
   });
 
-  it('is available to agents as a read-only MCP tool', async () => {
+  it('作为只读 MCP 工具提供给智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await seed(t, admin);

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import { aiGateway } from '../lib/ai-gateway';
@@ -37,8 +38,8 @@ function recordingEnv(gatewayId: string) {
   };
 }
 
-describe('AI Gateway', () => {
-  it('routes every review call through the gateway, tagged with its feature', async () => {
+describe('AI Gateway 网关', () => {
+  it('将所有审查调用经网关路由，并标记所属功能', async () => {
     const { env: e, calls } = recordingEnv('default');
     const models = workersAiAgentModels(
       e,
@@ -80,7 +81,7 @@ describe('AI Gateway', () => {
     );
   });
 
-  it("records each call's tokens for usage, with the review's pull request", async () => {
+  it('记录每次调用的令牌用量及审查所属拉取请求', async () => {
     const { env: e } = recordingEnv('default');
     const AI = {
       run: async (model: string) =>
@@ -135,7 +136,7 @@ describe('AI Gateway', () => {
     ]);
   });
 
-  it('"off" calls Workers AI directly; unset means the default gateway', () => {
+  it('off 时直接调用 Workers AI；未设置时使用默认网关', () => {
     const base = { BASE_URL: 'https://git.example.com' };
     expect(
       aiGateway({ ...base, AI_GATEWAY: 'off' } as never, 'merge-resolution')

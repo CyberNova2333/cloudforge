@@ -55,8 +55,8 @@ async function keepMerged(s: CrewRepo) {
   await s.setRepo('delete_merged_branches', 0);
 }
 
-describe('GET /api/repos/{o}/{r}/branches', () => {
-  it('lists every branch with its tip, flags, last commit time, author and pull request', async () => {
+describe('GET /api/repos/{o}/{r}/branches 分支列表', () => {
+  it('列出所有分支及其顶端、标记、最后提交时间、作者和拉取请求', async () => {
     const s = await crewRepo();
     await keepMerged(s);
     const claude = (await connect(s.t, s.admin, 'Claude Code')).access_token;
@@ -134,7 +134,7 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
     expect(b.shipped.mergedNotDeleted).toBe(true);
   });
 
-  it('names a branch’s author from its tip commit when it has no pull request', async () => {
+  it('分支没有拉取请求时，使用顶端提交的作者', async () => {
     const s = await crewRepo();
     s.repo.refs.set('refs/heads/mine', s.main);
     await commitPaths(s.repo, 'mine', { ...FILES, 'm.txt': 'm\n' }, 'mine');
@@ -150,7 +150,7 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
     expect(b.hers.author).toMatchObject({ login: 'octocat', isAgent: false });
   });
 
-  it('has a null updatedAt and author for a tip it cannot read', async () => {
+  it('无法读取顶端提交时，updatedAt 和作者为 null', async () => {
     const s = await crewRepo();
     s.repo.refs.set('refs/heads/ghost', 'f'.repeat(40));
     const ghost = byName(await branches(s)).ghost;
@@ -162,7 +162,7 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
     });
   });
 
-  it('uses the newest pull request when a branch has had several', async () => {
+  it('分支曾有多个拉取请求时，使用最新的一个', async () => {
     const s = await crewRepo();
     await s.branch('again');
     const first = await s.web('again', { title: 'First try' });
@@ -176,7 +176,7 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
     expect(pull).toMatchObject({ number: second, title: 'Second try' });
   });
 
-  it('is hidden from a member who cannot read the repository', async () => {
+  it('向无仓库读取权限的成员隐藏', async () => {
     const s = await crewRepo();
     await call(s.t, '/api/repos', {
       cookie: s.admin,
@@ -195,8 +195,8 @@ describe('GET /api/repos/{o}/{r}/branches', () => {
   });
 });
 
-describe('merged, not deleted', () => {
-  it('needs the newest pull request for the branch to be merged, and the branch to be there', async () => {
+describe('已合并但未删除的分支', () => {
+  it('要求分支的最新拉取请求已合并，且分支仍存在', async () => {
     const s = await crewRepo();
     const now = Date.now();
     // Merged, branch still there.
@@ -219,7 +219,7 @@ describe('merged, not deleted', () => {
     expect(b.reused.pull).toMatchObject({ number: reopened, state: 'open' });
   });
 
-  it('never counts the default branch or a protected one', async () => {
+  it('不计入默认分支或受保护分支', async () => {
     const s = await crewRepo();
     const now = Date.now();
     await s.setRepo(
@@ -240,7 +240,7 @@ describe('merged, not deleted', () => {
     expect(b.other.mergedNotDeleted).toBe(true);
   });
 
-  it('does not count a branch someone pushed to after it landed, or one another open pull request uses', async () => {
+  it('不计入合并后又有推送或被其他打开的拉取请求使用的分支', async () => {
     const s = await crewRepo();
     await keepMerged(s);
     await s.branch('later');
@@ -264,7 +264,7 @@ describe('merged, not deleted', () => {
   });
 });
 
-describe('POST /api/repos/{o}/{r}/branches/clean', () => {
+describe('POST /api/repos/{o}/{r}/branches/clean 分支清理', () => {
   async function withMerged() {
     const s = await crewRepo();
     await keepMerged(s);
@@ -295,7 +295,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
       data: string;
     }>();
 
-  it('deletes exactly the merged, not deleted branches, and says which', async () => {
+  it('仅删除已合并但未删除的分支，并列出删除结果', async () => {
     const s = await withMerged();
     expect(
       (await branches(s)).filter((b) => b.mergedNotDeleted).map((b) => b.name)
@@ -317,7 +317,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     expect((await branches(s)).some((b) => b.mergedNotDeleted)).toBe(false);
   });
 
-  it('records one audit row listing the names, and nothing when there was nothing to delete', async () => {
+  it('记录一条列出分支名称的审计事件，无可删内容时不记录', async () => {
     const s = await withMerged();
     const tips = {
       a: s.repo.refs.get('refs/heads/a'),
@@ -341,7 +341,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     expect((await auditRows(s)).results).toHaveLength(1);
   });
 
-  it('leaves a branch alone that got commits after a legacy (pre fast-forward) merge, and takes one that did not', async () => {
+  it('旧式非快进合并后又有提交的分支保持不变，未新增提交的分支可清理', async () => {
     const s = await crewRepo();
     const now = Date.now();
     // Merged when merging made a commit (landed_commits null): the merge pinned the head it merged.
@@ -380,7 +380,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     expect(map.leftover.map((l) => l.branch)).toEqual([]);
   });
 
-  it('counts a fast-forward landed row only with the landed commit still at the tip', async () => {
+  it('仅在已合并提交仍位于顶端时计入快进合并记录', async () => {
     const s = await crewRepo();
     const now = Date.now();
     s.repo.refs.set('refs/heads/ff-same', s.main);
@@ -399,7 +399,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     expect(b['ff-no-sha'].mergedNotDeleted).toBe(false);
   });
 
-  it('needs push rights', async () => {
+  it('需要推送权限', async () => {
     const s = await withMerged();
     const bob = await addMember(s.t, s.admin, 'bob');
     const refused = await clean(s, bob);
@@ -414,7 +414,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     ).toBe(401);
   });
 
-  it('pings the repository’s live channel like other repository changes', async () => {
+  it('与其他仓库变更一样通知仓库实时频道', async () => {
     const s = await withMerged();
     const pings: string[] = [];
     (s.t.env as unknown as { LIVE: unknown }).LIVE = {
@@ -427,7 +427,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
     expect(pings).toContain(`repo:${s.repoId}`);
   });
 
-  it('leaves a branch alone when someone pushed to it after it landed', async () => {
+  it('合并后有人推送的分支保持不变', async () => {
     const s = await withMerged();
     await commitPaths(s.repo, 'a', { ...FILES, 'extra.txt': 'x\n' }, 'Extra');
     const res = await clean(s);
@@ -436,7 +436,7 @@ describe('POST /api/repos/{o}/{r}/branches/clean', () => {
   });
 });
 
-describe('DELETE /api/repos/{o}/{r}/branches', () => {
+describe('DELETE /api/repos/{o}/{r}/branches 删除分支', () => {
   const rows = (s: CrewRepo) =>
     s.t.env.DB.prepare(
       "SELECT target, data FROM audit_events WHERE action = 'branch.deleted'"
@@ -447,7 +447,7 @@ describe('DELETE /api/repos/{o}/{r}/branches', () => {
       method: 'DELETE',
     });
 
-  it('records the deletion with the sha it removed', async () => {
+  it('记录删除操作及被删除的 SHA', async () => {
     const s = await crewRepo();
     const sha = await s.branch('old');
     expect((await del(s, 'old')).status).toBe(200);
@@ -458,7 +458,7 @@ describe('DELETE /api/repos/{o}/{r}/branches', () => {
     expect(JSON.parse(results[0].data)).toEqual({ sha });
   });
 
-  it('refuses a protected branch, and one an open pull request comes from, builds on or lands on', async () => {
+  it('拒绝删除受保护分支，以及打开的拉取请求的来源、基础或合并目标分支', async () => {
     const s = await crewRepo();
     await s.branch('release/1');
     await s.setRepo('protected_branches', JSON.stringify(['release/*']));
@@ -487,7 +487,7 @@ describe('DELETE /api/repos/{o}/{r}/branches', () => {
     expect((await rows(s)).results).toEqual([]);
   });
 
-  it('records nothing for a branch that does not exist, or for a tag of that name', async () => {
+  it('分支不存在或同名对象是标签时，不记录任何内容', async () => {
     const s = await crewRepo();
     s.repo.refs.set('refs/tags/v1', s.main);
     expect((await del(s, 'nope')).status).toBe(200);
@@ -499,7 +499,7 @@ describe('DELETE /api/repos/{o}/{r}/branches', () => {
   });
 });
 
-describe('GET /api/repos/{o}/{r}/branches/map', () => {
+describe('GET /api/repos/{o}/{r}/branches/map 分支图', () => {
   type Map_ = {
     from: number;
     to: number;
@@ -561,7 +561,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
       )
       .run();
 
-  it('covers the last 10 days by default, up to 30, and refuses anything else', async () => {
+  it('默认覆盖最近 10 天，最多 30 天，拒绝其他范围', async () => {
     const s = await crewRepo();
     const before = Date.now();
     const m = await getMap(s);
@@ -574,7 +574,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
       expect((await map(s, `?days=${bad}`)).status).toBe(400);
   });
 
-  it('lists what landed on the default branch in the window, oldest first', async () => {
+  it('按从早到晚列出窗口内合并到默认分支的内容', async () => {
     const s = await crewRepo();
     const now = Date.now();
     await s.mergedRow(1, 'f1', now - 20 * DAY, {
@@ -616,7 +616,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     ).toEqual([3]);
   });
 
-  it('shows landings from the merge button', async () => {
+  it('显示通过合并按钮完成的合并', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature', { title: 'Ship it' });
@@ -631,7 +631,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     expect(m.main.landings[0].at).toBeGreaterThan(Date.now() - 60_000);
   });
 
-  it('reports main’s status from the latest run on the default branch', async () => {
+  it('根据默认分支的最新运行报告 main 状态', async () => {
     const s = await crewRepo();
     expect((await getMap(s)).main.status).toBe('unknown');
     // Runs on pull requests and other branches say nothing about main.
@@ -657,7 +657,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     expect((await getMap(s)).main.status).toBe('passing');
   });
 
-  it('lists open pull requests into main with their state, author, app and session', async () => {
+  it('列出目标为 main 的打开拉取请求及其状态、作者、应用和会话', async () => {
     const s = await crewRepo();
     const claude = (await connect(s.t, s.admin, 'Claude Code')).access_token;
     const ada = await collaborator(s, 'ada');
@@ -700,7 +700,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     });
   });
 
-  it('says which pull request a stacked one is stacked on', async () => {
+  it('说明堆叠拉取请求所依赖的另一个拉取请求', async () => {
     const s = await crewRepo();
     await s.branch('parent');
     await s.branch('child');
@@ -722,7 +722,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     expect(by[solo].stackedOn).toBeNull();
   });
 
-  it('lists merged branches nobody deleted, with their pull request and merge time', async () => {
+  it('列出已合并但尚未删除的分支及其拉取请求和合并时间', async () => {
     const s = await crewRepo();
     const now = Date.now();
     s.repo.refs.set('refs/heads/left-1', s.main);
@@ -755,7 +755,7 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
     expect((await getMap(s)).leftover).toEqual([]);
   });
 
-  it('is hidden from a member who cannot read the repository', async () => {
+  it('向无仓库读取权限的成员隐藏', async () => {
     const s = await crewRepo();
     await call(s.t, '/api/repos', {
       cookie: s.admin,
@@ -775,13 +775,13 @@ describe('GET /api/repos/{o}/{r}/branches/map', () => {
   });
 });
 
-describe('landing deletes the head branch when the repository says so', () => {
+describe('按仓库设置在合并后删除头分支', () => {
   const mergedRows = (s: CrewRepo) =>
     s.t.env.DB.prepare(
       "SELECT target, data, actor_kind FROM audit_events WHERE action = 'branch.deleted'"
     ).all<{ target: string; data: string; actor_kind: string }>();
 
-  it('is on by default, and the merge button deletes the branch', async () => {
+  it('默认开启，合并按钮会删除分支', async () => {
     const s = await crewRepo();
     const repo = (await (
       await call(s.t, BASE, { cookie: s.admin })
@@ -808,7 +808,7 @@ describe('landing deletes the head branch when the repository says so', () => {
     });
   });
 
-  it('keeps the branch when the repository keeps merged branches', async () => {
+  it('仓库设置保留已合并分支时不删除分支', async () => {
     const s = await crewRepo();
     const patch = await call(s.t, BASE, {
       cookie: s.admin,
@@ -826,7 +826,7 @@ describe('landing deletes the head branch when the repository says so', () => {
     expect((await mergedRows(s)).results).toEqual([]);
   });
 
-  it('deletes after auto-merge lands it too', async () => {
+  it('自动合并后也删除分支', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature');
@@ -862,7 +862,7 @@ describe('landing deletes the head branch when the repository says so', () => {
     });
   });
 
-  it('keeps a branch another open pull request is based on, and a protected branch', async () => {
+  it('保留其他打开的拉取请求依赖的分支及受保护分支', async () => {
     const s = await crewRepo();
     await s.setRepo('protected_branches', JSON.stringify(['release/*']));
     await s.branch('parent');
@@ -891,8 +891,8 @@ describe('landing deletes the head branch when the repository says so', () => {
   });
 });
 
-describe('PATCH deleteMergedBranches', () => {
-  it('needs repository admin, and is audited as a settings change', async () => {
+describe('PATCH deleteMergedBranches 设置', () => {
+  it('需要仓库管理员权限，并作为设置变更记录审计', async () => {
     const s = await crewRepo();
     const ada = await collaborator(s, 'ada');
     const refused = await call(s.t, BASE, {

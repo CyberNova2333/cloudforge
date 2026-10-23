@@ -9,9 +9,9 @@ import { fakePackage, fakeRunner } from './fakes.ts';
 
 const tmp = () => realpathSync(mkdtempSync(join(tmpdir(), 'source-')));
 
-describe('checkoutSource', () => {
+describe('checkoutSource：源码来源', () => {
   const s = checkoutSource('/r');
-  it('wrangler goes through yarn', () => {
+  it('通过 Yarn 运行 wrangler', () => {
     expect(s.wrangler(['secret', 'list'], '/r')).toEqual({
       cmd: 'yarn',
       args: ['-s', 'wrangler', 'secret', 'list'],
@@ -22,7 +22,7 @@ describe('checkoutSource', () => {
       args: ['-s', 'wrangler', 'auth', 'token'],
     });
   });
-  it('deploy', () => {
+  it('部署', () => {
     expect(s.deploy('/r', null)).toEqual({
       cmd: 'yarn',
       args: ['-s', 'deploy'],
@@ -34,14 +34,14 @@ describe('checkoutSource', () => {
       '/tmp/s.json',
     ]);
   });
-  it('command and null package fields', () => {
+  it('命令及为空的软件包字段', () => {
     expect(s.command('install --resume --name acme')).toBe(
       'yarn cloudforge install --resume --name acme'
     );
     expect(s.commit).toBeNull();
     expect(s.build).toBeNull();
   });
-  it('version is the short sha, -dirty with changes', async () => {
+  it('版本使用短 SHA，有改动时附加 -dirty', async () => {
     const runner = fakeRunner({
       'git rev-parse': () => ({
         code: 0,
@@ -55,7 +55,7 @@ describe('checkoutSource', () => {
 });
 
 describe.each(['nested', 'hoisted'] as const)(
-  'packageSource (%s)',
+  'packageSource：软件包来源（%s）',
   (layout) => {
     const setup = () => {
       const root = fakePackage(tmp(), {
@@ -70,7 +70,7 @@ describe.each(['nested', 'hoisted'] as const)(
         ? join(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js')
         : join(root, '..', 'wrangler', 'bin', 'wrangler.js');
 
-    it('wrangler runs its own bin', () => {
+    it('wrangler 运行自带可执行文件', () => {
       const { root, s } = setup();
       expect(
         s.wrangler(['d1', 'migrations', 'apply', 'DB', '--remote'], '/home/x')
@@ -89,14 +89,14 @@ describe.each(['nested', 'hoisted'] as const)(
       });
       expect(s.wranglerCommand('tail')).toBe('npx wrangler@4.127.0 tail');
     });
-    it('wranglerBare runs its own bin without --config', () => {
+    it('wranglerBare 运行自带可执行文件且不传 --config', () => {
       const { root, s } = setup();
       expect(s.wranglerBare(['auth', 'token'])).toEqual({
         cmd: process.execPath,
         args: [realpathSync(binOf(root)), 'auth', 'token'],
       });
     });
-    it('deploy', () => {
+    it('部署', () => {
       const { root, s } = setup();
       const bin = realpathSync(binOf(root));
       expect(s.deploy('/home/x', null)).toEqual({
@@ -112,7 +112,7 @@ describe.each(['nested', 'hoisted'] as const)(
         '/tmp/s.json',
       ]);
     });
-    it('version, commit, build', async () => {
+    it('版本、提交和构建', async () => {
       const { root, s } = setup();
       const runner = fakeRunner({});
       expect(await s.version(runner)).toBe('1.2.0');
@@ -124,13 +124,13 @@ describe.each(['nested', 'hoisted'] as const)(
       expect(s.templatePath).toBe(join(root, 'wrangler.jsonc.example'));
       expect(s.migrationsDir).toBe(join(root, 'migrations'));
     });
-    it('package build includes the runner Dockerfile', () => {
+    it('软件包构建包含运行器 Dockerfile', () => {
       const { root, s } = setup();
       expect(s.build?.runnerDockerfile).toBe(
         join(root, 'actions', 'runner', 'Dockerfile')
       );
     });
-    it('moduleConfig drops path-valued keys (base_dir)', () => {
+    it('moduleConfig 移除以路径为值的键（base_dir）', () => {
       const { root } = setup();
       writeFileSync(
         join(root, 'worker', 'build.json'),
@@ -139,7 +139,7 @@ describe.each(['nested', 'hoisted'] as const)(
       const s = packageSource(root);
       expect(s.build?.moduleConfig).toEqual({ no_bundle: true });
     });
-    it('command', () => {
+    it('命令', () => {
       expect(setup().s.command('install --resume --name acme')).toBe(
         'npx @cybernova2333/cloudforge@1.2.0 install --resume --name acme'
       );

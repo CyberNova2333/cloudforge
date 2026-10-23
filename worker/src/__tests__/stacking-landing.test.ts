@@ -30,8 +30,8 @@ import {
 /** An agent Clef says isn't needed: reviews raise no findings, so Approvals counts only stack entries. */
 const notNeeded = agentModels({ probabilities: { secagent: 0 } }).models;
 
-describe('stack gate', () => {
-  it('holds auto-merge until discovery has checked the PR', async () => {
+describe('堆叠门禁', () => {
+  it('关系发现检查完成前阻止自动合入', async () => {
     const { t, open } = await repoWithAgent(true);
     const db = drizzle(t.env.DB, { schema });
     const { models } = stackModels();
@@ -53,7 +53,7 @@ describe('stack gate', () => {
     expect((await state())!.state).toBe('merged');
   });
 
-  it('refuses to land a PR that must account for another, naming it', async () => {
+  it('拒绝合入尚需处理其他请求变更的请求，并指出对应请求', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -81,7 +81,7 @@ describe('stack gate', () => {
     );
   });
 
-  it('blocks on a landed prerequisite without retargeting', async () => {
+  it('已合入的前置依赖可阻塞合入，但不改变目标分支', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -116,7 +116,7 @@ describe('stack gate', () => {
     expect(((await res.json()) as { error: string }).error).toMatch(/#1/);
   });
 
-  it('when the tree can’t be read: the PR page waits, merging refuses', async () => {
+  it('无法读取依赖树时，详情页保持等待并拒绝合入', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels();
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -144,7 +144,7 @@ describe('stack gate', () => {
     expect(((await merge.json()) as { error: string }).error).toMatch(/stack/i);
   });
 
-  it('never calls a PR Ready when its tree can’t be read, even without AI review', async () => {
+  it('即使没有 AI 审查，无法读取依赖树时也不显示就绪', async () => {
     const { t, admin, open } = await repoWithAgent(false);
     const { models } = stackModels();
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -178,7 +178,7 @@ describe('stack gate', () => {
       });
   });
 
-  it('auto-merges the other side of a pair once a run checks it', async () => {
+  it('请求对检查完成后，自动合入另一侧已就绪的请求', async () => {
     const { t, open } = await repoWithAgent(true);
     const db = drizzle(t.env.DB, { schema });
     const { models } = stackModels();
@@ -202,7 +202,7 @@ describe('stack gate', () => {
     expect((await state(2))!.state).toBe('open');
   });
 
-  it('lands once a must-account-for edge is dismissed', async () => {
+  it('忽略必须处理的依赖边后允许合入', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -231,7 +231,7 @@ describe('stack gate', () => {
     expect(res.status).toBe(200);
   });
 
-  it('lands once a landed prerequisite is accounted for', async () => {
+  it('已处理已合入前置请求的变更后允许合入', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -273,7 +273,7 @@ describe('stack gate', () => {
   });
 });
 
-describe('retargeting', () => {
+describe('调整目标分支', () => {
   const BUILDS_A: Relation = {
     kind: 'builds_on',
     prerequisite: 'a',
@@ -310,7 +310,7 @@ describe('retargeting', () => {
     await open('three', { 'c.txt': 'c\n' }, 'Three');
   }
 
-  it('linearizes #3’s prerequisites and stacks each on its parent', async () => {
+  it('将 #3 的前置依赖线性化，并逐一堆叠到父级', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = three();
     await openThree(t, open);
@@ -339,7 +339,7 @@ describe('retargeting', () => {
     });
   });
 
-  it('asks the later prerequisite to rebase first, then the dependent', async () => {
+  it('先要求靠后的前置请求变基，再要求依赖方变基', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -375,7 +375,7 @@ describe('retargeting', () => {
     );
   });
 
-  it('reports rebase_onto in the PR detail for a stacked PR that lacks its parent', async () => {
+  it('堆叠请求尚未包含父级时，在详情中返回 rebase_onto', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -392,7 +392,7 @@ describe('retargeting', () => {
     );
   });
 
-  it('PR detail asks only the PR whose parent chain is in order, like the list', async () => {
+  it('详情与列表一致，只要求父级依赖链已就绪的请求变基', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -407,7 +407,7 @@ describe('retargeting', () => {
     expect(await kinds(3)).not.toContain('rebase_onto'); // #2 isn't on #1 yet
   });
 
-  it('treats a failing ancestry check as unknown, and does not remember it', async () => {
+  it('祖先关系检查失败时视为未知，并不缓存结果', async () => {
     let fail = true;
     const git = {
       mergeBase: async () => {
@@ -421,7 +421,7 @@ describe('retargeting', () => {
   });
 
   // Two tests: each needs its own instance (the admin is bootstrapped once per test database).
-  it('falls back when Clef is unsure: closer to Ready first', async () => {
+  it('Clef 不确定时回退到更接近就绪的请求优先', async () => {
     const { t, open, repo } = await repoWithAgent();
     const { models } = three({
       order: () => ({
@@ -449,7 +449,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('falls back when Clef fails: equally close to Ready, the lower number first', async () => {
+  it('Clef 失败且就绪程度相同时，编号较小的请求优先', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = three({
       order: () => {
@@ -465,7 +465,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('keeps an ordering until one of its three PRs moves', async () => {
+  it('参与排序的三个请求均未变化时保留排序', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models, calls } = three();
     await openThree(t, open);
@@ -477,7 +477,7 @@ describe('retargeting', () => {
     expect(calls.ordered).toBe(2);
   });
 
-  it('sends children back to the land target when their parent closes, then restacks them', async () => {
+  it('父级关闭后将子请求送回合入目标，再重新堆叠', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -513,7 +513,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('restacks a reopened pull request', async () => {
+  it('重新打开拉取请求后重新堆叠', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -539,7 +539,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('never stacks onto a branch that no longer exists', async () => {
+  it('不堆叠到已不存在的分支', async () => {
     const { t, open, repo } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -564,7 +564,7 @@ describe('retargeting', () => {
     expect((await bases(t))[1]).toEqual([2, 'main']);
   });
 
-  it('retargets once when reconciles repeat or race', async () => {
+  it('重复或并发协调时只调整一次目标分支', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -598,7 +598,7 @@ describe('retargeting', () => {
     expect((await bases(t))[1]).toEqual([2, 'one']);
   });
 
-  it('drops an ordering edge once a side is no longer a stackable prerequisite', async () => {
+  it('某侧不再是可堆叠的前置依赖时移除排序边', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -628,7 +628,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('keeps PR text out of the load step’s result', async () => {
+  it('不在加载步骤结果中包含拉取请求文本', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -668,7 +668,7 @@ describe('retargeting', () => {
     expect(JSON.stringify(load)).not.toMatch(/One\.|Changes /);
   });
 
-  it('orders by a conflict without asking Clef, and stacks #3 on a line that holds both', async () => {
+  it('无需询问 Clef 即按冲突关系排序，并将 #3 堆叠到包含二者的链上', async () => {
     const { t, open } = await repoWithAgent();
     // #3 builds on #1 and #2; #2 conflicts with #1 and lands after it.
     const { models, calls } = stackModels({
@@ -691,7 +691,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('keeps an ordering parent unstacked after Unstack, also when heads move', async () => {
+  it('解除堆叠后，即使分支头变化也保持排序父级未堆叠', async () => {
     const { t, admin, open, repo, files } = await repoWithAgent();
     const { models, calls } = three();
     await openThree(t, open);
@@ -727,7 +727,7 @@ describe('retargeting', () => {
     expect(node.waitsOn.map((d) => d.number)).toEqual([1, 2]);
   });
 
-  it('auto-merging a parent sends its stacked child to main, then deletes the parent’s branch', async () => {
+  it('自动合入父级后，将堆叠子请求改为面向 main，再删除父级分支', async () => {
     const { t, admin, open, repo } = await repoWithAgent(true);
     const { models } = stackModels({
       related: () => true,
@@ -755,7 +755,7 @@ describe('retargeting', () => {
     expect(repo.refs.has('refs/heads/one')).toBe(false);
   });
 
-  it('skips the inline reconcile when a stack run claims nothing', async () => {
+  it('堆叠运行未认领任何内容时跳过内联协调', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -783,7 +783,7 @@ describe('retargeting', () => {
     expect(names.at(-1)).toBe('auto-merge');
   });
 
-  it('reconciles a target with more open pull requests than D1 binds in one statement', async () => {
+  it('支持打开请求数量超过 D1 单语句绑定限制的目标分支协调', async () => {
     const { t, open, repo } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -819,7 +819,7 @@ describe('retargeting', () => {
     ]);
   });
 
-  it('runs a stack run’s auto-merge step even when its reconcile fails', async () => {
+  it('即使协调失败，仍执行堆叠运行的自动合入步骤', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = three();
     await openThree(t, open);
@@ -854,8 +854,8 @@ describe('retargeting', () => {
   });
 });
 
-describe('maintainer controls', () => {
-  it('unstacks and dismisses with merge permission only', async () => {
+describe('维护者控制', () => {
+  it('解除堆叠和忽略关系均需要合入权限', async () => {
     const { t, admin, open } = await repoWithAgent(true, 'internal');
     const { models } = stackModels({
       related: () => true,
@@ -913,7 +913,7 @@ describe('maintainer controls', () => {
     ).toBe(200);
   });
 
-  it('dismisses a waits-on edge', async () => {
+  it('忽略等待依赖边', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels();
     await open('one', { 'notes.txt': 'one\nTWO\nthree\n' }, 'One');
@@ -949,7 +949,7 @@ describe('maintainer controls', () => {
     ).toBe(404);
   });
 
-  it('unstack finishes a retarget a crashed attempt left behind', async () => {
+  it('解除堆叠会完成先前崩溃操作遗留的目标调整', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -977,7 +977,7 @@ describe('maintainer controls', () => {
     expect((await events(t, 2)).map((e) => e.kind)).toContain('unstacked');
   });
 
-  it('refuses to unstack an unstacked PR, and hides a private repo', async () => {
+  it('拒绝对未堆叠请求解除堆叠，并隐藏私有仓库', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels();
     await open('one', { 'notes.txt': 'one\nTWO\nthree\n' }, 'One');
@@ -1001,7 +1001,7 @@ describe('maintainer controls', () => {
     ).toBe(404);
   });
 
-  it('ends a dismissal when a side lands', async () => {
+  it('某侧合入后结束忽略状态', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -1042,7 +1042,7 @@ describe('maintainer controls', () => {
     expect((await merge(2)).status).toBe(200);
   });
 
-  it('keeps a dismissal when a head moves', async () => {
+  it('分支头移动时保留忽略状态', async () => {
     const { t, admin, open, repo, files } = await repoWithAgent();
     const { models } = stackModels();
     await open('one', { 'notes.txt': 'one\nTWO\nthree\n' }, 'One');
@@ -1062,8 +1062,8 @@ describe('maintainer controls', () => {
   });
 });
 
-describe('stack surfaces', () => {
-  it('lists stale must-account-for blocks and failed pairs on Approvals', async () => {
+describe('堆叠信息展示', () => {
+  it('在待审批页面列出过期的前置变更阻塞和失败请求对', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -1088,7 +1088,7 @@ describe('stack surfaces', () => {
     });
   });
 
-  it('drops a stale block on Approvals once its prerequisite is closed without landing', async () => {
+  it('前置请求关闭但未合入后，从待审批页面移除过期阻塞', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -1111,7 +1111,7 @@ describe('stack surfaces', () => {
     );
   });
 
-  it('shows stack events on the PR', async () => {
+  it('在拉取请求上展示堆叠事件', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -1133,7 +1133,7 @@ describe('stack surfaces', () => {
   });
 });
 
-describe('stack surfaces on Approvals', () => {
+describe('待审批页面的堆叠信息', () => {
   type Item = {
     pull: { number: number };
     stackStale: { pr: number }[];
@@ -1148,7 +1148,7 @@ describe('stack surfaces on Approvals', () => {
       count: number;
     };
 
-  it('lists a failed pair on both sides, and counts each entry once', async () => {
+  it('在请求对两侧列出失败关系，每项只计数一次', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -1166,7 +1166,7 @@ describe('stack surfaces on Approvals', () => {
     expect(count).toBe(2);
   });
 
-  it('counts a stale block and an unchecked pair separately, without a second human_review entry', async () => {
+  it('分别统计过期阻塞和未检查请求对，不重复增加 human_review 条目', async () => {
     const { t, admin, open } = await repoWithAgent();
     const must = stackModels({ related: () => true, relation: () => MUST });
     await open('setup', SETUP_CHECKS, 'Setup checks');
@@ -1188,7 +1188,7 @@ describe('stack surfaces on Approvals', () => {
     expect(count).toBe(4);
   });
 
-  it('finds stack entries past the first 90 open pull requests', async () => {
+  it('能找到前 90 个打开请求之外的堆叠条目', async () => {
     const { t, admin, open } = await repoWithAgent();
     const must = stackModels({ related: () => true, relation: () => MUST });
     await open('setup', SETUP_CHECKS, 'Setup checks');

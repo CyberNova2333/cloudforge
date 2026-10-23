@@ -64,12 +64,12 @@ const dep = (number: number, kind: 'builds_on' | 'must_account_for') => ({
   forPr: null,
 });
 
-describe('pull request state rules', () => {
-  it('is ready with nothing left', () => {
+describe('拉取请求状态规则', () => {
+  it('没有待处理事项时为就绪', () => {
     expect(decideState([])).toEqual({ state: 'ready', reasons: [] });
   });
 
-  it('puts agent work before human review before waiting', () => {
+  it('代理处理优先于人工审查，人工审查优先于等待', () => {
     const reasons: Reason[] = [
       { kind: 'checks_running', check: null, started: true },
       { kind: 'needs_approval' },
@@ -83,14 +83,14 @@ describe('pull request state rules', () => {
     expect(decideState(reasons.slice(0, 1)).state).toBe('waiting');
   });
 
-  it('keeps informational reasons without changing the state', () => {
+  it('保留提示性原因而不改变状态', () => {
     expect(decideState([{ kind: 'stacked_on', pr: 28 }])).toEqual({
       state: 'ready',
       reasons: [{ kind: 'stacked_on', pr: 28 }],
     });
   });
 
-  it('must account for needs the agent', () => {
+  it('需处理依赖的事项由代理处理', () => {
     const must: Reason = {
       kind: 'must_account_for',
       pr: 28,
@@ -105,7 +105,7 @@ describe('pull request state rules', () => {
     ).toBe('agent_followup');
   });
 
-  it('lists every reason kind', () => {
+  it('列出每一种原因', () => {
     expect([...REASON_KINDS].sort()).toEqual(
       [
         'check_failed',
@@ -129,7 +129,7 @@ describe('pull request state rules', () => {
     );
   });
 
-  it('waits while merging is paused, behind whatever needs someone', () => {
+  it('暂停合入时进入等待，但优先显示需要人员处理的事项', () => {
     expect(reasonState({ kind: 'merging_paused' })).toBe('waiting');
     expect(decideState([{ kind: 'merging_paused' }]).state).toBe('waiting');
     expect(
@@ -138,7 +138,7 @@ describe('pull request state rules', () => {
     ).toBe('human_review');
   });
 
-  it("puts agents' review reasons in whose move they make", () => {
+  it('按责任方归类代理审查原因', () => {
     expect(
       reasonState({ kind: 'agent_changes_requested', agent: 'a', changes: [] })
     ).toBe('agent_followup');
@@ -154,7 +154,7 @@ describe('pull request state rules', () => {
     );
   });
 
-  it('reads the stack tree: cycles, checks still running, must account for, parent, waits on', () => {
+  it('读取依赖树中的环、运行中检查、需处理的依赖、父级和等待关系', () => {
     expect(
       stackReasons(
         node({
@@ -184,7 +184,7 @@ describe('pull request state rules', () => {
   });
 });
 
-describe('check verdict', () => {
+describe('检查结果判定', () => {
   const run = (
     runNumber: number,
     status: string,
@@ -198,7 +198,7 @@ describe('check verdict', () => {
     workflowPath,
     event,
   });
-  it('by default: a failed run fails, a running one waits, none is fine', () => {
+  it('默认规则：失败则失败，运行中则等待，没有检查则通过', () => {
     expect(checkVerdict([], [], 'any')).toBeNull();
     expect(
       checkVerdict([run(3, 'in_progress', null)], [], 'any')
@@ -215,7 +215,7 @@ describe('check verdict', () => {
     ).toMatchObject({ kind: 'failed', runNumber: 4, check: null });
   });
 
-  it('require all waits for a first run; a list names the failed check and its run', () => {
+  it('要求全部检查时等待首次运行，指定列表时指出失败检查及其运行', () => {
     expect(checkVerdict([], [], 'all')).toMatchObject({
       kind: 'waiting',
       started: false,
@@ -253,7 +253,7 @@ describe('check verdict', () => {
     });
   });
 
-  it('a successful re-run clears a failure; other workflows still count', () => {
+  it('重跑成功后清除对应失败，其他工作流仍参与判定', () => {
     expect(
       checkVerdict(
         [run(4, 'completed', 'failure'), run(7, 'completed', 'success')],
@@ -294,7 +294,7 @@ describe('check verdict', () => {
     ).toBeNull();
   });
 
-  it("a skipped run or job isn't a failure", () => {
+  it('跳过的运行或任务不视为失败', () => {
     expect(
       checkVerdict([run(2, 'completed', 'skipped')], [], 'all')
     ).toBeNull();
@@ -318,7 +318,7 @@ describe('check verdict', () => {
     ).toMatchObject({ kind: 'failed' });
   });
 
-  it('a required job skipped because its run failed (a needed job failed) fails', () => {
+  it('因依赖任务失败而随运行被跳过的必需任务视为失败', () => {
     const jobs = [
       {
         key: 'test',
@@ -350,7 +350,7 @@ describe('check verdict', () => {
     ).toMatchObject({ kind: 'failed', check: 'deploy' });
   });
 
-  it('a required job skipped while its run is still going waits for the run', () => {
+  it('运行仍在进行时，被跳过的必需任务继续等待运行结束', () => {
     const deploy = {
       key: 'deploy',
       name: 'deploy',
@@ -453,8 +453,8 @@ async function statesRepo() {
   };
 }
 
-describe('pullStates', () => {
-  it('without agents: failed checks need the agent, running ones wait, none is ready', async () => {
+describe('pullStates 拉取请求状态汇总', () => {
+  it('没有代理时，失败检查需要代理处理，运行中检查等待，没有检查则就绪', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -471,7 +471,7 @@ describe('pullStates', () => {
     });
   });
 
-  it('a successful re-run clears check_failed', async () => {
+  it('重跑成功后清除 check_failed', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -482,7 +482,7 @@ describe('pullStates', () => {
     expect((await s.states())[1]).toEqual({ state: 'ready', reasons: [] });
   });
 
-  it('reads AI resolution at the current commits: running waits, failed needs the agent', async () => {
+  it('读取当前提交的 AI 冲突解决状态，运行中等待，失败时由代理处理', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -528,7 +528,7 @@ describe('pullStates', () => {
     });
   });
 
-  it('ignores resolutions for other commits and superseded ones', async () => {
+  it('忽略其他提交及已被替代的冲突解决记录', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -551,7 +551,7 @@ describe('pullStates', () => {
     expect((await s.states())[1]).toEqual({ state: 'ready', reasons: [] });
   });
 
-  it('must account for needs the agent', async () => {
+  it('需处理依赖的事项由代理处理', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.open('two', { 'b.txt': 'b\n' });
@@ -599,7 +599,7 @@ describe('pullStates', () => {
     });
   });
 
-  it("without AI review configured, doesn't wait on a review or stack check that never runs", async () => {
+  it('未配置 AI 审查时，不等待不会执行的审查或堆叠检查', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.open('two', { 'b.txt': 'b\n' });
@@ -624,7 +624,7 @@ describe('pullStates', () => {
     expect(off).toEqual({ state: 'ready', reasons: [] });
   });
 
-  it("reads git only for the asked PR's stack chain, not for every PR in the target", async () => {
+  it('仅读取所请求拉取请求依赖链的 Git 信息，不遍历同目标的全部拉取请求', async () => {
     const s = await statesRepo();
     for (const b of ['one', 'two', 'three', 'four', 'five'])
       await s.open(b, { [`${b}.txt`]: `${b}\n` });
@@ -661,11 +661,11 @@ describe('pullStates', () => {
     // The root builds on nothing, so asking for it walks nothing (before: one walk per stacked PR).
     const root = await time([prs[0]]);
     const all = await time(prs);
-    console.log('[timing] pullStates for #1 only', root, 'for all five', all);
+    console.log('[耗时] pullStates 仅查询 #1', root, '查询全部五个请求', all);
     expect(root.walks).toBe(0);
   });
 
-  it('has no state for a PR whose branch is gone, nor for closed PRs', async () => {
+  it('分支已删除或拉取请求已关闭时不返回状态', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     s.repo.refs.delete('refs/heads/one');
@@ -673,7 +673,7 @@ describe('pullStates', () => {
   });
 });
 
-describe('recording state changes', () => {
+describe('记录状态变化', () => {
   async function onePr() {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
@@ -686,7 +686,7 @@ describe('recording state changes', () => {
     reasons: [{ kind: 'agent_reviewing' as const, agent: null }],
   };
 
-  it('records a change once, and nothing when unchanged', async () => {
+  it('状态变化只记录一次，未变化时不记录', async () => {
     const s = await onePr();
     await s.t.env.DB.prepare('DELETE FROM pr_events').run();
     expect(
@@ -707,7 +707,7 @@ describe('recording state changes', () => {
     expect((await latestStates(s.db, [s.pr.id])).get(s.pr.id)).toEqual(waiting);
   });
 
-  it('never records a stale computation over a newer one', async () => {
+  it('旧计算结果不能覆盖较新的结果', async () => {
     const s = await onePr();
     await s.t.env.DB.prepare('DELETE FROM pr_events').run();
     expect(
@@ -720,7 +720,7 @@ describe('recording state changes', () => {
     expect((await latestStates(s.db, [s.pr.id])).get(s.pr.id)).toEqual(waiting);
   });
 
-  it('never records an older computation over a newer unchanged one', async () => {
+  it('旧计算结果不能覆盖较新且未变化的结果', async () => {
     const s = await onePr();
     await s.t.env.DB.prepare('DELETE FROM pr_events').run();
     expect(
@@ -738,7 +738,7 @@ describe('recording state changes', () => {
     expect(await eventsFor(s.db, s.pr.id)).toHaveLength(1);
   });
 
-  it("reads each PR's own latest state", async () => {
+  it('读取每个拉取请求各自的最新状态', async () => {
     const s = await onePr();
     await s.open('two', { 'b.txt': 'b\n' });
     const [p1, p2] = await s.db.query.pullRequests.findMany({
@@ -771,7 +771,7 @@ describe('recording state changes', () => {
     ]);
   });
 
-  it('lists the newest events, oldest first', async () => {
+  it('取最新事件并按时间从旧到新列出', async () => {
     const s = await onePr();
     await s.t.env.DB.prepare('DELETE FROM pr_events').run();
     for (const [i, st] of [ready, waiting, ready].entries())
@@ -789,7 +789,7 @@ describe('recording state changes', () => {
     ]);
   });
 
-  it('records once under concurrent settles', async () => {
+  it('并发结算时只记录一次', async () => {
     const s = await onePr();
     await s.t.env.DB.prepare('DELETE FROM pr_events').run();
     const [a, b] = await Promise.all([
@@ -800,7 +800,7 @@ describe('recording state changes', () => {
     expect(await eventsFor(s.db, s.pr.id)).toHaveLength(1);
   });
 
-  it('finds the repository of every MERGE_RESOLUTION payload', async () => {
+  it('为每种 MERGE_RESOLUTION 载荷找到所属仓库', async () => {
     const s = await onePr();
     expect(
       await repositoryForPayload(s.db, { sweep: { repositoryId: s.repoId } })
@@ -817,8 +817,8 @@ describe('recording state changes', () => {
   });
 });
 
-describe('settling after a MERGE_RESOLUTION Workflow', () => {
-  it('never throws when the payload lookup fails', async () => {
+describe('MERGE_RESOLUTION 工作流后的状态结算', () => {
+  it('查询载荷失败时不抛出异常', async () => {
     const s = await statesRepo();
     const broken = new Proxy(s.db, {
       get: (target, key) =>
@@ -833,7 +833,7 @@ describe('settling after a MERGE_RESOLUTION Workflow', () => {
     ).resolves.toBe(0);
   });
 
-  it("settles the payload PR's target branch only", async () => {
+  it('仅结算载荷所指拉取请求的目标分支', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     // A second target branch with its own PR.
@@ -880,8 +880,8 @@ describe('settling after a MERGE_RESOLUTION Workflow', () => {
   });
 });
 
-describe('state changes on the timeline', () => {
-  it('records the opened PR’s state, and a change after an API mutation, once', async () => {
+describe('时间线上的状态变化', () => {
+  it('记录新建拉取请求的状态，API 修改后发生的变化只记录一次', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     const kinds = async () =>
@@ -924,8 +924,8 @@ async function independentPair(s: Awaited<ReturnType<typeof statesRepo>>) {
     .run();
 }
 
-describe('pull request states over the API', () => {
-  it('shows each open PR’s state in the list, and its events on the PR', async () => {
+describe('通过 API 读取拉取请求状态', () => {
+  it('列表展示各打开拉取请求的状态，详情展示其事件', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.open('two', { 'b.txt': 'b\n' });
@@ -970,7 +970,7 @@ describe('pull request states over the API', () => {
     ]);
   });
 
-  it('filters by pull state, open PRs only, and rejects unknown values', async () => {
+  it('仅对打开的拉取请求按状态筛选，并拒绝未知值', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.open('two', { 'b.txt': 'b\n' });
@@ -1005,7 +1005,7 @@ describe('pull request states over the API', () => {
     ).toBe(400);
   });
 
-  it('labels tree nodes with their state', async () => {
+  it('为依赖树节点标注状态', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -1020,7 +1020,7 @@ describe('pull request states over the API', () => {
     expect(tree.targets[0].nodes[0].pullState?.state).toBe('waiting'); // checks still running
   });
 
-  it('hides a private repository’s states', async () => {
+  it('隐藏私有仓库的状态', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     const bob = await addMember(s.t, s.admin, 'bob');
@@ -1034,8 +1034,8 @@ describe('pull request states over the API', () => {
   });
 });
 
-describe('Approvals', () => {
-  it('lists human_review PRs only to people who can merge', async () => {
+describe('待审批页面', () => {
+  it('仅向有合入权限的人列出 human_review 拉取请求', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -1078,7 +1078,7 @@ describe('Approvals', () => {
     ).toEqual({ items: [], count: 0, assignedToMe: 0, nextCursor: null });
   });
 
-  it("doesn't list conflicts AI can't resolve (the agent's job), only failed AI resolutions", async () => {
+  it('不列出 AI 无法处理的冲突，仅列出 AI 尝试解决后失败的冲突', async () => {
     const s = await statesRepo();
     await s.open('one', { 'a.txt': 'a\n' });
     await s.approve(1);
@@ -1124,7 +1124,7 @@ describe('Approvals', () => {
   });
 });
 
-describe('must account for drives agent followup (milestone 2b)', () => {
+describe('需处理的依赖触发代理跟进（里程碑 2b）', () => {
   const must = (over: Partial<EdgeInput> = {}): EdgeInput => ({
     a: 1,
     b: 2,
@@ -1141,15 +1141,15 @@ describe('must account for drives agent followup (milestone 2b)', () => {
       stackReasons(buildTree([1, 2], [e]).get(2)!, { branchOf: () => 'one' })
     ).state;
 
-  it('only while the edge is neither accounted for nor dismissed', () => {
+  it('仅在依赖边既未处理也未忽略时生效', () => {
     expect(stateOf(must())).toBe('agent_followup');
     expect(stateOf(must({ accounted: true }))).toBe('ready'); // still stacked on #1: informational
     expect(stateOf(must({ dismissed: true }))).toBe('ready');
   });
 });
 
-describe('review reasons', () => {
-  it('waits on agents, then names their flags, change requests and failures', async () => {
+describe('审查原因', () => {
+  it('先等待代理审查，再列出其意见、修改请求和失败', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await invitedAgent(t, admin, 'dataagent', AGENT_MD());
@@ -1239,7 +1239,7 @@ describe('review reasons', () => {
     expect(await summary()).toEqual({ state: 'reviewing', flags: 0 });
   });
 
-  it('needs a person when no agent is invited, and is ready once they approve', async () => {
+  it('没有邀请代理时需要人工处理，人工批准后就绪', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });
     const state = async () =>
@@ -1261,7 +1261,7 @@ describe('review reasons', () => {
     expect(await state()).toEqual({ state: 'ready', reasons: [] });
   });
 
-  it('lists the review summary per pull request', async () => {
+  it('为每个拉取请求列出审查摘要', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });
     const list = (await (
@@ -1272,7 +1272,7 @@ describe('review reasons', () => {
     expect(list.pulls[0].review).toEqual({ state: 'needs_approval', flags: 0 });
   });
 
-  it('reads the gate itself for a PR missing from the given inputs', async () => {
+  it('给定输入缺少拉取请求时直接读取其审查门禁', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });
     const db = drizzle(t.env.DB, { schema });

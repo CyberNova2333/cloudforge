@@ -69,8 +69,8 @@ runs:
   post: dist/post.js
 `;
 
-describe('JavaScript actions from GitHub', () => {
-  it('downloads and runs the action with its inputs, outputs and state, then its post step', async () => {
+describe('来自 GitHub 的 JavaScript 动作', () => {
+  it('下载并运行带输入、输出和状态的动作，随后运行其收尾步骤', async () => {
     const s = await setup();
     github['acme/setup-tool/v1/action.yml'] = SETUP_TOOL;
     const { result, h, steps, log } = await runWorkflow(
@@ -122,7 +122,7 @@ jobs:
     expect(await log(4)).toContain('Post job cleanup for acme/setup-tool@v1');
   });
 
-  it('skips the post step of an action that has none, and honours post-if', async () => {
+  it('动作没有收尾步骤时跳过，并遵循 post-if 条件', async () => {
     const s = await setup();
     github['acme/plain/v2/action.yml'] =
       'runs:\n  using: node24\n  main: index.js\n';
@@ -154,7 +154,7 @@ jobs:
     expect(await log(5)).toContain('no post step');
   });
 
-  it('fails clearly for an action GitHub doesn’t have, or one that needs Docker', async () => {
+  it('GitHub 上不存在动作或动作需要 Docker 时，明确报告失败', async () => {
     const s = await setup();
     github['acme/docker-thing/v1/action.yml'] =
       "runs:\n  using: docker\n  image: 'Dockerfile'\n";
@@ -180,8 +180,8 @@ jobs:
   });
 });
 
-describe('composite actions', () => {
-  it('runs a local composite action’s steps with its inputs, and maps its outputs', async () => {
+describe('复合动作', () => {
+  it('使用输入运行本地复合动作的步骤，并映射输出', async () => {
     const s = await setup();
     const { result, h, steps } = await runWorkflow(
       s,
@@ -245,7 +245,7 @@ runs:
     ]);
   });
 
-  it('downloads a GitHub composite action first, and fails when one of its steps fails', async () => {
+  it('先下载 GitHub 复合动作，任一步骤失败时报告失败', async () => {
     const s = await setup();
     github['acme/tools/v3/lint/action.yml'] = `runs:
   using: composite
@@ -279,8 +279,8 @@ jobs:
   });
 });
 
-describe('reading uses: and action.yml', () => {
-  it('tells built-in, GitHub and local actions apart', () => {
+describe('读取 uses: 和 action.yml', () => {
+  it('区分内置、GitHub 和本地动作', () => {
     expect(parseUses('actions/checkout@v4')).toBeNull();
     expect(parseUses('actions/upload-artifact@v4')).toBeNull();
     expect(parseUses('actions/setup-python@v5')).toEqual({
@@ -302,7 +302,7 @@ describe('reading uses: and action.yml', () => {
       expect(() => parseUses(bad), bad).toThrow();
   });
 
-  it('reads inputs, entry points and composite steps', () => {
+  it('读取输入、入口点和复合步骤', () => {
     const js = parseActionYaml(SETUP_TOOL, 'acme/setup-tool@v1');
     expect(js).toMatchObject({
       using: 'node',

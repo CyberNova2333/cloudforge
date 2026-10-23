@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { diagramSource, type DiagramSpec } from '../review/diagram';
 
@@ -81,8 +82,8 @@ export const AWKWARD: DiagramSpec[] = [
   },
 ];
 
-describe('review diagrams from data', () => {
-  it('writes ER and flow Mermaid with every label quoted and unknown references dropped', () => {
+describe('根据数据生成审查图表', () => {
+  it('生成 Mermaid 实体关系图及流程图，引用所有标签并丢弃未知引用', () => {
     const [er, flow] = AWKWARD.map(diagramSource);
     expect(er).toContain('    text verification_token_hash UK "NEW"');
     expect(er).toContain(
@@ -97,7 +98,7 @@ describe('review diagrams from data', () => {
     expect(flow).not.toContain('nowhere');
   });
 
-  it('draws nothing from an empty or malformed description', () => {
+  it('空描述或格式错误的描述不生成图表', () => {
     expect(diagramSource(null)).toBeNull();
     expect(diagramSource({ kind: 'er', ...empty })).toBeNull();
     expect(
@@ -117,7 +118,7 @@ describe('review diagrams from data', () => {
     ).toBeNull();
   });
 
-  it('writes a sequence diagram: participants in order, calls and replies, new calls marked', () => {
+  it('生成时序图，按顺序列出参与者、调用和响应，并标记新调用', () => {
     const seq = diagramSource({
       kind: 'sequence',
       ...empty,

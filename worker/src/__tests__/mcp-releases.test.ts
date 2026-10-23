@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember } from './helpers/app';
 import { connect, crewRepo, tool, type CrewRepo } from './helpers/crew';
@@ -18,8 +19,8 @@ async function landed(s: CrewRepo, n: number, bump: string | null) {
 const parse = (r: { content: { text: string }[] }) =>
   JSON.parse(r.content[0].text);
 
-describe('release MCP tools', () => {
-  it('lists unreleased changes, then cuts a release recorded via the app', async () => {
+describe('发布版本的 MCP 工具', () => {
+  it('列出未发布变更，再创建版本并记录应用来源', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
     await landed(s, 1, 'minor');
@@ -75,7 +76,7 @@ describe('release MCP tools', () => {
     expect(audit!.via).toBe('Claude Code');
   });
 
-  it('names the new head when the branch moved', async () => {
+  it('分支移动时返回新的分支头', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin);
     await landed(s, 1, 'patch');
@@ -88,7 +89,7 @@ describe('release MCP tools', () => {
     expect(res.content[0].text).toContain(head(s));
   });
 
-  it('refuses a member without push access', async () => {
+  it('拒绝没有推送权限的成员', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'patch');
     const member = await addMember(s.t, s.admin, 'bob');

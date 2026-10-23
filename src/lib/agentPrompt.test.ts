@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { agentPrompt, importFromGitHubPrompt } from './agentPrompt';
 import type { RepoDetail } from './uiApi';
@@ -11,15 +12,15 @@ const repo = (empty: boolean) =>
     empty,
   }) as RepoDetail;
 
-describe('agentPrompt', () => {
-  it('has the agent ask the person to clone, so the token never enters the chat', () => {
+describe('agentPrompt：代理提示词', () => {
+  it('要求代理请用户自行克隆，避免令牌进入聊天', () => {
     const p = agentPrompt(repo(false), 'https://git.example.com');
     expect(p).toContain('! git clone https://git.example.com/ada/engine.git');
     expect(p).toContain('https://git.example.com/settings/tokens');
     expect(p).not.toMatch(/gop_[0-9a-f]/);
   });
 
-  it('sets up Git LFS and links pull requests to the compare page', () => {
+  it('配置 Git LFS，并将拉取请求链接到比较页面', () => {
     const p = agentPrompt(repo(false), 'https://git.example.com');
     expect(p).toContain('git lfs install');
     expect(p).toContain('git lfs track');
@@ -28,7 +29,7 @@ describe('agentPrompt', () => {
     );
   });
 
-  it('has the agent pass the request and a session label when it opens a pull request itself', () => {
+  it('代理自行创建拉取请求时传入用户请求和会话标签', () => {
     const p = agentPrompt(repo(false), 'https://git.example.com', 'Orange');
     expect(p).toContain('gitorange_create_pull_request');
     expect(p).toContain('`request`');
@@ -37,7 +38,7 @@ describe('agentPrompt', () => {
     expect(p).toContain("Orange's tools");
   });
 
-  it('helps add first files when the repository is empty', () => {
+  it('仓库为空时帮助添加首批文件', () => {
     expect(agentPrompt(repo(true), 'https://git.example.com')).toContain(
       'This repository is empty'
     );
@@ -47,10 +48,10 @@ describe('agentPrompt', () => {
   });
 });
 
-describe('importFromGitHubPrompt', () => {
+describe('importFromGitHubPrompt：从 GitHub 导入的提示词', () => {
   const p = importFromGitHubPrompt(repo(true), 'https://git.example.com');
 
-  it('has the person run both password-prompting commands themselves', () => {
+  it('两条要求密码输入的命令均由用户自行运行', () => {
     expect(p).toContain(
       '! git clone --mirror <GitHub address> engine-github.git'
     );
@@ -60,7 +61,7 @@ describe('importFromGitHubPrompt', () => {
     expect(p).not.toMatch(/gop_[0-9a-f]|ghp_/);
   });
 
-  it('copies tags and LFS files, and never force-pushes', () => {
+  it('复制标签和 LFS 文件，且从不强制推送', () => {
     expect(p).toContain('lfs fetch --all');
     expect(p).toContain('push --tags https://git.example.com/ada/engine.git');
     expect(p).toContain(

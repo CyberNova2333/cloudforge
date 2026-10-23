@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { AGENT_PATH, parseAgentConfig } from '../agents/config';
 import {
@@ -72,8 +73,8 @@ async function agentMdOf(t: ReturnType<typeof makeEnv>, handle: string) {
   return decoder.decode(repo.objects.get(entry.hash)!.data);
 }
 
-describe('the seven presets', () => {
-  it('are the seven facets with their handles, colours, guards and engines', () => {
+describe('七种预设', () => {
+  it('包含七个领域及其标识名、颜色、保护状态和引擎', () => {
     expect(PRESET_FACETS).toEqual([
       'security',
       'data',
@@ -100,7 +101,7 @@ describe('the seven presets', () => {
     expect(PRESETS.shipping.name).toBe('Shipping');
   });
 
-  it('each writes an AGENT.md that parses back to the preset', () => {
+  it('每种预设生成的 AGENT.md 均可解析回原预设', () => {
     for (const facet of PRESET_FACETS) {
       const p = PRESETS[facet];
       const config = parseAgentConfig(presetAgentMd(p, p.handle, p.name));
@@ -120,8 +121,8 @@ describe('the seven presets', () => {
   });
 });
 
-describe('isGuarded', () => {
-  it('guards agents marked guarded and every Security or Data agent', () => {
+describe('isGuarded 保护状态判断', () => {
+  it('保护标记为 guarded 的智能体以及所有安全或数据领域智能体', () => {
     expect(isGuarded({ guarded: true, facet: 'speed' })).toBe(true);
     expect(isGuarded({ guarded: false, facet: 'security' })).toBe(true);
     expect(isGuarded({ guarded: false, facet: 'data' })).toBe(true);
@@ -130,8 +131,8 @@ describe('isGuarded', () => {
   });
 });
 
-describe('guardedOf', () => {
-  it('is the guard agents.guarded stores for an AGENT.md: the same answer as isGuarded', () => {
+describe('guardedOf 有效保护状态', () => {
+  it('返回 AGENT.md 对应的 agents.guarded 存储值，与 isGuarded 结果一致', () => {
     expect(guardedOf({ facet: 'security' })).toBe(true);
     expect(guardedOf({ facet: 'data', guarded: false })).toBe(true);
     expect(guardedOf({ facet: 'speed', guarded: true })).toBe(true);
@@ -140,15 +141,15 @@ describe('guardedOf', () => {
   });
 });
 
-describe('agentColor', () => {
-  it('uses the colour from AGENT.md, else a stable one from the palette', () => {
+describe('agentColor 智能体颜色', () => {
+  it('使用 AGENT.md 中的颜色，否则从调色板选择稳定颜色', () => {
     expect(agentColor({ color: '#123456' }, 'docsagent')).toBe('#123456');
     const fallback = agentColor({ color: null }, 'docsagent');
     expect(AGENT_PALETTE).toContain(fallback);
     expect(agentColor({ color: null }, 'docsagent')).toBe(fallback);
   });
 
-  it("falls back to the preset's colour for a preset's handle, whatever its case", () => {
+  it('标识名匹配预设时回退到预设颜色，不区分大小写', () => {
     for (const facet of PRESET_FACETS) {
       const p = PRESETS[facet];
       expect(agentColor({ color: null }, p.handle)).toBe(p.color);
@@ -159,8 +160,8 @@ describe('agentColor', () => {
   });
 });
 
-describe('GET /api/agents/presets', () => {
-  it('lists the seven for every member, marking the ones that exist', async () => {
+describe('GET /api/agents/presets 智能体预设', () => {
+  it('向所有成员列出七种预设，并标记已存在项', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -188,8 +189,8 @@ describe('GET /api/agents/presets', () => {
   });
 });
 
-describe('POST /api/admin/agents with a preset', () => {
-  it('writes the preset AGENT.md and caches its colour, facet and guard', async () => {
+describe('POST /api/admin/agents 使用预设创建智能体', () => {
+  it('写入预设 AGENT.md，并缓存颜色、领域和保护状态', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/admin/agents', {
@@ -219,7 +220,7 @@ describe('POST /api/admin/agents with a preset', () => {
     });
   });
 
-  it('takes another handle and name for a preset', async () => {
+  it('允许为预设指定其他标识名和名称', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/admin/agents', {
@@ -241,7 +242,7 @@ describe('POST /api/admin/agents with a preset', () => {
     );
   });
 
-  it('refuses an unknown preset, and a blank agent without a handle and name', async () => {
+  it('拒绝未知预设，以及缺少标识名和名称的空白智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     for (const json of [
@@ -257,7 +258,7 @@ describe('POST /api/admin/agents with a preset', () => {
     expect(t.fake.repos.size).toBe(0);
   });
 
-  it('gives a blank agent the "other" facet, no guard and a palette colour', async () => {
+  it('为空白智能体设置 other 领域、无保护状态和调色板颜色', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin, 'docsagent', 'Docs');
@@ -266,8 +267,8 @@ describe('POST /api/admin/agents with a preset', () => {
   });
 });
 
-describe('POST /api/admin/agents/crew', () => {
-  it('creates every missing recommended preset, once', async () => {
+describe('POST /api/admin/agents/crew 创建推荐团队', () => {
+  it('为每个尚不存在的推荐预设创建一次智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/admin/agents', {
@@ -310,7 +311,7 @@ describe('POST /api/admin/agents/crew', () => {
     ]);
   });
 
-  it('skips a handle someone else holds', async () => {
+  it('跳过他人已占用的标识名', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'speedagent');
@@ -321,7 +322,7 @@ describe('POST /api/admin/agents/crew', () => {
     expect(crew.skipped.map((s) => s.handle)).toEqual(['speedagent']);
   });
 
-  it('is for site admins only', async () => {
+  it('仅允许站点管理员访问', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');

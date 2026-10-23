@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitService } from '../git/service';
 import { MAX_FILE_TREES } from '../lib/search';
@@ -104,8 +105,8 @@ async function fillers(
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('GET /api/search', () => {
-  it('finds only what the caller can see', async () => {
+describe('搜索接口：GET /api/search', () => {
+  it('只查找调用者可见的内容', async () => {
     const s = await crewRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     const secret = await newRepo(s, 'secret-app', 'private', 'Hidden');
@@ -146,7 +147,7 @@ describe('GET /api/search', () => {
     expect(hidden.files).toEqual([]);
   });
 
-  it('finds agents and people by handle or name; agents are not people', async () => {
+  it('按标识或名称查找代理和用户，并将二者区分', async () => {
     const s = await crewRepo();
     await addMember(s.t, s.admin, 'bob');
     await newAgent(s.t, s.admin, 'secagent', 'Security Agent');
@@ -168,7 +169,7 @@ describe('GET /api/search', () => {
     ]);
   });
 
-  it('ranks agents by handle in the database: an exact match beyond the first 50 alphabetical matches is still first', async () => {
+  it('在数据库按代理标识排序，即使精确匹配位于字母顺序前 50 名之外仍排在首位', async () => {
     const s = await crewRepo();
     // 60 agents whose handles contain "sec" and sort before it, so a 50-row pool ordered by handle would miss it.
     await fillers(s, 'a-sec-', 60, true);
@@ -189,7 +190,7 @@ describe('GET /api/search', () => {
     ]);
   });
 
-  it('ranks people by username in the database: an exact match beyond the first 50 alphabetical matches is still first', async () => {
+  it('在数据库按用户名排序，即使精确匹配位于字母顺序前 50 名之外仍排在首位', async () => {
     const s = await crewRepo();
     await fillers(s, 'a-ann-', 60, false);
     await fillers(s, 'annabel-', 1, false);
@@ -209,7 +210,7 @@ describe('GET /api/search', () => {
     expect(agents).toEqual([]);
   });
 
-  it('keeps ranking by name matches after handle matches, and still finds a person by name only', async () => {
+  it('标识匹配优先于名称匹配，并支持仅按名称查找用户', async () => {
     const s = await crewRepo();
     await newAgent(s.t, s.admin, 'zeta', 'Alpha Reviewer');
     await newAgent(s.t, s.admin, 'alphabot', 'Bot');
@@ -223,7 +224,7 @@ describe('GET /api/search', () => {
     ]);
   });
 
-  it('returns at most 8 of each kind', async () => {
+  it('每类最多返回 8 项', async () => {
     const s = await crewRepo();
     for (let i = 0; i < 10; i++) {
       await newRepo(s, `demo-${i}`);
@@ -249,7 +250,7 @@ describe('GET /api/search', () => {
     expect(found.files).toHaveLength(8);
   });
 
-  it('searches branches and files only within the repository given', async () => {
+  it('仅在指定仓库内搜索分支及文件', async () => {
     const s = await crewRepo();
     await s.branch('feature-login');
     await commitPaths(
@@ -279,7 +280,7 @@ describe('GET /api/search', () => {
     ]);
   });
 
-  it('stops reading trees at the cap, however many directories there are, and still searches what it read', async () => {
+  it('无论目录多少，达到上限后停止读取目录树，仍搜索已读取内容', async () => {
     const s = await crewRepo();
     // One tree per directory: far more of them than the cap, and each with a single file, so the path cap never bites.
     await commitPaths(
@@ -304,7 +305,7 @@ describe('GET /api/search', () => {
     expect(found.files).toHaveLength(8);
   });
 
-  it('reads the file list once a minute at most', async () => {
+  it('文件列表最多每分钟读取一次', async () => {
     const s = await crewRepo();
     const trees = vi.spyOn(GitService.prototype, 'tree');
     await search(s, 'app', { repo: 'octocat/app' });
@@ -316,7 +317,7 @@ describe('GET /api/search', () => {
     expect(trees.mock.calls.length).toBe(first);
   });
 
-  it('searches long, accented and wildcard-heavy queries (D1 refuses LIKE patterns over 50 bytes)', async () => {
+  it('支持长查询、重音字符和大量通配符（D1 拒绝超过 50 字节的 LIKE 模式）', async () => {
     const s = await crewRepo();
     const long = 'x'.repeat(80);
     const accented = 'é'.repeat(40);
@@ -336,7 +337,7 @@ describe('GET /api/search', () => {
     });
   });
 
-  it('returns nothing for a blank query, and needs a session', async () => {
+  it('空白查询返回空结果，并要求有效会话', async () => {
     const s = await crewRepo();
     expect(await search(s, '   ')).toEqual({
       repos: [],

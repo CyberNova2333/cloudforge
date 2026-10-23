@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { PI_FALLBACK_NOTE, PI_GONE } from '../review/outcome';
 import { drizzle } from 'drizzle-orm/d1';
@@ -103,8 +104,8 @@ async function attempt(t: T) {
   return { id: r!.id, generation: r!.created_at * 1000 };
 }
 
-describe('engine: pi', () => {
-  it("reviews in the Pi workspace with the single pass's input, and records its approval", async () => {
+describe('engine: pi 审查引擎', () => {
+  it('在 Pi 工作区使用单轮审查的输入进行审查，并记录批准结果', async () => {
     const { t, head, agentSha, reviewId } = await piReview();
     const pi = fakePi(() =>
       done({ ...APPROVE, summary: 'Read the callers; fine.' })
@@ -159,7 +160,7 @@ describe('engine: pi', () => {
     ]);
   });
 
-  it('records findings as agent-owned flags with excerpts cut from the real diff', async () => {
+  it('将审查意见记录为智能体所有的标记，并从真实差异中截取片段', async () => {
     const { t, agentSha } = await piReview();
     const pi = fakePi(() => done(FINDINGS));
     await runReviews(t, agentModels().models, { pi: pi.api });
@@ -178,7 +179,7 @@ describe('engine: pi', () => {
     expect(second).toMatchObject({ kind: 'change_requested' });
   });
 
-  it('keeps waiting while Pi works', async () => {
+  it('Pi 工作期间持续等待', async () => {
     const { t } = await piReview();
     const pi = fakePi((n) => (n < 4 ? { state: 'running' } : done(APPROVE)));
     await runReviews(t, agentModels().models, { pi: pi.api });
@@ -187,7 +188,7 @@ describe('engine: pi', () => {
     expect(object.checks).toBe(4);
   });
 
-  it("fails with the parser's message when Pi's answer isn't the contract", async () => {
+  it('Pi 答复不符合约定时，以解析器消息报告失败', async () => {
     const { t } = await piReview();
     const pi = fakePi(() => ({
       state: 'done',
@@ -203,7 +204,7 @@ describe('engine: pi', () => {
   });
 
   // One instance per test (setup runs once), so each case is its own test.
-  it('fails when Pi gives up', async () => {
+  it('Pi 放弃时报告失败', async () => {
     const gaveUp = await piReview();
     await runReviews(gaveUp.t, agentModels().models, {
       pi: fakePi(() => ({ state: 'unanswered', reason: 'model error' })).api,
@@ -214,7 +215,7 @@ describe('engine: pi', () => {
     });
   });
 
-  it('fails when its workspace is gone', async () => {
+  it('工作区消失时报告失败', async () => {
     const lost = await piReview();
     await runReviews(lost.t, agentModels().models, {
       pi: fakePi(() => ({ state: 'missing' })).api,
@@ -225,7 +226,7 @@ describe('engine: pi', () => {
     });
   });
 
-  it('stops a review past the wall clock', async () => {
+  it('超过实际耗时上限时停止审查', async () => {
     const slow = await piReview();
     const late = fakePi(() => ({ state: 'running' }), {
       startedAt: Date.now() - PI_DEFAULT_LIMITS.wallClockMs - 1000,
@@ -238,7 +239,7 @@ describe('engine: pi', () => {
     expect(late.stopped).toHaveLength(1);
   });
 
-  it('stops a review over its budget', async () => {
+  it('超出预算时停止审查', async () => {
     const costly = await piReview();
     const spender = fakePi(() => ({ state: 'running' }), {
       turnsPerCheck: PI_DEFAULT_LIMITS.maxModelCalls + 1,
@@ -255,7 +256,7 @@ describe('engine: pi', () => {
     expect(usage!.requests).toBe(PI_DEFAULT_LIMITS.maxModelCalls + 1);
   });
 
-  it('reports a budget the Durable Object enforced itself as the budget being spent', async () => {
+  it('将 Durable Object 自行强制执行的预算上限报告为预算已用尽', async () => {
     const { t } = await piReview();
     const pi = fakePi(() => ({
       state: 'unanswered',
@@ -269,7 +270,7 @@ describe('engine: pi', () => {
     expect(pi.stopped).toHaveLength(1);
   });
 
-  it('honours lowered limits from Site admin, read when the review starts', async () => {
+  it('遵循审查启动时从站点管理读取的调低限额', async () => {
     const { t, admin } = await piReview();
     expect(
       (await setting(t, admin, 'review.pi_max_model_calls', 5)).status
@@ -299,7 +300,7 @@ describe('engine: pi', () => {
     );
   });
 
-  it('honours a lowered wall clock', async () => {
+  it('遵循调低的实际耗时上限', async () => {
     const { t, admin } = await piReview();
     expect((await setting(t, admin, 'review.pi_minutes', 5)).status).toBe(200);
     // Started 6 minutes ago: past the lowered 5 minutes, well inside the default 30.
@@ -313,7 +314,7 @@ describe('engine: pi', () => {
     });
   });
 
-  it('runs on the deep review model, and records its usage under that model', async () => {
+  it('使用深度审查模型运行，并将用量记录到该模型', async () => {
     const { t, admin } = await piReview();
     expect(
       (await setting(t, admin, 'ai.review_pi_model', '@cf/qwen/qwen3-coder'))
@@ -329,7 +330,7 @@ describe('engine: pi', () => {
     expect(usage.results).toEqual([{ model: '@cf/qwen/qwen3-coder' }]);
   });
 
-  it('checks right after a wait times out, but waits the interval out when the wait fails otherwise', async () => {
+  it('等待超时后立即检查；因其他原因失败时等待完整间隔', async () => {
     expect(isWaitTimeout(new Error('pi-wait:secagent:1: timed out'))).toBe(
       true
     );
@@ -377,7 +378,7 @@ describe('engine: pi', () => {
     expect((await reviewers(t))[0].status).toBe('approved');
   });
 
-  it("falls back to a single pass where Pi isn't set up, and says so", async () => {
+  it('未配置 Pi 时回退到单轮审查，并说明原因', async () => {
     const { t } = await piReview();
     const { models, calls } = agentModels();
     await runReviews(t, models);
@@ -387,7 +388,7 @@ describe('engine: pi', () => {
     expect(row.summary).toBe(`${APPROVE.summary} ${PI_FALLBACK_NOTE}`);
   });
 
-  it('reviews engine: pass agents with the single pass even where Pi is set up', async () => {
+  it('即使配置了 Pi，engine: pass 智能体仍执行单轮审查', async () => {
     const { t } = await piReview(AGENT_MD());
     const pi = fakePi();
     const { models, calls } = agentModels();
@@ -397,7 +398,7 @@ describe('engine: pi', () => {
     expect((await reviewers(t))[0].summary).toBe(APPROVE.summary);
   });
 
-  describe('stopping the Durable Object on every way out', () => {
+  describe('在所有退出路径中停止 Durable Object', () => {
     /** Runs the head review inline with `steps` (waits that time out unless given). */
     const runWith = (
       t: T,
@@ -430,7 +431,7 @@ describe('engine: pi', () => {
         "SELECT id, model, requests FROM ai_usage WHERE feature = 'review-agent-pi'"
       ).all<{ id: string; model: string; requests: number }>();
 
-    it('stops the reviewer when the start step fails after the object began, and records what it spent', async () => {
+    it('对象已启动后启动步骤失败时，停止审查器并记录消耗', async () => {
       const { t } = await piReview();
       const pi = fakePi(() => ({ state: 'running' }), { failStart: true });
       await runReviews(t, agentModels().models, { pi: pi.api });
@@ -449,7 +450,7 @@ describe('engine: pi', () => {
       ]);
     });
 
-    it('stops a review whose agent is removed mid-review, and writes nothing', async () => {
+    it('智能体在审查中被移除时停止审查，且不写入任何内容', async () => {
       const { t, admin } = await piReview();
       const pi = fakePi(async (n) => {
         if (n === 1) {
@@ -474,7 +475,7 @@ describe('engine: pi', () => {
       });
     });
 
-    it('stops a review whose row was deleted mid-review', async () => {
+    it('记录在审查中被删除时停止审查', async () => {
       const { t } = await piReview();
       const pi = fakePi(async (n) => {
         if (n === 1) await t.env.DB.prepare('DELETE FROM pr_reviewers').run();
@@ -485,7 +486,7 @@ describe('engine: pi', () => {
       expect(await flags(t)).toEqual([]);
     });
 
-    it('stops the reviewer and fails the row when its status keeps failing', async () => {
+    it('状态查询持续失败时停止审查器，并将记录标记为失败', async () => {
       const { t, reviewId } = await piReview();
       const pi = fakePi(() => {
         throw new Error('the object is unreachable');
@@ -499,7 +500,7 @@ describe('engine: pi', () => {
       expect(pi.stopped).toEqual([piReviewerName(id, generation)]);
     });
 
-    it('records the spend read best effort when a check fails for good', async () => {
+    it('检查最终失败时，尽力记录已读取的消耗', async () => {
       const { t, reviewId } = await piReview();
       // Running, then a failing check, then (read by the failure step) running again.
       const pi = fakePi((n) => {
@@ -519,11 +520,11 @@ describe('engine: pi', () => {
     });
   });
 
-  describe('the last check', () => {
+  describe('最后一次检查', () => {
     // Events that arrive before Pi settles (a notification for an earlier state) make checks come early.
     const early = { waitForEvent: async () => ({ payload: null }) };
 
-    it('lets a review whose checks came early run on past piChecks, inside its wall clock', async () => {
+    it('检查提前完成时，允许审查在实际耗时上限内继续超过 piChecks', async () => {
       const { t, reviewId } = await piReview();
       const n = piChecks(PI_DEFAULT_LIMITS);
       const pi = fakePi((i) => (i <= n ? { state: 'running' } : done(APPROVE)));
@@ -547,7 +548,7 @@ describe('engine: pi', () => {
       expect([...pi.objects.values()][0].checks).toBe(n + 1);
     });
 
-    it('ends a review two checks past piChecks whatever its clock says', async () => {
+    it('超过 piChecks 两次检查后结束审查，不受时钟结果影响', async () => {
       const { t, reviewId } = await piReview();
       const pi = fakePi(() => ({ state: 'running' }));
       await executeHeadReview(
@@ -576,7 +577,7 @@ describe('engine: pi', () => {
     });
   });
 
-  it('carries the model and limits the Durable Object runs with, not a re-read of the settings', async () => {
+  it('携带 Durable Object 实际使用的模型和限额，而非重新读取设置', async () => {
     const { t } = await piReview();
     const effective = {
       model: '@cf/qwen/qwen3-coder',
@@ -623,8 +624,8 @@ function replayingStep() {
   } as unknown as StepRunner;
 }
 
-describe('a Pi review in flight', () => {
-  it('stops when the agent is removed from the repository, and writes nothing', async () => {
+describe('进行中的 Pi 审查', () => {
+  it('智能体从仓库移除时停止，且不写入任何内容', async () => {
     const { t, admin } = await piReview();
     const pi = fakePi(async (n) => {
       if (n === 1) {
@@ -652,7 +653,7 @@ describe('a Pi review in flight', () => {
     expect(usage!.n).toBe(1);
   });
 
-  it('stops when a newer commit replaces the head', async () => {
+  it('新提交替换头提交时停止', async () => {
     const { t, repo, head } = await piReview();
     const pi = fakePi(async (n) => {
       if (n === 1)
@@ -671,7 +672,7 @@ describe('a Pi review in flight', () => {
     expect(pi.stopped).toHaveLength(1);
   });
 
-  it('fails when the pull request is closed, so Retry can review it again once reopened', async () => {
+  it('拉取请求关闭时报告失败，以便重新打开后重试审查', async () => {
     const { t, admin } = await piReview();
     const pi = fakePi(async (n) => {
       if (n === 1)
@@ -690,7 +691,7 @@ describe('a Pi review in flight', () => {
     expect(pi.stopped).toHaveLength(1);
   });
 
-  it('Retry after a failed Pi review starts a fresh Pi reviewer', async () => {
+  it('Pi 审查失败后重试时，启动全新的 Pi 审查器', async () => {
     const { t, admin } = await piReview();
     let gaveUp = true;
     const pi = fakePi(() =>
@@ -708,7 +709,7 @@ describe('a Pi review in flight', () => {
     expect(pi.stopped).toEqual(pi.starts);
   });
 
-  it('an answer for an attempt that was retried meanwhile is not recorded', async () => {
+  it('尝试在答复期间已被重试时，不记录旧答复', async () => {
     const { t } = await piReview();
     const pi = fakePi(async () => {
       // A Retry renewed the row while Pi was answering.
@@ -723,7 +724,7 @@ describe('a Pi review in flight', () => {
     expect(pi.stopped).toHaveLength(1);
   });
 
-  it('a check after stale recovery writes nothing', async () => {
+  it('过期恢复后的检查不写入任何内容', async () => {
     // (That the limits stay inside the stale window is pinned once, by Task 5's settings test.)
     const { t } = await piReview();
     const db = drizzle(t.env.DB, { schema });
@@ -746,7 +747,7 @@ describe('a Pi review in flight', () => {
     expect(pi.stopped).toHaveLength(1);
   });
 
-  it('fails a started review whose Workflow lost the AgentReviewer binding, so Retry can review it again', async () => {
+  it('Workflow 丢失 AgentReviewer 绑定时，将已启动审查标记为失败以便重试', async () => {
     const { t, reviewId } = await piReview();
     // The start step's result is cached (the review started), then the binding was removed and the Workflow resumed.
     const step = {
@@ -785,7 +786,7 @@ describe('a Pi review in flight', () => {
     });
   });
 
-  it('pings live pages after a check only when it ends the review', async () => {
+  it('检查结束审查时才通知实时页面', async () => {
     const { t, reviewId } = await piReview();
     const pi = fakePi((n) => (n < 3 ? { state: 'running' } : done(FINDINGS)));
     const log: string[] = [];
@@ -829,7 +830,7 @@ describe('a Pi review in flight', () => {
     expect(after('review:secagent')).toBe('ping');
   });
 
-  it('a replayed Workflow starts nothing again and records nothing twice', async () => {
+  it('Workflow 重放时不重复启动，也不重复记录', async () => {
     const { t, reviewId } = await piReview();
     const pi = fakePi((n) => (n < 2 ? { state: 'running' } : done(FINDINGS)));
     const db = drizzle(t.env.DB, { schema });

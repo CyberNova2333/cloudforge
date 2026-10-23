@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { SPARK_PAD, sparkGeometry } from './spark';
 
@@ -15,14 +16,14 @@ function original(values: number[], width: number, height: number) {
   return series.map((v, i) => ({ x: x(i), y: y(v) }));
 }
 
-describe('sparkGeometry without gaps', () => {
+describe('sparkGeometry：无空缺的迷你图几何', () => {
   it.each([
     [[1, 2, 3, 2, 5, 4, 6, 3]],
     [[0, 0, 0, 0]],
     [[5]],
     [[2, 9]],
     [[262, 250, 255, 240, 236, 230, 210, 180]],
-  ])('places the points as it always did: %j', (values) => {
+  ])('保持原有坐标计算：%j', (values) => {
     const g = sparkGeometry({ values, width: 104, height: 28 });
     expect(g.points.map(({ x, y }) => ({ x, y }))).toEqual(
       original(values, 104, 28)
@@ -35,7 +36,7 @@ describe('sparkGeometry without gaps', () => {
     expect(g.baseline).toBe(28 - SPARK_PAD);
   });
 
-  it('treats an absent or all-false missing list the same', () => {
+  it('缺失列表未提供或全为 false 时结果相同', () => {
     const values = [3, 1, 2];
     const a = sparkGeometry({ values, width: 100, height: 30 });
     const b = sparkGeometry({
@@ -48,11 +49,11 @@ describe('sparkGeometry without gaps', () => {
   });
 });
 
-describe('sparkGeometry with unmeasured values', () => {
+describe('sparkGeometry：包含未测量值的迷你图几何', () => {
   const values = [0, 0, 40, 0, 20, 0, 0, 10];
   const missing = [true, true, false, true, false, true, true, false];
 
-  it('breaks the line at every gap: runs hold only consecutive measured points', () => {
+  it('每个空缺处断开折线，线段仅包含连续测量点', () => {
     const g = sparkGeometry({ values, missing, width: 104, height: 28 });
     expect(g.runs.map((r) => r.map((p) => p.i))).toEqual([[2], [4], [7]]);
     const joined = sparkGeometry({
@@ -67,7 +68,7 @@ describe('sparkGeometry with unmeasured values', () => {
     ]);
   });
 
-  it('puts missing points on the baseline and marks them', () => {
+  it('将缺失点放在基线上并标记', () => {
     const g = sparkGeometry({ values, missing, width: 104, height: 28 });
     for (const p of g.points)
       if (missing[p.i]) {
@@ -76,7 +77,7 @@ describe('sparkGeometry with unmeasured values', () => {
       } else expect(p.missing).toBe(false);
   });
 
-  it('scales the measured points only: the 0 of a missing week is not the minimum', () => {
+  it('仅按已测量点缩放，缺失周的 0 不作为最小值', () => {
     const g = sparkGeometry({ values, missing, width: 104, height: 28 });
     const byI = new Map(g.points.map((p) => [p.i, p]));
     // 10 is the lowest measured value, 40 the highest: they take the bottom and the top of the plot.
@@ -86,14 +87,14 @@ describe('sparkGeometry with unmeasured values', () => {
     expect(byI.get(4)!.y).toBeLessThan(g.baseline);
   });
 
-  it('spreads the points evenly whatever is missing', () => {
+  it('无论缺失情况如何都均匀分布点位', () => {
     const g = sparkGeometry({ values, missing, width: 104, height: 28 });
     expect(g.points.map((p) => p.x)).toEqual(
       original(values, 104, 28).map((p) => p.x)
     );
   });
 
-  it('has no runs when nothing was measured, and does not divide by zero', () => {
+  it('完全没有测量值时无线段，且避免除以零', () => {
     const g = sparkGeometry({
       values: [0, 0, 0],
       missing: [true, true, true],
@@ -104,7 +105,7 @@ describe('sparkGeometry with unmeasured values', () => {
     expect(g.points.every((p) => Number.isFinite(p.y) && p.missing)).toBe(true);
   });
 
-  it('knows when the last point (this week) is the one missing', () => {
+  it('识别最后一个点即本周是否缺失', () => {
     const g = sparkGeometry({
       values: [5, 6, 0],
       missing: [false, false, true],

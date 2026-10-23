@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   CLEARED,
@@ -23,8 +24,8 @@ const hit = (kind: SearchHit['kind'], label: string): SearchHit => ({
   to: `/${kind}/${label}`,
 });
 
-describe('searchSections (grouping)', () => {
-  it('groups hits in the spec order, whatever order they arrive in', () => {
+describe('searchSections：搜索结果分组', () => {
+  it('无论返回顺序如何，都按规范顺序分组', () => {
     const sections = searchSections('a', [
       hit('page', 'Approvals'),
       hit('file', 'src/a.ts'),
@@ -48,7 +49,7 @@ describe('searchSections (grouping)', () => {
     );
   });
 
-  it('drops empty groups and caps each one', () => {
+  it('移除空组并限制每组数量', () => {
     const repos = Array.from({ length: 9 }, (_, i) => hit('repo', `o/r${i}`));
     const sections = searchSections('r', [...repos, hit('person', 'rae')], {
       perGroup: 4,
@@ -59,14 +60,14 @@ describe('searchSections (grouping)', () => {
     ]);
   });
 
-  it('with no query offers one "Jump to" list', () => {
+  it('没有查询时提供一个跳转列表', () => {
     const sections = searchSections('  ', [hit('repo', 'a/one')]);
     expect(sections).toEqual([
       { title: 'Jump to', hits: [hit('repo', 'a/one')] },
     ]);
   });
 
-  it('flattens back to the order the keys move through', () => {
+  it('展平后保持键盘导航顺序', () => {
     const sections = searchSections('a', [
       hit('person', 'amira'),
       hit('repo', 'a/app'),
@@ -78,10 +79,10 @@ describe('searchSections (grouping)', () => {
   });
 });
 
-describe('searchKey (keyboard)', () => {
+describe('searchKey：搜索键盘操作', () => {
   const hits = [hit('repo', 'a'), hit('repo', 'b'), hit('repo', 'c')];
 
-  it('ArrowDown moves down and wraps from the last to the first', () => {
+  it('ArrowDown 向下移动，并从末项循环到首项', () => {
     let state = { q: 'x', sel: 0 };
     const seen: number[] = [];
     for (let i = 0; i < 4; i++) {
@@ -93,18 +94,18 @@ describe('searchKey (keyboard)', () => {
     expect(seen).toEqual([1, 2, 0, 1]);
   });
 
-  it('ArrowUp moves up and wraps from the first to the last', () => {
+  it('ArrowUp 向上移动，并从首项循环到末项', () => {
     const r = searchKey({ q: 'x', sel: 0 }, 'ArrowUp', hits);
     expect(r.state.sel).toBe(2);
     expect(searchKey(r.state, 'ArrowUp', hits).state.sel).toBe(1);
   });
 
-  it('arrows with no results stay put (and still keep the caret still)', () => {
+  it('没有结果时方向键不移动选择，也不移动光标', () => {
     const r = searchKey({ q: 'zz', sel: 0 }, 'ArrowDown', []);
     expect(r).toMatchObject({ handled: true, state: { q: 'zz', sel: 0 } });
   });
 
-  it('Enter goes to the selected hit and clears the search', () => {
+  it('Enter 打开选中结果并清空搜索', () => {
     const r = searchKey({ q: 'x', sel: 1 }, 'Enter', hits);
     expect(r).toEqual({
       handled: true,
@@ -114,7 +115,7 @@ describe('searchKey (keyboard)', () => {
     });
   });
 
-  it('Enter with nothing to open does nothing', () => {
+  it('没有可打开项时 Enter 不执行操作', () => {
     expect(searchKey({ q: 'zz', sel: 0 }, 'Enter', [])).toMatchObject({
       handled: false,
       go: null,
@@ -122,7 +123,7 @@ describe('searchKey (keyboard)', () => {
     });
   });
 
-  it('Escape clears the query and closes', () => {
+  it('Escape 清空查询并关闭', () => {
     expect(searchKey({ q: 'abc', sel: 2 }, 'Escape', hits)).toEqual({
       handled: true,
       close: true,
@@ -132,7 +133,7 @@ describe('searchKey (keyboard)', () => {
     expect(CLEARED).toEqual({ q: '', sel: 0 });
   });
 
-  it('leaves every other key to the input', () => {
+  it('其他按键交由输入框处理', () => {
     const r = searchKey({ q: 'ab', sel: 1 }, 'a', hits);
     expect(r).toEqual({
       handled: false,
@@ -142,48 +143,48 @@ describe('searchKey (keyboard)', () => {
     });
   });
 
-  it('clamps a stale selection after the results shrank', () => {
+  it('结果减少后修正过期的选中位置', () => {
     expect(searchKey({ q: 'x', sel: 7 }, 'Enter', hits).go).toBe('/repo/c');
   });
 });
 
-describe('blurCloses (leaving the search box)', () => {
+describe('blurCloses：离开搜索框', () => {
   const tabbedOut = {
     windowFocused: true,
     pressedInside: false,
     focusInside: false,
   };
 
-  it('closes when focus moves elsewhere in the page (Tab out)', () => {
+  it('焦点移至页面其他位置时关闭，例如按 Tab 离开', () => {
     expect(blurCloses(tabbedOut)).toBe(true);
   });
 
-  it('stays open when the whole window lost focus (switching apps)', () => {
+  it('整个窗口失去焦点时保持打开，例如切换应用', () => {
     expect(blurCloses({ ...tabbedOut, windowFocused: false })).toBe(false);
   });
 
-  it('stays open after a press inside the box (the results scrollbar)', () => {
+  it('在搜索框内部按下鼠标后保持打开，例如结果滚动条', () => {
     expect(blurCloses({ ...tabbedOut, pressedInside: true })).toBe(false);
   });
 
-  it('stays open when focus moved to something inside the box', () => {
+  it('焦点移至框内其他元素时保持打开', () => {
     expect(blurCloses({ ...tabbedOut, focusInside: true })).toBe(false);
   });
 });
 
-describe('searchTerm (what is sent to /api/search)', () => {
-  it('trims what was typed, and sends nothing for a blank box', () => {
+describe('searchTerm：发送到 /api/search 的查询', () => {
+  it('去除输入首尾空白，空框不发送查询', () => {
     expect(searchTerm('  auth  ')).toBe('auth');
     expect(searchTerm('   ')).toBe('');
     expect(searchTerm('')).toBe('');
   });
 
-  it('keeps inner spaces and "#12"-style pull request numbers', () => {
+  it('保留内部空格和 #12 形式的拉取请求编号', () => {
     expect(searchTerm(' fix login ')).toBe('fix login');
     expect(searchTerm('#12')).toBe('#12');
   });
 
-  it('caps the query where the API stops reading, far below the length it refuses', () => {
+  it('按 API 读取上限截断查询，远低于拒绝请求的长度', () => {
     const long = 'a'.repeat(300);
     expect(searchTerm(long)).toHaveLength(SEARCH_MAX_CHARS);
     expect(SEARCH_MAX_CHARS).toBeLessThanOrEqual(200);
@@ -193,13 +194,13 @@ describe('searchTerm (what is sent to /api/search)', () => {
     );
   });
 
-  it('waits a moment for typing to pause', () => {
+  it('短暂等待用户停止输入', () => {
     expect(SEARCH_DEBOUNCE_MS).toBe(150);
   });
 });
 
-describe('EMPTY_RESULTS', () => {
-  it('has all six lists, empty, in the shape of the API', () => {
+describe('EMPTY_RESULTS：空结果', () => {
+  it('包含符合 API 结构的六个空列表', () => {
     expect(EMPTY_RESULTS).toEqual({
       repos: [],
       pulls: [],
@@ -212,8 +213,8 @@ describe('EMPTY_RESULTS', () => {
   });
 });
 
-describe('hitsFromResults', () => {
-  it('links every kind of result to its page', () => {
+describe('hitsFromResults：从结果生成匹配项', () => {
+  it('将每类结果链接到对应页面', () => {
     const hits = hitsFromResults(
       {
         repos: [{ name: 'o/r', description: 'd' }],
@@ -238,8 +239,8 @@ describe('hitsFromResults', () => {
   });
 });
 
-describe('jumpHits', () => {
-  it('lists recently visited repositories first, then the rest', () => {
+describe('jumpHits：跳转结果', () => {
+  it('最近访问的仓库优先，其余在后', () => {
     const hits = jumpHits(
       [
         { fullName: 'a/one', description: null },
@@ -252,8 +253,8 @@ describe('jumpHits', () => {
   });
 });
 
-describe('pageHits', () => {
-  it('finds pages by name, and Site admin pages only for admins', () => {
+describe('pageHits：页面结果', () => {
+  it('按名称查找页面，仅管理员可见站点管理页面', () => {
     expect(pageHits('usage', { admin: false, repo: null })).toEqual([]);
     expect(
       pageHits('usage', { admin: true, repo: null }).map((h) => h.to)
@@ -263,7 +264,7 @@ describe('pageHits', () => {
     ).toEqual(['/settings/emails']);
   });
 
-  it('shows the Agents directory to everyone and New reviewer to admins', () => {
+  it('所有人可见代理目录，管理员可见新建评审者', () => {
     expect(
       pageHits('agents', { admin: false, repo: null }).map((h) => h.to)
     ).toEqual(['/agents']);
@@ -275,7 +276,7 @@ describe('pageHits', () => {
     ).toEqual(['/agents/new', '/agents']);
   });
 
-  it('matches keywords from the start of a word, not inside one', () => {
+  it('关键字只匹配词首而非词内', () => {
     // "password" and "cursor" are keywords of the token and MCP pages; "or" is inside them, not a word start.
     expect(
       pageHits('or', { admin: false, repo: null }).map((h) => h.label)
@@ -285,7 +286,7 @@ describe('pageHits', () => {
     ).toEqual(['MCP server']);
   });
 
-  it("adds the current repository's tabs inside a repository", () => {
+  it('位于仓库中时加入当前仓库的标签页', () => {
     expect(pageHits('actions', { admin: false, repo: null })).toEqual([]);
     expect(
       pageHits('actions', { admin: false, repo: 'o/r' }).map((h) => [

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { CloudflareError, restCloudflare } from '../cloudflare.ts';
 import { fakeCloudflare } from './fakes.ts';
@@ -25,8 +26,8 @@ const ok = (result: unknown, info?: object) =>
   Response.json({ success: true, errors: [], result, result_info: info });
 const noSleep = { sleep: async () => {} };
 
-describe('restCloudflare', () => {
-  it('turns an error envelope into CloudflareError', async () => {
+describe('restCloudflare：Cloudflare REST 客户端', () => {
+  it('将错误响应封装转换为 CloudflareError', async () => {
     const { fetch } = fakeFetch(() =>
       Response.json(
         { success: false, errors: [{ code: 10000, message: 'Auth' }] },
@@ -43,7 +44,7 @@ describe('restCloudflare', () => {
     expect(err.message).not.toContain('Bearer');
   });
 
-  it('listAccounts sends per_page=50; Artifacts and workers/domains send none', async () => {
+  it('listAccounts 发送 per_page=50；Artifacts 和 workers/domains 不发送', async () => {
     const acc = fakeFetch(() => ok([]));
     await restCloudflare('t', acc.fetch, noSleep).listAccounts();
     expect(acc.calls[0]!.url.searchParams.get('per_page')).toBe('50');
@@ -57,7 +58,7 @@ describe('restCloudflare', () => {
     ]);
   });
 
-  it('listR2 follows result_info.cursor across two pages', async () => {
+  it('listR2 根据 result_info.cursor 读取两页', async () => {
     const { fetch, calls } = fakeFetch((c) =>
       c.url.searchParams.get('cursor') === 'c1'
         ? ok({ buckets: [{ name: 'b2' }] }, {})
@@ -71,7 +72,7 @@ describe('restCloudflare', () => {
     expect(calls[0]!.url.searchParams.get('per_page')).toBe('1000');
   });
 
-  it('stops when the cursor repeats', async () => {
+  it('游标重复时停止', async () => {
     const { fetch, calls } = fakeFetch(() =>
       ok({ buckets: [{ name: 'b' }] }, { cursor: 'same' })
     );
@@ -79,7 +80,7 @@ describe('restCloudflare', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('concatenates pages', async () => {
+  it('合并分页结果', async () => {
     const { fetch, calls } = fakeFetch((c) =>
       c.url.searchParams.get('page') === null
         ? ok([{ uuid: '1', name: 'a' }], { total_pages: 2 })
@@ -90,7 +91,7 @@ describe('restCloudflare', () => {
     expect(calls).toHaveLength(2);
   });
 
-  it('retries a GET once on 429, honouring Retry-After (capped)', async () => {
+  it('GET 遇到 429 时遵循有上限的 Retry-After 重试一次', async () => {
     const waits: number[] = [];
     const { fetch, calls } = fakeFetch((_, n) =>
       n === 1
@@ -105,7 +106,7 @@ describe('restCloudflare', () => {
     expect(waits).toEqual([10_000]);
   });
 
-  it('does not retry a POST on 500', async () => {
+  it('POST 遇到 500 时不重试', async () => {
     const { fetch, calls } = fakeFetch(() =>
       Response.json(
         { success: false, errors: [{ code: 1, message: 'boom' }] },
@@ -118,7 +119,7 @@ describe('restCloudflare', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('workersSubdomain: 404 -> null, else the subdomain', async () => {
+  it('workersSubdomain：404 返回 null，否则返回子域名', async () => {
     const miss = fakeFetch(() =>
       Response.json({ success: false, errors: [] }, { status: 404 })
     );
@@ -131,7 +132,7 @@ describe('restCloudflare', () => {
     ).toBe('me');
   });
 
-  it('findZone walks labels upward and returns the first hit', async () => {
+  it('findZone 逐级向上查找域名并返回首个匹配项', async () => {
     const { fetch, calls } = fakeFetch((c) =>
       c.url.searchParams.get('name') === 'example.com'
         ? ok([{ id: 'z', name: 'example.com', status: 'active' }])
@@ -149,7 +150,7 @@ describe('restCloudflare', () => {
     ]);
   });
 
-  it('queryD1 sends sql and params and returns the first result set', async () => {
+  it('queryD1 发送 SQL 和参数并返回首个结果集', async () => {
     const { fetch, calls } = fakeFetch(() =>
       ok([{ results: [{ n: 1 }] }, { results: [{ n: 2 }] }])
     );
@@ -166,7 +167,7 @@ describe('restCloudflare', () => {
     });
   });
 
-  it('putR2Lifecycle translates rules to the API shape', async () => {
+  it('putR2Lifecycle 将规则转换为 API 格式', async () => {
     const { fetch, calls } = fakeFetch(() => ok({}));
     await restCloudflare('t', fetch, noSleep).putR2Lifecycle('a', 'b', [
       { id: 'expire-7d', prefix: 'actions-cache/', days: 7 },
@@ -180,7 +181,7 @@ describe('restCloudflare', () => {
     });
   });
 
-  it('R2 objects are raw bodies; 404 -> null', async () => {
+  it('R2 对象使用原始正文，404 返回 null', async () => {
     const miss = fakeFetch(() => new Response('', { status: 404 }));
     expect(
       await restCloudflare('t', miss.fetch, noSleep).getR2Object(
@@ -196,7 +197,7 @@ describe('restCloudflare', () => {
     expect(hit.calls[0]!.url.pathname).toMatch(/\/objects\/k\/x$/);
   });
 
-  it('dns reads go to cloudflare-dns.com without a token', async () => {
+  it('DNS 查询发送到 cloudflare-dns.com 且不携带令牌', async () => {
     const { fetch, calls } = fakeFetch((c) =>
       Response.json({
         Status: 0,
@@ -218,7 +219,7 @@ describe('restCloudflare', () => {
     }
   });
 
-  it('workerRoutes lists the zone routes with their script', async () => {
+  it('workerRoutes 列出区域路由及其脚本', async () => {
     const { fetch, calls } = fakeFetch(() =>
       ok([
         { id: 'r1', pattern: 'git.example.com/*', script: 'other' },
@@ -234,7 +235,7 @@ describe('restCloudflare', () => {
     expect(calls[0]!.url.pathname).toBe('/client/v4/zones/z1/workers/routes');
   });
 
-  it('r2IsEmpty lists at most one object', async () => {
+  it('r2IsEmpty 最多列出一个对象', async () => {
     const empty = fakeFetch(() => ok([]));
     expect(
       await restCloudflare('t', empty.fetch, noSleep).r2IsEmpty('a', 'b')
@@ -250,7 +251,7 @@ describe('restCloudflare', () => {
     expect(full.calls).toHaveLength(1);
   });
 
-  it('workerVars keeps only plain_text bindings; 404 -> null', async () => {
+  it('workerVars 仅保留 plain_text 绑定，404 返回 null', async () => {
     const { fetch } = fakeFetch(() =>
       ok({
         bindings: [
@@ -270,7 +271,7 @@ describe('restCloudflare', () => {
     ).toBeNull();
   });
 
-  it('workerSettings returns all bindings', async () => {
+  it('workerSettings 返回所有绑定', async () => {
     const bindings = [
       { type: 'plain_text', name: 'A', text: '1' },
       { type: 'd1', name: 'DB', id: 'uuid-1' },
@@ -292,7 +293,7 @@ describe('restCloudflare', () => {
     );
   });
 
-  it('workerSettings: 404 is null', async () => {
+  it('workerSettings：404 返回 null', async () => {
     const miss = fakeFetch(() =>
       Response.json({ success: false, errors: [] }, { status: 404 })
     );
@@ -301,7 +302,7 @@ describe('restCloudflare', () => {
     ).toBeNull();
   });
 
-  it('durableObjectNamespaces carries use_sqlite when the API gives it', async () => {
+  it('durableObjectNamespaces 保留 API 提供的 use_sqlite', async () => {
     const { fetch } = fakeFetch(() =>
       ok([
         { id: 'n1', script: 'w', class: 'A', use_sqlite: true },
@@ -316,7 +317,7 @@ describe('restCloudflare', () => {
     ]);
   });
 
-  it('listContainerApps maps the Durable Object namespace', async () => {
+  it('listContainerApps 映射 Durable Object 命名空间', async () => {
     const { fetch, calls } = fakeFetch(() =>
       ok([
         {
@@ -339,8 +340,8 @@ describe('restCloudflare', () => {
   });
 });
 
-describe('fakeCloudflare', () => {
-  it('seeds state, logs calls and supports failNext', async () => {
+describe('fakeCloudflare：模拟 Cloudflare', () => {
+  it('初始化状态、记录调用并支持 failNext', async () => {
     const cf = fakeCloudflare({
       r2: { b: { k: 'v' } },
       d1: [{ uuid: 'u', name: 'db' }],

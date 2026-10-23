@@ -167,8 +167,8 @@ async function mainRun(s: CrewRepo, at: number, conclusion: string) {
   );
 }
 
-describe('health maths', () => {
-  it('starts ISO weeks on Monday 00:00 UTC, eight of them, oldest first', () => {
+describe('健康度计算', () => {
+  it('ISO 周从 UTC 周一零点开始，列出八周且最早的在前', () => {
     // Thursday 8 October 2026, 15:00 UTC.
     const now = Date.UTC(2026, 9, 8, 15);
     expect(new Date(isoWeekStart(now)).toISOString()).toBe(
@@ -183,7 +183,7 @@ describe('health maths', () => {
     expect(starts[7]).toBe(Date.UTC(2026, 9, 5));
   });
 
-  it('calls a week worse when it has more problems than the week before', () => {
+  it('某周问题多于前一周时判断为恶化', () => {
     expect(trendOf(3, 1)).toBe('worse');
     expect(trendOf(1, 3)).toBe('better');
     expect(trendOf(2, 2)).toBe('same');
@@ -191,8 +191,8 @@ describe('health maths', () => {
   });
 });
 
-describe('GET /api/repos/{o}/{r}/health', () => {
-  it('has one row per invited agent with its findings per week, then tests and merging', async () => {
+describe('GET /api/repos/{o}/{r}/health 仓库健康度', () => {
+  it('为每个受邀智能体列出一行每周审查意见，随后列出测试和合并', async () => {
     const s = await crewRepo();
     await invitedAgent(s.t, s.admin, 'secagent');
     // Created, never invited here: no row, even with findings.
@@ -231,7 +231,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     );
   });
 
-  it('measures tests on main by the share of runs that failed, week over week', async () => {
+  it('按周比较 main 上失败运行的比例以衡量测试健康度', async () => {
     const s = await crewRepo();
     // This week: 3 of 4 passed. Last week: 2 of 2. Cancelled runs don't count.
     for (const c of ['success', 'success', 'success', 'failure', 'cancelled'])
@@ -252,7 +252,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(['Passing', 'Failing now']).toContain(tests.status);
   });
 
-  it('calls the trend the same, and claims no improvement, when this week has no runs to compare', async () => {
+  it('本周没有可比较运行时，将趋势视为持平且不声称改善', async () => {
     const s = await crewRepo();
     // Last week half the runs failed; this week nothing has run on main. Zero is "no data", not "no failures".
     for (const c of ['success', 'failure']) await mainRun(s, inWeek(1), c);
@@ -269,7 +269,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect((await health(s)).summary).toBe('Nothing got worse this week.');
   });
 
-  it('calls the trend the same, and claims no decline, when last week has no runs to compare', async () => {
+  it('上周没有可比较运行时，将趋势视为持平且不声称恶化', async () => {
     const s = await crewRepo();
     // This week 1 of 4 runs failed; last week had no runs at all (only an older week did).
     for (const c of ['success', 'success', 'success', 'failure'])
@@ -290,7 +290,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(report.summary).toBe('Nothing got worse this week.');
   });
 
-  it('marks the weeks in which no run finished, so a 0 for them is not read as "nothing failed"', async () => {
+  it('标记没有已完成运行的周，避免将零误解为没有失败', async () => {
     const s = await crewRepo();
     // Runs this week (one failed of two) and three weeks ago (all passed); a week that only has a cancelled run has
     // no finished run either.
@@ -313,7 +313,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(tests.noRuns).toHaveLength(tests.weeks.length);
   });
 
-  it('marks every week as having no runs before any test has run, and only the tests row has noRuns', async () => {
+  it('尚未运行任何测试时，所有周均标记为无运行，且仅测试行具有 noRuns', async () => {
     const s = await crewRepo();
     await invitedAgent(s.t, s.admin, 'secagent');
     const report = await health(s);
@@ -323,7 +323,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(area(report, 'merging').noRuns).toBeUndefined();
   });
 
-  it('says so when no tests have run', async () => {
+  it('尚未运行测试时明确说明', async () => {
     const quiet = await crewRepo();
     expect(area(await health(quiet), 'tests')).toMatchObject({
       thisWeek: 0,
@@ -335,7 +335,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     });
   });
 
-  it('counts merges, reverts and clashes fixed for merging', async () => {
+  it('统计合并、回退及为合并解决的冲突', async () => {
     const s = await crewRepo();
     const a = await pr(s, 1, { mergedAt: inWeek(0) });
     await pr(s, 2, { mergedAt: inWeek(0) });
@@ -376,7 +376,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     });
   });
 
-  it('says nothing got worse when no row did, and counts decisions waiting', async () => {
+  it('没有指标恶化时说明未恶化，并统计待处理决定', async () => {
     const s = await crewRepo();
     await s.branch('a');
     await s.web('a');
@@ -391,7 +391,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     });
   });
 
-  it('names several rows that got worse in one sentence', async () => {
+  it('用一句话列出多个恶化指标', async () => {
     const s = await crewRepo();
     await invitedAgent(s.t, s.admin, 'secagent');
     const p = await pr(s, 1, { mergedAt: inWeek(0) });
@@ -404,7 +404,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     );
   });
 
-  it('lists people and coding sessions that merged this week, with the findings on their changes', async () => {
+  it('列出本周完成合并的人员和编码会话，以及其变更上的审查意见', async () => {
     const s = await crewRepo();
     await invitedAgent(s.t, s.admin, 'secagent');
     await addMember(s.t, s.admin, 'ada');
@@ -451,7 +451,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     ]);
   });
 
-  it('gives each contributor the id GET /sessions gives its group, a person working by hand included', async () => {
+  it('为各贡献者提供 GET /sessions 返回的分组 ID，包括手动工作的用户', async () => {
     const s = await crewRepo();
     await addMember(s.t, s.admin, 'ada');
     await pr(s, 1, { mergedAt: inWeek(0), via: 'Claude Code', session: 's4' });
@@ -500,7 +500,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(codex.who.sessionId).not.toBe(claude.who.sessionId);
   });
 
-  it('counts open findings per agent from the pull requests’ current state', async () => {
+  it('根据拉取请求当前状态按智能体统计未解决意见', async () => {
     const s = await crewRepo({ actions: true });
     await invitedAgent(s.t, s.admin, 'secagent');
     await s.branch('a');
@@ -517,7 +517,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
     expect(report.decisionsWaiting).toBe(1);
   });
 
-  it('is readable by anyone who can read the repository; 404 for others', async () => {
+  it('有仓库读取权限者均可访问，其他用户收到 404', async () => {
     const s = await crewRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     expect((await call(s.t, `${BASE}/health`, { cookie: bob })).status).toBe(

@@ -60,8 +60,8 @@ function seed(name: string, id: string): InstallState {
 const adopt = (name?: string) =>
   adoptFromCheckout({ checkout, home, name, io, now });
 
-describe('adoptFromCheckout', () => {
-  it('copies state and config, marks the checkout', async () => {
+describe('adoptFromCheckout：从源码检出目录接管', () => {
+  it('复制状态和配置并标记检出目录', async () => {
     const s = seed('acme', 'acme-111111111111');
     writeFileSync(join(checkout, 'wrangler.jsonc'), '// config\n{}\n');
     const r = await adopt();
@@ -83,7 +83,7 @@ describe('adoptFromCheckout', () => {
     ).toBe(false);
   });
 
-  it('several checkout installs need --name', async () => {
+  it('多个源码安装需要 --name', async () => {
     seed('acme', 'acme-111111111111');
     seed('beta', 'beta-222222222222');
     writeFileSync(join(checkout, 'wrangler.jsonc'), '{}');
@@ -93,7 +93,7 @@ describe('adoptFromCheckout', () => {
     expect(r.slug).toBe(resourceNames('beta').worker);
   });
 
-  it('destination taken stops, checkout untouched', async () => {
+  it('目标位置已占用时停止且保留检出目录', async () => {
     const s = seed('acme', 'acme-111111111111');
     writeFileSync(join(checkout, 'wrangler.jsonc'), '{}');
     const dest = join(home, s.names.worker);
@@ -113,7 +113,7 @@ describe('adoptFromCheckout', () => {
     expect(existsSync(join(dest, 'wrangler.jsonc'))).toBe(false);
   });
 
-  it('a failure leaves no destination behind', async () => {
+  it('失败后不遗留目标目录', async () => {
     const s = seed('acme', 'acme-111111111111');
     // No wrangler.jsonc in the checkout.
     await expect(adopt()).rejects.toThrow(/wrangler\.jsonc is missing/);
@@ -123,14 +123,14 @@ describe('adoptFromCheckout', () => {
     ).toBeUndefined();
   });
 
-  it('an install that already moved is not adopted twice', async () => {
+  it('已迁移的安装不会被再次接管', async () => {
     seed('acme', 'acme-111111111111');
     writeFileSync(join(checkout, 'wrangler.jsonc'), '{}');
     await adopt();
     await expect(adopt()).rejects.toThrow(/already moved/);
   });
 
-  it('files are 0600 and dir 0700', async () => {
+  it('文件权限为 0600，目录权限为 0700', async () => {
     const s = seed('acme', 'acme-111111111111');
     writeFileSync(join(checkout, 'wrangler.jsonc'), '{}');
     const r = await adopt();

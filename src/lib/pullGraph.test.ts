@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   decodeEntities,
@@ -66,12 +67,12 @@ const styleOf = (source: string, i: number) =>
     .map((l) => l.trim())
     .find((l) => l.startsWith(`linkStyle ${i} `)) ?? '';
 
-describe('pullGraph', () => {
-  it('is empty when nothing is open', () => {
+describe('pullGraph：拉取请求关系图', () => {
+  it('没有开放请求时为空', () => {
     expect(pullGraph({ targets: [] })).toEqual([]);
   });
 
-  it('draws a flowchart whose PRs with nothing ahead point into the land target', () => {
+  it('绘制流程图，无前置请求的节点指向合入目标', () => {
     const [g] = pullGraph(tree({ branch: 'main', nodes: [node(1), node(2)] }));
     expect(g.target).toBe('main');
     expect(g.source).toMatch(/flowchart TD/);
@@ -80,12 +81,12 @@ describe('pullGraph', () => {
     expect(g.source).toContain('pr1["#35;1 PR 1<br/>by @u"]');
   });
 
-  it('turns off HTML labels', () => {
+  it('禁用 HTML 标签', () => {
     const [g] = pullGraph(tree({ branch: 'main', nodes: [node(1)] }));
     expect(g.source).toMatch(/htmlLabels: false/);
   });
 
-  it('styles each relationship, pointing from a PR to what lands before it', () => {
+  it('为各种关系应用样式，箭头从请求指向先合入的请求', () => {
     const [g] = pullGraph(
       tree({
         branch: 'main',
@@ -133,7 +134,7 @@ describe('pullGraph', () => {
     ]);
   });
 
-  it('colours nodes by state and links nothing itself', () => {
+  it('按状态为节点着色，图本身不添加链接', () => {
     const [g] = pullGraph(
       tree({
         branch: 'main',
@@ -157,7 +158,7 @@ describe('pullGraph', () => {
     expect(g.source).not.toMatch(/\bclick\b|href|javascript/i);
   });
 
-  it('draws one graph per land target, each ending at its branch', () => {
+  it('每个合入目标绘制独立图，并终止于对应分支', () => {
     const gs = pullGraph(
       tree(
         { branch: 'main', nodes: [node(1)] },
@@ -176,7 +177,7 @@ describe('pullGraph', () => {
     expect(gs[0].source).not.toContain('pr2');
   });
 
-  it('outlines PRs in a cycle and reports them', () => {
+  it('标出循环中的拉取请求并报告', () => {
     const [g] = pullGraph(
       tree({
         branch: 'main',
@@ -193,7 +194,7 @@ describe('pullGraph', () => {
     expect(g.source).not.toMatch(/style pr3 /);
   });
 
-  it('cannot be steered by a malicious title or branch name', () => {
+  it('恶意标题或分支名无法操纵图结构', () => {
     const evil = '"]-->x; click x "javascript:alert(1)"';
     const [g] = pullGraph(
       tree({
@@ -230,7 +231,7 @@ describe('pullGraph', () => {
     ]);
   });
 
-  it('keeps long titles whole', () => {
+  it('完整保留长标题', () => {
     const [g] = pullGraph(
       tree({ branch: 'main', nodes: [node(1, { title: 'a'.repeat(100) })] })
     );
@@ -238,7 +239,7 @@ describe('pullGraph', () => {
     expect(label.split('<br/>')[0]).toBe(`#35;1 ${'a'.repeat(100)}`);
   });
 
-  it('keeps the status off the node: the title, the author, then room for the icons the page draws', () => {
+  it('节点不显示状态，仅保留标题、作者及页面图标的空间', () => {
     const [g] = pullGraph(
       tree({
         branch: 'main',
@@ -269,8 +270,8 @@ describe('pullGraph', () => {
   });
 });
 
-describe('mermaidText', () => {
-  it('keeps letters, digits and plain punctuation, and encodes the rest', () => {
+describe('mermaidText：Mermaid 文本', () => {
+  it('保留字母、数字和普通标点，编码其余字符', () => {
     expect(mermaidText('Fix: café (v2), done!')).toBe('Fix: café (v2), done!');
     expect(mermaidText('a"b<c>`d')).toBe('a#34;b#60;c#62;#96;d');
     expect(mermaidText('50% #1;')).toBe('50#37; #35;1#59;');
@@ -278,23 +279,23 @@ describe('mermaidText', () => {
   });
 });
 
-describe('decodeEntities', () => {
-  it('reads labels as their titles again', () => {
+describe('decodeEntities：解码实体', () => {
+  it('将标签恢复为原始标题', () => {
     expect(decodeEntities('&#35;12 a &#60;b&#62; &#34;c&#34; t&#8230;')).toBe(
       '#12 a <b> "c" t…'
     );
   });
-  it('decodes once, so encoded entity text stays literal', () => {
+  it('仅解码一次，使编码后的实体文本保持字面含义', () => {
     // A title of `&#35;` is encoded as `#38;#35;`, which Mermaid draws as `&#38;#35;`.
     expect(decodeEntities('&#38;#35;')).toBe('&#35;');
   });
-  it('leaves out-of-range codes alone', () => {
+  it('保留超出范围的编码', () => {
     expect(decodeEntities('&#99999999;')).toBe('&#99999999;');
   });
 });
 
-describe('nodeTooltip', () => {
-  it('lists the basics and the state with its reasons', () => {
+describe('nodeTooltip：节点提示', () => {
+  it('列出基本信息、状态及其原因', () => {
     const t = nodeTooltip(
       node(3, {
         pullState: {
@@ -308,7 +309,7 @@ describe('nodeTooltip', () => {
     expect(t[2]).toMatch(/changes requested on 2 flags/);
   });
 
-  it('says a pull request waiting on the pause is paused, as the list does', () => {
+  it('与列表一致，将等待恢复合并的拉取请求显示为已暂停', () => {
     const t = nodeTooltip(
       node(3, {
         pullState: {
@@ -320,7 +321,7 @@ describe('nodeTooltip', () => {
     expect(t[2]).toBe('Paused: merging is paused');
   });
 
-  it('describes each dependency kind, pending, unchecked and checking', () => {
+  it('描述各种依赖类型以及待处理、未检查和检查中状态', () => {
     const t = nodeTooltip(
       node(3, {
         parent: dep(1, 'builds_on', { reason: 'adds the helper' }),
@@ -351,13 +352,13 @@ describe('nodeTooltip', () => {
     );
   });
 
-  it('returns markup-like titles verbatim', () => {
+  it('原样返回类似标记语言的标题', () => {
     expect(
       nodeTooltip(node(1, { title: '<script>alert(1)</script>' }))
     ).toMatch(/^#1 <script>alert\(1\)<\/script>\n/);
   });
 
-  it('draws landed builds_on, conflicts and ordered_after to the merged node', () => {
+  it('将已合入的 builds_on、conflicts 和 ordered_after 关系绘制到已合并节点', () => {
     const [g] = pullGraph(
       tree({
         branch: 'main',
@@ -384,7 +385,7 @@ describe('nodeTooltip', () => {
     expect(g.tips.pr4).toContain('waits on #1');
   });
 
-  it('is exposed per node id, merged ones marked', () => {
+  it('以节点 ID 暴露提示，并标记已合并节点', () => {
     const g = pullGraph(
       tree({
         branch: 'main',

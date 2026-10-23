@@ -61,7 +61,7 @@ async function ready() {
   };
 }
 
-it('recovers an acknowledged Git landing after D1 aborts, with one audit and one follow-up delivery', async () => {
+it('D1 中止后恢复已确认的 Git 合并，仅产生一条审计和一次后续投递', async () => {
   const f = await ready();
   await f.t.env.DB.exec(
     `CREATE TRIGGER fail_landing BEFORE UPDATE OF state ON pull_requests WHEN NEW.state = 'merged' BEGIN SELECT RAISE(ABORT, 'injected D1 failure'); END;`
@@ -117,7 +117,7 @@ it('recovers an acknowledged Git landing after D1 aborts, with one audit and one
   ).not.toBeNull();
 });
 
-it('does not infer a merge from an ordinary contained head without a landing intent', async () => {
+it('没有合并意图时，不因目标包含普通头提交而推断已合并', async () => {
   const f = await ready();
   f.repo.refs.set('refs/heads/main', f.head);
   expect(
@@ -155,7 +155,7 @@ async function earlierLanding() {
   return { ...f, intent, first };
 }
 
-it('keeps the first recording timestamps when the same landing is recorded again', async () => {
+it('再次记录同一合并时保留首次记录时间', async () => {
   const f = await earlierLanding();
   const revision = (await f.read())!.stateRevision;
   expect(revision).toBe(f.pr.stateRevision + 1);
@@ -181,7 +181,7 @@ it('keeps the first recording timestamps when the same landing is recorded again
   expect(audits[0].createdAt).toEqual(f.first);
 });
 
-it('preserves newer PR and repository activity timestamps when an old landing is recorded again', async () => {
+it('重新记录旧合并时，保留较新的 PR 和仓库活动时间', async () => {
   const f = await earlierLanding();
   const newer = new Date(f.first.getTime() + 3_600_000);
   await f.db.batch([
@@ -208,7 +208,7 @@ it('preserves newer PR and repository activity timestamps when an old landing is
   ).toEqual(newer);
 });
 
-it('orders approval before a merge in the same second and preserves the first audit millisecond on replay', async () => {
+it('同一秒内将批准排在合并前，重放时保留首次审计的毫秒时间', async () => {
   const f = await ready();
   const second = Math.floor(Date.now() / 1000) * 1000;
   await f.db
@@ -252,7 +252,7 @@ it('orders approval before a merge in the same second and preserves the first au
   expect(rows[1].createdAt.getTime()).toBe(second + 789);
 });
 
-it('does all fallible commit-count reads before moving the target', async () => {
+it('移动目标前完成所有可能失败的提交计数读取', async () => {
   const f = await ready();
   const before = f.repo.refs.get('refs/heads/main');
   f.opts.git.log = async () => {
@@ -263,7 +263,7 @@ it('does all fallible commit-count reads before moving the target', async () => 
   expect((await f.read())!.state).toBe('open');
 });
 
-it('does not let a pre-push transport failure prevent merging newer reviewed tips', async () => {
+it('推送前的传输失败不阻止合并更新的已审查顶端', async () => {
   const f = await ready();
   f.opts.git.client.push = async () => {
     throw new Error('offline before push');
@@ -285,7 +285,7 @@ it('does not let a pre-push transport failure prevent merging newer reviewed tip
   expect(await f.db.select().from(landingIntents)).toHaveLength(2);
 });
 
-it('keeps a receipt-only partial prepare unmerged and can retry that same intent', async () => {
+it('仅有回执的部分准备保持未合并，并允许重试同一意图', async () => {
   const f = await ready();
   const before = f.repo.refs.get('refs/heads/main');
   const push = f.opts.git.client.push.bind(f.opts.git.client);
@@ -307,7 +307,7 @@ it('keeps a receipt-only partial prepare unmerged and can retry that same intent
   expect(await f.db.select().from(landingIntents)).toHaveLength(1);
 });
 
-it('closes an attempt whose target moved before its CAS, so later merges and recovery stop re-checking it', async () => {
+it('比较并交换前目标已被移走时关闭该尝试，之后的合并与恢复不再反复检查', async () => {
   const f = await ready();
   const push = f.opts.git.client.push.bind(f.opts.git.client);
   let moved = '';
@@ -334,7 +334,7 @@ it('closes an attempt whose target moved before its CAS, so later merges and rec
   expect((await f.read())!.state).toBe('open');
 });
 
-it('recovery closes a pending attempt once its target has moved on without it', async () => {
+it('目标已移走且不含其结果时，恢复任务关闭待定的尝试', async () => {
   const f = await ready();
   f.opts.git.client.push = async () => {
     throw new Error('offline before push');
@@ -358,7 +358,7 @@ it('recovery closes a pending attempt once its target has moved on without it', 
   expect((await f.read())!.state).toBe('open');
 });
 
-it('abandons a prepared attempt if the PR closes before the target CAS', async () => {
+it('目标比较并交换前 PR 已关闭时，放弃准备好的尝试', async () => {
   const f = await ready();
   const before = f.repo.refs.get('refs/heads/main');
   const push = f.opts.git.client.push.bind(f.opts.git.client);
@@ -380,7 +380,7 @@ it('abandons a prepared attempt if the PR closes before the target CAS', async (
   expect((await f.read())!.state).toBe('closed');
 });
 
-it('recovers a lost target-push response and retries a failed follow-up without redelivering completed tasks', async () => {
+it('恢复丢失的目标推送响应，并重试失败的后续任务，不重复投递已完成任务', async () => {
   const f = await ready();
   const push = f.opts.git.client.push.bind(f.opts.git.client);
   f.opts.git.client.push = async (updates, objects) => {

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import type { ClassifierAnswer } from '../db/app.schema';
@@ -35,8 +36,8 @@ const answers = (
   },
 });
 
-describe('Clef decisions', () => {
-  it('reads Clef’s three answers', () => {
+describe('Clef 决策', () => {
+  it('读取 Clef 的三项回答', () => {
     expect(readDecision(answers(0.8, 'builds_on', 0.7, 'a', 0.9))).toEqual({
       related: 0.8,
       kind: 'builds_on',
@@ -46,7 +47,7 @@ describe('Clef decisions', () => {
     });
   });
 
-  it('rejects missing or malformed answers', () => {
+  it('拒绝缺失或格式错误的回答', () => {
     expect(() => readDecision({})).toThrow();
     expect(() => readDecision(answers(0.8, 'blocks', 0.7, 'a', 0.9))).toThrow();
     expect(() =>
@@ -69,13 +70,13 @@ describe('Clef decisions', () => {
     ...over,
   });
 
-  it('stops at unrelated pairs', () => {
+  it('遇到无关请求对时停止', () => {
     expect(routeDecision(d({ related: 0.2 }), o)).toEqual({
       action: 'independent',
     });
   });
 
-  it('keeps a confident decision and only asks for words', () => {
+  it('保留高置信度决策，仅请求文字说明', () => {
     expect(routeDecision(d({}), o)).toEqual({
       action: 'explain',
       kind: 'builds_on',
@@ -86,7 +87,7 @@ describe('Clef decisions', () => {
     });
   });
 
-  it('judges an independent answer on the kind alone', () => {
+  it('仅按关系类型判定独立回答', () => {
     expect(
       routeDecision(d({ kind: 'independent', prerequisiteConfidence: 0.1 }), o)
     ).toEqual({ action: 'independent' });
@@ -95,7 +96,7 @@ describe('Clef decisions', () => {
     ).toEqual({ action: 'decide' });
   });
 
-  it('lets the reasoning model decide when Clef is unsure', () => {
+  it('Clef 不确定时交由推理模型决策', () => {
     expect(routeDecision(d({ kindConfidence: 0.5 }), o)).toEqual({
       action: 'decide',
     });
@@ -104,7 +105,7 @@ describe('Clef decisions', () => {
     });
   });
 
-  it('treats a textual conflict as related, and never as independent', () => {
+  it('将文本冲突视为相关，绝不视为独立', () => {
     expect(
       routeDecision(d({ related: 0.1, kind: 'independent' }), {
         ...o,
@@ -113,15 +114,15 @@ describe('Clef decisions', () => {
     ).toEqual({ action: 'explain', kind: 'conflicts', prerequisite: 'a' });
   });
 
-  it('never lets a landed PR depend on an open one', () => {
+  it('不允许已合入的拉取请求依赖打开的请求', () => {
     expect(
       routeDecision(d({ prerequisite: 'b' }), { ...o, aLanded: true })
     ).toEqual({ action: 'decide' });
   });
 });
 
-describe('reasoning model answers', () => {
-  it('reads a relation, fenced or not', () => {
+describe('推理模型回答', () => {
+  it('读取带或不带代码围栏的关系回答', () => {
     const text =
       '{"kind":"must_account_for","prerequisite":"a","reason":"#1 adds a registry.","instructions":"Add checks."}';
     for (const t of [text, '```json\n' + text + '\n```'])
@@ -133,7 +134,7 @@ describe('reasoning model answers', () => {
       });
   });
 
-  it('normalizes independent and drops stray instructions', () => {
+  it('规范化独立关系并丢弃多余指令', () => {
     expect(
       parseRelation(
         '{"kind":"independent","prerequisite":"b","reason":"Unrelated.","instructions":"x"}',
@@ -147,7 +148,7 @@ describe('reasoning model answers', () => {
     });
   });
 
-  it('keeps a decided kind and prerequisite whatever the explanation says', async () => {
+  it('无论说明内容如何，保留已决定的类型及前置依赖', async () => {
     const AI = {
       run: async () => ({
         choices: [
@@ -191,7 +192,7 @@ describe('reasoning model answers', () => {
     });
   });
 
-  it('caps instructions at 1500 characters', () => {
+  it('将指令限制在 1500 个字符内', () => {
     const r = parseRelation(
       JSON.stringify({
         kind: 'must_account_for',
@@ -204,7 +205,7 @@ describe('reasoning model answers', () => {
     expect(r.instructions).toHaveLength(1500);
   });
 
-  it('rejects unknown kinds, bad prerequisites, empty reasons, and a landed PR depending on an open one', () => {
+  it('拒绝未知类型、无效前置依赖、空理由及已合入请求依赖打开请求的关系', () => {
     for (const text of [
       '{"kind":"blocks","prerequisite":"a","reason":"r","instructions":null}',
       '{"kind":"builds_on","prerequisite":"c","reason":"r","instructions":null}',
@@ -239,20 +240,20 @@ const edge = (
   files: [],
 });
 
-describe('buildTree', () => {
-  it('stacks a dependent PR on its prerequisite', () => {
+describe('buildTree 构建依赖树', () => {
+  it('将依赖请求堆叠到其前置请求上', () => {
     const t = buildTree([1, 2], [edge(1, 2, 'builds_on')]);
     expect(t.get(2)!.parent?.number).toBe(1);
     expect(t.get(1)!.children).toEqual([2]);
     expect(t.get(1)!.parent).toBeNull();
   });
 
-  it('follows the direction the model chose', () => {
+  it('遵循模型选择的依赖方向', () => {
     const t = buildTree([1, 2], [edge(1, 2, 'builds_on', 'b')]);
     expect(t.get(1)!.parent?.number).toBe(2);
   });
 
-  it('without one line through the prerequisites, has no parent and waits on all', () => {
+  it('前置依赖无法连成一条链时不设父级，并等待全部前置依赖', () => {
     const t = buildTree(
       [1, 2, 3, 4],
       [
@@ -270,7 +271,7 @@ describe('buildTree', () => {
     ).toEqual([1, 2, 3]);
   });
 
-  it('stacks on the prerequisite whose chain holds the others, preferring must_account_for', () => {
+  it('选择依赖链包含其他前置依赖的父级，并优先考虑 must_account_for', () => {
     const order = (a: number, b: number, forPr: number): EdgeInput => ({
       ...edge(a, b, 'ordered_after'),
       slot: 'order',
@@ -298,7 +299,7 @@ describe('buildTree', () => {
     expect(t.get(28)!.children).toEqual([29]);
   });
 
-  it('ignores dismissed edges and marks accounted ones', () => {
+  it('忽略被驳回的依赖边，并标记已处理的依赖', () => {
     const t = buildTree(
       [1, 2, 3],
       [
@@ -313,7 +314,7 @@ describe('buildTree', () => {
     expect(t.get(3)!.parent?.number).toBe(2);
   });
 
-  it('keeps blocking while a must_account_for is re-checked', () => {
+  it('重新检查 must_account_for 时继续阻塞', () => {
     const t = buildTree(
       [1, 2],
       [edge(1, 2, 'must_account_for', 'a', 'recheck')]
@@ -324,7 +325,7 @@ describe('buildTree', () => {
     expect(t.get(2)!.pending).toEqual([]);
   });
 
-  it('never stacks on a line that holds a prerequisite only through a conflict', () => {
+  it('不将仅通过冲突包含前置依赖的链用作堆叠目标', () => {
     const t = buildTree(
       [1, 2, 3],
       [
@@ -338,7 +339,7 @@ describe('buildTree', () => {
     expect(t.get(2)!.waitsOn.map((d) => d.number)).toEqual([1]);
   });
 
-  it('stacks on the line an order edge makes after a conflict', () => {
+  it('发生冲突后，沿排序边构成的链堆叠', () => {
     const t = buildTree(
       [1, 2, 3],
       [
@@ -353,13 +354,13 @@ describe('buildTree', () => {
     expect(t.get(3)!.waitsOn).toEqual([]);
   });
 
-  it('never parents on a conflict alone', () => {
+  it('不单凭冲突关系设置父级', () => {
     const t = buildTree([1, 2], [edge(1, 2, 'conflicts')]);
     expect(t.get(2)!.parent).toBeNull();
     expect(t.get(2)!.waitsOn.map((d) => d.number)).toEqual([1]);
   });
 
-  it('lists a landed prerequisite only when it must be accounted for', () => {
+  it('仅在需要处理时列出已合入的前置依赖', () => {
     const t = buildTree(
       [2, 3],
       [edge(1, 2, 'must_account_for'), edge(1, 3, 'builds_on')]
@@ -372,7 +373,7 @@ describe('buildTree', () => {
     expect(t.get(3)!.waitsOn).toEqual([]);
   });
 
-  it('keeps landed builds_on, conflicts and ordered_after for display only', () => {
+  it('已合入的 builds_on、conflicts 和 ordered_after 仅保留用于展示', () => {
     const t = buildTree(
       [4, 5, 6],
       [
@@ -397,7 +398,7 @@ describe('buildTree', () => {
     }
   });
 
-  it('breaks cycles and reports them', () => {
+  it('断开依赖环并报告', () => {
     const t = buildTree(
       [1, 2, 3],
       [
@@ -412,7 +413,7 @@ describe('buildTree', () => {
     }
   });
 
-  it('reports a failed re-check as unchecked on the dependent, and it still blocks', () => {
+  it('将复查失败标记为依赖请求尚未检查，并继续阻塞', () => {
     const t = buildTree(
       [1, 2],
       [
@@ -442,7 +443,7 @@ describe('buildTree', () => {
       ).toEqual([]);
   });
 
-  it('lists a prerequisite once in waitsOn when a verdict and an order edge both name it', () => {
+  it('关系判定及排序边同时指向同一前置依赖时，在 waitsOn 中只列出一次', () => {
     const t = buildTree(
       [1, 2],
       [
@@ -453,7 +454,7 @@ describe('buildTree', () => {
     expect(t.get(2)!.waitsOn.map((d) => d.number)).toEqual([1]);
   });
 
-  it('lists an unchecked PR once, and a failed order row is never unchecked', () => {
+  it('未检查请求只列出一次，失败的排序记录不视为未检查', () => {
     const t = buildTree(
       [1, 2],
       [
@@ -479,7 +480,7 @@ describe('buildTree', () => {
     expect(order.get(2)!.unchecked).toEqual([]);
   });
 
-  it('reports failed pairs as unchecked and ignores independent and unfinished ones', () => {
+  it('将失败请求对报告为未检查，并忽略独立及尚未完成的请求对', () => {
     const t = buildTree(
       [1, 2, 3],
       [
@@ -494,7 +495,7 @@ describe('buildTree', () => {
     expect(t.get(3)!.parent).toBeNull();
   });
 
-  it('never reports an unfinished order row as unchecked or pending, nor stacks on it', () => {
+  it('未完成的排序记录不视为未检查或待处理，也不用作堆叠依据', () => {
     const t = buildTree(
       [1, 2],
       [
@@ -515,7 +516,7 @@ describe('buildTree', () => {
     expect(t.get(2)!.parent).toBeNull();
   });
 
-  it('lists pairs still being checked as pending', () => {
+  it('将仍在检查的请求对列为待处理', () => {
     const t = buildTree(
       [2, 3, 4],
       [
@@ -532,8 +533,8 @@ describe('buildTree', () => {
   });
 });
 
-describe('parseRecheck', () => {
-  it('reads an answer and drops instructions once accounted for', () => {
+describe('parseRecheck 解析复查结果', () => {
+  it('读取回答，确认已处理后丢弃指令', () => {
     expect(
       parseRecheck(
         '```json\n{"accounted":true,"reason":"Adds the check.","instructions":"x"}\n```'
@@ -554,7 +555,7 @@ describe('parseRecheck', () => {
     });
   });
 
-  it('refuses anything else', () => {
+  it('拒绝其他输入', () => {
     for (const text of [
       '{"accounted":"yes","reason":"r","instructions":null}',
       '{"reason":"r","instructions":null}',
@@ -566,13 +567,13 @@ describe('parseRecheck', () => {
   });
 });
 
-describe('linearize', () => {
+describe('linearize 线性化依赖', () => {
   const firstIs =
     (n: number): Choose =>
     async (x, y) =>
       x === n || y !== n ? x : y;
 
-  it('adds nothing when one prerequisite’s chain already holds the others', async () => {
+  it('某前置依赖的链已包含其他前置依赖时不新增关系', async () => {
     const added = await linearize(
       {
         open: [28, 29, 31],
@@ -584,13 +585,13 @@ describe('linearize', () => {
         orders: [],
       },
       async () => {
-        throw new Error('no choice needed');
+        throw new Error('此处无需选择排序');
       }
     );
     expect(added).toEqual([]);
   });
 
-  it('orders two unrelated prerequisites by the choice, for the PR that needs both', async () => {
+  it('按选择结果为共同依赖的两个无关前置请求排序', async () => {
     const asked: number[][] = [];
     const added = await linearize(
       {
@@ -608,7 +609,7 @@ describe('linearize', () => {
     expect(added).toEqual([{ before: 29, after: 28, forPr: 31 }]);
   });
 
-  it('lets an existing relationship win over the choice, and still puts the pair in one line', async () => {
+  it('已有关系优先于新选择，仍将请求对排在同一条链上', async () => {
     const added = await linearize(
       {
         open: [28, 29, 31],
@@ -617,14 +618,14 @@ describe('linearize', () => {
         orders: [],
       },
       async () => {
-        throw new Error('no choice needed');
+        throw new Error('此处无需选择排序');
       }
     );
     // A conflict sets the direction but isn't a line to stack on: the order edge is still added.
     expect(added).toEqual([{ before: 28, after: 29, forPr: 31 }]);
   });
 
-  it('never orders a pair a maintainer refused; the dependent waits on both', async () => {
+  it('不为维护者拒绝的请求对排序，依赖方等待二者', async () => {
     const added = await linearize(
       {
         open: [28, 29, 31],
@@ -634,13 +635,13 @@ describe('linearize', () => {
         refused: [{ before: 28, after: 29, forPr: 31 }],
       },
       async () => {
-        throw new Error('no choice needed');
+        throw new Error('此处无需选择排序');
       }
     );
     expect(added).toEqual([]);
   });
 
-  it('keeps one order when two dependents would choose opposite orders', async () => {
+  it('两个依赖方选择相反顺序时只保留一个排序', async () => {
     const asked: number[] = [];
     const added = await linearize(
       {
@@ -662,7 +663,7 @@ describe('linearize', () => {
     expect(added).toEqual([{ before: 2, after: 1, forPr: 8 }]);
   });
 
-  it('rolls back a chain that would close a cycle', async () => {
+  it('回滚会闭合成环的依赖链', async () => {
     const added = await linearize(
       {
         open: [1, 2, 3, 9],
@@ -676,7 +677,7 @@ describe('linearize', () => {
     expect(added).toEqual([]);
   });
 
-  it('chains three prerequisites and stays acyclic whatever the choice says', async () => {
+  it('连接三个前置依赖，且无论选择结果如何都保持无环', async () => {
     const added = await linearize(
       {
         open: [1, 2, 3, 9],
@@ -702,7 +703,7 @@ describe('linearize', () => {
     }
   });
 
-  it('skips PRs in a dependency cycle', async () => {
+  it('跳过处于依赖环中的拉取请求', async () => {
     const added = await linearize(
       {
         open: [1, 2, 3, 4],
@@ -719,7 +720,7 @@ describe('linearize', () => {
     expect(added).toEqual([]);
   });
 
-  it('reads Clef’s order answer', () => {
+  it('读取 Clef 的排序回答', () => {
     expect(
       readOrder({
         first: {

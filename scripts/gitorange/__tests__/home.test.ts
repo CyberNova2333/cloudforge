@@ -44,15 +44,15 @@ const put = (name: string) => {
   return statePath(dir, id);
 };
 
-describe('cloudforgeHome', () => {
-  it('CLOUDFORGE_HOME overrides, else ~/.cloudforge', () => {
+describe('cloudforgeHome：安装主目录', () => {
+  it('优先使用 CLOUDFORGE_HOME，否则使用 ~/.cloudforge', () => {
     expect(cloudforgeHome({ CLOUDFORGE_HOME: '/x/y' })).toBe('/x/y');
     expect(cloudforgeHome({})).toBe(join(homedir(), '.cloudforge'));
   });
 });
 
-describe('pickInstall', () => {
-  it('several installs need --name', () => {
+describe('pickInstall：选择安装', () => {
+  it('多个安装需要 --name', () => {
     const a = put('acme');
     const b = put('beta');
     const old = new Date('2020-01-01T00:00:00Z');
@@ -67,13 +67,13 @@ describe('pickInstall', () => {
     expect(pickInstall(home, 'beta').slug).toBe('beta');
   });
 
-  it('one install is picked', () => {
+  it('选择唯一安装', () => {
     put('acme');
     expect(pickInstall(home, undefined).slug).toBe('acme');
     expect(listInstalls(home).map((i) => i.slug)).toEqual(['acme']);
   });
 
-  it('empty home', () => {
+  it('主目录为空', () => {
     expect(() => pickInstall(home, undefined)).toThrow(
       `No CloudForge install in ${home}.`
     );
@@ -83,8 +83,8 @@ describe('pickInstall', () => {
   });
 });
 
-describe('listInstalls', () => {
-  it('skips files and dangling symlinks', () => {
+describe('listInstalls：列出安装', () => {
+  it('跳过文件和失效符号链接', () => {
     put('acme');
     writeFileSync(join(home, 'note.txt'), 'x');
     symlinkSync(join(home, 'nowhere'), join(home, 'dangling'));

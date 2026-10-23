@@ -32,8 +32,8 @@ function keysIn(src: string): string[] {
 const placeholders = (s: string) =>
   [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
-describe('Chinese UI text', () => {
-  it('translates every key the app uses', () => {
+describe('中文界面文案', () => {
+  it('翻译应用使用的所有键', () => {
     const missing: string[] = [];
     for (const [file, src] of Object.entries(sources))
       for (const key of keysIn(src))
@@ -41,34 +41,34 @@ describe('Chinese UI text', () => {
     expect(missing).toEqual([]);
   });
 
-  it('never builds a key at run time (a template literal is never translated)', () => {
+  it('不在运行时拼接翻译键，模板字面量不用于翻译', () => {
     const dynamic = Object.entries(sources).flatMap(([file, src]) =>
       [...src.matchAll(/\bt[xn]?\(\s*`/g)].map(() => file)
     );
     expect(dynamic).toEqual([]);
   });
 
-  it('keeps every placeholder in the translation', () => {
+  it('翻译保留所有占位符', () => {
     const broken = Object.entries(zh)
       .filter(([en, cn]) => placeholders(en).join() !== placeholders(cn).join())
       .map(([en, cn]) => `${en} → ${cn}`);
     expect(broken).toEqual([]);
   });
 
-  it('gives a key shared by several areas the same translation', () => {
+  it('多个区域共用的键采用同一译文', () => {
     const seen = new Map<string, string>();
     const clashes: string[] = [];
     for (const [area, table] of Object.entries(zhAreas))
       for (const [en, cn] of Object.entries(table)) {
         const before = seen.get(en);
         if (before !== undefined && before !== cn)
-          clashes.push(`${area}: ${en} → ${cn} (elsewhere ${before})`);
+          clashes.push(`${area}: ${en} → ${cn}（其他区域为 ${before}）`);
         seen.set(en, cn);
       }
     expect(clashes).toEqual([]);
   });
 
-  it('fills server message patterns from their groups', () => {
+  it('根据捕获组填充服务端消息模式', () => {
     const [pattern, text] = zhPatterns.find(([p]) =>
       p.test('Request failed: 502')
     )!;

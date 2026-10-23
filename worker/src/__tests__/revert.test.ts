@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitService } from '../git/service';
 import { addMember, call, settle } from './helpers/app';
@@ -60,8 +61,8 @@ const pullCount = async (s: CrewRepo) =>
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
-  it('opens a pull request that undoes every landed commit, on top of the target as it is now', async () => {
+describe('回退拉取请求：POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
+  it('在当前目标之上创建撤销全部已合入提交的拉取请求', async () => {
     const s = await crewRepo();
     const n = await landed(
       s,
@@ -159,7 +160,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     ]);
   });
 
-  it('reverts a squash-era merge (no landed_commits) as its one commit', async () => {
+  it('对没有 landed_commits 的压缩合并旧请求，撤销其单个合并提交', async () => {
     const s = await crewRepo();
     const squash = await commitPaths(
       s.repo,
@@ -178,7 +179,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect(filesAt(s, head)).toEqual(FILES);
   });
 
-  it('409s with a message when later changes touch the same lines, and opens nothing', async () => {
+  it('后续变更触及相同行时返回带说明的 409，且不创建请求', async () => {
     const s = await crewRepo();
     const n = await landed(s, 'first', [
       { ...FILES, 'src/app.ts': 'export const a = 2;\n' },
@@ -196,7 +197,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect(s.repo.refs.has('refs/heads/revert-1')).toBe(false);
   });
 
-  it('refuses a pull request that is not merged', async () => {
+  it('拒绝回退尚未合入的拉取请求', async () => {
     const s = await crewRepo();
     await s.branch('open');
     const n = await s.web('open');
@@ -208,7 +209,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect((await revert(s, 99)).status).toBe(404);
   });
 
-  it('needs push access', async () => {
+  it('需要推送权限', async () => {
     const s = await crewRepo();
     const n = await landed(s, 'feature', [{ ...FILES, 'feature.txt': 'f\n' }]);
     const bob = await addMember(s.t, s.admin, 'bob');
@@ -225,7 +226,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect(author!.username).toBe('ada');
   });
 
-  it('deletes the revert branch when the pull request then fails to open', async () => {
+  it('创建拉取请求失败后删除回退分支', async () => {
     const s = await crewRepo();
     const n = await landed(s, 'feature', [{ ...FILES, 'feature.txt': 'f\n' }]);
     const before = await pullCount(s);
@@ -247,7 +248,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect(page.pull.headRef).toBe('revert-1');
   });
 
-  it('picks a branch name that is free', async () => {
+  it('选择尚未占用的分支名', async () => {
     const s = await crewRepo();
     const n = await landed(s, 'feature', [{ ...FILES, 'feature.txt': 'f\n' }]);
     s.repo.refs.set('refs/heads/revert-1', s.main);
@@ -262,7 +263,7 @@ describe('POST /api/repos/{o}/{r}/pulls/{n}/revert', () => {
     expect(s.repo.refs.get('refs/heads/revert-1')).toBe(s.main);
   });
 
-  it('409s when the target already undoes it', async () => {
+  it('目标已撤销相同变更时返回 409', async () => {
     const s = await crewRepo();
     const n = await landed(s, 'feature', [{ ...FILES, 'feature.txt': 'f\n' }]);
     // Someone already removed the file on main.

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { publicDns } from '../public-dns.ts';
 
@@ -20,8 +21,8 @@ function doh(
 
 const noSleep = { sleep: async () => {} };
 
-describe('publicDns', () => {
-  it('asks cloudflare-dns.com for JSON, one query per type, with no credentials', async () => {
+describe('publicDns：公共 DNS', () => {
+  it('向 cloudflare-dns.com 请求 JSON，每种类型查询一次，且不带凭据', async () => {
     const seen: { url: URL; headers: Headers }[] = [];
     await publicDns(doh({}, seen), noSleep).records('mail.example.com');
     expect(seen.map((s) => s.url.searchParams.get('type'))).toEqual([
@@ -40,7 +41,7 @@ describe('publicDns', () => {
     }
   });
 
-  it("keeps only records at the name: a CNAME's target records are not the name's", async () => {
+  it('仅保留该名称的记录，排除 CNAME 目标名称的记录', async () => {
     const cname = {
       name: 'mail.example.com.',
       type: 5,
@@ -59,7 +60,7 @@ describe('publicDns', () => {
     ]);
   });
 
-  it('MX content is the host; TXT keeps its quoted chunks; NXDOMAIN is no records', async () => {
+  it('MX 内容取主机名，TXT 保留带引号的分段，NXDOMAIN 表示无记录', async () => {
     const dns = publicDns(
       doh({
         'example.com MX': [
@@ -85,7 +86,7 @@ describe('publicDns', () => {
     expect(await dns.records('gone.example.com')).toEqual([]);
   });
 
-  it('a failing resolver is retried, then an error naming the lookup', async () => {
+  it('解析器失败时重试，最终错误指出所查名称', async () => {
     let n = 0;
     const flaky = (async () => {
       n++;

@@ -214,7 +214,7 @@ function harness(
         migrations.push(w);
         return ok();
       }
-      throw new Error(`unexpected wrangler ${args.join(' ')}`);
+      throw new Error(`意外的 wrangler 调用：${args.join(' ')}`);
     },
   });
   const printed: string[] = [];
@@ -224,7 +224,7 @@ function harness(
       return null;
     },
     async select() {
-      throw new Error('no select');
+      throw new Error('不应触发选择提示');
     },
     async confirm() {
       return opts.confirm ?? true;
@@ -268,7 +268,7 @@ function harness(
     ) {
       return new Response('', { status: opts.r2Check ?? 200 });
     }
-    throw new Error(`unexpected fetch ${url}`);
+    throw new Error(`意外的网络请求：${url}`);
   }) as typeof fetch;
   const ctx: Ctx = {
     cf,
@@ -317,8 +317,8 @@ const run = (
     ...o,
   });
 
-describe('planUpgrade', () => {
-  it('plan lists migrations, new secret and new resource', async () => {
+describe('planUpgrade：规划升级', () => {
+  it('计划列出迁移、新密钥和新资源', async () => {
     const h = harness();
     const p = await planUpgrade(h.ctx, h.state);
     expect(p.from).toBe('1.2.0');
@@ -344,14 +344,14 @@ describe('planUpgrade', () => {
     expect(lines.at(-1)).toBe(LAST);
   });
 
-  it('no d1_migrations table: every migration is pending', async () => {
+  it('不存在 d1_migrations 表时所有迁移均待执行', async () => {
     const s = installedAt120();
     const h = harness({ seed: { ...seedFor(s), d1Migrations: {} } });
     const p = await planUpgrade(h.ctx, h.state);
     expect(p.migrations).toEqual(['0000_init.sql', '0001_more.sql']);
   });
 
-  it('no d1_migrations table but other tables: the plan stops', async () => {
+  it('不存在 d1_migrations 但存在其他表时停止规划', async () => {
     const s = installedAt120();
     const h = harness({
       seed: {
@@ -370,8 +370,8 @@ describe('planUpgrade', () => {
   });
 });
 
-describe('upgrade', () => {
-  it('applies resources, config, migrations, deploy, durable-objects, markers, verify', async () => {
+describe('upgrade：升级', () => {
+  it('依次执行资源、配置、迁移、部署、Durable Object、标记和验证', async () => {
     const h = harness();
     const s = await run(h);
     expect(s.status).toBe('installed');
@@ -409,7 +409,7 @@ describe('upgrade', () => {
     expect(readState(home, ID)!.status).toBe('installed');
   });
 
-  it('kept tunable vars are in the regenerated config', async () => {
+  it('重新生成的配置包含保留的可调变量', async () => {
     const base = installedAt120();
     const h = harness({
       state: {
@@ -424,7 +424,7 @@ describe('upgrade', () => {
     expect(s.inputs.vars).toEqual({ AI_GATEWAY: 'mine' });
   });
 
-  it('a missing Durable Object namespace id is read and deployed', async () => {
+  it('读取缺少的 Durable Object 命名空间 ID 并部署', async () => {
     const h = harness({
       state: {
         ...installedAt120(),
@@ -440,7 +440,7 @@ describe('upgrade', () => {
     expect(config).toContain('"LIVE_NAMESPACE_ID": "ns-live"');
   });
 
-  it('docker missing stops before planning', async () => {
+  it('缺少 Docker 时在规划前停止', async () => {
     const h = harness({
       docker: () => Promise.reject(new Error('spawn docker ENOENT')),
     });
@@ -455,7 +455,7 @@ describe('upgrade', () => {
     expect(existsSync(join(home, 'wrangler.jsonc'))).toBe(false);
   });
 
-  it('downgrade refused', async () => {
+  it('拒绝降级', async () => {
     const h = harness({ running: '1.4.0' });
     await expect(run(h)).rejects.toThrow(
       'Run that version instead: npx @cybernova2333/cloudforge@1.4.0 upgrade --name acme'
@@ -464,7 +464,7 @@ describe('upgrade', () => {
     expect(h.saved().status).toBe('installed');
   });
 
-  it('installation id mismatch stops', async () => {
+  it('安装 ID 不匹配时停止', async () => {
     const h = harness({ runningId: 'someone-else' });
     await expect(run(h)).rejects.toThrow(
       'this is not the install the state describes'
@@ -472,7 +472,7 @@ describe('upgrade', () => {
     expect(h.deploys).toHaveLength(0);
   });
 
-  it('null id accepted only after adopt', async () => {
+  it('仅在接管后接受空 ID', async () => {
     const plain = harness({ runningId: null });
     await expect(run(plain)).rejects.toThrow(
       'this is not the install the state describes'
@@ -495,7 +495,7 @@ describe('upgrade', () => {
     );
   });
 
-  it('the first upgrade after adopt writes the adopted bucket marker and leaves its lifecycle', async () => {
+  it('接管后的首次升级写入已接管存储桶标记，并保留其生命周期配置', async () => {
     const base = installedAt120();
     const s0: InstallState = {
       ...base,
@@ -530,7 +530,7 @@ describe('upgrade', () => {
     expect(h.cf.calls.some((c) => c.method === 'putR2Lifecycle')).toBe(false);
   });
 
-  it('custom code stops without --replace-custom-code', async () => {
+  it('没有 --replace-custom-code 时遇到自定义代码则停止', async () => {
     const h = harness({ running: 'deadbeef1234-dirty' });
     const e = await run(h).catch((x: Error) => x);
     expect(e).toBeInstanceOf(Error);
@@ -544,7 +544,7 @@ describe('upgrade', () => {
     expect(h.nonDocker()).toHaveLength(0);
   });
 
-  it('custom code proceeds with --replace-custom-code', async () => {
+  it('指定 --replace-custom-code 时允许替换自定义代码', async () => {
     const h = harness({ running: 'deadbeef1234-dirty' });
     const s = await run(h, { replaceCustomCode: true });
     expect(s.status).toBe('installed');
@@ -553,7 +553,7 @@ describe('upgrade', () => {
     );
   });
 
-  it('hand-edited config refused', async () => {
+  it('拒绝手工编辑的配置', async () => {
     const h = harness();
     writeFileSync(join(home, 'wrangler.jsonc'), '{}\n');
     const e = await run(h).catch((x: Error) => x);
@@ -563,14 +563,14 @@ describe('upgrade', () => {
     expect(readFileSync(join(home, 'wrangler.jsonc'), 'utf8')).toBe('{}\n');
   });
 
-  it('only missing secrets are sent', async () => {
+  it('仅发送缺少的密钥', async () => {
     const h = harness();
     await run(h);
     expect(h.deploys).toHaveLength(1);
     expect(Object.keys(h.deploys[0]!.secrets ?? {})).toEqual(GENERATED);
   });
 
-  it('upgrade never adds SETUP_CODE_HASH', async () => {
+  it('升级从不添加 SETUP_CODE_HASH', async () => {
     const h = harness({ secrets: [...TYPED, ...GENERATED] });
     const p = await planUpgrade(h.ctx, h.state);
     expect(p.secrets).toEqual([]);
@@ -580,14 +580,14 @@ describe('upgrade', () => {
     expect(h.deploys[0]!.args).not.toContain('--secrets-file');
   });
 
-  it('no missing secrets: deploys without a secrets file', async () => {
+  it('不缺少密钥时部署不使用密钥文件', async () => {
     const h = harness({ secrets: ALL_SECRETS });
     await run(h);
     expect(h.deploys).toHaveLength(1);
     expect(h.deploys[0]!.args).not.toContain('--secrets-file');
   });
 
-  it('missing R2 keys do not block --yes', async () => {
+  it('缺少 R2 密钥不阻止 --yes', async () => {
     const h = harness({
       secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN'],
     });
@@ -606,7 +606,7 @@ describe('upgrade', () => {
     );
   });
 
-  it('typed credentials go out with the deploy; the digest ignores them', async () => {
+  it('手动输入的凭据随部署发送，但不计入摘要', async () => {
     const h = harness({ secrets: GENERATED });
     const p = await planUpgrade(h.ctx, h.state);
     const asked: string[][] = [];
@@ -628,7 +628,7 @@ describe('upgrade', () => {
     expect(JSON.stringify(s)).not.toContain('ksecret');
   });
 
-  it('rejected R2 keys are skipped, not a stop', async () => {
+  it('R2 密钥被拒绝时跳过而不停止', async () => {
     const h = harness({
       secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN'],
       r2Check: 403,
@@ -645,7 +645,7 @@ describe('upgrade', () => {
     );
   });
 
-  it('nothing typed is asked for when the worker has every credential', async () => {
+  it('Worker 已有所有凭据时不再要求手动输入', async () => {
     const h = harness();
     let asked = false;
     await run(h, {
@@ -657,7 +657,7 @@ describe('upgrade', () => {
     expect(asked).toBe(false);
   });
 
-  it('resume after failed deploy skips migrations', async () => {
+  it('部署失败后恢复时跳过迁移', async () => {
     const h = harness();
     h.failDeploys();
     const e = await run(h).catch((x: Error) => x);
@@ -682,7 +682,7 @@ describe('upgrade', () => {
     expect(s.upgradeTarget).toBeUndefined();
   });
 
-  it('resume with /.well-known unreachable continues', async () => {
+  it('恢复时 /.well-known 无法访问仍继续', async () => {
     const h = harness();
     h.failDeploys();
     await run(h).catch(() => {});
@@ -694,14 +694,14 @@ describe('upgrade', () => {
     expect(s.deployedVersion).toBe(TO);
   });
 
-  it('a fresh upgrade with /.well-known unreachable stops', async () => {
+  it('全新升级时 /.well-known 无法访问则停止', async () => {
     const h = harness();
     h.siteDown();
     await expect(run(h)).rejects.toThrow('Could not read');
     expect(h.nonDocker()).toHaveLength(0);
   });
 
-  it('resumes a killed run (status upgrading)', async () => {
+  it('恢复被终止的运行，即 upgrading 状态', async () => {
     const base = installedAt120();
     const h = harness({
       state: {
@@ -740,7 +740,7 @@ describe('upgrade', () => {
     expect(s.deployedVersion).toBe(TO);
   });
 
-  it('a failed verify names only the upgrade resume command', async () => {
+  it('验证失败时仅提示升级恢复命令', async () => {
     const h = harness({ setupOpen: true });
     const e = await run(h).catch((x: Error) => x);
     const m = (e as Error).message;
@@ -751,7 +751,7 @@ describe('upgrade', () => {
     expect(m).not.toContain('install --resume');
   });
 
-  it('an unfinished upgrade to another version stops', async () => {
+  it('存在升级到另一版本的未完成操作时停止', async () => {
     const h = harness({
       state: { ...installedAt120(), status: 'failed', upgradeTarget: '1.2.5' },
     });
@@ -761,7 +761,7 @@ describe('upgrade', () => {
     expect(h.deploys).toHaveLength(0);
   });
 
-  it('expect-plan mismatch stops', async () => {
+  it('expect-plan 不匹配时停止', async () => {
     const h = harness();
     await expect(run(h, { expectPlan: '000000000000' })).rejects.toThrow(
       'The plan changed since it was reviewed'
@@ -771,21 +771,21 @@ describe('upgrade', () => {
     expect(h.saved().status).toBe('installed');
   });
 
-  it('expect-plan match applies', async () => {
+  it('expect-plan 匹配时应用', async () => {
     const h = harness();
     const p = await planUpgrade(h.ctx, h.state);
     const s = await run(h, { expectPlan: p.digest });
     expect(s.status).toBe('installed');
   });
 
-  it('declined confirmation changes nothing', async () => {
+  it('拒绝确认后不作变更', async () => {
     const h = harness({ tty: true, confirm: false });
     await expect(run(h, { yes: false })).rejects.toThrow('Nothing was changed');
     expect(h.deploys).toHaveLength(0);
     expect(h.saved().status).toBe('installed');
   });
 
-  it('same version redeploys', async () => {
+  it('相同版本重新部署', async () => {
     const first = harness();
     const s = await run(first);
     const again = harness({
@@ -810,7 +810,7 @@ describe('upgrade', () => {
     expect(s2.deployedVersion).toBe(TO);
   });
 
-  it('a second upgrade to the same version regenerates the config and collects what is missing', async () => {
+  it('再次升级到同一版本时重新生成配置并收集缺失项', async () => {
     const first = harness();
     const s = await run(first);
     expect(s.steps.some((x) => x.key === `upgrade:${TO}:deploy`)).toBe(true);
@@ -860,7 +860,7 @@ describe('upgrade', () => {
     ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'],
     ['R2_SECRET_ACCESS_KEY', 'R2_ACCESS_KEY_ID'],
   ])(
-    'a lone %s is reported, never paired with a typed half',
+    '单独的 %s 会被报告，且不会与手动输入的另一半配对',
     async (present, absent) => {
       const h = harness({
         secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN', present],
@@ -887,7 +887,7 @@ describe('upgrade', () => {
     }
   );
 
-  it('a corrupt state file fails without leaking the lock', async () => {
+  it('状态文件损坏时失败，且不遗留锁', async () => {
     const h = harness();
     const state = h.saved();
     writeFileSync(join(home, `${ID}.json`), '{ not json');
@@ -902,7 +902,7 @@ describe('upgrade', () => {
     expect(existsSync(join(home, `${ID}.lock`))).toBe(false);
   });
 
-  it('--plan writes nothing and prints the apply command', async () => {
+  it('--plan 不写入任何内容并打印应用命令', async () => {
     const h = harness();
     const before = readFileSync(join(home, `${ID}.json`), 'utf8');
     await run(h, { plan: true });
@@ -917,7 +917,7 @@ describe('upgrade', () => {
   });
 });
 
-describe('a database ahead of the package', () => {
+describe('数据库版本领先于软件包', () => {
   const ahead = (extra: string[]) => {
     const s = installedAt120();
     const seed = seedFor(s);
@@ -932,7 +932,7 @@ describe('a database ahead of the package', () => {
     });
   };
 
-  it('stops before planning, even with --replace-custom-code', async () => {
+  it('即使指定 --replace-custom-code 也在规划前停止', async () => {
     const h = ahead(['0002_future.sql', '0003_later.sql']);
     const before = readFileSync(join(home, `${ID}.json`), 'utf8');
     const msg =
@@ -949,7 +949,7 @@ describe('a database ahead of the package', () => {
     expect(existsSync(join(home, `${ID}.lock`))).toBe(false);
   });
 
-  it('a database exactly at the package has nothing pending', async () => {
+  it('数据库与软件包完全一致时没有待执行迁移', async () => {
     const h = ahead([]);
     const p = await planUpgrade(h.ctx, h.state);
     expect(p.migrations).toEqual([]);
@@ -958,7 +958,7 @@ describe('a database ahead of the package', () => {
   });
 });
 
-describe('var drift since adopt or the last upgrade', () => {
+describe('接管或上次升级后的变量漂移', () => {
   const adopted = (): InstallState => ({
     ...installedAt120(),
     adoptedAt: '2026-10-16T00:00:00.000Z',
@@ -974,7 +974,7 @@ describe('var drift since adopt or the last upgrade', () => {
     };
   };
 
-  it('a var edited on the dashboard after adopt stops the first upgrade', async () => {
+  it('接管后在控制台修改变量会阻止首次升级', async () => {
     const s = adopted();
     const h = harness({
       state: s,
@@ -997,7 +997,7 @@ describe('var drift since adopt or the last upgrade', () => {
     expect(readFileSync(join(home, `${ID}.json`), 'utf8')).toBe(before);
   });
 
-  it('a kept var is not a stop; editing it later is', async () => {
+  it('保留变量本身不阻止升级，但后续编辑会阻止', async () => {
     const base = adopted();
     const s = {
       ...base,
@@ -1018,7 +1018,7 @@ describe('var drift since adopt or the last upgrade', () => {
     await expect(run(later)).rejects.toThrow('  AI_GATEWAY  "other" -> "mine"');
   });
 
-  it('a later upgrade follows a new template default for a var the install never kept', async () => {
+  it('后续升级对从未保留的变量采用新的模板默认值', async () => {
     const s = installedAt120();
     const h = harness({
       state: s,
@@ -1027,7 +1027,7 @@ describe('var drift since adopt or the last upgrade', () => {
     expect((await run(h)).status).toBe('installed');
   });
 
-  it('localhost-only TRUSTED_ORIGINS is listed as a drop, inside the digest', async () => {
+  it('仅含 localhost 的 TRUSTED_ORIGINS 被列为删除项并计入摘要', async () => {
     const s = adopted();
     const plain = harness({ state: s });
     const without = await planUpgrade(plain.ctx, plain.state);
@@ -1051,8 +1051,8 @@ describe('var drift since adopt or the last upgrade', () => {
   });
 });
 
-describe('an adopted Artifacts namespace the API cannot list', () => {
-  it('plans with the namespace bound, not verified', async () => {
+describe('API 无法列出的已接管 Artifacts 命名空间', () => {
+  it('以已绑定但未验证的命名空间生成计划', async () => {
     const s = { ...installedAt120(), adoptedAt: '2026-10-16T00:00:00.000Z' };
     const h = harness({ state: s });
     h.cf.failNext('listArtifactsNamespaces', new Error('403 Forbidden'));
@@ -1062,7 +1062,7 @@ describe('an adopted Artifacts namespace the API cannot list', () => {
     );
   });
 
-  it('an install that was never adopted still stops', async () => {
+  it('从未接管过的安装仍会停止', async () => {
     const h = harness();
     h.cf.failNext('listArtifactsNamespaces', new Error('403 Forbidden'));
     await expect(planUpgrade(h.ctx, h.state)).rejects.toThrow('403 Forbidden');

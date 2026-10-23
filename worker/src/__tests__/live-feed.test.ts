@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, call, settle } from './helpers/app';
 import { connect, crewRepo, type CrewRepo } from './helpers/crew';
@@ -24,8 +25,8 @@ async function live(s: CrewRepo, cookie = s.admin) {
   return (await res.json()) as LivePayload;
 }
 
-describe('GET /api/repos/{o}/{r}/live', () => {
-  it('returns the merge queue, the open requests by session, and the newest events', async () => {
+describe('GET /api/repos/{o}/{r}/live 实时动态', () => {
+  it('返回合并队列、按会话分组的打开请求和最新事件', async () => {
     const s = await crewRepo();
     const claude = (await connect(s.t, s.admin, 'Claude Code')).access_token;
     await s.branch('a');
@@ -82,7 +83,7 @@ describe('GET /api/repos/{o}/{r}/live', () => {
     expect(payload.events.map((e) => e.action)).toContain('pull.merged');
   });
 
-  it('keeps only the 50 newest events', async () => {
+  it('仅保留最新 50 条事件', async () => {
     const s = await crewRepo();
     // A minute ahead, so b0 is newer than the repository.created event, which can share a millisecond with now
     // (equal times are ordered by random id).
@@ -99,7 +100,7 @@ describe('GET /api/repos/{o}/{r}/live', () => {
     expect(events[0].target).toBe('b0');
   });
 
-  it('is readable by anyone who can read the repository; 404 for others', async () => {
+  it('有仓库读取权限者均可访问，其他用户收到 404', async () => {
     const s = await crewRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     expect((await live(s, bob)).queue[0].target).toBe('main');

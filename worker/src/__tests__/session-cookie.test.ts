@@ -17,12 +17,12 @@ async function signedIn(name: string) {
 const me = (t: ReturnType<typeof makeEnv>, cookie: string) =>
   call(t, '/api/me/preferences', { cookie });
 
-it('reads the session cookie under the __Secure- name better-auth uses over HTTPS', async () => {
+it('HTTPS 下按 better-auth 使用的 __Secure- 名读取会话 cookie', async () => {
   const { t, cookie } = await signedIn(`__Secure-${COOKIE}`);
   expect((await me(t, cookie)).status).toBe(200);
 });
 
-it('still reads the plain name, and prefers the __Secure- one when both are sent', async () => {
+it('仍可读取普通名，两者同时存在时优先 __Secure- 名', async () => {
   const { t, value, cookie } = await signedIn(COOKIE);
   expect((await me(t, cookie)).status).toBe(200);
   expect(
@@ -30,7 +30,7 @@ it('still reads the plain name, and prefers the __Secure- one when both are sent
   ).toBe(401);
 });
 
-it('refuses a cookie whose signature does not match its token', async () => {
+it('签名与令牌不符的 cookie 一律拒绝', async () => {
   const { t, value } = await signedIn(COOKIE);
   const decoded = decodeURIComponent(value);
   const dot = decoded.lastIndexOf('.');

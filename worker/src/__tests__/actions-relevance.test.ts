@@ -73,8 +73,8 @@ const ALL_TRUE = {
   'run-merge-queue': 'true',
 };
 
-describe('cloudforge/relevance inputs', () => {
-  it('reads modules, skip-below, and always-run-paths', () => {
+describe('cloudforge/relevance 输入', () => {
+  it('读取 modules、skip-below 和 always-run-paths', () => {
     expect(
       parseRelevanceInputs({
         modules:
@@ -91,7 +91,7 @@ describe('cloudforge/relevance inputs', () => {
     });
   });
 
-  it('rejects inputs it cannot use, naming the input', () => {
+  it('拒绝无法使用的输入，并指出输入名称', () => {
     const bad: Record<string, string>[] = [
       { modules: '' },
       { modules: 'no description here' },
@@ -119,9 +119,9 @@ describe('cloudforge/relevance inputs', () => {
   });
 });
 
-describe('cloudforge/relevance decision', () => {
-  it('runs everything on a push to the default branch, without asking Clef', async () => {
-    const { model, calls } = clef(new Error('must not be called'));
+describe('cloudforge/relevance 决策', () => {
+  it('推送至默认分支时运行全部检查，无需询问 Clef', async () => {
+    const { model, calls } = clef(new Error('不应调用此方法'));
     const d = await decideRelevance(
       INPUTS,
       { ...PR([file('docs/a.md')]), event: 'push', defaultBranchPush: 'main' },
@@ -132,7 +132,7 @@ describe('cloudforge/relevance decision', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('runs everything when a changed path is always-run (defaults and the input)', async () => {
+  it('变更路径匹配默认或自定义 always-run 路径时运行全部检查', async () => {
     const custom = parseRelevanceInputs({
       modules: 'stacking: x\nmerge-queue: y',
       'always-run-paths': 'worker/src/__tests__/helpers/**',
@@ -146,7 +146,7 @@ describe('cloudforge/relevance decision', () => {
       'tsconfig.app.json',
       'worker/src/__tests__/helpers/app.ts',
     ]) {
-      const { model, calls } = clef(new Error('must not be called'));
+      const { model, calls } = clef(new Error('不应调用此方法'));
       const d = await decideRelevance(
         custom,
         PR([file('README.md'), file(path)]),
@@ -158,13 +158,13 @@ describe('cloudforge/relevance decision', () => {
     }
   });
 
-  it('runs everything when Clef is not configured', async () => {
+  it('未配置 Clef 时运行全部检查', async () => {
     const d = await decideRelevance(INPUTS, PR([file('a.ts')]), null);
     expect(d.outputs).toEqual(ALL_TRUE);
     expect(d.log[0]).toContain('Clef is not configured');
   });
 
-  it('runs everything when no changed paths can be read', async () => {
+  it('无法读取变更路径时运行全部检查', async () => {
     for (const files of [null, []]) {
       const { model, calls } = clef({});
       const d = await decideRelevance(INPUTS, PR(files), model);
@@ -174,14 +174,14 @@ describe('cloudforge/relevance decision', () => {
     }
   });
 
-  it('runs everything when Clef fails', async () => {
+  it('Clef 调用失败时运行全部检查', async () => {
     const { model } = clef(new Error('503 from Workers AI'));
     const d = await decideRelevance(INPUTS, PR([file('a.ts')]), model);
     expect(d.outputs).toEqual(ALL_TRUE);
     expect(d.log[0]).toContain('503 from Workers AI');
   });
 
-  it('an unusable answer runs everything', async () => {
+  it('答复不可用时运行全部检查', async () => {
     const good = {
       [WORKFLOW_QUESTION]: noul(0.9),
       [moduleQuestion(0)]: noul(0.9),
@@ -220,7 +220,7 @@ describe('cloudforge/relevance decision', () => {
     }
   });
 
-  it('skips a module only below skip-below; equal or above runs', async () => {
+  it('仅低于 skip-below 时跳过模块；等于或高于阈值时运行', async () => {
     const { model, calls } = clef({
       [WORKFLOW_QUESTION]: noul(0.9),
       [moduleQuestion(0)]: noul(0.2),
@@ -261,7 +261,7 @@ describe('cloudforge/relevance decision', () => {
       );
   });
 
-  it('never sends the description; lists uncounted files without counts', () => {
+  it('不发送描述；列出未统计文件时不附带数量', () => {
     const state = relevanceState(
       PR([
         file('a.ts'),
@@ -274,7 +274,7 @@ describe('cloudforge/relevance decision', () => {
     expect(state.changed_files).toBe('- a.ts (+3 −1)\n- b.ts');
   });
 
-  it('a whole-workflow skip skips every module', async () => {
+  it('跳过整个工作流时跳过所有模块', async () => {
     const { model } = clef({
       [WORKFLOW_QUESTION]: noul(0.05),
       [moduleQuestion(0)]: noul(0.9),
@@ -291,7 +291,7 @@ describe('cloudforge/relevance decision', () => {
     );
   });
 
-  it('lists at most 300 files to Clef', () => {
+  it('最多向 Clef 列出 300 个文件', () => {
     const files = Array.from({ length: 450 }, (_, i) => file(`src/f${i}.ts`));
     const state = relevanceState(PR(files), INPUTS.modules);
     const lines = String(state.changed_files).split('\n');
@@ -299,7 +299,7 @@ describe('cloudforge/relevance decision', () => {
     expect(lines[300]).toBe('- … and 150 more files');
   });
 
-  it('writes the log and the outputs as a bash script', () => {
+  it('以 bash 脚本形式写入日志和输出', () => {
     const script = relevanceScript({
       outputs: { run: 'true', 'run-stacking': 'false' },
       log: ["Running everything: it's a test."],
@@ -354,8 +354,8 @@ async function openPr(s: Setup) {
   ).first<{ id: string }>())!.id;
 }
 
-describe('cloudforge/relevance reads the change', () => {
-  it("reads a pull request's title and its whole change since it branched", async () => {
+describe('cloudforge/relevance 读取变更', () => {
+  it('读取拉取请求标题及自分支创建以来的全部变更', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
     branchFrom(s, 'feature');
@@ -409,7 +409,7 @@ describe('cloudforge/relevance reads the change', () => {
     });
   });
 
-  it("uses the auto-merge review's one-liners when that review finished for this commit", async () => {
+  it('自动合并审查已完成当前提交时，使用其单行摘要', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
     branchFrom(s, 'feature');
@@ -457,7 +457,7 @@ describe('cloudforge/relevance reads the change', () => {
     ]);
   });
 
-  it("reads a pushed commit's subject, and nothing for a push to the default branch", async () => {
+  it('读取推送提交的主题，推送至默认分支时不读取任何内容', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     const db = drizzle(s.t.env.DB, { schema });
@@ -509,7 +509,7 @@ describe('cloudforge/relevance reads the change', () => {
     ).toMatchObject({ defaultBranchPush: 'main', files: null });
   });
 
-  it('judges a branch push on its whole change against the default branch', async () => {
+  it('根据与默认分支之间的全部变更评估分支推送', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
@@ -548,7 +548,7 @@ describe('cloudforge/relevance reads the change', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('reads no changed paths for events other than push and pull_request', async () => {
+  it('对于 push 和 pull_request 之外的事件，不读取变更路径', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
@@ -574,7 +574,7 @@ describe('cloudforge/relevance reads the change', () => {
     }
   });
 
-  it('counts lines for the first 60 files only', async () => {
+  it('仅统计前 60 个文件的行数', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
@@ -605,7 +605,7 @@ describe('cloudforge/relevance reads the change', () => {
     });
   });
 
-  it('reads no changed paths for a root commit', async () => {
+  it('对于根提交，不读取变更路径', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     // A branch with no history in common: its first commit has no parent.
@@ -631,8 +631,8 @@ describe('cloudforge/relevance reads the change', () => {
   });
 });
 
-describe('cloudforge/relevance on Workers AI', () => {
-  it('asks Clef through AI Gateway and records usage under ci-relevance', async () => {
+describe('Workers AI 上的 cloudforge/relevance', () => {
+  it('通过 AI Gateway 询问 Clef，并将用量记录在 ci-relevance 下', async () => {
     const s = await setup();
     const repo = await repoRow(s);
     const calls: { model: string; input: any; options: any }[] = [];
@@ -678,7 +678,7 @@ describe('cloudforge/relevance on Workers AI', () => {
     });
   });
 
-  it('waits out a rate limit and asks again; still limited, it throws (run everything)', async () => {
+  it('遇到限流后等待并重试；仍被限流时抛出异常以运行全部检查', async () => {
     const s = await setup();
     const target = { repositoryId: (await repoRow(s)).id, pullRequestId: null };
     const waits: number[] = [];
@@ -723,7 +723,7 @@ describe('cloudforge/relevance on Workers AI', () => {
     expect(waits.length).toBe(calls - 1);
   });
 
-  it('throws when Clef returns no answers (the decision then runs everything)', async () => {
+  it('Clef 未返回答复时抛出异常，随后决策为运行全部检查', async () => {
     const s = await setup();
     const env = {
       ...s.t.env,
@@ -805,8 +805,8 @@ const stepLog = async (s: Setup, run: number, jobId: string, step: number) =>
     )
   ).text();
 
-describe('cloudforge/relevance in a workflow', () => {
-  it("gates each module job on the gate's outputs", async () => {
+describe('工作流中的 cloudforge/relevance', () => {
+  it('根据门控作业的输出控制各模块作业', async () => {
     const s = await setup();
     const run = await gatedPr(s, { 'worker/src/stack/walk.ts': 'one\n' });
     const { relevance, calls } = fakeClef({
@@ -846,7 +846,7 @@ describe('cloudforge/relevance in a workflow', () => {
     expect(log).toContain('run-merge-queue: 0.05 → skip');
   });
 
-  it('skips every module when the whole workflow is irrelevant, and the run still passes', async () => {
+  it('整个工作流无关时跳过所有模块，且运行仍通过', async () => {
     const s = await setup();
     const run = await gatedPr(s, { 'docs/notes.md': '# notes\n' });
     const { relevance } = fakeClef({
@@ -868,7 +868,7 @@ describe('cloudforge/relevance in a workflow', () => {
     ).toEqual(['merge-queue', 'stacking']);
   });
 
-  it('runs everything on a push to the default branch without asking Clef', async () => {
+  it('推送至默认分支时运行全部检查，无需询问 Clef', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': GATED });
     const [push] = (await runs(s.t, s.admin)).runs;
@@ -884,7 +884,7 @@ describe('cloudforge/relevance in a workflow', () => {
     );
   });
 
-  it('runs everything when Clef is not configured on the server', async () => {
+  it('服务器未配置 Clef 时运行全部检查', async () => {
     const s = await setup();
     const run = await gatedPr(s, { 'worker/src/stack/walk.ts': 'one\n' });
     const h = harness(s.t, (r) => ({ outputs: scriptOutputs(r) }), {
@@ -897,7 +897,7 @@ describe('cloudforge/relevance in a workflow', () => {
     );
   });
 
-  it('fails the step on bad inputs, naming the input', async () => {
+  it('输入无效时使步骤失败，并指出输入名称', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': GATED.replace(
@@ -918,7 +918,7 @@ describe('cloudforge/relevance in a workflow', () => {
     );
   });
 
-  it('only runs v1', async () => {
+  it('仅运行 v1', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': GATED.replace(

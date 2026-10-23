@@ -11,7 +11,7 @@ import { call, settle } from './helpers/app';
 import { harness, pushFiles, runDetail, runs, setup } from './helpers/actions';
 
 it.each(['exec', 'stdout'])(
-  'redacts %s exception text before dropping the beginning of live and saved logs',
+  '截去实时日志和已保存日志的开头前，先脱敏 %s 异常文本',
   async (source) => {
     const secret = 'sensitive-error-credential';
     const tail = 'x'.repeat(4 * 1024 * 1024 - 5);
@@ -64,7 +64,7 @@ it.each(['exec', 'stdout'])(
   }
 );
 
-it('keeps a cancelled final attempt diagnostic masked when Workflow termination fails', async () => {
+it('Workflow 终止失败时，仍对已取消的最后一次尝试诊断进行脱敏', async () => {
   const s = await setup();
   await pushFiles(s, 'main', {
     '.github/workflows/ci.yml': `on: push
@@ -182,7 +182,7 @@ jobs:
   expect(attempts).toBe(MAX_JOB_ATTEMPTS);
 });
 
-it('does not revive a run cancelled after its durable load snapshot', async () => {
+it('不恢复在持久化加载快照之后被取消的运行', async () => {
   const s = await setup();
   await pushFiles(s, 'main', {
     '.github/workflows/ci.yml': `on: push
@@ -246,7 +246,7 @@ jobs:
 });
 
 it.each(['steps', 'composite'])(
-  'does not start another command in %s after a cancelled command returns success',
+  '已取消的命令返回成功后，不在 %s 中启动另一条命令',
   async (kind) => {
     const s = await setup();
     await pushFiles(s, 'main', {
@@ -320,7 +320,7 @@ runs:
 );
 
 it.each(['stdout', 'exception'])(
-  'retains active step masks when destroy races with its final %s',
+  'destroy 与最终 %s 并发发生时，保留活动步骤的脱敏规则',
   async (source) => {
     const secret = 'dynamic-credential-during-cancel';
     let controller!: ReadableStreamDefaultController<Uint8Array>;

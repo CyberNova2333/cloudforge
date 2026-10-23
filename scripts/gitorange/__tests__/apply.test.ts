@@ -255,7 +255,7 @@ function harness(
       return opts.secretList ?? { code: 1, stdout: '', stderr: 'not found' };
     }
     if (w[0] === 'd1') return ok();
-    throw new Error(`unexpected wrangler ${args.join(' ')}`);
+    throw new Error(`意外的 wrangler 调用：${args.join(' ')}`);
   };
   const runner = fakeRunner({
     'git rev-parse': () => ok(`${opts.version ?? VERSION}\n`),
@@ -272,7 +272,7 @@ function harness(
       return prompts.shift() ?? null;
     },
     async select() {
-      throw new Error('no select');
+      throw new Error('不应触发选择提示');
     },
     async confirm(msg, initial) {
       confirms.push({ msg, initial });
@@ -308,7 +308,7 @@ function harness(
         appName: 'CloudForge',
       });
     }
-    throw new Error(`unexpected fetch ${url}`);
+    throw new Error(`意外的网络请求：${url}`);
   }) as typeof fetch;
   const slept: number[] = [];
   const ctx: Ctx = {
@@ -330,8 +330,8 @@ function harness(
 
 const noOptional = { yes: true, optional: {} };
 
-describe('install', () => {
-  it('package source runs wrangler directly', async () => {
+describe('install：安装', () => {
+  it('软件包来源直接运行 wrangler', async () => {
     const h = harness({ pkg: true });
     await install(h.ctx, { state: freshState(), ...noOptional });
 
@@ -364,7 +364,7 @@ describe('install', () => {
     );
   });
 
-  it('fresh install creates everything once, deploys, verifies, ends installed', async () => {
+  it('全新安装仅创建一次各项资源，部署并验证后进入已安装状态', async () => {
     const h = harness();
     const out = await install(h.ctx, { state: freshState(), ...noOptional });
 
@@ -449,7 +449,7 @@ describe('install', () => {
     expect(existsSync(join(dir, `${ID}.lock`))).toBe(false);
   });
 
-  it('runs every wrangler and deploy subprocess with the chosen account', async () => {
+  it('所有 wrangler 和部署子进程均使用所选账户', async () => {
     const h = harness();
     await install(h.ctx, { state: freshState(), ...noOptional });
     const yarn = h.runner.calls.filter((c) => c.cmd === 'yarn');
@@ -459,7 +459,7 @@ describe('install', () => {
     }
   });
 
-  it('resume after a crash between create and record', async () => {
+  it('在创建资源后、记录前崩溃时可以恢复', async () => {
     const s = freshState();
     const crashed: InstallState = {
       ...s,
@@ -480,7 +480,7 @@ describe('install', () => {
     expect(out.status).toBe('installed');
   });
 
-  it('retries a failed marker write instead of stranding the bucket', async () => {
+  it('标记写入失败时重试，避免存储桶无法继续使用', async () => {
     const h = harness();
     h.cf.failNext('putR2Object', new Error('HTTP 500'));
     h.cf.failNext('putR2Object', new Error('HTTP 503'));
@@ -493,7 +493,7 @@ describe('install', () => {
     expect(h.slept.slice(0, 2)).toEqual([1000, 2000]);
   });
 
-  it('a marker write failing three times fails the step, and the resume reuses the empty bucket', async () => {
+  it('标记连续三次写入失败时该步骤失败，恢复时复用空存储桶', async () => {
     const h = harness();
     for (let i = 0; i < 3; i++)
       h.cf.failNext('putR2Object', new Error('HTTP 500'));
@@ -522,7 +522,7 @@ describe('install', () => {
     expect(out.status).toBe('installed');
   });
 
-  it('looks again before recording a provision intent', async () => {
+  it('记录预配意图前再次检查', async () => {
     const h = harness();
     // Someone creates an empty bucket with our name between the plan and the create.
     const real = h.cf.listR2.bind(h.cf);
@@ -542,7 +542,7 @@ describe('install', () => {
     expect(saved.steps.map((x) => x.key)).not.toContain('provision-intent:lfs');
   });
 
-  it('resume after a crash before the D1 marker', async () => {
+  it('写入 D1 标记前崩溃时可以恢复', async () => {
     const crashed: InstallState = {
       ...freshState(),
       status: 'provisioning',
@@ -562,7 +562,7 @@ describe('install', () => {
     ).toBe(true);
   });
 
-  it('BETTER_AUTH_SECRET is not resent when the worker already has it', async () => {
+  it('Worker 已有 BETTER_AUTH_SECRET 时不重复发送', async () => {
     const h = harness({
       secretList: {
         code: 0,
@@ -590,7 +590,7 @@ describe('install', () => {
     ]);
   });
 
-  it('a failing secret list on an existing worker is an error', async () => {
+  it('现有 Worker 的密钥列表读取失败时报错', async () => {
     const s = freshState();
     const h = harness({
       seed: {
@@ -611,7 +611,7 @@ describe('install', () => {
     expect(h.deploys).toHaveLength(0);
   });
 
-  it('expect-plan mismatch stops before any create', async () => {
+  it('expect-plan 不匹配时在创建任何资源前停止', async () => {
     const h = harness();
     const err = await install(h.ctx, {
       state: freshState(),
@@ -626,7 +626,7 @@ describe('install', () => {
     expect(readState(dir, ID)?.status).toBe('failed');
   });
 
-  it('a PlanStop message survives inside the wrapped error', async () => {
+  it('包装错误时保留 PlanStop 消息', async () => {
     const h = harness({ seed: { r2: { 'acme-lfs': {} } } });
     const err = (await install(h.ctx, {
       state: freshState(),
@@ -641,7 +641,7 @@ describe('install', () => {
     expect(h.count('createD1') + h.count('createR2')).toBe(0);
   });
 
-  it('a hand-written wrangler.jsonc stops before any Cloudflare write', async () => {
+  it('存在手写 wrangler.jsonc 时在写入 Cloudflare 前停止', async () => {
     writeFileSync(join(cwd, 'wrangler.jsonc'), '{ "name": "mine" }\n');
     const h = harness();
     await expect(
@@ -657,7 +657,7 @@ describe('install', () => {
     expect(existsSync(dir)).toBe(false);
   });
 
-  it('rejected R2 keys stop before the deploy', async () => {
+  it('R2 密钥被拒绝时在部署前停止', async () => {
     const h = harness({ r2Status: 403 });
     const err = (await install(h.ctx, {
       state: freshState(),
@@ -670,7 +670,7 @@ describe('install', () => {
     expect(readState(dir, ID)?.status).toBe('failed');
   });
 
-  it('rejected R2 keys are asked for once more in a terminal', async () => {
+  it('终端中的 R2 密钥被拒绝后再询问一次', async () => {
     let calls = 0;
     const h = harness({ tty: true, prompts: ['AKID2', 'SECRET2'] });
     const base = h.ctx.fetchImpl;
@@ -702,7 +702,7 @@ describe('install', () => {
     expect(out.skipped).toEqual(['analytics-token']);
   });
 
-  it('a failing deploy leaves status failed and prints the resume command', async () => {
+  it('部署失败时保留失败状态并打印恢复命令', async () => {
     const h = harness({
       deploy: { code: 1, stdout: '', stderr: 'upload failed' },
     });
@@ -736,8 +736,8 @@ describe('install', () => {
   });
 });
 
-describe('verify', () => {
-  it('retries while the certificate is issuing', async () => {
+describe('verify：验证', () => {
+  it('证书签发期间持续重试', async () => {
     let n = 0;
     const h = harness({
       wellKnown: () => {
@@ -755,7 +755,7 @@ describe('verify', () => {
     expect(h.slept).toEqual([5000, 5000]);
   });
 
-  it('gives up after 60 s naming the URL', async () => {
+  it('60 秒后放弃并指出 URL', async () => {
     const h = harness({
       wellKnown: () => {
         throw new TypeError('fetch failed');
@@ -770,7 +770,7 @@ describe('verify', () => {
     expect(h.slept.reduce((a, b) => a + b, 0)).toBe(60_000);
   });
 
-  it('retries a wrong version, then fails with the last body', async () => {
+  it('版本错误时重试，最终失败时显示最后一次响应正文', async () => {
     const h = harness({
       wellKnown: () =>
         Response.json({
@@ -786,7 +786,7 @@ describe('verify', () => {
     expect(h.slept.length).toBe(12);
   });
 
-  it('on a custom hostname, says the certificate may still be issuing', async () => {
+  it('自定义主机名提示证书可能仍在签发中', async () => {
     const h = harness({
       wellKnown: () => {
         throw new TypeError('fetch failed');
@@ -805,14 +805,14 @@ describe('verify', () => {
     expect(plain.message).not.toContain('certificate');
   });
 
-  it('fails when setup is open without a code', async () => {
+  it('初始化开放但没有初始化码时失败', async () => {
     const h = harness({
       setupStatus: { setupRequired: true, codeRequired: false },
     });
     await expect(verify(h.ctx, freshState())).rejects.toThrow(/setup code/i);
   });
 
-  it('passes once setup is complete', async () => {
+  it('初始化完成后通过', async () => {
     const h = harness({
       setupStatus: { setupRequired: false, codeRequired: false },
     });
@@ -820,8 +820,8 @@ describe('verify', () => {
   });
 });
 
-describe('config hash', () => {
-  it('covers the deployed (top-level) config, not the env block', async () => {
+describe('配置哈希', () => {
+  it('覆盖已部署的顶层配置，不包含 env 块', async () => {
     const h = harness();
     const s = await install(h.ctx, { state: freshState(), ...noOptional });
     const path = join(cwd, 'wrangler.jsonc');
@@ -839,8 +839,8 @@ describe('config hash', () => {
   });
 });
 
-describe('resumeInstalled', () => {
-  it('rerun after installed with nothing to add creates nothing', async () => {
+describe('resumeInstalled：恢复已完成的安装', () => {
+  it('已安装且没有待添加内容时再次运行不创建资源', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -855,7 +855,7 @@ describe('resumeInstalled', () => {
     expect(out.status).toBe('installed');
   });
 
-  it('adds LFS keys with one deploy', async () => {
+  it('通过一次部署添加 LFS 密钥', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -874,7 +874,7 @@ describe('resumeInstalled', () => {
     expect(h.cf.calls.filter((c) => /^create/.test(c.method))).toEqual([]);
   });
 
-  it('reissues a lost setup code with --new-setup-code, only while no user exists', async () => {
+  it('仅在没有用户时通过 --new-setup-code 补发丢失的初始化码', async () => {
     const { s, seed } = installedFixture();
     const open = harness({
       seed,
@@ -907,7 +907,7 @@ describe('resumeInstalled', () => {
     expect(closed.printed.join('\n')).not.toContain('Setup code:');
   });
 
-  it('without a terminal and without --new-setup-code, keeps the old code', async () => {
+  it('非终端环境且未指定 --new-setup-code 时保留旧初始化码', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -924,7 +924,7 @@ describe('resumeInstalled', () => {
     expect(out.steps.map((x) => x.key)).not.toContain('setup-code:2');
   });
 
-  it('in a terminal, asks before replacing the code (default no)', async () => {
+  it('终端中替换初始化码前询问，默认拒绝', async () => {
     const { s, seed } = installedFixture();
     const declined = harness({
       seed,
@@ -955,7 +955,7 @@ describe('resumeInstalled', () => {
     ]);
   });
 
-  it('a declined code still sends supplied credentials', async () => {
+  it('拒绝替换初始化码后仍发送已提供的凭据', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -968,7 +968,7 @@ describe('resumeInstalled', () => {
     expect(h.deploys[0].secrets).toEqual({ CF_ANALYTICS_TOKEN: 'TOKEN' });
   });
 
-  it('deploys with the chosen account', async () => {
+  it('使用所选账户部署', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -979,7 +979,7 @@ describe('resumeInstalled', () => {
     expect(deploy?.opts?.env).toMatchObject({ CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
   });
 
-  it('a failing deploy keeps the install installed', async () => {
+  it('部署失败时保持已安装状态', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -992,7 +992,7 @@ describe('resumeInstalled', () => {
     expect(readState(dir, ID)?.status).toBe('installed');
   });
 
-  it('after HEAD moved: Nothing to do, no deploy, verifies the recorded version', async () => {
+  it('HEAD 移动后无需操作、不部署，并验证记录的版本', async () => {
     const { s, seed } = installedFixture();
     const h = harness({
       seed,
@@ -1017,7 +1017,7 @@ describe('resumeInstalled', () => {
     );
   });
 
-  it('checks for a hand-written wrangler.jsonc first', async () => {
+  it('首先检查是否存在手写 wrangler.jsonc', async () => {
     writeFileSync(join(cwd, 'wrangler.jsonc'), '{ "name": "mine" }\n');
     const { s, seed } = installedFixture();
     const h = harness({ seed });
@@ -1028,7 +1028,7 @@ describe('resumeInstalled', () => {
   });
 });
 
-describe('install resumed after a failed verify', () => {
+describe('验证失败后恢复安装', () => {
   async function failVerify() {
     const first = harness({
       wellKnown: () => {
@@ -1042,7 +1042,7 @@ describe('install resumed after a failed verify', () => {
     return { first, err, saved: readState(dir, ID)! };
   }
 
-  it('ends installed, and keeps the setup code visible on the failure', async () => {
+  it('最终进入已安装状态，并在失败时保留初始化码可见', async () => {
     const { first, err, saved } = await failVerify();
     expect(err.message).toContain('Step verify failed');
     expect(saved.status).toBe('failed');
@@ -1066,7 +1066,7 @@ describe('install resumed after a failed verify', () => {
     );
   });
 
-  it('redeploys once when HEAD moved, then verifies the new version', async () => {
+  it('HEAD 移动后重新部署一次，然后验证新版本', async () => {
     const { first, saved } = await failVerify();
     const again = harness({
       seed: carryOver(first.cf, saved),

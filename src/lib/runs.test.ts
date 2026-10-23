@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   confirmingCancel,
@@ -8,27 +9,27 @@ import {
   stepLabel,
 } from './runs';
 
-describe('isErrorLine', () => {
-  it('marks lines that start with Error or ##[error]', () => {
+describe('isErrorLine：识别错误行', () => {
+  it('标记以 Error 或 ##[error] 开头的行', () => {
     expect(isErrorLine('Error: something broke')).toBe(true);
     expect(isErrorLine('##[error]Process completed with exit code 1')).toBe(
       true
     );
   });
-  it('leaves everything else plain', () => {
+  it('其余内容保持普通样式', () => {
     expect(isErrorLine('  Error in the middle')).toBe(false);
     expect(isErrorLine('error lowercase')).toBe(false);
     expect(isErrorLine('')).toBe(false);
   });
 });
 
-describe('focusStep', () => {
+describe('focusStep：聚焦步骤', () => {
   const s = (
     number: number,
     status: 'queued' | 'in_progress' | 'completed',
     conclusion: 'success' | 'failure' | null = null
   ) => ({ number, status, conclusion });
-  it('opens the step that is running', () => {
+  it('展开正在运行的步骤', () => {
     expect(
       focusStep([
         s(1, 'completed', 'success'),
@@ -37,7 +38,7 @@ describe('focusStep', () => {
       ])
     ).toBe(2);
   });
-  it('else the first step that failed', () => {
+  it('否则展开首个失败步骤', () => {
     expect(
       focusStep([
         s(1, 'completed', 'success'),
@@ -46,19 +47,19 @@ describe('focusStep', () => {
       ])
     ).toBe(2);
   });
-  it('prefers a running step over an earlier failure', () => {
+  it('正在运行的步骤优先于较早的失败步骤', () => {
     expect(focusStep([s(1, 'completed', 'failure'), s(2, 'in_progress')])).toBe(
       2
     );
   });
-  it('is null when nothing needs attention', () => {
+  it('无需关注时返回 null', () => {
     expect(focusStep([s(1, 'completed', 'success')])).toBeNull();
     expect(focusStep([])).toBeNull();
   });
 });
 
-describe('runTone', () => {
-  it('maps a run, job or step to a chip tone', () => {
+describe('runTone：运行色调', () => {
+  it('将运行、作业或步骤映射到标签色调', () => {
     expect(runTone('queued', null)).toBe('off');
     expect(runTone('in_progress', null)).toBe('info');
     expect(runTone('completed', 'success')).toBe('good');
@@ -69,8 +70,8 @@ describe('runTone', () => {
   });
 });
 
-describe('stepLabel', () => {
-  it('words a step the way the log header does', () => {
+describe('stepLabel：步骤标签', () => {
+  it('与日志标题使用相同的步骤措辞', () => {
     expect(stepLabel('queued', null)).toBe('Waiting to start');
     expect(stepLabel('in_progress', null)).toBe('Running');
     expect(stepLabel('completed', 'failure')).toBe('Failed');
@@ -80,8 +81,8 @@ describe('stepLabel', () => {
   });
 });
 
-describe('runLabel', () => {
-  it('uses plain words for a chip', () => {
+describe('runLabel：运行标签', () => {
+  it('标签使用易懂文字', () => {
     expect(runLabel('queued', null)).toBe('Queued');
     expect(runLabel('in_progress', null)).toBe('In progress');
     expect(runLabel('completed', 'success')).toBe('Passed');
@@ -91,13 +92,13 @@ describe('runLabel', () => {
   });
 });
 
-describe('confirmingCancel', () => {
-  it('shows the confirm step only after Cancel was clicked on a run that is still going', () => {
+describe('confirmingCancel：取消确认', () => {
+  it('仅在仍在运行的任务上点击取消后显示确认步骤', () => {
     expect(confirmingCancel(true, 'in_progress')).toBe(true);
     expect(confirmingCancel(true, 'queued')).toBe(true);
     expect(confirmingCancel(false, 'in_progress')).toBe(false);
   });
-  it('drops it once the run has completed, so a finished run is never one click from being cancelled', () => {
+  it('运行完成后移除确认步骤，避免一次点击就取消已完成运行', () => {
     expect(confirmingCancel(true, 'completed')).toBe(false);
   });
 });

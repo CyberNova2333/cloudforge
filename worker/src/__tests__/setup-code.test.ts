@@ -24,14 +24,14 @@ const post = (t: TestEnv, code?: string) =>
     json: code === undefined ? admin : { ...admin, code },
   });
 
-describe('setup code', () => {
-  it('hashes case- and dash-insensitively to lowercase hex SHA-256', async () => {
+describe('初始化代码', () => {
+  it('忽略大小写和短横线，计算小写十六进制 SHA-256', async () => {
     const a = await setupCodeHash(CODE);
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(await setupCodeHash('abcdefghjkmnpqrstuvw')).toBe(a);
   });
 
-  it('status says a code is required while SETUP_CODE_HASH is set and nobody exists', async () => {
+  it('已设置 SETUP_CODE_HASH 且尚无用户时，状态标明需要代码', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
@@ -40,25 +40,25 @@ describe('setup code', () => {
     });
   });
 
-  it('rejects setup without the code', async () => {
+  it('拒绝未提供代码的初始化', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect((await post(t)).status).toBe(403);
     expect(await users(t)).toBe(0);
   });
 
-  it('rejects a wrong code', async () => {
+  it('拒绝错误代码', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect((await post(t, 'ABCD-EFGH-JKMN-PQRS-TUVX')).status).toBe(403);
     expect(await users(t)).toBe(0);
   });
 
-  it('accepts the code in any case and with or without dashes', async () => {
+  it('接受任意大小写以及带或不带短横线的代码', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect((await post(t, 'abcdefghjkmnpqrstuvw')).status).toBe(200);
     expect(await users(t)).toBe(1);
   });
 
-  it('accepts a pasted code with surrounding and inner whitespace', async () => {
+  it('接受粘贴时带有前后或内部空白的代码', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect(await setupCodeHash(' abcd-efgh jkmn-pqrs-tuvw \n')).toBe(
       await setupCodeHash(CODE)
@@ -67,7 +67,7 @@ describe('setup code', () => {
     expect(await users(t)).toBe(1);
   });
 
-  it('Site admin → Setup reports a whitespace-only SETUP_CODE_HASH as not set', async () => {
+  it('站点管理的初始化页面将全空白 SETUP_CODE_HASH 视为未设置', async () => {
     const { runSetupChecks } = await import('../lib/setup-checks');
     const set = await withHash(await setupCodeHash(CODE));
     const blank = await withHash('  \n');
@@ -79,7 +79,7 @@ describe('setup code', () => {
     expect(await detail(blank)).toMatch(/^Not set:/);
   });
 
-  it('an empty SETUP_CODE_HASH counts as unset', async () => {
+  it('空 SETUP_CODE_HASH 视为未设置', async () => {
     const t = await withHash('');
     expect(
       (
@@ -91,7 +91,7 @@ describe('setup code', () => {
     expect((await post(t)).status).toBe(200);
   });
 
-  it('codeRequired is false once an admin exists, and setup stays closed', async () => {
+  it('管理员已存在时 codeRequired 为 false，且初始化保持关闭', async () => {
     const t = await withHash(await setupCodeHash(CODE));
     expect((await post(t, CODE)).status).toBe(200);
     const s = (await (await call(t, '/api/setup/status')).json()) as {

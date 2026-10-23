@@ -129,14 +129,14 @@ function harness(
       if (args[1] === 'deploy') return deployed(args);
       if (args[1] === 'd1') return ok();
       if (args[1] === 'secret') return opts.secretList ?? notFound;
-      throw new Error(`unexpected wrangler ${args.join(' ')}`);
+      throw new Error(`意外的 wrangler 调用：${args.join(' ')}`);
     },
     yarn: (args) => {
       if (args[1] === 'deploy') return deployed(args);
       if (args[1] === 'wrangler' && args[2] === 'secret')
         return opts.secretList ?? notFound;
       if (args[1] === 'wrangler' && args[2] === 'd1') return ok();
-      throw new Error(`unexpected yarn ${args.join(' ')}`);
+      throw new Error(`意外的 Yarn 调用：${args.join(' ')}`);
     },
   });
   const out: string[] = [];
@@ -193,7 +193,7 @@ function harness(
     if (url.startsWith(`https://${ACCOUNT}.r2.cloudflarestorage.com/`)) {
       return new Response('', { status: 200 });
     }
-    throw new Error(`unexpected fetch ${url}`);
+    throw new Error(`意外的网络请求：${url}`);
   }) as typeof fetch;
   const deps: Deps = {
     io,
@@ -269,8 +269,8 @@ const MUTATING = [
   'queryD1',
 ];
 
-describe('usage', () => {
-  it('--help lists install and status, exit 0', async () => {
+describe('用法说明', () => {
+  it('--help 列出 install 和 status，并以 0 退出', async () => {
     const h = harness();
     expect(await main(['--help'], h.deps)).toBe(0);
     expect(h.text()).toContain('install');
@@ -279,14 +279,14 @@ describe('usage', () => {
     expect(h.text()).toContain('--new-setup-code');
   });
 
-  it('unknown command exits 2', async () => {
+  it('未知命令以 2 退出', async () => {
     const h = harness();
     expect(await main(['nope'], h.deps)).toBe(2);
   });
 });
 
-describe('install', () => {
-  it('without a terminal and without --yes exits 2 before any read', async () => {
+describe('install：安装', () => {
+  it('非终端环境且未指定 --yes 时在读取前以 2 退出', async () => {
     const h = harness();
     expect(await main(['install', ...FLAGS], h.deps)).toBe(2);
     expect(h.text()).toContain(
@@ -296,7 +296,7 @@ describe('install', () => {
     expect(h.tokenCalls()).toBe(0);
   });
 
-  it('--hostname with --workers-dev is a usage error', async () => {
+  it('同时指定 --hostname 与 --workers-dev 属于用法错误', async () => {
     const h = harness();
     const code = await main(
       ['install', '--plan', '--hostname', 'git.example.com', '--workers-dev'],
@@ -306,7 +306,7 @@ describe('install', () => {
     expect(h.cf()).toBeNull();
   });
 
-  it('--plan prints the plan and the apply command, writes nothing', async () => {
+  it('--plan 打印计划和应用命令且不写入任何内容', async () => {
     const h = harness();
     expect(await main(['install', '--plan', ...FLAGS], h.deps)).toBe(0);
     const text = h.text();
@@ -323,7 +323,7 @@ describe('install', () => {
     );
   });
 
-  it('--plan warns that a hand-written wrangler.jsonc blocks the apply', async () => {
+  it('--plan 警告手写 wrangler.jsonc 会阻止应用计划', async () => {
     writeFileSync(join(cwd, 'wrangler.jsonc'), '{ "name": "mine" }\n');
     const h = harness();
     expect(await main(['install', '--plan', ...FLAGS], h.deps)).toBe(0);
@@ -336,7 +336,7 @@ describe('install', () => {
     expect(clean.text()).not.toContain('written by hand');
   });
 
-  it('the R2 token text matches the link (all buckets or just these three)', async () => {
+  it('R2 令牌说明与链接一致：所有存储桶或仅这三个', async () => {
     const h = harness({ tty: true, prompts: ['', ''] });
     await main(['install', '--yes', ...FLAGS], h.deps);
     expect(h.text()).toContain(
@@ -344,7 +344,7 @@ describe('install', () => {
     );
   });
 
-  it('uses the only account and the default name without flags', async () => {
+  it('未传参数时使用唯一账户和默认名称', async () => {
     const h = harness();
     expect(
       await main(['install', '--plan', '--workers-dev', '--no-email'], h.deps)
@@ -354,20 +354,20 @@ describe('install', () => {
     );
   });
 
-  it('preflight failure exits 1 with the fix text', async () => {
+  it('预检失败时以 1 退出并显示修复说明', async () => {
     const h = harness({ seed: { subdomain: null } });
     expect(await main(['install', '--plan', ...FLAGS], h.deps)).toBe(1);
     expect(h.text()).toContain('The account has no workers.dev subdomain yet.');
     expect(h.text()).toContain('Open Workers & Pages');
   });
 
-  it('a PlanStop exits 1 with its message', async () => {
+  it('PlanStop 以 1 退出并显示其消息', async () => {
     const h = harness({ seed: { d1: [{ uuid: 'x', name: 'acme-db' }] } });
     expect(await main(['install', '--plan', ...FLAGS], h.deps)).toBe(1);
     expect(h.text()).toContain('already exists');
   });
 
-  it('--resume with a different --hostname exits 1 naming hostname', async () => {
+  it('--resume 搭配不同的 --hostname 时以 1 退出并指出主机名', async () => {
     const h = harness();
     const s = { ...installedState(), status: 'failed' as const };
     writeState(dir, s);
@@ -389,14 +389,14 @@ describe('install', () => {
     );
   });
 
-  it('an existing unfinished state without --resume exits 1 pointing to --resume', async () => {
+  it('已有未完成状态但未指定 --resume 时以 1 退出并提示 --resume', async () => {
     const h = harness();
     writeState(dir, { ...installedState(), status: 'failed' });
     expect(await main(['install', '--yes', ...FLAGS], h.deps)).toBe(1);
     expect(h.text()).toContain('--resume');
   });
 
-  it('an installed state without --resume says so and changes nothing', async () => {
+  it('已安装但未指定 --resume 时说明情况且不作变更', async () => {
     const h = harness();
     writeState(dir, installedState());
     expect(await main(['install', '--yes', ...FLAGS], h.deps)).toBe(0);
@@ -406,7 +406,7 @@ describe('install', () => {
     );
   });
 
-  it('--yes without a terminal installs and records skipped credentials', async () => {
+  it('非终端环境下 --yes 执行安装并记录跳过的凭据', async () => {
     const h = harness();
     expect(await main(['install', '--yes', ...FLAGS], h.deps)).toBe(0);
     const s = readState(dir, ID)!;
@@ -415,7 +415,7 @@ describe('install', () => {
     expect(h.text()).toContain(`CloudForge is installed at ${BASE}`);
   });
 
-  it('--expect-plan with a stale digest fails without creating anything', async () => {
+  it('--expect-plan 的摘要过期时失败且不创建资源', async () => {
     const h = harness();
     const code = await main(
       ['install', '--yes', '--expect-plan', '000000000000', ...FLAGS],
@@ -426,7 +426,7 @@ describe('install', () => {
     expect(h.cf()!.calls.filter((c) => c.method === 'createD1')).toEqual([]);
   });
 
-  it('--yes --expect-plan <stale> stops before any credential prompt or create', async () => {
+  it('--yes --expect-plan <stale> 在询问凭据或创建资源前停止', async () => {
     const h = harness({ tty: true, prompts: ['x', 'y', 'z'] });
     const code = await main(
       ['install', '--yes', '--expect-plan', '000000000000', ...FLAGS],
@@ -441,7 +441,7 @@ describe('install', () => {
     expect(existsSync(dir)).toBe(false);
   });
 
-  it('a plan that changes after it was shown stops the apply', async () => {
+  it('展示后的计划发生变化时停止应用', async () => {
     const h = harness({
       onCloudflare(cf) {
         // The second observe (install's recomputation) sees our workflow appear: reuse, not create.
@@ -460,7 +460,7 @@ describe('install', () => {
     expect(h.cf()!.calls.filter((c) => c.method === 'createD1')).toEqual([]);
   });
 
-  it('declining "Apply this plan?" exits 1 and writes nothing', async () => {
+  it('拒绝应用计划后以 1 退出且不写入任何内容', async () => {
     const h = harness({ tty: true, confirm: false });
     expect(await main(['install', ...FLAGS], h.deps)).toBe(1);
     expect(h.confirms).toEqual(['Apply this plan?']);
@@ -472,7 +472,7 @@ describe('install', () => {
     );
   });
 
-  it('--from-email with --no-email is a usage error', async () => {
+  it('同时指定 --from-email 与 --no-email 属于用法错误', async () => {
     const h = harness();
     const code = await main(
       ['install', '--plan', '--from-email', 'a@example.com', '--no-email'],
@@ -482,7 +482,7 @@ describe('install', () => {
     expect(h.cf()).toBeNull();
   });
 
-  it('several accounts without a terminal need --account (exit 2)', async () => {
+  it('非终端环境中多个账户需要 --account，否则以 2 退出', async () => {
     const h = harness({
       seed: {
         accounts: [
@@ -499,7 +499,7 @@ describe('install', () => {
     expect(h.text()).toContain('--account is required');
   });
 
-  it('--plan --resume prints a command with --resume and the digest', async () => {
+  it('--plan --resume 打印包含 --resume 和摘要的命令', async () => {
     const h = harness({ seed: { d1: [{ uuid: 'd1-x', name: 'acme-db' }] } });
     writeState(dir, { ...installedState(), status: 'failed' });
     expect(
@@ -512,7 +512,7 @@ describe('install', () => {
     );
   });
 
-  it('--plan --resume on an installed state prints no --expect-plan', async () => {
+  it('已安装状态下 --plan --resume 不打印 --expect-plan', async () => {
     const h = harness({ seed: { d1: [{ uuid: 'd1-x', name: 'acme-db' }] } });
     writeState(dir, installedState());
     expect(
@@ -523,7 +523,7 @@ describe('install', () => {
     );
   });
 
-  it('--resume on an installed state runs resumeInstalled: verify only', async () => {
+  it('已安装状态下 --resume 执行 resumeInstalled，仅验证', async () => {
     const h = harness({
       seed: { d1: [{ uuid: 'd1-x', name: 'acme-db' }] },
       setupStatus: { setupRequired: false, codeRequired: false },
@@ -549,7 +549,7 @@ describe('install', () => {
     expect(readState(dir, ID)!.status).toBe('installed');
   });
 
-  it('--resume --new-setup-code on an installed state replaces the code', async () => {
+  it('已安装状态下 --resume --new-setup-code 替换初始化码', async () => {
     const deployed = (h: ReturnType<typeof harness>) =>
       h.runner.calls.filter((c) => c.args[1] === 'deploy').length;
     const without = harness({
@@ -588,7 +588,7 @@ describe('install', () => {
     expect(withFlag.confirms).toEqual([]);
   });
 
-  it('--plan --resume --new-setup-code carries the flag into the apply command', async () => {
+  it('--plan --resume --new-setup-code 将该参数带入应用命令', async () => {
     const h = harness({ seed: { d1: [{ uuid: 'd1-x', name: 'acme-db' }] } });
     writeState(dir, installedState());
     expect(
@@ -602,7 +602,7 @@ describe('install', () => {
     );
   });
 
-  it('a rejected analytics token from the env exits 1 without a terminal', async () => {
+  it('非终端环境中环境变量的分析令牌被拒绝时以 1 退出', async () => {
     const h = harness({
       env: { CLOUDFORGE_CF_ANALYTICS_TOKEN: 'bad' },
       analyticsOk: false,
@@ -613,7 +613,7 @@ describe('install', () => {
     expect(h.text()).not.toContain('bad');
   });
 
-  it('in a terminal, offers the optional credentials and skips empty answers', async () => {
+  it('终端中提供可选凭据输入，并跳过空回答', async () => {
     const h = harness({ tty: true, prompts: ['', ''] });
     expect(await main(['install', ...FLAGS], h.deps)).toBe(0);
     expect(h.text()).toContain('acme-lfs');
@@ -622,8 +622,8 @@ describe('install', () => {
   });
 });
 
-describe('status', () => {
-  it('prints the recorded state and the well-known check, changing nothing', async () => {
+describe('status：状态', () => {
+  it('打印记录状态和 well-known 检查，不作变更', async () => {
     const h = harness();
     const s = installedState();
     writeState(dir, s);
@@ -641,7 +641,7 @@ describe('status', () => {
     expect(listStates(dir)).toEqual([s]);
   });
 
-  it('at the latest prints no upgrade hint', async () => {
+  it('已是最新版本时不打印升级提示', async () => {
     const h = harness({ latest: VERSION });
     writeState(dir, installedState());
     expect(await main(['status'], h.deps)).toBe(0);
@@ -649,19 +649,19 @@ describe('status', () => {
     expect(h.text()).not.toContain('upgrade --name');
   });
 
-  it('offline prints latest unknown and exits 0', async () => {
+  it('离线时显示最新版本未知并以 0 退出', async () => {
     const h = harness({ latest: null });
     writeState(dir, installedState());
     expect(await main(['status'], h.deps)).toBe(0);
     expect(h.text()).toMatch(/Latest\s+unknown/);
   });
 
-  it('status --from in a checkout is a usage error', async () => {
+  it('源码检出目录中 status --from 属于用法错误', async () => {
     const h = harness();
     expect(await main(['status', '--from', '/x'], h.deps)).toBe(2);
   });
 
-  it('a moved install shows where', async () => {
+  it('显示已迁移安装的新位置', async () => {
     const h = harness();
     writeState(dir, {
       ...installedState(),
@@ -671,7 +671,7 @@ describe('status', () => {
     expect(h.text()).toMatch(/Moved\s+\/home\/me\/\.cloudforge\/acme/);
   });
 
-  it('live line compares running and state', async () => {
+  it('实时状态行比较运行状态与记录状态', async () => {
     const h = harness({
       wellKnown: () => Response.json({ installationId: ID, version: 'zzz' }),
     });
@@ -681,7 +681,7 @@ describe('status', () => {
     expect(h.text()).toContain(`version ${VERSION}`);
   });
 
-  it('exits 1 when the well-known answer disagrees', async () => {
+  it('well-known 响应与记录不一致时以 1 退出', async () => {
     const h = harness({
       wellKnown: () => Response.json({ installationId: ID, version: 'other' }),
     });
@@ -692,8 +692,8 @@ describe('status', () => {
 
   it.each([
     ['null', 'null'],
-    ['not JSON', '<html>hi</html>'],
-  ])('exits 1 on a 2xx body that is %s', async (_label, body) => {
+    ['非 JSON', '<html>hi</html>'],
+  ])('2xx 响应正文为 %s 时以 1 退出', async (_label, body) => {
     const h = harness({ wellKnown: () => new Response(body, { status: 200 }) });
     writeState(dir, installedState());
     expect(await main(['status'], h.deps)).toBe(1);
@@ -702,7 +702,7 @@ describe('status', () => {
     );
   });
 
-  it('exits 1 when unreachable', async () => {
+  it('无法访问时以 1 退出', async () => {
     const h = harness({
       wellKnown: () => {
         throw new Error('ECONNREFUSED');
@@ -713,7 +713,7 @@ describe('status', () => {
     expect(h.text()).toContain('ECONNREFUSED');
   });
 
-  it('with no installation says so and exits 1', async () => {
+  it('没有安装时说明情况并以 1 退出', async () => {
     const h = harness();
     expect(await main(['status'], h.deps)).toBe(1);
     expect(h.text()).toContain('No installation found');
@@ -722,15 +722,15 @@ describe('status', () => {
 
 const source = checkoutSource('/repo');
 
-describe('resolveToken', () => {
-  it('prefers CLOUDFLARE_API_TOKEN without running wrangler', async () => {
+describe('resolveToken：解析令牌', () => {
+  it('优先使用 CLOUDFLARE_API_TOKEN，且不运行 wrangler', async () => {
     const r = fakeRunner({});
     expect(
       await resolveToken({ CLOUDFLARE_API_TOKEN: 'env-tok' }, r, source)
     ).toBe('env-tok');
     expect(r.calls).toEqual([]);
   });
-  it("uses the last token-shaped line of wrangler's output, without colour codes", async () => {
+  it('使用 wrangler 输出中最后一行符合令牌格式的内容，并去除颜色代码', async () => {
     const tok = 'AbC_def-123.456789012345';
     const r = fakeRunner({
       yarn: () => ({
@@ -742,7 +742,7 @@ describe('resolveToken', () => {
     expect(await resolveToken({}, r, source)).toBe(tok);
     expect(r.calls[0]!.args).toEqual(['-s', 'wrangler', 'auth', 'token']);
   });
-  it("package mode runs its wrangler's auth token without --config", async () => {
+  it('软件包模式运行自带 wrangler 的 auth token，且不传 --config', async () => {
     const pkgSource = packageSource(
       fakePackage(mkdtempSync(join(tmpdir(), 'tok-')), {
         version: '1.2.0',
@@ -759,7 +759,7 @@ describe('resolveToken', () => {
     expect(r.calls[0]!.args.slice(1)).toEqual(['auth', 'token']);
     expect(r.calls[0]!.args).not.toContain('--config');
   });
-  it('package mode without a login prints its pinned login command', async () => {
+  it('软件包模式未登录时打印固定版本的登录命令', async () => {
     const pkgSource = packageSource(
       fakePackage(mkdtempSync(join(tmpdir(), 'tok-')), {
         version: '1.2.0',
@@ -773,7 +773,7 @@ describe('resolveToken', () => {
       'Run npx wrangler@4.127.0 login first.'
     );
   });
-  it('with no token-shaped line says to run wrangler login', async () => {
+  it('没有符合令牌格式的行时提示运行 wrangler login', async () => {
     const r = fakeRunner({
       yarn: () => ({
         code: 0,
@@ -786,7 +786,7 @@ describe('resolveToken', () => {
     );
   });
 
-  it('without a login says to run wrangler login', async () => {
+  it('未登录时提示运行 wrangler login', async () => {
     const r = fakeRunner({
       yarn: () => ({ code: 1, stdout: '', stderr: 'Not logged in' }),
     });
@@ -796,8 +796,8 @@ describe('resolveToken', () => {
   });
 });
 
-describe('applyCommand', () => {
-  it('single-quotes values outside the safe set', () => {
+describe('applyCommand：生成应用命令', () => {
+  it('对安全字符集合之外的值加单引号', () => {
     const s = {
       ...installedState(),
       inputs: {
@@ -813,13 +813,13 @@ describe('applyCommand', () => {
   });
 });
 
-describe('isEntry', () => {
+describe('isEntry：判断入口', () => {
   const url = 'file:///repo/scripts/gitorange/cli.ts';
-  it('uses import.meta.main when the runtime has it', () => {
+  it('运行时支持 import.meta.main 时使用它', () => {
     expect(isEntry(true, undefined, url)).toBe(true);
     expect(isEntry(false, '/repo/scripts/gitorange/cli.ts', url)).toBe(false);
   });
-  it('falls back to comparing argv[1] on Node without import.meta.main', () => {
+  it('Node 不支持 import.meta.main 时回退为比较 argv[1]', () => {
     expect(isEntry(undefined, '/repo/scripts/gitorange/cli.ts', url)).toBe(
       true
     );
@@ -828,7 +828,7 @@ describe('isEntry', () => {
   });
 });
 
-describe('package mode', () => {
+describe('软件包模式', () => {
   const pkg = () => {
     const home = join(root, 'home');
     const pkgRoot = fakePackage(mkdtempSync(join(tmpdir(), 'pkg-')), {
@@ -850,7 +850,7 @@ describe('package mode', () => {
   const names = (p: string) =>
     existsSync(p) ? readdirSync(p).sort() : ([] as string[]);
 
-  it('install writes under home/<slug>, privately, and nothing in the cwd', async () => {
+  it('安装以私有权限写入 home/<slug>，不写入当前工作目录', async () => {
     const pkgOpts = pkg();
     const h = harness({
       pkg: pkgOpts,
@@ -869,7 +869,7 @@ describe('package mode', () => {
     expect(existsSync(dir)).toBe(false);
   });
 
-  it('a hand-written config hint names the full path', async () => {
+  it('手写配置提示包含完整路径', async () => {
     const pkgOpts = pkg();
     mkdirSync(join(pkgOpts.home, 'acme'), { recursive: true });
     writeFileSync(join(pkgOpts.home, 'acme', 'wrangler.jsonc'), '{}\n');
@@ -879,7 +879,7 @@ describe('package mode', () => {
     expect(h.text()).toContain(`\`mv ${c} ${c}.hand\``);
   });
 
-  it('status prints latest, and the npx upgrade command when running is older', async () => {
+  it('status 打印最新版本，运行版本较旧时显示 npx 升级命令', async () => {
     const pkgOpts = pkg();
     writeState(join(pkgOpts.home, 'acme'), {
       ...installedState(),
@@ -897,7 +897,7 @@ describe('package mode', () => {
     );
   });
 
-  it('status --from reads a checkout, read-only, and hints adopt then upgrade', async () => {
+  it('status --from 只读检出目录，并提示先接管再升级', async () => {
     const checkout = join(root, 'checkout');
     const cdir = join(checkout, '.cloudforge');
     writeState(cdir, { ...installedState(), deployedVersion: '1.0.0' });
@@ -916,7 +916,7 @@ describe('package mode', () => {
     expect(existsSync(join(pkgOpts.home, 'acme'))).toBe(false);
   });
 
-  it('status reads the only install under home', async () => {
+  it('status 读取主目录下唯一的安装', async () => {
     const pkgOpts = pkg();
     writeState(join(pkgOpts.home, 'acme'), installedState());
     const h = harness({ pkg: pkgOpts });
@@ -924,7 +924,7 @@ describe('package mode', () => {
     expect(h.text()).toContain('acme');
   });
 
-  it('status with several installs asks for --name', async () => {
+  it('status 遇到多个安装时要求 --name', async () => {
     const pkgOpts = pkg();
     writeState(join(pkgOpts.home, 'acme'), installedState());
     writeState(join(pkgOpts.home, 'beta'), installedState());
@@ -934,14 +934,14 @@ describe('package mode', () => {
   });
 });
 
-describe('docker', () => {
+describe('Docker 检查', () => {
   const NOT_INSTALLED =
     'Docker is not installed. CloudForge runs Actions jobs in containers, and deploying builds the runner image with Docker. Install Docker Desktop (https://docs.docker.com/get-docker/), start it, then run the same command again.';
   const NOT_RUNNING =
     'Docker is installed but not running. Start Docker Desktop (or the Docker daemon), then run the same command again.';
   const ok = { code: 0, stdout: '27.0.0\n', stderr: '' };
 
-  it('not installed: the exact message, nothing written, --plan prints no digest', async () => {
+  it('未安装时显示准确消息、不写入内容，--plan 不打印摘要', async () => {
     const h = harness({
       docker: {
         docker: () => Promise.reject(new Error('spawn docker ENOENT')),
@@ -960,7 +960,7 @@ describe('docker', () => {
     expect(existsSync(dir)).toBe(false);
   });
 
-  it('not running: the exact message, nothing written, --plan prints no digest', async () => {
+  it('未运行时显示准确消息、不写入内容，--plan 不打印摘要', async () => {
     const h = harness({
       docker: {
         'docker --version': () => ok,
@@ -975,7 +975,7 @@ describe('docker', () => {
     expect(existsSync(join(cwd, 'wrangler.jsonc'))).toBe(false);
   });
 
-  it('status never runs docker', async () => {
+  it('status 从不运行 Docker', async () => {
     writeState(dir, installedState());
     const h = harness();
     expect(await main(['status'], h.deps)).toBe(0);
@@ -983,7 +983,7 @@ describe('docker', () => {
   });
 });
 
-describe('upgrade', () => {
+describe('upgrade：升级', () => {
   const home = () => join(root, 'home');
   const idir = () => join(home(), 'acme');
   const seedInstall = (over: Partial<InstallState> = {}) => {
@@ -1097,14 +1097,14 @@ describe('upgrade', () => {
     return h;
   };
 
-  it('--help lists upgrade and its options', async () => {
+  it('--help 列出 upgrade 及其选项', async () => {
     const h = harness();
     expect(await main(['--help'], h.deps)).toBe(0);
     expect(h.text()).toContain('upgrade');
     expect(h.text()).toContain('--replace-custom-code');
   });
 
-  it('upgrade --plan prints the apply command and writes nothing', async () => {
+  it('upgrade --plan 打印应用命令且不写入任何内容', async () => {
     const h = upgradeHarness();
     const before = readFileSync(join(idir(), `${ID}.json`), 'utf8');
     expect(await main(['upgrade', '--plan'], h.deps)).toBe(0);
@@ -1120,7 +1120,7 @@ describe('upgrade', () => {
     expect(readdirSync(idir())).toEqual([`${ID}.json`]);
   });
 
-  it('the printed apply command applies with no digest mismatch', async () => {
+  it('打印的应用命令可以执行且摘要匹配', async () => {
     const p = upgradeHarness();
     expect(await main(['upgrade', '--plan'], p.deps)).toBe(0);
     const cmd = p.out.at(-1)!;
@@ -1133,7 +1133,7 @@ describe('upgrade', () => {
     expect(s.deployedVersion).toBe('1.3.0');
   });
 
-  it('upgrade without tty needs --yes or --plan', async () => {
+  it('无终端时 upgrade 需要 --yes 或 --plan', async () => {
     const h = upgradeHarness();
     expect(await main(['upgrade'], h.deps)).toBe(2);
     expect(h.text()).toContain(
@@ -1142,7 +1142,7 @@ describe('upgrade', () => {
     expect(h.tokenCalls()).toBe(0);
   });
 
-  it('a failed deploy prints the upgrade resume command, which completes it', async () => {
+  it('部署失败后打印升级恢复命令，该命令可完成升级', async () => {
     const first = upgradeHarness({
       deployResult: { code: 1, stdout: '', stderr: 'boom' },
     });
@@ -1168,7 +1168,7 @@ describe('upgrade', () => {
     expect(again.deploys).toHaveLength(1);
   });
 
-  it('missing R2 keys do not block --yes, and say how to add them', async () => {
+  it('缺少 R2 密钥不阻止 --yes，并说明添加方法', async () => {
     const h = upgradeHarness({
       secrets: [
         'BETTER_AUTH_SECRET',
@@ -1190,7 +1190,7 @@ describe('upgrade', () => {
     expect(readState(idir(), ID)!.skipped).toEqual(['r2-keys']);
   });
 
-  it('in a terminal, missing typed credentials are asked for (masked) and deployed', async () => {
+  it('终端中询问缺少的手动凭据，隐藏输入后部署', async () => {
     const h = upgradeHarness({
       tty: true,
       secrets: ['BETTER_AUTH_SECRET', 'ACTIONS_SECRETS_KEY', 'SETUP_CODE_HASH'],
@@ -1215,7 +1215,7 @@ describe('upgrade', () => {
     expect(readState(idir(), ID)!.skipped).toEqual([]);
   });
 
-  it('in a terminal with --yes, nothing is asked', async () => {
+  it('终端中使用 --yes 时不询问', async () => {
     const h = upgradeHarness({
       tty: true,
       secrets: ['BETTER_AUTH_SECRET', 'ACTIONS_SECRETS_KEY', 'SETUP_CODE_HASH'],
@@ -1230,7 +1230,7 @@ describe('upgrade', () => {
     ]);
   });
 
-  it('docker missing stops before planning', async () => {
+  it('缺少 Docker 时在规划前停止', async () => {
     seedInstall();
     const h = harness({
       pkg: pkg130(),
@@ -1247,7 +1247,7 @@ describe('upgrade', () => {
     expect(readdirSync(idir())).toEqual([`${ID}.json`]);
   });
 
-  it('checkout mode points at npx', async () => {
+  it('源码模式提示使用 npx', async () => {
     const h = harness();
     expect(await main(['upgrade', '--yes'], h.deps)).toBe(2);
     expect(h.text()).toContain(
@@ -1260,7 +1260,7 @@ describe('upgrade', () => {
     ['upgrading', {}],
     ['failed', { upgradeTarget: '1.3.0' }],
   ] as const)(
-    'install --resume refuses an unfinished upgrade (%s)',
+    'install --resume 拒绝未完成的升级（%s）',
     async (status, extra) => {
       seedInstall({ status, upgradeTarget: '1.3.0', ...extra });
       const h = harness({ pkg: pkg130() });
@@ -1275,7 +1275,7 @@ describe('upgrade', () => {
   );
 });
 
-describe('adopt', () => {
+describe('adopt：接管', () => {
   const home = () => join(root, 'home');
   const MOVED = () => join(home(), resourceNames('acme').worker);
   const seedCheckout = (over: Partial<InstallState> = {}) => {
@@ -1300,7 +1300,7 @@ describe('adopt', () => {
       },
     });
 
-  it('moves the install, then the checkout refuses install and --resume', async () => {
+  it('迁移安装后，检出目录拒绝 install 和 --resume', async () => {
     seedCheckout();
     const h = pkgHarness();
     expect(await main(['adopt', '--from', cwd, '--yes'], h.deps)).toBe(0);
@@ -1325,7 +1325,7 @@ describe('adopt', () => {
     expect(resume.deploys).toHaveLength(0);
   });
 
-  it('asks before moving, and a no changes nothing', async () => {
+  it('迁移前询问，拒绝后不作变更', async () => {
     seedCheckout();
     const h = pkgHarness({ tty: true, confirm: false });
     expect(await main(['adopt', '--from', cwd], h.deps)).toBe(1);
@@ -1334,7 +1334,7 @@ describe('adopt', () => {
     expect(readState(dir, ID)!.movedTo).toBeUndefined();
   });
 
-  it('without a terminal and --yes exits 2', async () => {
+  it('非终端环境且未指定 --yes 时以 2 退出', async () => {
     seedCheckout();
     const h = pkgHarness();
     expect(await main(['adopt', '--from', cwd], h.deps)).toBe(2);
@@ -1342,13 +1342,13 @@ describe('adopt', () => {
     expect(existsSync(MOVED())).toBe(false);
   });
 
-  it('needs --from', async () => {
+  it('需要 --from', async () => {
     const h = pkgHarness();
     expect(await main(['adopt', '--yes'], h.deps)).toBe(2);
     expect(h.text()).toContain('adopt needs --from');
   });
 
-  it('worker-only flags with --from are usage errors', async () => {
+  it('--from 搭配仅适用于 Worker 的参数属于用法错误', async () => {
     const h = pkgHarness();
     expect(
       await main(['adopt', '--from', cwd, '--plan', '--yes'], h.deps)
@@ -1356,7 +1356,7 @@ describe('adopt', () => {
     expect(h.text()).toContain('--plan is only for adopt --worker.');
   });
 
-  it('checkout mode points at npx', async () => {
+  it('源码模式提示使用 npx', async () => {
     seedCheckout();
     const h = harness({});
     expect(await main(['adopt', '--from', cwd, '--yes'], h.deps)).toBe(2);
@@ -1366,7 +1366,7 @@ describe('adopt', () => {
     expect(readState(dir, ID)!.movedTo).toBeUndefined();
   });
 
-  it('a taken destination exits 1 and leaves the checkout alone', async () => {
+  it('目标位置已占用时以 1 退出且保留检出目录', async () => {
     const s = seedCheckout();
     writeState(MOVED(), s);
     const h = pkgHarness();
@@ -1376,7 +1376,7 @@ describe('adopt', () => {
   });
 });
 
-describe('adopt --worker', () => {
+describe('adopt --worker：接管 Worker', () => {
   const home = () => join(root, 'home');
   const seed: FakeCloudflareSeed = {
     workers: {
@@ -1406,7 +1406,7 @@ describe('adopt --worker', () => {
     });
   };
 
-  it('--plan prints the report and the apply command, which applies; nothing deploys', async () => {
+  it('--plan 打印报告和可执行的应用命令，且不触发部署', async () => {
     const h = pkgHarness();
     expect(await main(['adopt', '--worker', 'acme', '--plan'], h.deps)).toBe(0);
     const text = h.text();
@@ -1425,7 +1425,7 @@ describe('adopt --worker', () => {
     expect(apply.deploys).toHaveLength(0);
   });
 
-  it('--from and --worker together exit 2', async () => {
+  it('同时指定 --from 与 --worker 时以 2 退出', async () => {
     const h = pkgHarness();
     expect(
       await main(['adopt', '--from', cwd, '--worker', 'acme', '--yes'], h.deps)
@@ -1433,7 +1433,7 @@ describe('adopt --worker', () => {
     expect(h.text()).toContain('Pass either --from or --worker, not both.');
   });
 
-  it('without a terminal and --yes exits 2; checkout mode points at npx', async () => {
+  it('非终端环境且未指定 --yes 时以 2 退出；源码模式提示使用 npx', async () => {
     const h = pkgHarness();
     expect(await main(['adopt', '--worker', 'acme'], h.deps)).toBe(2);
     expect(h.text()).toContain('Not running in a terminal');
@@ -1445,14 +1445,14 @@ describe('adopt --worker', () => {
     expect(c.tokenCalls()).toBe(0);
   });
 
-  it('a wrong worker name exits 1 and writes nothing', async () => {
+  it('Worker 名称错误时以 1 退出且不写入任何内容', async () => {
     const h = pkgHarness();
     expect(await main(['adopt', '--worker', 'nope', '--yes'], h.deps)).toBe(1);
     expect(h.text()).toContain(`No worker named nope on account ${ACCOUNT}`);
     expect(existsSync(home())).toBe(false);
   });
 
-  it('--name with --worker and a bad worker name are usage errors', async () => {
+  it('--worker 搭配 --name 或无效 Worker 名称属于用法错误', async () => {
     const h = pkgHarness();
     expect(
       await main(['adopt', '--worker', 'acme', '--name', 'x', '--yes'], h.deps)

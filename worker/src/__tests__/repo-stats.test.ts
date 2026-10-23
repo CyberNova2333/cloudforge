@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -142,13 +143,13 @@ async function merged(
     .run();
 }
 
-describe('pullBucket', () => {
+describe('pullBucket 拉取请求分类', () => {
   const state = (s: PullState['state'], kinds: string[] = []): PullState => ({
     state: s,
     reasons: kinds.map((kind) => ({ kind }) as never),
   });
 
-  it('puts a person’s move, the agent’s move, running work and the line apart', () => {
+  it('区分待人工处理、待代理处理、正在运行和排队等待', () => {
     expect(pullBucket(state('human_review', ['needs_approval']))).toBe(
       'needsPerson'
     );
@@ -167,15 +168,15 @@ describe('pullBucket', () => {
     expect(pullBucket(state('ready'))).toBe('queued');
   });
 
-  it('counts a pull request waiting for both running work and its order as checking', () => {
+  it('同时等待运行结束和队列顺序的拉取请求计为检查中', () => {
     expect(
       pullBucket(state('waiting', ['rebase_onto', 'checks_running']))
     ).toBe('checking');
   });
 });
 
-describe('GET /api/repos?stats=1', () => {
-  it('leaves stats out unless asked for', async () => {
+describe('读取仓库统计：GET /api/repos?stats=1', () => {
+  it('未请求时不返回统计', async () => {
     const s = await boardRepo();
     expect((await s.board(s.admin, '')).get('octocat/app')!.stats).toBe(
       undefined
@@ -185,7 +186,7 @@ describe('GET /api/repos?stats=1', () => {
     );
   });
 
-  it('counts open pull requests by whose move it is, from their computed states', async () => {
+  it('按计算出的责任方状态统计打开的拉取请求', async () => {
     const s = await boardRepo();
     // Needs a person: no agent reviewed it and nobody approved.
     await s.open('one');
@@ -218,7 +219,7 @@ describe('GET /api/repos?stats=1', () => {
     });
   });
 
-  it('counts a pull request whose stack check has not run as checking, once AI is set up', async () => {
+  it('配置 AI 后，尚未执行堆叠检查的拉取请求计为检查中', async () => {
     const s = await boardRepo({ ai: true });
     await s.open('one');
     await s.open('two');
@@ -234,7 +235,7 @@ describe('GET /api/repos?stats=1', () => {
     });
   });
 
-  it('counts the open pull requests whose state cannot be computed (a branch gone) as open only', async () => {
+  it('分支已删除而无法计算状态的拉取请求仅计入打开总数', async () => {
     const s = await boardRepo();
     await s.open('one');
     await s.open('two');
@@ -249,7 +250,7 @@ describe('GET /api/repos?stats=1', () => {
     });
   });
 
-  it('reads the states of each repository once, however many pull requests it has', async () => {
+  it('无论请求数量多少，每个仓库只读取一次状态', async () => {
     const s = await boardRepo();
     for (const b of ['a', 'b', 'c', 'd', 'e']) await s.open(b);
     const statements: string[] = [];
@@ -275,7 +276,7 @@ describe('GET /api/repos?stats=1', () => {
     ).toHaveLength(1);
   });
 
-  it('lists merges over the last seven UTC days, oldest first, and how many were automatic', async () => {
+  it('按时间从旧到新列出最近七个 UTC 日期的合入数量及自动合入数量', async () => {
     const s = await boardRepo();
     await merged(s.t, s.repoId, 1, 0, { auto: true });
     await merged(s.t, s.repoId, 2, 0);
@@ -291,7 +292,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(stats.mergedAutomaticallyPct).toBe(75);
   });
 
-  it('has no automatic share and seven empty days when nothing merged', async () => {
+  it('没有合入时，自动合入占比为空，七天计数均为零', async () => {
     const s = await boardRepo();
     await merged(s.t, s.repoId, 1, 9, { auto: true });
     const stats = (await s.board()).get('octocat/app')!.stats!;
@@ -300,7 +301,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(stats.mergedAutomaticallyPct).toBeNull();
   });
 
-  it('puts a merge on the day it happened in UTC, whatever the time of day', async () => {
+  it('无论具体时刻如何，均将合入归入其发生的 UTC 日期', async () => {
     const s = await boardRepo();
     const db = drizzle(s.t.env.DB, { schema });
     const found = (await findRepoById(db, s.repoId))!;
@@ -329,7 +330,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(stats.merged7d).toBe(3);
   });
 
-  it('lists the invited agents with their colour and what each is doing', async () => {
+  it('列出已邀请代理的颜色及当前任务', async () => {
     const s = await boardRepo();
     const make = async (body: Record<string, unknown>) => {
       const res = await call(s.t, '/api/admin/agents', {
@@ -403,7 +404,7 @@ describe('GET /api/repos?stats=1', () => {
     ]);
   });
 
-  it('shows the most pressing status when an agent is on several pull requests', async () => {
+  it('代理处理多个拉取请求时显示最紧急的状态', async () => {
     const s = await boardRepo();
     await call(s.t, '/api/admin/agents', {
       cookie: s.admin,
@@ -446,7 +447,7 @@ describe('GET /api/repos?stats=1', () => {
     ]);
   });
 
-  it('does not keep an older commit’s status once a newer commit did not need the agent', async () => {
+  it('新提交无需代理处理时，不保留旧提交的状态', async () => {
     const s = await boardRepo();
     await call(s.t, '/api/admin/agents', {
       cookie: s.admin,
@@ -503,7 +504,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(await status()).toBe('idle');
   });
 
-  it('leaves a repository’s counts empty, not the whole board failed, when its states cannot be read at all', async () => {
+  it('某仓库状态完全无法读取时仅清空其计数，不使整个看板失败', async () => {
     const s = await boardRepo();
     await s.open('one');
     await s.open('two');
@@ -550,7 +551,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(recorded.get(s.repoId)!.branchCount).toBeNull();
   });
 
-  it('counts branches, and says null when the refs cannot be read', async () => {
+  it('统计分支数量，无法读取引用时返回 null', async () => {
     const s = await boardRepo();
     await s.open('one');
     await s.open('two');
@@ -564,7 +565,7 @@ describe('GET /api/repos?stats=1', () => {
     expect(stats.language).toBe('TypeScript');
   });
 
-  it('reports when the repository last changed', async () => {
+  it('报告仓库的最近变更时间', async () => {
     const s = await boardRepo();
     await s.t.env.DB.prepare(
       'UPDATE repositories SET updated_at = 1700000000 WHERE id = ?'
@@ -576,7 +577,7 @@ describe('GET /api/repos?stats=1', () => {
     );
   });
 
-  it('only includes repositories the viewer can see, each with its own stats', async () => {
+  it('仅包含查看者可见的仓库，并分别提供统计', async () => {
     const s = await boardRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     await call(s.t, '/api/repos', {
@@ -593,8 +594,8 @@ describe('GET /api/repos?stats=1', () => {
   });
 });
 
-describe('repository language', () => {
-  it('is the most common source language in the default branch, ignoring vendored and prose files', async () => {
+describe('仓库主要语言', () => {
+  it('采用默认分支最常见的源码语言，忽略第三方依赖及文档', async () => {
     const s = await boardRepo();
     await commitPaths(
       s.repo,
@@ -621,7 +622,7 @@ describe('repository language', () => {
     );
   });
 
-  it('is Markdown when a repository has nothing but prose and data', async () => {
+  it('仓库只有文档和数据时使用 Markdown', async () => {
     const s = await boardRepo();
     await commitPaths(
       s.repo,
@@ -634,7 +635,7 @@ describe('repository language', () => {
     );
   });
 
-  it('is null for an empty repository or one without source files', async () => {
+  it('空仓库或没有源文件的仓库返回 null', async () => {
     const s = await boardRepo();
     await commitPaths(s.repo, 'main', { 'data.json': '{}', LICENSE: 'x' }, 'x');
     expect((await s.board()).get('octocat/app')!.stats!.language).toBeNull();
@@ -644,7 +645,7 @@ describe('repository language', () => {
     expect(stats.branchCount).toBe(0);
   });
 
-  it('is read once per default branch commit and kept until the branch moves', async () => {
+  it('每个默认分支提交只读取一次，分支变化前复用结果', async () => {
     const s = await boardRepo();
     const head1 = s.repo.refs.get('refs/heads/main')!;
     const cached = () =>
@@ -685,7 +686,7 @@ describe('repository language', () => {
     expect(await cached()).toEqual({ language: 'Python', language_sha: head2 });
   });
 
-  it('keeps what it knew when the tree cannot be read', async () => {
+  it('无法读取目录树时保留已知结果', async () => {
     const s = await boardRepo();
     await s.t.env.DB.prepare(
       `UPDATE repositories SET language = 'Go', language_sha = 'old' WHERE id = ?`

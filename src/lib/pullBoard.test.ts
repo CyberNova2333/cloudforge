@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   boardLanes,
@@ -22,15 +23,15 @@ const state = (
   ...reasons: PullReason[]
 ): PullState => ({ state: name, reasons });
 
-describe('laneOf', () => {
-  it('puts each state in its lane', () => {
+describe('laneOf：看板泳道', () => {
+  it('将每种状态放入对应泳道', () => {
     expect(laneOf(state('human_review'))).toBe('needs');
     expect(laneOf(state('agent_followup'))).toBe('fixing');
     expect(laneOf(state('waiting'))).toBe('checking');
     expect(laneOf(state('ready'))).toBe('queued');
   });
 
-  it('puts a waiting pull request in the queue lane while merging is paused, whatever else it waits for', () => {
+  it('合并暂停时，等待中的拉取请求进入队列泳道，无论还在等待什么', () => {
     expect(
       laneOf(
         state('waiting', { kind: 'merging_paused' }, { kind: 'checks_running' })
@@ -38,7 +39,7 @@ describe('laneOf', () => {
     ).toBe('queued');
   });
 
-  it('keeps a person’s or an agent’s move in its own lane while paused', () => {
+  it('暂停期间人工或代理待行动的请求保留在各自泳道', () => {
     expect(laneOf(state('human_review', { kind: 'merging_paused' }))).toBe(
       'needs'
     );
@@ -47,32 +48,32 @@ describe('laneOf', () => {
     );
   });
 
-  it('checks a pull request whose state cannot be read', () => {
+  it('状态无法读取的拉取请求标记为检查中', () => {
     expect(laneOf(null)).toBe('checking');
     expect(laneOf(undefined)).toBe('checking');
   });
 });
 
-describe('laneLabel', () => {
-  it('reads the lane in words', () => {
+describe('laneLabel：泳道标签', () => {
+  it('用文字显示泳道名称', () => {
     expect(laneLabel('needs', false)).toBe('Needs you');
     expect(laneLabel('fixing', false)).toBe('Being fixed');
     expect(laneLabel('checking', false)).toBe('Checking');
     expect(laneLabel('queued', false)).toBe('Queued');
   });
 
-  it('calls the queue Paused while merging is paused', () => {
+  it('合并暂停时将队列称为已暂停', () => {
     expect(laneLabel('queued', true)).toBe('Paused');
     expect(laneLabel('needs', true)).toBe('Needs you');
   });
 
-  it('lists the lanes in order', () => {
+  it('按顺序列出泳道', () => {
     expect(LANE_ORDER).toEqual(['needs', 'fixing', 'checking', 'queued']);
   });
 });
 
-describe('laneChip', () => {
-  it('names the lane in the lane’s tone', () => {
+describe('laneChip：泳道标签样式', () => {
+  it('使用泳道的色调显示名称', () => {
     expect(laneChip(state('human_review'))).toEqual({
       lane: 'needs',
       label: 'Needs you',
@@ -92,7 +93,7 @@ describe('laneChip', () => {
     });
   });
 
-  it('says Paused for a pull request merging is paused on', () => {
+  it('对合并已暂停的拉取请求显示已暂停', () => {
     expect(
       laneChip(state('waiting', { kind: 'merging_paused' }))
     ).toMatchObject({ lane: 'queued', label: 'Paused', tone: 'off' });
@@ -101,12 +102,12 @@ describe('laneChip', () => {
     ).toBe('Needs you');
   });
 
-  it('calls a pull request without a state checking', () => {
+  it('没有状态的拉取请求显示检查中', () => {
     expect(laneChip(null).label).toBe('Checking');
   });
 });
 
-describe('sortReviewers', () => {
+describe('sortReviewers：排序评审者', () => {
   const r = (handle: string, status: PullReviewer['status']): PullReviewer => ({
     handle,
     name: handle,
@@ -114,7 +115,7 @@ describe('sortReviewers', () => {
     status,
   });
 
-  it('puts what needs a look first, and the finished last', () => {
+  it('需要关注的排最前，已完成的排最后', () => {
     expect(
       sortReviewers([
         r('a-approved', 'approved'),
@@ -132,7 +133,7 @@ describe('sortReviewers', () => {
     ]);
   });
 
-  it('keeps handle order within a state, and leaves its input alone', () => {
+  it('同一状态内保持账号名顺序，且不修改输入', () => {
     const input = [r('zed', 'approved'), r('amy', 'approved')];
     expect(sortReviewers(input).map((x) => x.handle)).toEqual(['amy', 'zed']);
     expect(input.map((x) => x.handle)).toEqual(['zed', 'amy']);
@@ -140,13 +141,13 @@ describe('sortReviewers', () => {
   });
 });
 
-describe('etaText', () => {
-  it('says nothing without an estimate', () => {
+describe('etaText：预计耗时', () => {
+  it('没有估算时不显示', () => {
     expect(etaText(null)).toBeNull();
     expect(etaText(Number.NaN)).toBeNull();
   });
 
-  it('reads minutes and hours', () => {
+  it('显示分钟和小时', () => {
     expect(etaText(0)).toBe('under a minute');
     expect(etaText(1)).toBe('about 1 min');
     expect(etaText(4)).toBe('about 4 min');
@@ -155,20 +156,20 @@ describe('etaText', () => {
   });
 });
 
-describe('etaLine', () => {
-  it('says when a queued or checking pull request lands', () => {
+describe('etaLine：预计完成说明', () => {
+  it('说明排队或检查中的拉取请求何时合入', () => {
     expect(etaLine('queued', 4, false)).toBe('Lands in about 4 min');
     expect(etaLine('checking', 20, false)).toBe('Lands in about 20 min');
   });
 
-  it('says it only counts once a blocked one is unblocked', () => {
+  it('说明阻塞解除后才开始计算时间', () => {
     expect(etaLine('needs', 6, false)).toBe('About 6 min once it is unblocked');
     expect(etaLine('fixing', 15, false)).toBe(
       'About 15 min once it is unblocked'
     );
   });
 
-  it('says nothing when merging is paused or there is no estimate', () => {
+  it('合并暂停或没有估算时不显示', () => {
     expect(etaLine('queued', 4, true)).toBeNull();
     expect(etaLine('queued', null, false)).toBeNull();
   });
@@ -213,8 +214,8 @@ const target = (
   })),
 });
 
-describe('boardLanes', () => {
-  it('sorts open pull requests into lanes, in landing order', () => {
+describe('boardLanes：看板泳道集合', () => {
+  it('按合入顺序将开放拉取请求分入泳道', () => {
     const open = [
       pull(11, {
         pullState: state('waiting', {
@@ -245,7 +246,7 @@ describe('boardLanes', () => {
     expect(lanes.queued.map((c) => c.pull.number)).toEqual([10, 14]);
   });
 
-  it('orders pull requests the queue does not list after the ones it does, oldest first', () => {
+  it('队列未列出的请求排在已列出请求之后，并按从旧到新排序', () => {
     const open = [
       pull(20, { createdAt: '2026-10-08T12:00:00.000Z' }),
       pull(21, { createdAt: '2026-10-08T09:00:00.000Z' }),
@@ -255,7 +256,7 @@ describe('boardLanes', () => {
     expect(lanes.queued.map((c) => c.pull.number)).toEqual([22, 21, 20]);
   });
 
-  it('uses the queue’s blocker, and says how many more there are', () => {
+  it('使用队列给出的阻塞原因，并说明其他原因的数量', () => {
     const open = [pull(10, { pullState: state('human_review') })];
     const queue = [
       target([
@@ -274,7 +275,7 @@ describe('boardLanes', () => {
     expect(card.blocker.more).toEqual(['Lands after #9', 'Tests are running']);
   });
 
-  it('says what a ready pull request waits for, which is nothing', () => {
+  it('已就绪的拉取请求无需等待', () => {
     const open = [pull(10), pull(11)];
     const queue = [target([{ number: 10 }, { number: 11 }])];
     const [first, second] = boardLanes(open, queue).lanes.queued;
@@ -284,7 +285,7 @@ describe('boardLanes', () => {
     expect(second.blocker.text).toBe('Nothing is holding it back.');
   });
 
-  it('falls back to the pull request’s own reason without a queue', () => {
+  it('没有队列时回退到拉取请求自身的原因', () => {
     const open = [
       pull(10, {
         pullState: state('agent_followup', {
@@ -299,7 +300,7 @@ describe('boardLanes', () => {
     expect(card.position).toBeNull();
   });
 
-  it('shows the pull request’s reviewers, most pressing first, and the estimate', () => {
+  it('显示评审者和预计耗时，最紧迫的评审者优先', () => {
     const reviewers: PullReviewer[] = [
       { handle: 'sec', name: 'Security', color: '#2a78d6', status: 'approved' },
       { handle: 'data', name: 'Data', color: '#199e70', status: 'flagged' },
@@ -320,7 +321,7 @@ describe('boardLanes', () => {
     expect(lanes.queued[0].reviewers).toEqual([]);
   });
 
-  it('notes what it is stacked on or waits on, unless the blocker says so', () => {
+  it('阻塞原因未说明时补充堆叠或等待关系', () => {
     const open = [
       pull(11, {
         pullState: state('ready', { kind: 'stacked_on', pr: 10 }),
@@ -347,7 +348,7 @@ describe('boardLanes', () => {
     expect(lanes.needs[0].notes).toEqual(['Waits on #9']);
   });
 
-  it('reports merging as paused from the queue or from the pull requests', () => {
+  it('根据队列或拉取请求信息报告合并暂停', () => {
     const paused = {
       at: 1,
       by: { login: 'cho', name: 'Cho', isAgent: false, color: null },
@@ -364,7 +365,7 @@ describe('boardLanes', () => {
     expect(boardLanes([pull(10)], []).paused).toBe(false);
   });
 
-  it('drops the estimate while paused', () => {
+  it('暂停期间移除预计耗时', () => {
     const paused = {
       at: 1,
       by: { login: 'cho', name: 'Cho', isAgent: false, color: null },

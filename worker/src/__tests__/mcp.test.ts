@@ -33,8 +33,8 @@ import {
 // The provider upgrades a non-loopback http issuer to https.
 const ISSUER = 'https://test.local/api/auth';
 
-describe('OAuth discovery', () => {
-  it('points the MCP resource at this instance as its authorization server', async () => {
+describe('OAuth 服务发现', () => {
+  it('将 MCP 资源的授权服务器指向当前实例', async () => {
     const t = makeEnv();
     for (const path of [
       '/.well-known/oauth-protected-resource',
@@ -49,7 +49,7 @@ describe('OAuth discovery', () => {
     }
   });
 
-  it('serves authorization-server metadata with PKCE and dynamic registration', async () => {
+  it('提供支持 PKCE 和动态注册的授权服务器元数据', async () => {
     const t = makeEnv();
     for (const path of [
       '/.well-known/oauth-authorization-server',
@@ -69,7 +69,7 @@ describe('OAuth discovery', () => {
     }
   });
 
-  it('challenges /mcp without a token so clients can discover how to sign in', async () => {
+  it('对无令牌的 /mcp 请求发出认证质询，供客户端发现登录方式', async () => {
     const t = makeEnv();
     const res = await rpc(t, null, 'initialize');
     expect(res.status).toBe(401);
@@ -80,8 +80,8 @@ describe('OAuth discovery', () => {
   });
 });
 
-describe('OAuth 2.1 flow', () => {
-  it('sends a signed-out user to the login page, then on to consent after sign-in', async () => {
+describe('OAuth 2.1 流程', () => {
+  it('将未登录用户引导到登录页，登录后再进入授权页', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     const clientId = await register(t);
@@ -116,7 +116,7 @@ describe('OAuth 2.1 flow', () => {
     expect(new URL(body.url!, ORIGIN).pathname).toBe('/oauth/consent');
   });
 
-  it('issues a JWT access token bound to /mcp, plus a refresh token', async () => {
+  it('签发绑定到 /mcp 的 JWT 访问令牌及刷新令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const tokens = await connect(t, admin);
@@ -131,7 +131,7 @@ describe('OAuth 2.1 flow', () => {
     expect(tokens.refresh_token).toBeTruthy();
   });
 
-  it('refuses a denied consent', async () => {
+  it('拒绝未获同意的授权', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const clientId = await register(t);
@@ -159,8 +159,8 @@ describe('OAuth 2.1 flow', () => {
   });
 });
 
-describe('MCP server', () => {
-  it('initializes and lists its tools', async () => {
+describe('MCP 服务器', () => {
+  it('完成初始化并列出工具', async () => {
     const t = makeEnv();
     const { access_token } = await connect(t, await bootstrapAdmin(t));
     const init = (await (
@@ -221,7 +221,7 @@ describe('MCP server', () => {
     expect(unknown.error.code).toBe(-32601);
   });
 
-  it('reports usage and cost to site admins only', async () => {
+  it('仅向站点管理员报告用量及费用', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
@@ -249,7 +249,7 @@ describe('MCP server', () => {
     expect(denied.content[0].text).toContain('site admins');
   });
 
-  it('creates a repository as the signed-in user and finds it again', async () => {
+  it('以登录用户身份创建仓库并能再次查询到', async () => {
     const t = makeEnv();
     const { access_token } = await connect(t, await bootstrapAdmin(t));
     const created = await tool(t, access_token, 'gitorange_create_repository', {
@@ -282,7 +282,7 @@ describe('MCP server', () => {
     });
   });
 
-  it('reports bad input and conflicts as tool errors, and hides private repositories', async () => {
+  it('将无效输入和冲突报告为工具错误，并隐藏私有仓库', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -323,7 +323,7 @@ describe('MCP server', () => {
     expect(unknownTool.isError).toBe(true);
   });
 
-  it('stops accepting tokens once the user disconnects the app', async () => {
+  it('用户断开应用连接后不再接受其令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { access_token, clientId } = await connect(t, admin);
@@ -340,7 +340,7 @@ describe('MCP server', () => {
     expect((await rpc(t, access_token, 'tools/list')).status).toBe(401);
   });
 
-  it('disconnects an app with over 100 refresh tokens without revoking other connections', async () => {
+  it('断开刷新令牌超过 100 个的应用时，不撤销其他连接', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { clientId, access_token } = await connect(t, admin);
@@ -383,7 +383,7 @@ describe('MCP server', () => {
     expect((await rpc(t, bobTokens.access_token, 'ping')).status).toBe(200);
   });
 
-  it('stops accepting tokens for a banned user', async () => {
+  it('不接受被封禁用户的令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -395,7 +395,7 @@ describe('MCP server', () => {
     expect((await rpc(t, access_token, 'ping')).status).toBe(401);
   });
 
-  it('refuses tokens whose user is an agent', async () => {
+  it('拒绝所属用户为代理的令牌', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -408,7 +408,7 @@ describe('MCP server', () => {
     expect((await rpc(t, access_token, 'ping')).status).toBe(401);
   });
 
-  it('describes the server and its tools to signed-in members', async () => {
+  it('向已登录成员介绍服务器及其工具', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const res = await call(t, '/api/mcp', { cookie: admin });
@@ -419,15 +419,15 @@ describe('MCP server', () => {
   });
 });
 
-describe('instance name', () => {
-  it('turns APP_NAME into an MCP server id', () => {
+describe('实例名称', () => {
+  it('将 APP_NAME 转换为 MCP 服务器标识', () => {
     expect(mcpServerName('CloudForge')).toBe('cloudforge');
     expect(mcpServerName('XY Space Git')).toBe('xy-space-git');
     expect(mcpServerName('  Café — Code! ')).toBe('cafe-code');
     expect(mcpServerName('!!!')).toBe('cloudforge');
   });
 
-  it('names the MCP server, discovery, and the web app after APP_NAME', async () => {
+  it('MCP 服务器、服务发现和网页应用均使用 APP_NAME 命名', async () => {
     const t = makeEnv();
     (t.env as { APP_NAME: string }).APP_NAME = 'XY Space Git';
     const admin = await bootstrapAdmin(t);
@@ -469,7 +469,7 @@ describe('instance name', () => {
   });
 });
 
-describe('MCP pull request tools', () => {
+describe('MCP 拉取请求工具', () => {
   /** A repository with main and a pushed feature branch. */
   async function repoWithBranch() {
     const t = makeEnv({ actions: true });
@@ -492,7 +492,7 @@ describe('MCP pull request tools', () => {
     return { t, admin, token: access_token, repo };
   }
 
-  it('tells the agent to rebase its local commits onto the branch CloudForge rebased', async () => {
+  it('提示代理将本地提交变基到 CloudForge 已变基的分支', async () => {
     const { t, token, repo } = await repoWithBranch();
     await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -538,7 +538,7 @@ describe('MCP pull request tools', () => {
     expect((await get()).rebased).toBeNull();
   });
 
-  it('still answers while the head moves mid-read, with a note on what could not be read', async () => {
+  it('读取过程中分支头变化时仍返回响应，并说明未能读取的内容', async () => {
     const { t, token, repo } = await repoWithBranch();
     await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -578,7 +578,7 @@ describe('MCP pull request tools', () => {
     expect(after.note).toBeNull();
   });
 
-  it('a merge that rebased first tells the agent how to keep its unpushed commits', async () => {
+  it('先变基再合入时，提示代理如何保留尚未推送的提交', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
     await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -615,7 +615,7 @@ describe('MCP pull request tools', () => {
     expect(refused.content[0].text).not.toContain('reset --hard');
   });
 
-  it('records the app, the session and the request it opened a pull request for, and shows them back', async () => {
+  it('记录创建拉取请求的应用、会话和用户需求，并在查询中展示', async () => {
     const { t, token, repo } = await repoWithBranch();
     const opened = await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -669,7 +669,7 @@ describe('MCP pull request tools', () => {
     });
   });
 
-  it('says whose move it is, and lists what needs the agent', async () => {
+  it('说明当前应由谁处理，并列出需要代理处理的事项', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
     await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -727,7 +727,7 @@ describe('MCP pull request tools', () => {
     expect(bad.isError).toBe(true);
   });
 
-  it('still lists closed, merged, and all pull requests by their state', async () => {
+  it('仍按状态列出已关闭、已合入及所有拉取请求', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
     for (const head of ['feature', 'two', 'three']) {
       if (head !== 'feature') {
@@ -776,7 +776,7 @@ describe('MCP pull request tools', () => {
     ]);
   });
 
-  it('opens, inspects, comments on, and merges a pull request', async () => {
+  it('支持创建、查看、评论和合入拉取请求', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
     const opened = await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -921,7 +921,7 @@ describe('MCP pull request tools', () => {
     return { t, admin, token };
   }
 
-  it('reports reviewers, findings by kind, and change requests as follow-ups; merging waits for a person', async () => {
+  it('报告审查者、分类意见和后续修改请求，合入等待人工处理', async () => {
     const { t, admin, token } = await reviewedPull();
     const got = JSON.parse(
       (
@@ -995,7 +995,7 @@ describe('MCP pull request tools', () => {
     });
   });
 
-  it('cannot approve over MCP, and requests changes only on findings for a person', async () => {
+  it('不允许通过 MCP 批准，仅对需人工处理的意见请求修改', async () => {
     const { t, token } = await reviewedPull();
     const got = JSON.parse(
       (
@@ -1040,7 +1040,7 @@ describe('MCP pull request tools', () => {
     expect(no.isError).toBe(true);
   });
 
-  it('refuses to request changes for a member who can only read', async () => {
+  it('拒绝只读成员请求修改', async () => {
     const { t, admin } = await reviewedPull();
     const db = t.env.DB;
     const flagId = (await db
@@ -1066,7 +1066,7 @@ describe('MCP pull request tools', () => {
     ).toEqual({ at: null });
   });
 
-  it('needs push access to open or merge, and hides repositories you cannot read', async () => {
+  it('创建或合入需要推送权限，并隐藏不可读的仓库', async () => {
     const { t, admin } = await repoWithBranch();
     const reader = await addMember(t, admin, 'grace');
     const { access_token } = await connect(t, reader);
@@ -1087,8 +1087,8 @@ describe('MCP pull request tools', () => {
   });
 });
 
-describe('MCP run logs', () => {
-  it('returns the logs of failed steps, or one chosen step, for a run', async () => {
+describe('MCP 运行日志', () => {
+  it('返回运行中失败步骤或指定步骤的日志', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
@@ -1181,8 +1181,8 @@ describe('MCP run logs', () => {
   });
 });
 
-describe('stacking tools', () => {
-  it('reports the tree and a PR’s stack, and hides private repos', async () => {
+describe('堆叠工具', () => {
+  it('报告依赖树和拉取请求所在的堆叠，并隐藏私有仓库', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -1228,7 +1228,7 @@ describe('stacking tools', () => {
     });
     expect(hidden.isError).toBe(true);
   });
-  it('reports accounting, ordering and the branch to rebase onto', async () => {
+  it('报告需处理的依赖、排序及变基目标分支', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -1313,8 +1313,8 @@ describe('stacking tools', () => {
   });
 });
 
-describe('MCP re-run checks', () => {
-  it("re-runs a pull request's failed runs at its head without a new commit", async () => {
+describe('通过 MCP 重新运行检查', () => {
+  it('无需新提交即可在拉取请求当前分支头重跑失败的检查', async () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);

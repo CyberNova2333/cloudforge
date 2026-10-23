@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Workers AI rate limits (3021 / 429): retried with jittered backoff, and a review that is only rate limited is
 // never marked failed.
 import { describe, expect, it } from 'vitest';
@@ -20,8 +21,8 @@ import {
 const RATE_LIMITED =
   'AiError: 3021: rate limiting: inference request per min rate reached';
 
-describe('rate-limited Workers AI calls', () => {
-  it('recognizes 3021 and 429, and nothing else', () => {
+describe('Workers AI 调用限流', () => {
+  it('仅将 3021 和 429 识别为限流', () => {
     expect(isRateLimited(new Error(RATE_LIMITED))).toBe(true);
     expect(isRateLimited(new Error('429 Too Many Requests'))).toBe(true);
     expect(
@@ -31,7 +32,7 @@ describe('rate-limited Workers AI calls', () => {
     expect(isRateLimited(new Error('Expected a JSON object'))).toBe(false);
   });
 
-  it('retries with growing, jittered delays until the call goes through', async () => {
+  it('以逐渐增长且带抖动的延迟重试，直至调用成功', async () => {
     const slept: number[] = [];
     let calls = 0;
     const out = await withRateLimitRetry(
@@ -47,7 +48,7 @@ describe('rate-limited Workers AI calls', () => {
     expect(slept[2]).toBeGreaterThan(slept[1]);
   });
 
-  it('jitters: two callers limited together do not retry together', async () => {
+  it('通过抖动避免同时被限流的两个调用者同时重试', async () => {
     const delays = async (random: () => number) => {
       const slept: number[] = [];
       let calls = 0;
@@ -63,7 +64,7 @@ describe('rate-limited Workers AI calls', () => {
     expect(await delays(() => 0.1)).not.toBe(await delays(() => 0.9));
   });
 
-  it('rethrows anything else at once', async () => {
+  it('立即重新抛出其他所有错误', async () => {
     let calls = 0;
     await expect(
       withRateLimitRetry(
@@ -77,7 +78,7 @@ describe('rate-limited Workers AI calls', () => {
     expect(calls).toBe(1);
   });
 
-  it('gives up once its time budget is spent', async () => {
+  it('耗尽时间预算后停止尝试', async () => {
     let waited = 0;
     await expect(
       withRateLimitRetry(
@@ -94,7 +95,7 @@ describe('rate-limited Workers AI calls', () => {
     expect(waited).toBeLessThanOrEqual(60_000);
   });
 
-  it('spreads a model step’s retries over more than a minute (the rate-limit window)', () => {
+  it('将模型步骤重试分散到超过一分钟的限流窗口', () => {
     const r = MODEL_RETRIES.retries!;
     const base = parseInt(String(r.delay), 10) * 1000;
     let total = 0;
@@ -104,7 +105,7 @@ describe('rate-limited Workers AI calls', () => {
   });
 });
 
-describe('a rate-limited agent review', () => {
+describe('智能体审查限流', () => {
   async function reviewed() {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
@@ -113,7 +114,7 @@ describe('a rate-limited agent review', () => {
     return t;
   }
 
-  it('waits and tries again instead of failing', async () => {
+  it('等待后重试，而非立即失败', async () => {
     const t = await reviewed();
     let calls = 0;
     const { models } = agentModels();
@@ -126,7 +127,7 @@ describe('a rate-limited agent review', () => {
     expect((await reviewers(t))[0]).toMatchObject({ status: 'approved' });
   });
 
-  it('fails only once the limit outlasts every wait, and says it was rate limited', async () => {
+  it('仅在限流持续超过全部等待时报告失败，并说明限流原因', async () => {
     const t = await reviewed();
     const { models } = agentModels();
     models.review = async () => {
@@ -139,7 +140,7 @@ describe('a rate-limited agent review', () => {
   });
 });
 
-describe('a rate-limited Let Claude decide call', () => {
+describe('让 Claude 决定功能的调用限流', () => {
   const answer = {
     choices: [
       {
@@ -168,7 +169,7 @@ describe('a rate-limited Let Claude decide call', () => {
     return { model, slept };
   };
 
-  it('waits and tries again instead of failing', async () => {
+  it('等待后重试，而非立即失败', async () => {
     let calls = 0;
     const { model, slept } = await modelWith(async () => {
       if (++calls <= 2) throw new Error(RATE_LIMITED);
@@ -181,7 +182,7 @@ describe('a rate-limited Let Claude decide call', () => {
     expect(slept).toHaveLength(2);
   });
 
-  it('still throws once the limit outlasts every wait', async () => {
+  it('限流持续超过全部等待后仍抛出异常', async () => {
     const { model } = await modelWith(async () => {
       throw new Error(RATE_LIMITED);
     });

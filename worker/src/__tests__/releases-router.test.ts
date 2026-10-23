@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { call } from './helpers/app';
 import { addMember } from './helpers/app';
@@ -26,8 +27,8 @@ const head = (s: CrewRepo) => s.repo.refs.get('refs/heads/main')!;
 const post = (s: CrewRepo, cookie: string, json: unknown) =>
   call(s.t, `${BASE}/releases`, { cookie, json });
 
-describe('releases routes', () => {
-  it('lists unreleased changes, cuts, reads, lists and edits', async () => {
+describe('版本发布路由', () => {
+  it('支持列出未发布变更、创建、读取、列出和编辑版本', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'minor', 'Add search');
 
@@ -88,7 +89,7 @@ describe('releases routes', () => {
     ]);
   });
 
-  it('a moved default branch is a 409 carrying the new head', async () => {
+  it('默认分支移动时返回 409，并附带新分支头', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'patch');
     const stale = head(s);
@@ -98,14 +99,14 @@ describe('releases routes', () => {
     expect(await res.json()).toMatchObject({ head: head(s) });
   });
 
-  it('a first release without a version is a 400', async () => {
+  it('首次发布未指定版本号时返回 400', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'patch');
     const res = await post(s, s.admin, { headSha: head(s) });
     expect(res.status).toBe(400);
   });
 
-  it('needs push access to cut or edit; reading works for any member', async () => {
+  it('创建或编辑需要推送权限，任何成员均可读取', async () => {
     const s = await crewRepo();
     await landed(s, 1, 'patch');
     expect(
@@ -142,7 +143,7 @@ describe('releases routes', () => {
     ).toBe(200);
   });
 
-  it('an unknown tag is a 404, and releases cannot be deleted', async () => {
+  it('未知标签返回 404，且不允许删除发布版本', async () => {
     const s = await crewRepo();
     expect(
       (await call(s.t, `${BASE}/releases/v1.0.0`, { cookie: s.admin })).status

@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { npmManifest } from '../pack.mjs';
 
-describe('npmManifest', () => {
-  it('describes the published package', () => {
+describe('npmManifest：软件包清单', () => {
+  it('描述发布的软件包', () => {
     expect(
       npmManifest({
         version: '1.0.0',

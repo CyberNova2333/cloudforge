@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { agentColor } from '../agents/presets';
 import { call, type TestEnv } from './helpers/app';
@@ -59,8 +60,8 @@ async function manyPulls() {
   return s;
 }
 
-describe('pull request list: pages', () => {
-  it('returns everything, as before, without a limit', async () => {
+describe('拉取请求列表：分页', () => {
+  it('未提供数量限制时仍返回全部结果', async () => {
     const s = await manyPulls();
     const closed = await list(s.t, s.admin, '?state=closed');
     expect(numbers(closed.body)).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1]);
@@ -70,7 +71,7 @@ describe('pull request list: pages', () => {
     expect(open.body.total).toBe(2);
   });
 
-  it('lists the merged ones newest merge first, and pages them', async () => {
+  it('按合入时间倒序列出已合入的请求并支持分页', async () => {
     const s = await manyPulls();
     const all = await list(s.t, s.admin, '?state=merged');
     expect(numbers(all.body)).toEqual([3, 5, 1, 7, 6, 4, 2]);
@@ -87,7 +88,7 @@ describe('pull request list: pages', () => {
     expect(past.body.total).toBe(7);
   });
 
-  it('pages the closed ones (merged and closed together, newest number first)', async () => {
+  it('对已关闭列表分页，合入及关闭的请求共同按编号倒序排列', async () => {
     const s = await manyPulls();
     const a = await list(s.t, s.admin, '?state=closed&limit=4');
     expect(numbers(a.body)).toEqual([9, 8, 7, 6]);
@@ -96,14 +97,14 @@ describe('pull request list: pages', () => {
     expect(numbers(c.body)).toEqual([1]);
   });
 
-  it('keeps the counts whatever the page', async () => {
+  it('分页不影响总计数', async () => {
     const s = await manyPulls();
     const { body } = await list(s.t, s.admin, '?state=merged&limit=1');
     expect(body.openCount).toBe(2);
     expect(body.closedCount).toBe(9);
   });
 
-  it('pages the open ones, and a pull-state filter after it is applied', async () => {
+  it('对打开的请求分页，并在应用状态筛选后分页', async () => {
     const s = await manyPulls();
     const p1 = await list(s.t, s.admin, '?limit=1');
     expect(numbers(p1.body)).toEqual([11]);
@@ -118,7 +119,7 @@ describe('pull request list: pages', () => {
     expect(filtered.body.total).toBe(2);
   });
 
-  it('refuses a limit or a page out of range', async () => {
+  it('拒绝超出范围的数量限制或页码', async () => {
     const s = await manyPulls();
     for (const q of ['limit=0', 'limit=101', 'limit=x', 'limit=5&page=0'])
       expect((await list(s.t, s.admin, `?state=merged&${q}`)).status).toBe(400);
@@ -128,7 +129,7 @@ describe('pull request list: pages', () => {
   });
 });
 
-describe('pull request list: search', () => {
+describe('拉取请求列表：搜索', () => {
   /** manyPulls, with merged 2 and 6 opened by Claude Code's session s4 and merged 4 by Codex's s5. */
   async function sessions() {
     const s = await manyPulls();
@@ -146,7 +147,7 @@ describe('pull request list: search', () => {
     extra = ''
   ) => list(s.t, s.admin, `?state=merged&q=${encodeURIComponent(q)}${extra}`);
 
-  it('matches a number, with or without the hash, and the start of one', async () => {
+  it('匹配带或不带井号的编号及其前缀', async () => {
     const s = await sessions();
     expect(numbers((await find(s, '#5')).body)).toEqual([5]);
     // Plain digits are the start of a number, or anywhere in the text: #4's session is s5.
@@ -154,14 +155,14 @@ describe('pull request list: search', () => {
     expect(numbers((await find(s, '#50')).body)).toEqual([]);
   });
 
-  it('matches the title and the branch, every word of it, without caring about case', async () => {
+  it('不区分大小写地逐词匹配标题和分支', async () => {
     const s = await sessions();
     expect(numbers((await find(s, 'MERGED 3')).body)).toEqual([3]);
     expect(numbers((await find(s, 'merged-7')).body)).toEqual([7]);
     expect(numbers((await find(s, 'merged zebra')).body)).toEqual([]);
   });
 
-  it('matches the app and the session, with the dot or without', async () => {
+  it('匹配应用及会话，带或不带分隔点均可', async () => {
     const s = await sessions();
     expect(numbers((await find(s, 'claude s4')).body)).toEqual([6, 2]);
     expect(numbers((await find(s, 'Claude·s4')).body)).toEqual([6, 2]);
@@ -169,24 +170,24 @@ describe('pull request list: search', () => {
     expect(numbers((await find(s, 's5')).body)).toEqual([4]);
   });
 
-  it('matches "by hand" on the pull requests no app opened', async () => {
+  it('用“by hand”匹配非应用创建的拉取请求', async () => {
     const s = await sessions();
     expect(numbers((await find(s, 'by hand')).body)).toEqual([3, 5, 1, 7]);
   });
 
-  it('matches the author by username', async () => {
+  it('按用户名匹配作者', async () => {
     const s = await sessions();
     expect((await find(s, 'octocat')).body.total).toBe(7);
     expect((await find(s, 'nobody')).body.total).toBe(0);
   });
 
-  it('takes % and _ as themselves, not as wildcards', async () => {
+  it('将 % 和 _ 视为普通字符，而不是通配符', async () => {
     const s = await sessions();
     expect(numbers((await find(s, '%')).body)).toEqual([]);
     expect(numbers((await find(s, 'merged_')).body)).toEqual([]);
   });
 
-  it('counts and pages the matches, not the whole list', async () => {
+  it('对匹配结果计数和分页，而不是整个列表', async () => {
     const s = await sessions();
     const first = await find(s, 'claude', '&limit=1');
     expect(numbers(first.body)).toEqual([6]);
@@ -198,7 +199,7 @@ describe('pull request list: search', () => {
     expect(first.body.closedCount).toBe(9);
   });
 
-  it('searches the closed list too, and an open list', async () => {
+  it('同时支持搜索已关闭列表和打开列表', async () => {
     const s = await sessions();
     const closed = await list(s.t, s.admin, '?state=closed&q=closed-a');
     expect(closed.body.total).toBe(1);
@@ -207,7 +208,7 @@ describe('pull request list: search', () => {
     expect(open.body.total).toBe(1);
   });
 
-  it('searches long, accented and wildcard-heavy words (D1 refuses LIKE patterns over 50 bytes)', async () => {
+  it('搜索长词、重音词及包含大量通配符的词（D1 拒绝超过 50 字节的 LIKE 模式）', async () => {
     const s = await sessions();
     const long = 'x'.repeat(60);
     const accented = 'é'.repeat(30);
@@ -224,7 +225,7 @@ describe('pull request list: search', () => {
     expect(numbers((await find(s, '1'.repeat(60))).body)).toEqual([]);
   });
 
-  it('ignores a blank search, and refuses a long one', async () => {
+  it('忽略空白查询，并拒绝过长查询', async () => {
     const s = await sessions();
     expect(
       (await list(s.t, s.admin, '?state=merged&q=%20%20')).body.total
@@ -235,7 +236,7 @@ describe('pull request list: search', () => {
   });
 });
 
-describe('pull request list: reviewers', () => {
+describe('拉取请求列表：审查者', () => {
   async function reviewed() {
     const { t, admin, repo } = await appRepo();
     for (const handle of ['dataagent', 'secagent', 'speedagent', 'fixagent'])
@@ -272,7 +273,7 @@ describe('pull request list: reviewers', () => {
       .run();
   }
 
-  it("lists the requested agents' reviews of the current head, by handle, with name and colour", async () => {
+  it('按标识列出当前分支头所请求代理的审查，包含名称及颜色', async () => {
     const { t, admin, head, number } = await reviewed();
     await row(t, number, 'secagent', head, 'approved');
     await row(t, number, 'dataagent', head, 'flagged');
@@ -304,7 +305,7 @@ describe('pull request list: reviewers', () => {
     ]);
   });
 
-  it('leaves out an agent whose requested row is not needed, and reads only the current head', async () => {
+  it('排除无需审查的代理记录，且仅读取当前分支头', async () => {
     const { t, admin, head, number } = await reviewed();
     const older = 'f'.repeat(40);
     // It flagged an earlier commit and is not needed for this one.
@@ -320,7 +321,7 @@ describe('pull request list: reviewers', () => {
     ]);
   });
 
-  it('has none for a pull request nobody reviewed, or one that is closed', async () => {
+  it('未被审查或已关闭的拉取请求没有审查者', async () => {
     const { t, admin, head, number } = await reviewed();
     expect((await list(t, admin, '')).body.pulls[0].reviewers).toEqual([]);
     await row(t, number, 'secagent', head, 'approved');
@@ -334,7 +335,7 @@ describe('pull request list: reviewers', () => {
     expect(closed.body.pulls[0].reviewers).toEqual([]);
   });
 
-  it('uses an agent’s own colour when AGENT.md declares one', async () => {
+  it('AGENT.md 声明颜色时使用代理自己的颜色', async () => {
     const { t, admin, head, number } = await reviewed();
     await t.env.DB.prepare(
       "UPDATE agents SET color = '#123456' WHERE user_id = (SELECT id FROM users WHERE username = 'secagent')"

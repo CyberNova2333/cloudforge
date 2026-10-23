@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { env, runInDurableObject } from 'cloudflare:test';
 import {
@@ -33,8 +34,8 @@ const ask = (
   extra: Partial<SlotRequest> = {}
 ): SlotRequest => ({ jobId, runId: 'run-1', maxMinutes: 30, limit, ...extra });
 
-describe('ActionsQueue', () => {
-  it('grants at most the limit, even when many jobs ask at once', async () => {
+describe('ActionsQueue 作业队列', () => {
+  it('即使多个作业同时申请，也不超出并发上限', async () => {
     const q = fresh();
     const all = await Promise.all(
       Array.from({ length: 25 }, (_, i) => q.acquire(ask(`job-${i}`, 3)))
@@ -48,7 +49,7 @@ describe('ActionsQueue', () => {
     ).toEqual(Array.from({ length: 22 }, (_, i) => i));
   });
 
-  it('grants in arrival order as slots free up', async () => {
+  it('空位释放后按到达顺序分配', async () => {
     const q = fresh();
     expect(await q.acquire(ask('a', 1))).toEqual({ granted: true, ahead: 0 });
     expect(await q.acquire(ask('b', 1))).toEqual({ granted: false, ahead: 0 });
@@ -62,7 +63,7 @@ describe('ActionsQueue', () => {
     expect(await q.release('c')).toEqual([]);
   });
 
-  it('asking again is idempotent, and releasing an unknown job does nothing', async () => {
+  it('重复申请保持幂等，释放未知作业不产生影响', async () => {
     const q = fresh();
     await q.acquire(ask('a', 1));
     expect(await q.acquire(ask('a', 1))).toEqual({ granted: true, ahead: 0 });
@@ -72,7 +73,7 @@ describe('ActionsQueue', () => {
     expect(await q.positions(['b'])).toEqual({ b: 0 });
   });
 
-  it('releasing a waiting job takes it out of line', async () => {
+  it('释放等待中的作业时将其移出队列', async () => {
     const q = fresh();
     await q.acquire(ask('a', 1));
     await q.acquire(ask('b', 1));
@@ -81,7 +82,7 @@ describe('ActionsQueue', () => {
     expect(await q.positions(['c'])).toEqual({ c: 0 });
   });
 
-  it("cancelling a run drops all of its jobs, waiting or running, and grants the next run's", async () => {
+  it('取消运行时移除其所有等待或运行中的作业，并为下一次运行分配空位', async () => {
     const q = fresh();
     await q.acquire(ask('a1', 2));
     await q.acquire(ask('a2', 2));
@@ -97,7 +98,7 @@ describe('ActionsQueue', () => {
     });
   });
 
-  it('a raised limit grants on the next request; a lowered one only stops new grants', async () => {
+  it('提高上限后在下一次请求时分配空位；降低上限仅阻止新增分配', async () => {
     const q = fresh();
     await q.acquire(ask('a', 2));
     await q.acquire(ask('b', 2));
@@ -112,7 +113,7 @@ describe('ActionsQueue', () => {
     expect(await q.release('c')).toEqual([{ jobId: 'd', runId: 'run-1' }]);
   });
 
-  it('reclaims slots whose job is gone or finished, and slots held past the timeout', async () => {
+  it('回收已消失或已结束作业占用的空位，以及超时占用的空位', async () => {
     // Real job rows: one workflow with three jobs.
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
@@ -207,8 +208,8 @@ async function runSeeder() {
 const seedRun = async (jobs: [string, string][], runStatus?: string) =>
   (await runSeeder())(jobs, runStatus);
 
-describe('ActionsQueue reclaim', () => {
-  it('rechecks after 5, 10, 20, then every 30 minutes', () => {
+describe('ActionsQueue 空位回收', () => {
+  it('在 5、10、20 分钟后重新检查，之后每 30 分钟检查一次', () => {
     expect([1, 2, 3, 4, 5, 50].map(slotRecheck)).toEqual([
       '5 minutes',
       '10 minutes',
@@ -219,7 +220,7 @@ describe('ActionsQueue reclaim', () => {
     ]);
   });
 
-  it("counts a slot's deadline from when its job started, not from the grant", async () => {
+  it('从作业启动时而非空位分配时计算占用截止时间', async () => {
     const id = `late-${crypto.randomUUID()}`;
     const runId = await seedRun([[id, 'in_progress']]);
     const q = fresh();
@@ -234,7 +235,7 @@ describe('ActionsQueue reclaim', () => {
     ]);
   });
 
-  it('gives a granted job that has not started the longest recheck to notice', async () => {
+  it('为已分配空位但尚未启动的作业保留最长复查间隔以接收通知', async () => {
     const id = `granted-${crypto.randomUUID()}`;
     const runId = await seedRun([[id, 'queued']]);
     const q = fresh();
@@ -251,7 +252,7 @@ describe('ActionsQueue reclaim', () => {
     ).toEqual([id]);
   });
 
-  it('reclaims the slots of a run that is finished in D1', async () => {
+  it('回收 D1 中已结束运行占用的空位', async () => {
     const id = `done-${crypto.randomUUID()}`;
     // The run was finished (cancelled or reconciled) but its job row was left open.
     const runId = await seedRun([[id, 'in_progress']], 'completed');
@@ -260,7 +261,7 @@ describe('ActionsQueue reclaim', () => {
     expect((await q.reclaim()).reclaimed).toEqual([id]);
   });
 
-  it('reclaims the slots of a run whose Workflow errored or was terminated, and finishes the run', async () => {
+  it('回收 Workflow 出错或被终止的运行所占空位，并结束运行', async () => {
     const crashed = `crashed-${crypto.randomUUID()}`;
     const crashedWaiting = `crashed-w-${crypto.randomUUID()}`;
     const killed = `killed-${crypto.randomUUID()}`;
@@ -316,7 +317,7 @@ describe('ActionsQueue reclaim', () => {
     });
     expect(await run(aliveRun)).toMatchObject({ status: 'in_progress' });
   });
-  it('asks the Workflow only about runs holding a slot or waiting more than 10 minutes', async () => {
+  it('仅查询占用空位或等待超过 10 分钟的运行对应的 Workflow', async () => {
     const seed = await runSeeder();
     const holder = `holder-${crypto.randomUUID()}`;
     const waiter = `waiter-${crypto.randomUUID()}`;
@@ -390,8 +391,8 @@ const slow = async () => {
   return {};
 };
 
-describe('Actions jobs wait for a slot', () => {
-  it('never runs more jobs at once than the limit; waiting jobs start as slots free up', async () => {
+describe('Actions 作业等待空位', () => {
+  it('同时运行的作业不超出上限，空位释放后启动等待中的作业', async () => {
     const s = await setup();
     await setLimit(s, 2);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
@@ -410,7 +411,7 @@ describe('Actions jobs wait for a slot', () => {
     await queueIsEmpty(s);
   });
 
-  it('starts waiting jobs even when every grant event is lost', async () => {
+  it('即使所有分配事件丢失，也会启动等待中的作业', async () => {
     const s = await setup();
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
@@ -421,7 +422,7 @@ describe('Actions jobs wait for a slot', () => {
     expect(h.peak()).toBe(1);
   });
 
-  it('gives the slot back when a job fails', async () => {
+  it('作业失败时归还空位', async () => {
     const s = await setup();
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
@@ -431,7 +432,7 @@ describe('Actions jobs wait for a slot', () => {
     await queueIsEmpty(s);
   });
 
-  it('gives the slot back when the runner is interrupted, and queues again for the restart', async () => {
+  it('运行器中断时归还空位，并在重启时重新排队', async () => {
     const s = await setup();
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
@@ -451,7 +452,7 @@ describe('Actions jobs wait for a slot', () => {
     await queueIsEmpty(s);
   });
 
-  it('runs jobs without a limit when the queue binding is missing', async () => {
+  it('缺少队列绑定时不限制并发作业数量', async () => {
     const s = await setup();
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
@@ -467,8 +468,8 @@ describe('Actions jobs wait for a slot', () => {
   });
 });
 
-describe('Queued jobs on the run page and when cancelling', () => {
-  it('shows how many jobs are ahead, and cancelling takes the run out of the queue', async () => {
+describe('运行页面和取消操作中的排队作业', () => {
+  it('显示前方等待作业数量，取消后将运行移出队列', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -508,7 +509,7 @@ describe('Queued jobs on the run page and when cancelling', () => {
     ]);
   });
 
-  it('never starts a waiting job whose run was cancelled', async () => {
+  it('不启动所属运行已被取消的等待作业', async () => {
     const s = await setup();
     await setLimit(s, 1);
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
@@ -536,7 +537,7 @@ describe('Queued jobs on the run page and when cancelling', () => {
     expect(h.boots).toHaveLength(0);
   });
 
-  it('drops the jobs of a run whose Workflow crashed when the run is viewed', async () => {
+  it('查看运行时移除其已崩溃 Workflow 对应的作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -565,8 +566,8 @@ describe('Queued jobs on the run page and when cancelling', () => {
   });
 });
 
-describe('Job queue failures and restarts', () => {
-  it('runs the job without a slot when the queue cannot be reached', async () => {
+describe('作业队列故障与重启', () => {
+  it('无法连接队列时，无需空位即可运行作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -593,7 +594,7 @@ describe('Job queue failures and restarts', () => {
     expect(h.boots).toHaveLength(1);
   });
 
-  it('shows a restarted job waiting for a slot again as queued', async () => {
+  it('重启后重新等待空位的作业显示为排队中', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
@@ -644,7 +645,7 @@ describe('Job queue failures and restarts', () => {
     return { t, calls, real };
   };
 
-  it('retries marking a job started, so its slot counts from the start', async () => {
+  it('重试标记作业已启动，确保从实际启动时间计算空位占用', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
@@ -668,7 +669,7 @@ describe('Job queue failures and restarts', () => {
     expect(kept).toEqual([]);
   });
 
-  it('runs the job when marking it started keeps failing', async () => {
+  it('标记作业已启动持续失败时，仍运行作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;

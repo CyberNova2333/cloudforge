@@ -24,7 +24,7 @@ export function fakeRunner(script: Record<string, Handler>): Runner & {
       calls.push({ cmd, args, opts });
       const handler = script[`${cmd} ${args[0] ?? ''}`.trim()] ?? script[cmd];
       if (!handler)
-        throw new Error(`fakeRunner: unscripted ${cmd} ${args.join(' ')}`);
+        throw new Error(`fakeRunner：未配置命令 ${cmd} ${args.join(' ')}`);
       return handler(args);
     },
   };

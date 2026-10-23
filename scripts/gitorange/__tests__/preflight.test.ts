@@ -36,8 +36,8 @@ const input = {
   source: checkoutSource('/repo'),
 };
 
-describe('preflight', () => {
-  it('passes and computes the workers.dev base URL', async () => {
+describe('preflight：预检', () => {
+  it('通过并计算 workers.dev 基础 URL', async () => {
     const r = await preflight(
       fakeCloudflare({ subdomain: 'me' }),
       okRunner(),
@@ -48,7 +48,7 @@ describe('preflight', () => {
     expect(r.zoneId).toBeNull();
   });
 
-  it('reports Artifacts 10004 as one artifacts failure', async () => {
+  it('将 Artifacts 10004 报告为一项 Artifacts 失败', async () => {
     const cf = fakeCloudflare({ subdomain: 'me' });
     cf.failNext(
       'listArtifactsNamespaces',
@@ -62,13 +62,13 @@ describe('preflight', () => {
     );
   });
 
-  it('reports a missing workers.dev subdomain', async () => {
+  it('报告缺少的 workers.dev 子域名', async () => {
     const r = await preflight(fakeCloudflare(), okRunner(), input);
     expect(r.failures.map((f) => f.check)).toEqual(['workers-dev']);
     expect(r.baseUrl).toBeNull();
   });
 
-  it('reports a hostname served by another worker, and resolves the zone', async () => {
+  it('报告由其他 Worker 服务的主机名，并解析区域', async () => {
     const cf = fakeCloudflare({
       subdomain: 'me',
       zones: [{ id: 'z1', name: 'example.com', status: 'active' }],
@@ -85,7 +85,7 @@ describe('preflight', () => {
     expect(r.baseUrl).toBe('https://git.example.com');
   });
 
-  it('accepts a hostname already owned by this worker, rejects missing or inactive zones', async () => {
+  it('接受已由本 Worker 使用的主机名，拒绝缺失或未激活的区域', async () => {
     const own = fakeCloudflare({
       zones: [{ id: 'z1', name: 'example.com', status: 'active' }],
       workerDomains: [{ hostname: 'git.example.com', service: 'cloudforge' }],
@@ -104,11 +104,11 @@ describe('preflight', () => {
     expect(pending.failures.map((f) => f.check)).toEqual(['zone']);
   });
 
-  describe('existing DNS records and routes on the hostname', () => {
+  describe('主机名现有的 DNS 记录和路由', () => {
     const custom = { ...input, workersDev: false, hostname: 'git.example.com' };
     const zones = [{ id: 'z1', name: 'example.com', status: 'active' }];
 
-    it('stops on an existing DNS record', async () => {
+    it('存在 DNS 记录时停止', async () => {
       const cf = fakeCloudflare({
         zones,
         dnsRecords: {
@@ -126,7 +126,7 @@ describe('preflight', () => {
       ]);
     });
 
-    it("stops on another worker's route covering the hostname", async () => {
+    it('其他 Worker 的路由覆盖该主机名时停止', async () => {
       for (const pattern of [
         'git.example.com/*',
         '*.example.com/*',
@@ -143,7 +143,7 @@ describe('preflight', () => {
       }
     });
 
-    it('ignores routes on other hostnames and routes without a worker', async () => {
+    it('忽略其他主机名的路由以及未绑定 Worker 的路由', async () => {
       const cf = fakeCloudflare({
         zones,
         routes: {
@@ -156,7 +156,7 @@ describe('preflight', () => {
       expect((await preflight(cf, okRunner(), custom)).failures).toEqual([]);
     });
 
-    it("passes on this worker's own custom domain and its record (a resume)", async () => {
+    it('恢复时接受本 Worker 自己的自定义域名和记录', async () => {
       const cf = fakeCloudflare({
         zones,
         workerDomains: [{ hostname: 'git.example.com', service: 'cloudforge' }],
@@ -171,7 +171,7 @@ describe('preflight', () => {
     });
   });
 
-  it('runs wrangler with the chosen account', async () => {
+  it('使用所选账户运行 wrangler', async () => {
     const runner = okRunner();
     await preflight(fakeCloudflare({ subdomain: 'me' }), runner, input);
     const email = runner.calls.find((c) => c.cmd === 'yarn');
@@ -179,7 +179,7 @@ describe('preflight', () => {
     expect(email?.opts?.env).toEqual({ CLOUDFLARE_ACCOUNT_ID: 'acc' });
   });
 
-  it('a package lists Email Sending with its own wrangler, without --config', async () => {
+  it('软件包使用自带 wrangler 列出邮件发送配置，且不传 --config', async () => {
     const source = packageSource(
       fakePackage(mkdtempSync(join(tmpdir(), 'pre-')), {
         version: '1.2.0',
@@ -201,7 +201,7 @@ describe('preflight', () => {
     expect(runner.calls.some((c) => c.cmd === 'yarn')).toBe(false);
   });
 
-  it('matches the sender domain as a whole entry, not a substring', async () => {
+  it('将发件人域名按完整条目匹配，而非子串匹配', async () => {
     const cf = fakeCloudflare({ subdomain: 'me' });
     const r = await preflight(
       cf,
@@ -218,7 +218,7 @@ describe('preflight', () => {
     expect(hit.failures).toEqual([]);
   });
 
-  it('does not pass on a zone-column match, a disabled row or unreadable output', async () => {
+  it('区域列匹配、禁用行或不可读输出均不算通过', async () => {
     const cf = fakeCloudflare({ subdomain: 'me' });
     const bare = { ...input, fromEmail: 'noreply@example.com' };
     const zoneOnly = await preflight(
@@ -238,7 +238,7 @@ describe('preflight', () => {
     expect(junk.failures[0].message).toContain('mail.example.com');
   });
 
-  it('reports a failing email list command with stderr', async () => {
+  it('邮件列表命令失败时报告 stderr', async () => {
     const runner = fakeRunner({
       docker: () => ({ code: 0, stdout: '', stderr: '' }),
       yarn: () => ({ code: 1, stdout: '', stderr: 'boom\nmore' }),
@@ -253,7 +253,7 @@ describe('preflight', () => {
     expect(r.failures[0].message).not.toContain('more');
   });
 
-  it('skips the email check when there is no sender', async () => {
+  it('没有发件人时跳过邮件检查', async () => {
     const runner = fakeRunner({
       docker: () => ({ code: 0, stdout: '', stderr: '' }),
     });
@@ -264,7 +264,7 @@ describe('preflight', () => {
     expect(r.failures).toEqual([]);
   });
 
-  it('names the two docker failures apart', async () => {
+  it('分别说明两种 Docker 失败', async () => {
     const yarn = () => ({
       code: 0,
       stdout: table([['example.com', 'mail.example.com', 'yes']]),
@@ -301,7 +301,7 @@ describe('preflight', () => {
     }
   });
 
-  it('reports every failure at once', async () => {
+  it('一次报告所有失败', async () => {
     const cf = fakeCloudflare();
     cf.failNext('listR2', new CloudflareError('x', 403, [], '/r2'));
     cf.failNext('listArtifactsNamespaces', new Error('weird'));
@@ -318,7 +318,7 @@ describe('preflight', () => {
     );
   });
 
-  it('maps an R2-not-enabled error to the r2 check', async () => {
+  it('将 R2 未启用错误映射到 r2 检查', async () => {
     const cf = fakeCloudflare({ subdomain: 'me' });
     cf.failNext(
       'listR2',

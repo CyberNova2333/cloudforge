@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   anchoredReviewer,
@@ -36,8 +37,8 @@ const shown = (
 ) => ({ ...r(over), status: over.status });
 const flag = (approvedAt: string | null = null) => ({ approvedAt });
 
-describe('reviewVerb', () => {
-  it('reads like a person’s review', () => {
+describe('reviewVerb：评审描述', () => {
+  it('表达方式与人工评审一致', () => {
     expect(reviewVerb(shown({ id: 'a', status: 'approved' }))).toBe(
       'approved these changes'
     );
@@ -51,7 +52,7 @@ describe('reviewVerb', () => {
       'couldn’t finish its review'
     );
   });
-  it('counts only findings still waiting on a person', () => {
+  it('仅统计仍等待人工处理的问题', () => {
     expect(
       reviewVerb(shown({ id: 'a', status: 'flagged', flags: [flag()] }))
     ).toBe('flagged 1 finding for a person');
@@ -65,7 +66,7 @@ describe('reviewVerb', () => {
       )
     ).toBe('flagged 2 findings for a person');
   });
-  it('says so once a person approved every finding', () => {
+  it('所有问题均获人工批准后说明情况', () => {
     expect(
       reviewVerb(shown({ id: 'a', status: 'flagged', flags: [flag('x')] }))
     ).toBe('flagged 1 finding, approved');
@@ -77,8 +78,8 @@ describe('reviewVerb', () => {
   });
 });
 
-describe('reviewTime', () => {
-  it('is the finish time, or the start while reviewing', () => {
+describe('reviewTime：评审时间', () => {
+  it('使用完成时间，评审中则使用开始时间', () => {
     expect(reviewTime(r({ id: 'a' }))).toBe('2026-01-01T10:05:00Z');
     expect(
       reviewTime(r({ id: 'a', status: 'reviewing', finishedAt: null }))
@@ -89,8 +90,8 @@ describe('reviewTime', () => {
   });
 });
 
-describe('reviewEntries', () => {
-  it('keeps requested agents only, not cancelled ones', () => {
+describe('reviewEntries：评审条目', () => {
+  it('仅保留被请求的代理，排除已取消者', () => {
     const list = [
       r({ id: 'a' }),
       r({ id: 'b', requested: false, status: 'not_needed' }),
@@ -101,10 +102,10 @@ describe('reviewEntries', () => {
   });
 });
 
-describe('timelineSlots', () => {
+describe('timelineSlots：时间线位置', () => {
   const c = (createdAt: string) => ({ createdAt });
   const e = (id: string, createdAt: string) => ({ id, createdAt });
-  it('puts events and reviews between the comments they happened between, in time order', () => {
+  it('按时间顺序将事件和评审插入其发生时相邻的评论之间', () => {
     const comments = [c('2026-01-01T09:00:00Z'), c('2026-01-01T11:00:00Z')];
     const events = [
       e('push1', '2026-01-01T08:00:00Z'),
@@ -134,7 +135,7 @@ describe('timelineSlots', () => {
     );
     expect(ids).toEqual([['push1', 'old'], ['push2', 'new'], ['late']]);
   });
-  it('orders an event before a review at the same instant', () => {
+  it('同一时刻的事件排在评审之前', () => {
     const slots = timelineSlots(
       [],
       [e('push', '2026-01-01T10:05:00Z')],
@@ -143,7 +144,7 @@ describe('timelineSlots', () => {
     expect(slots).toHaveLength(1);
     expect(slots[0].map((x) => x.kind)).toEqual(['event', 'review']);
   });
-  it('keeps the given order of events with no reviews', () => {
+  it('没有评审时保留事件原顺序', () => {
     const slots = timelineSlots(
       [c('2026-01-01T09:00:00Z')],
       [e('a', '2026-01-01T08:00:00Z'), e('b', '2026-01-01T08:00:00Z')],
@@ -156,7 +157,7 @@ describe('timelineSlots', () => {
   });
 });
 
-describe("earlier commits' reviews", () => {
+describe('较早提交的评审', () => {
   const c = (createdAt: string) => ({ createdAt });
   const p = (
     id: string,
@@ -170,7 +171,7 @@ describe("earlier commits' reviews", () => {
     finishedAt,
     flags: [flag()],
   });
-  it('sit at their own time among comments, events and head reviews', () => {
+  it('按各自时间插入评论、事件和当前提交评审之间', () => {
     const slots = timelineSlots(
       [c('2026-01-01T09:00:00Z')],
       [{ id: 'push', createdAt: '2026-01-01T08:30:00Z' }],
@@ -185,7 +186,7 @@ describe("earlier commits' reviews", () => {
       ['review:head'],
     ]);
   });
-  it('never anchor "Review the flags", even with findings left open', () => {
+  it('即使有未关闭的问题，也不作为查看问题的定位目标', () => {
     const slots = timelineSlots(
       [],
       [],
@@ -201,7 +202,7 @@ describe("earlier commits' reviews", () => {
     );
     expect(anchoredReviewer(both)).toBe('head');
   });
-  it('leave out cancelled ones', () => {
+  it('排除已取消的评审', () => {
     expect(
       earlierEntries([
         p('a', null),
@@ -210,7 +211,7 @@ describe("earlier commits' reviews", () => {
       ]).map((x) => x.id)
     ).toEqual(['a', 'c']);
   });
-  it('count every finding, since none waits on anyone any more', () => {
+  it('统计所有问题，因为它们都不再等待处理', () => {
     expect(earlierVerb({ status: 'flagged', flags: [flag(), flag('x')] })).toBe(
       'flagged 2 findings'
     );
@@ -220,8 +221,8 @@ describe("earlier commits' reviews", () => {
   });
 });
 
-describe('anchoredReviewer', () => {
-  it('is the first review in timeline order with a finding waiting on a person', () => {
+describe('anchoredReviewer：定位的评审者', () => {
+  it('选择时间线中首个包含待人工处理问题的评审', () => {
     const slots = timelineSlots(
       [c2('2026-01-01T10:02:00Z')],
       [],
@@ -241,7 +242,7 @@ describe('anchoredReviewer', () => {
     );
     expect(anchoredReviewer(slots)).toBe('earlier');
   });
-  it('is null when nothing waits on a person', () => {
+  it('没有待人工处理的问题时返回 null', () => {
     expect(anchoredReviewer(timelineSlots([], [], [r({ id: 'a' })]))).toBe(
       null
     );
@@ -251,8 +252,8 @@ function c2(createdAt: string) {
   return { createdAt };
 }
 
-describe('slotOf', () => {
-  it('is the index of the first later comment, or after them all', () => {
+describe('slotOf：查找时间线位置', () => {
+  it('返回首个较晚评论的位置，或所有评论之后的位置', () => {
     const comments = [{ createdAt: '2026-01-01T09:00:00Z' }];
     expect(slotOf(comments, '2026-01-01T08:00:00Z')).toBe(0);
     expect(slotOf(comments, '2026-01-01T09:00:00Z')).toBe(1);

@@ -35,40 +35,40 @@ const npmStatus = (npm: number) =>
   (async () => new Response('{}', { status: npm })) as unknown as typeof fetch;
 const base = { tag: 'v1.2.3', repo: '/repo' };
 
-describe('checkTag', () => {
-  it('bad tag shape', () => {
+describe('checkTag：检查标签', () => {
+  it('拒绝格式错误的标签', () => {
     for (const t of ['1.2.3', 'v1.2', 'v1.2.3-rc.1', 'main', ''])
       expect(() => checkTag(t)).toThrow('Usage: yarn release:publish vX.Y.Z');
   });
-  it('returns the version', () => expect(checkTag('v1.2.3')).toBe('1.2.3'));
+  it('返回版本', () => expect(checkTag('v1.2.3')).toBe('1.2.3'));
 });
 
-describe('preflight', () => {
-  it('tag missing on origin', async () => {
+describe('preflight：发布预检', () => {
+  it('origin 缺少标签', async () => {
     const { r } = runner({ tag: false });
     await expect(
       preflight({ ...base, runner: r, fetchImpl: npmStatus(404) })
     ).rejects.toThrow('missing on origin');
   });
-  it('tag not on main', async () => {
+  it('标签不在 main 上', async () => {
     const { r } = runner({ onMain: false });
     await expect(
       preflight({ ...base, runner: r, fetchImpl: npmStatus(404) })
     ).rejects.toThrow('Tag v1.2.3 is not on main; publish only releases cut');
   });
-  it('already on npm', async () => {
+  it('版本已发布到 npm', async () => {
     const { r } = runner({});
     await expect(
       preflight({ ...base, runner: r, fetchImpl: npmStatus(200) })
     ).rejects.toThrow('already on npm');
   });
-  it('passes when the tag is on main', async () => {
+  it('标签位于 main 上时通过', async () => {
     const { r } = runner({});
     expect(
       await preflight({ ...base, runner: r, fetchImpl: npmStatus(404) })
     ).toEqual({ commit: SHA });
   });
-  it('never reads the working copy', async () => {
+  it('从不读取工作副本', async () => {
     const { r, calls } = runner({});
     await preflight({ ...base, runner: r, fetchImpl: npmStatus(404) });
     for (const c of calls) {
@@ -80,8 +80,8 @@ describe('preflight', () => {
   });
 });
 
-describe('worktreeAddArgs', () => {
-  it('builds the verified commit, not the tag', () =>
+describe('worktreeAddArgs：工作树参数', () => {
+  it('构建已验证的提交而非标签', () =>
     expect(worktreeAddArgs('/repo', '/tmp/x', SHA)).toEqual([
       '-C',
       '/repo',
@@ -93,8 +93,8 @@ describe('worktreeAddArgs', () => {
     ]));
 });
 
-describe('preflight rev-parse', () => {
-  it('refuses when the commit cannot be resolved', async () => {
+describe('preflight：解析提交', () => {
+  it('无法解析提交时拒绝', async () => {
     const { r } = runner({ revFails: true });
     await expect(
       preflight({ ...base, runner: r, fetchImpl: npmStatus(404) })
@@ -102,7 +102,7 @@ describe('preflight rev-parse', () => {
   });
 });
 
-describe('packageSmoke', () => {
+describe('packageSmoke：软件包冒烟检查', () => {
   const o = {
     worktree: '/wt',
     pkgDir: '/wt/build/npm',
@@ -112,7 +112,7 @@ describe('packageSmoke', () => {
     node: '/usr/bin/node',
   };
 
-  it("runs CI's Package job checks, argv only, with the worktree's wrangler", () => {
+  it('以参数数组运行 CI 软件包检查，并使用工作树的 wrangler', () => {
     const p = packageSmoke(o);
     expect(p.tarball).toBe('/s/pkg/cybernova2333-cloudforge-1.2.3.tgz');
     expect(p.steps).toEqual([
@@ -159,8 +159,8 @@ describe('packageSmoke', () => {
   });
 });
 
-describe('missingCommands', () => {
-  it('names the commands --help does not list', () => {
+describe('missingCommands：缺失命令', () => {
+  it('列出 --help 中未出现的命令', () => {
     const help =
       'Usage: cloudforge <command>\n\n  install  Install\n  status   Show\n';
     expect(missingCommands(help)).toEqual(['upgrade', 'adopt']);

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   dismissedText,
@@ -7,22 +8,22 @@ import {
   lessonNote,
 } from './lessons';
 
-describe('lessons', () => {
-  it('says what the timeline event says', () => {
+describe('学习记录', () => {
+  it('与时间线事件的描述一致', () => {
     expect(learnedText('secagent', 2, 'abcdef1234')).toBe(
       '@secagent learned from 2 dismissed findings · abcdef1'
     );
     expect(learnedPhrase(1)).toBe('learned from 1 dismissed finding');
   });
 
-  it('names the dismissed findings', () => {
+  it('列出被驳回的问题', () => {
     expect(dismissedText(['Token logged', 'No expiry'])).toBe(
       'Dismissed "Token logged", "No expiry"'
     );
     expect(dismissedText([])).toBe('Dismissed findings');
   });
 
-  it('follows the status with the commit, the explanation, or the error', () => {
+  it('在状态之后显示提交、说明或错误', () => {
     const base = { commitSha: null, summary: null, error: null };
     expect(
       lessonNote({ ...base, status: 'committed', commitSha: 'a'.repeat(40) })

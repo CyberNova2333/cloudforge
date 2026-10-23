@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { repositories } from '../db/app.schema';
@@ -52,8 +53,8 @@ async function setup() {
   return { t, admin, ada, bob };
 }
 
-describe('personal repositories', () => {
-  it('are private by default and invisible to other members', async () => {
+describe('个人仓库', () => {
+  it('默认私有，对其他成员不可见', async () => {
     const { t, ada, bob } = await setup();
     const res = await call(t, '/api/repos', {
       cookie: ada,
@@ -77,7 +78,7 @@ describe('personal repositories', () => {
     );
   });
 
-  it('are visible to collaborators and site admins', async () => {
+  it('协作者及站点管理员可见', async () => {
     const { t, admin, ada, bob } = await setup();
     await call(t, '/api/repos', {
       cookie: ada,
@@ -103,7 +104,7 @@ describe('personal repositories', () => {
     );
   });
 
-  it('can be made internal by the owner, after which every member can read them', async () => {
+  it('所有者可改为内部仓库，随后所有成员均可读取', async () => {
     const { t, ada, bob } = await setup();
     await call(t, '/api/repos', { cookie: ada, json: { name: 'notes' } });
     const res = await call(t, '/api/repos/ada/notes', {
@@ -118,8 +119,8 @@ describe('personal repositories', () => {
   });
 });
 
-describe('the shared team', () => {
-  it('is created by a site admin, not by members', async () => {
+describe('共享团队', () => {
+  it('由站点管理员创建，普通成员不能创建', async () => {
     const { t, admin, ada } = await setup();
     expect(await (await call(t, '/api/team', { cookie: ada })).json()).toEqual({
       team: null,
@@ -140,7 +141,7 @@ describe('the shared team', () => {
     );
   });
 
-  it('cannot take a username, and users cannot take its slug', async () => {
+  it('团队不能占用用户名，用户也不能占用团队标识', async () => {
     const { t, admin, ada } = await setup();
     const clash = await call(t, '/api/team', {
       cookie: admin,
@@ -171,7 +172,7 @@ describe('the shared team', () => {
     expect(accept.status).toBe(400);
   });
 
-  it('owns team repositories that every member reads but only collaborators push to', async () => {
+  it('团队仓库允许所有成员读取，但只有协作者可以推送', async () => {
     const { t, admin, ada, bob } = await setup();
     const early = await call(t, '/api/repos', {
       cookie: ada,
@@ -237,7 +238,7 @@ describe('the shared team', () => {
     expect(flip.status).toBe(400);
   });
 
-  it('allows the same repository name in a personal and the team namespace', async () => {
+  it('个人与团队命名空间允许使用相同仓库名', async () => {
     const { t, admin, ada } = await setup();
     await call(t, '/api/team', {
       cookie: admin,
@@ -267,8 +268,8 @@ describe('the shared team', () => {
   });
 });
 
-describe('batched access checks', () => {
-  it('permissionsForMany and findReposByIds agree with their one-at-a-time versions', async () => {
+describe('批量权限检查', () => {
+  it('permissionsForMany 和 findReposByIds 与逐项查询结果一致', async () => {
     const { t, admin, ada, bob } = await setup();
     await call(t, '/api/team', {
       cookie: admin,

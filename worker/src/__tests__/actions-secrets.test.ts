@@ -47,8 +47,8 @@ async function runOnce(
   return { result, h, log };
 }
 
-describe('secret encryption', () => {
-  it('round-trips, and a ciphertext opens only for its own row and key', async () => {
+describe('密钥加密', () => {
+  it('加解密可还原原文，且密文只能使用所属行及对应密钥打开', async () => {
     const { t } = await setup();
     const c = await encryptSecret(t.env, 'repo-1', 'TOKEN', 'hunter22');
     expect(c).toMatch(/^v1\./);
@@ -68,7 +68,7 @@ describe('secret encryption', () => {
     );
   });
 
-  it('masks each line of a multi-line secret, longest first', () => {
+  it('逐行脱敏多行密钥，优先匹配最长内容', () => {
     expect(secretMasks({ A: 'line-one\nline-two', B: 'abc' })).toEqual([
       'line-one\nline-two',
       'line-one',
@@ -77,7 +77,7 @@ describe('secret encryption', () => {
     ]);
   });
 
-  it('does not mask a multi-line secret’s structural lines on their own', () => {
+  it('多行密钥中的结构行（如单独的花括号）不单独遮蔽', () => {
     const key = '{\n  "private_key": "s3cr3t-value"\n}';
     const masks = secretMasks({ KEY: key, PIN: '42' });
     // The whole value and a line that could be secret alone; never `{` or `}`. A short secret is still masked whole.
@@ -91,8 +91,8 @@ describe('secret encryption', () => {
   });
 });
 
-describe('Actions secrets and variables API', () => {
-  it('lets repository admins save secrets (write-only, encrypted) and variables (plain text)', async () => {
+describe('Actions 密钥与变量 API', () => {
+  it('允许仓库管理员保存只写且加密的密钥和明文变量', async () => {
     const s = await setup();
     const first = await put(
       s,
@@ -159,7 +159,7 @@ describe('Actions secrets and variables API', () => {
     expect(JSON.stringify(audit.results)).not.toMatch(/tok-|eu-west/);
   });
 
-  it('refuses bad names and values, and anyone but repository admins', async () => {
+  it('拒绝无效名称、无效值以及仓库管理员以外的访问者', async () => {
     const s = await setup();
     for (const [name, message] of [
       ['1ABC', /may not start with a digit/],
@@ -199,7 +199,7 @@ describe('Actions secrets and variables API', () => {
     ).toBe(403);
   });
 
-  it('keeps instance-wide ones for site admins and shows a repository what it inherits', async () => {
+  it('仅站点管理员可管理实例级配置，并向仓库展示继承项', async () => {
     const s = await setup();
     await put(s, s.admin, '/api/admin/actions/secrets/SHARED', 'shared-1234');
     await put(s, s.admin, '/api/admin/actions/variables/REGION', 'us-east-1');
@@ -228,8 +228,8 @@ describe('Actions secrets and variables API', () => {
   });
 });
 
-describe('secrets and variables in jobs', () => {
-  it('reads them in steps, masks secrets in every log, and withholds outputs that carry one', async () => {
+describe('作业中的密钥与变量', () => {
+  it('在步骤中读取配置、对所有日志中的密钥脱敏，并禁止输出包含密钥的值', async () => {
     const s = await setup();
     await put(
       s,
@@ -295,7 +295,7 @@ jobs:
     );
   });
 
-  it('without ACTIONS_SECRETS_KEY, secrets are refused and read as empty, with a warning', async () => {
+  it('未设置 ACTIONS_SECRETS_KEY 时拒绝密钥，将其读取为空并发出警告', async () => {
     const s = await setup();
     await put(s, s.admin, `${base}/secrets/TOKEN`, 'saved-1234');
     (s.t.env as { ACTIONS_SECRETS_KEY: string }).ACTIONS_SECRETS_KEY = '';
@@ -329,7 +329,7 @@ jobs:
     );
   });
 
-  it('a secret saved under another key reads as empty, and the job says so', async () => {
+  it('使用其他密钥保存的密文读取为空，且作业会说明原因', async () => {
     const s = await setup();
     await put(s, s.admin, `${base}/secrets/TOKEN`, 'saved-1234');
     (s.t.env as { ACTIONS_SECRETS_KEY: string }).ACTIONS_SECRETS_KEY =

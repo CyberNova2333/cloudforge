@@ -31,89 +31,102 @@ const sent = async (call: () => Promise<unknown>) => {
   return calls[0];
 };
 
-describe('crew redesign reads', () => {
+describe('团队界面读取接口', () => {
   const reads: [string, () => Promise<unknown>, string][] = [
-    ['repoStats', () => api.repoStats(), '/api/repos?stats=1'],
-    ['agentPresets', () => api.agentPresets(), '/api/agents/presets'],
-    ['agentsBuiltin', () => api.agentsBuiltin(), '/api/agents/builtin'],
+    ['repoStats 仓库统计', () => api.repoStats(), '/api/repos?stats=1'],
     [
-      'agentStats',
+      'agentPresets 智能体预设',
+      () => api.agentPresets(),
+      '/api/agents/presets',
+    ],
+    [
+      'agentsBuiltin 内置智能体',
+      () => api.agentsBuiltin(),
+      '/api/agents/builtin',
+    ],
+    [
+      'agentStats 智能体统计',
       () => api.agentStats('data-agent'),
       '/api/agents/data-agent/stats',
     ],
-    ['delegations', () => api.delegations(), '/api/me/delegations'],
+    ['delegations 委托列表', () => api.delegations(), '/api/me/delegations'],
     [
-      'approvalFlag',
+      'approvalFlag 待审批意见',
       () => api.approvalFlag('f 1'),
       '/api/approvals/flags/f%201',
     ],
-    ['sessions', () => api.sessions('o', 'r'), '/api/repos/o/r/sessions'],
     [
-      'session',
+      'sessions 会话列表',
+      () => api.sessions('o', 'r'),
+      '/api/repos/o/r/sessions',
+    ],
+    [
+      'session 会话详情',
       () => api.session('o', 'r', 's-a3e258a5a3'),
       '/api/repos/o/r/sessions/s-a3e258a5a3',
     ],
-    ['branches', () => api.branches('o', 'r'), '/api/repos/o/r/branches'],
     [
-      'branchMap (server default window)',
+      'branches 分支列表',
+      () => api.branches('o', 'r'),
+      '/api/repos/o/r/branches',
+    ],
+    [
+      'branchMap 使用服务器默认时间窗口',
       () => api.branchMap('o', 'r'),
       '/api/repos/o/r/branches/map',
     ],
     [
-      'branchMap (30 days)',
+      'branchMap 使用 30 天时间窗口',
       () => api.branchMap('o', 'r', 30),
       '/api/repos/o/r/branches/map?days=30',
     ],
-    ['queue', () => api.queue('o', 'r'), '/api/repos/o/r/queue'],
-    ['live', () => api.live('o', 'r'), '/api/repos/o/r/live'],
-    ['health', () => api.health('o', 'r'), '/api/repos/o/r/health'],
+    ['queue 合并队列', () => api.queue('o', 'r'), '/api/repos/o/r/queue'],
+    ['live 实时动态', () => api.live('o', 'r'), '/api/repos/o/r/live'],
+    ['health 仓库健康度', () => api.health('o', 'r'), '/api/repos/o/r/health'],
     [
-      'repoAudit (first page)',
+      'repoAudit 仓库审计首页',
       () => api.repoAudit('o', 'r'),
       '/api/repos/o/r/audit',
     ],
     [
-      'repoAudit (next page, smaller)',
+      'repoAudit 仓库审计下一页并减少条数',
       () => api.repoAudit('o', 'r', 'abc', 5),
       '/api/repos/o/r/audit?cursor=abc&limit=5',
     ],
-    ['adminAudit (first page)', () => api.adminAudit(), '/api/admin/audit'],
+    ['adminAudit 管理审计首页', () => api.adminAudit(), '/api/admin/audit'],
     [
-      'adminAudit (next page)',
+      'adminAudit 管理审计下一页',
       () => api.adminAudit('c1'),
       '/api/admin/audit?cursor=c1',
     ],
-    ['search', () => api.search('auth'), '/api/search?q=auth'],
+    ['search 搜索', () => api.search('auth'), '/api/search?q=auth'],
     [
-      'search in a repository',
+      'search 在指定仓库内搜索',
       () => api.search('a b', 'o/r'),
       '/api/search?q=a+b&repo=o%2Fr',
     ],
     [
-      'search with no repository',
+      'search 不指定仓库的搜索',
       () => api.search('#12', null),
       '/api/search?q=%2312',
     ],
   ];
 
-  it.each(reads)(
-    '%s asks for the right URL with GET',
-    async (_n, call, url) => {
-      expect(await sent(call)).toEqual({
-        url,
-        method: 'GET',
-        body: undefined,
-      });
-    }
-  );
+  it.each(reads)('%s 使用 GET 请求正确的 URL', async (_n, call, url) => {
+    expect(await sent(call)).toEqual({
+      url,
+      method: 'GET',
+      body: undefined,
+    });
+  });
 
-  it('encodes an owner or repository name', async () => {
+  it('编码所有者或仓库名称', async () => {
     expect((await sent(() => api.queue('a b', 'c/d'))).url).toBe(
       '/api/repos/a%20b/c%2Fd/queue'
     );
   });
 
-  it('hands a search the abort signal, so a superseded request is cancelled', async () => {
+  it('向搜索传递取消信号，以取消被替代的请求', async () => {
     const seen: (AbortSignal | null | undefined)[] = [];
     vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
       seen.push(init?.signal);
@@ -127,8 +140,8 @@ describe('crew redesign reads', () => {
   });
 });
 
-describe('crew redesign writes', () => {
-  it('creates the recommended crew, and an agent from a preset', async () => {
+describe('团队界面写入接口', () => {
+  it('创建推荐团队，并从预设创建代理', async () => {
     expect(await sent(() => api.createAgentCrew())).toEqual({
       url: '/api/admin/agents/crew',
       method: 'POST',
@@ -142,7 +155,7 @@ describe('crew redesign writes', () => {
     });
   });
 
-  it('replaces the delegated agents with the handles given', async () => {
+  it('使用给定账号名替换委托代理集合', async () => {
     expect(await sent(() => api.setDelegations(['speed', 'data']))).toEqual({
       url: '/api/me/delegations',
       method: 'PUT',
@@ -150,7 +163,7 @@ describe('crew redesign writes', () => {
     });
   });
 
-  it('approves a finding with no body, or with a trimmed reason and teaching', async () => {
+  it('批准问题时不传正文，或传入去除首尾空白的理由和教学内容', async () => {
     const url = '/api/repos/o/r/pulls/3/review/flags/f1/approve';
     expect(await sent(() => api.approveFlag('o', 'r', 3, 'f1'))).toEqual({
       url,
@@ -182,7 +195,7 @@ describe('crew redesign writes', () => {
     ).toBeUndefined();
   });
 
-  it('requests changes with a note, and teaches only when asked', async () => {
+  it('携带备注要求修改，仅在请求时附带教学内容', async () => {
     const url = '/api/repos/o/r/pulls/3/review/flags/f1/request-changes';
     expect(
       await sent(() => api.requestFlagChanges('o', 'r', 3, 'f1', ' Rotate it '))
@@ -197,7 +210,7 @@ describe('crew redesign writes', () => {
     ).toEqual({ note: null, teach: 'Always' });
   });
 
-  it('assigns a finding to a login, or clears it with null', async () => {
+  it('将问题分配给账号，或用 null 清除分配', async () => {
     const url = '/api/repos/o/r/pulls/3/review/flags/f1/assign';
     expect(
       await sent(() => api.assignFlag('o', 'r', 3, 'f1', 'amira'))
@@ -208,7 +221,7 @@ describe('crew redesign writes', () => {
     ).toEqual({ login: null });
   });
 
-  it('undoes a decision and lets CloudForge AI decide, with no body', async () => {
+  it('撤销决定和交由 CloudForge AI 决定时不传正文', async () => {
     expect(await sent(() => api.undoFlag('o', 'r', 3, 'f1'))).toEqual({
       url: '/api/repos/o/r/pulls/3/review/flags/f1/undo',
       method: 'POST',
@@ -222,7 +235,7 @@ describe('crew redesign writes', () => {
     });
   });
 
-  it('cleans branches, pauses and resumes merging, and reverts a pull request', async () => {
+  it('清理分支、暂停和恢复合并，以及回退拉取请求', async () => {
     expect(await sent(() => api.cleanBranches('o', 'r'))).toEqual({
       url: '/api/repos/o/r/branches/clean',
       method: 'POST',
@@ -253,7 +266,7 @@ describe('crew redesign writes', () => {
     });
   });
 
-  it('changes whether landing deletes the pull request branch', async () => {
+  it('修改合入后是否删除拉取请求分支', async () => {
     expect(
       await sent(() => api.updateRepo('o', 'r', { deleteMergedBranches: true }))
     ).toEqual({
@@ -263,7 +276,7 @@ describe('crew redesign writes', () => {
     });
   });
 
-  it('reads the reason a revert was refused from the 409', async () => {
+  it('从 409 响应读取拒绝回退的原因', async () => {
     reply = {
       status: 409,
       json: { message: 'It was never merged.', error: 'It was never merged.' },
@@ -276,14 +289,14 @@ describe('crew redesign writes', () => {
   });
 });
 
-describe('pull request lists', () => {
-  it('asks for the whole list without a limit, as before', async () => {
+describe('拉取请求列表', () => {
+  it('与原行为一致，不限制数量时请求完整列表', async () => {
     expect((await sent(() => api.pulls('o', 'r', 'open'))).url).toBe(
       '/api/repos/o/r/pulls?state=open'
     );
   });
 
-  it('asks for one page of a limit', async () => {
+  it('按限制数量请求一页', async () => {
     expect(
       (await sent(() => api.pulls('o', 'r', 'merged', { limit: 5 }))).url
     ).toBe('/api/repos/o/r/pulls?state=merged&limit=5');
@@ -294,7 +307,7 @@ describe('pull request lists', () => {
     ).toBe('/api/repos/o/r/pulls?state=closed&limit=25&page=3');
   });
 
-  it('sends a search, trimmed, and none when it is blank', async () => {
+  it('发送去除首尾空白的搜索词，空白时不发送', async () => {
     expect(
       (
         await sent(() =>
@@ -309,7 +322,7 @@ describe('pull request lists', () => {
     ).toBe('/api/repos/o/r/pulls?state=closed&limit=25');
   });
 
-  it('leaves out page 1, and a page without a limit', async () => {
+  it('省略第一页参数，以及未设置数量限制时的页码', async () => {
     expect(
       (await sent(() => api.pulls('o', 'r', 'closed', { limit: 25, page: 1 })))
         .url
@@ -320,7 +333,7 @@ describe('pull request lists', () => {
     ).toBe('/api/repos/o/r/pulls?state=closed');
   });
 
-  it('keeps every page under the pull request lists, and tells pages apart', () => {
+  it('所有分页键归入拉取请求列表，且相互区分', () => {
     for (const key of [
       qk.pulls('o', 'r', 'open'),
       qk.pulls('o', 'r', 'merged', 5),
@@ -342,8 +355,8 @@ describe('pull request lists', () => {
   });
 });
 
-describe('query keys', () => {
-  it('start every repository-scoped key with the repository, so its live pings refresh them', () => {
+describe('查询键', () => {
+  it('所有仓库范围的键以仓库开头，使实时通知能刷新它们', () => {
     const keys = [
       qk.branches('o', 'r'),
       qk.branchMap('o', 'r'),
@@ -359,12 +372,12 @@ describe('query keys', () => {
     for (const key of keys) expect(key.slice(0, 3)).toEqual(['repo', 'o', 'r']);
   });
 
-  it('keeps finding and delegation keys under approvals, so live pings and decisions refresh them', () => {
+  it('问题和委托键归入审批，使实时通知和决定能刷新它们', () => {
     expect(qk.approvalFlag('f1').slice(0, 1)).toEqual(qk.approvals);
     expect(qk.delegations.slice(0, 1)).toEqual(qk.approvals);
   });
 
-  it('keeps the board under repos and the agent lookups under agents', () => {
+  it('看板归入 repos，代理查询归入 agents', () => {
     expect(qk.repoStats.slice(0, 1)).toEqual(qk.repos);
     for (const key of [
       qk.agentPresets,
@@ -374,7 +387,7 @@ describe('query keys', () => {
       expect(key.slice(0, 1)).toEqual(qk.agents);
   });
 
-  it('tells one search, scope and page apart', () => {
+  it('区分不同搜索、范围和页码', () => {
     expect(qk.search('a', null)).not.toEqual(qk.search('a', 'o/r'));
     expect(qk.search('a', null)).not.toEqual(qk.search('b', null));
     expect(qk.adminAudit()).not.toEqual(qk.adminAudit('c1'));
@@ -383,30 +396,34 @@ describe('query keys', () => {
   });
 });
 
-describe('releases and tags', () => {
+describe('发行版本和标签', () => {
   it.each<[string, () => Promise<unknown>, string]>([
-    ['releases', () => api.releases('o', 'r'), '/api/repos/o/r/releases'],
     [
-      'unreleased',
+      'releases 发行版本列表',
+      () => api.releases('o', 'r'),
+      '/api/repos/o/r/releases',
+    ],
+    [
+      'unreleased 尚未发布的变更',
       () => api.unreleased('o', 'r'),
       '/api/repos/o/r/releases/unreleased',
     ],
     [
-      'release',
+      'release 发行版本详情',
       () => api.release('o', 'r', 'v1.2.0'),
       '/api/repos/o/r/releases/v1.2.0',
     ],
     [
-      'release (an odd tag name is escaped)',
+      'release 对特殊标签名称进行转义',
       () => api.release('o', 'r', 'a/b'),
       '/api/repos/o/r/releases/a%2Fb',
     ],
-    ['tags', () => api.tags('o', 'r'), '/api/repos/o/r/tags'],
-  ])('%s asks for the right URL with GET', async (_n, call, url) => {
+    ['tags 标签列表', () => api.tags('o', 'r'), '/api/repos/o/r/tags'],
+  ])('%s 使用 GET 请求正确的 URL', async (_n, call, url) => {
     expect(await sent(call)).toEqual({ url, method: 'GET', body: undefined });
   });
 
-  it('cuts a release with the head it saw, a trimmed version and the notes', async () => {
+  it('使用已知头提交、去除首尾空白的版本号和说明创建发行版本', async () => {
     expect(
       await sent(() =>
         api.cutRelease('o', 'r', {
@@ -422,7 +439,7 @@ describe('releases and tags', () => {
     });
   });
 
-  it('leaves out a blank version, title or notes, so the server computes them', async () => {
+  it('省略空白版本号、标题或说明，交由服务端计算', async () => {
     expect(
       (
         await sent(() =>
@@ -437,7 +454,7 @@ describe('releases and tags', () => {
     ).toEqual({ headSha: 'abc123' });
   });
 
-  it('reads the new head from a 409 on a moved default branch', async () => {
+  it('默认分支移动时从 409 响应读取新头提交', async () => {
     reply = {
       status: 409,
       json: { error: 'The default branch moved', head: 'def456' },
@@ -451,7 +468,7 @@ describe('releases and tags', () => {
     expect(failure.body.head).toBe('def456');
   });
 
-  it('edits a release title and notes by tag', async () => {
+  it('按标签编辑发行标题和说明', async () => {
     expect(
       await sent(() =>
         api.updateRelease('o', 'r', 'v1.2.0', {
@@ -466,7 +483,7 @@ describe('releases and tags', () => {
     });
   });
 
-  it('opens a pull request with a version bump, or none', async () => {
+  it('创建拉取请求时可携带版本递增级别或不设置', async () => {
     const body = { title: 't', body: '', base: 'main', head: 'feat' };
     expect(
       await sent(() =>
@@ -483,7 +500,7 @@ describe('releases and tags', () => {
     );
   });
 
-  it('changes or clears a pull request bump', async () => {
+  it('修改或清除拉取请求的版本递增级别', async () => {
     expect(
       await sent(() => api.updatePull('o', 'r', 4, { versionBump: 'major' }))
     ).toEqual({
@@ -498,7 +515,7 @@ describe('releases and tags', () => {
     ).toEqual({ versionBump: null });
   });
 
-  it('keeps every key under the repository, so live pings refresh them', () => {
+  it('所有键归入仓库，使实时通知能刷新它们', () => {
     for (const key of [
       qk.releases('o', 'r'),
       qk.unreleased('o', 'r'),

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   RECENT_MAX,
@@ -34,20 +35,20 @@ const throwing = {
   },
 };
 
-describe('addRecent', () => {
-  it('puts the latest visit first', () => {
+describe('addRecent：添加最近访问', () => {
+  it('将最近访问放在最前', () => {
     const list = addRecent(addRecent([], repo('a/one')), repo('a/two'));
     expect(list.map((r) => r.fullName)).toEqual(['a/two', 'a/one']);
   });
 
-  it('dedupes: a revisit moves the repository to the front and keeps one entry', () => {
+  it('再次访问时移到最前并去重', () => {
     let list: RecentRepo[] = [];
     for (const name of ['a/one', 'a/two', 'a/three', 'A/One'])
       list = addRecent(list, repo(name));
     expect(list.map((r) => r.fullName)).toEqual(['A/One', 'a/three', 'a/two']);
   });
 
-  it('takes the newer details on a revisit (an agent repository learned later)', () => {
+  it('再次访问时使用较新的详情，包括后来识别出的代理仓库', () => {
     const list = addRecent(
       [repo('dataagent/dataagent')],
       repo('dataagent/dataagent', { handle: 'dataagent', color: '#199e70' })
@@ -60,7 +61,7 @@ describe('addRecent', () => {
     ]);
   });
 
-  it(`keeps at most ${RECENT_MAX}, dropping the oldest`, () => {
+  it(`最多保留 ${RECENT_MAX} 项，并移除最早的记录`, () => {
     let list: RecentRepo[] = [];
     for (let i = 1; i <= 7; i++) list = addRecent(list, repo(`o/r${i}`));
     expect(RECENT_MAX).toBe(5);
@@ -73,15 +74,15 @@ describe('addRecent', () => {
     ]);
   });
 
-  it('never changes the list it was given', () => {
+  it('不修改传入的列表', () => {
     const before = [repo('a/one')];
     addRecent(before, repo('a/two'));
     expect(before).toEqual([repo('a/one')]);
   });
 });
 
-describe('removeRecent', () => {
-  it('forgets a repository (deleted or renamed), whatever its case', () => {
+describe('removeRecent：移除最近访问', () => {
+  it('忽略大小写移除已删除或重命名的仓库', () => {
     expect(
       removeRecent([repo('a/one'), repo('a/two')], 'A/ONE').map(
         (r) => r.fullName
@@ -90,8 +91,8 @@ describe('removeRecent', () => {
   });
 });
 
-describe('parseRecent', () => {
-  it('reads back what was written', () => {
+describe('parseRecent：解析最近访问', () => {
+  it('读回写入的内容', () => {
     const list = [
       repo('choyiny/gitorange'),
       repo('dataagent/dataagent', { handle: 'dataagent', color: null }),
@@ -99,12 +100,12 @@ describe('parseRecent', () => {
     expect(parseRecent(JSON.stringify(list))).toEqual(list);
   });
 
-  it('survives bad JSON and anything that is not a list', () => {
+  it('容忍无效 JSON 和非列表值', () => {
     for (const raw of [null, '', '{', 'null', '42', '"a/b"', '{"a":1}'])
       expect(parseRecent(raw)).toEqual([]);
   });
 
-  it('skips malformed entries and keeps the good ones', () => {
+  it('跳过格式错误的条目，保留有效条目', () => {
     const raw = JSON.stringify([
       1,
       null,
@@ -120,7 +121,7 @@ describe('parseRecent', () => {
     ]);
   });
 
-  it(`dedupes and caps at ${RECENT_MAX} even when storage holds more`, () => {
+  it(`即使存储中有更多记录，也会去重并限制为 ${RECENT_MAX} 项`, () => {
     const names = ['a/1', 'a/2', 'A/1', 'a/3', 'a/4', 'a/5', 'a/6', 'a/7'];
     expect(
       parseRecent(JSON.stringify(names.map((n) => repo(n)))).map(
@@ -130,25 +131,25 @@ describe('parseRecent', () => {
   });
 });
 
-describe('storage', () => {
-  it('keeps one list per person', () => {
+describe('存储', () => {
+  it('每个用户保留独立列表', () => {
     expect(recentKey('u1')).not.toBe(recentKey('u2'));
     expect(recentKey('u1').startsWith('go-')).toBe(true);
   });
 
-  it('round-trips through storage', () => {
+  it('通过存储完整写入和读回', () => {
     const storage = memoryStorage();
     writeRecent(storage, 'k', [repo('a/one')]);
     expect(readRecent(storage, 'k')).toEqual([repo('a/one')]);
   });
 
-  it('reads an empty list when storage is missing, blocked or holds junk', () => {
+  it('存储缺失、被阻止或包含无效内容时读取为空列表', () => {
     expect(readRecent(null, 'k')).toEqual([]);
     expect(readRecent(throwing, 'k')).toEqual([]);
     expect(readRecent(memoryStorage({ k: '[{' }), 'k')).toEqual([]);
   });
 
-  it('never throws when writing fails', () => {
+  it('写入失败时不抛出错误', () => {
     expect(() => writeRecent(throwing, 'k', [repo('a/one')])).not.toThrow();
     expect(() => writeRecent(null, 'k', [repo('a/one')])).not.toThrow();
   });

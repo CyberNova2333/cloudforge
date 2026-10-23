@@ -34,8 +34,8 @@ const sessions = async (
   return (await res.json()) as Session[];
 };
 
-describe('sessionId', () => {
-  it('is s- and the first 10 hex of sha256(author NUL client NUL label)', async () => {
+describe('sessionId 会话标识', () => {
+  it('使用 s- 加 sha256(author NUL client NUL label) 的前 10 位十六进制值', async () => {
     // printf 'u1\0Claude Code\0s4' | shasum -a 256
     expect(await sessionId('u1', 'Claude Code', 's4')).toBe('s-a3e258a5a3');
     // A missing client and label are empty strings: printf 'u1\0\0' | shasum -a 256
@@ -43,8 +43,8 @@ describe('sessionId', () => {
   });
 });
 
-describe('provenance on pull requests opened over MCP', () => {
-  it('stores the app’s name, the session label and the person’s request', async () => {
+describe('通过 MCP 创建的拉取请求来源', () => {
+  it('存储应用名称、会话标签和用户需求', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
     await s.branch('feature');
@@ -73,7 +73,7 @@ describe('provenance on pull requests opened over MCP', () => {
     });
   });
 
-  it('keeps them null when the tool is called without session and request, and for blank ones', async () => {
+  it('未传入或仅传入空白 session 与 request 时保留为 null', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Cursor');
     await s.branch('one');
@@ -93,7 +93,7 @@ describe('provenance on pull requests opened over MCP', () => {
       ).toEqual({ created_via: 'Cursor', session_label: null, request: null });
   });
 
-  it('trims the session label and refuses a session over 64 characters or a request over 4000', async () => {
+  it('去除会话标签两端空白，并拒绝超过 64 字符的会话或 4000 字符的需求', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin);
     await s.branch('feature');
@@ -145,7 +145,7 @@ describe('provenance on pull requests opened over MCP', () => {
     expect(row).toEqual({ session_label: 'x'.repeat(64), n: 4000 });
   });
 
-  it('tells coding agents what session and request are for', async () => {
+  it('向编码代理说明 session 和 request 的用途', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin);
     const list = (await (
@@ -173,8 +173,8 @@ describe('provenance on pull requests opened over MCP', () => {
   });
 });
 
-describe('pull requests opened on the web', () => {
-  it('have no client, session or request: they are by hand', async () => {
+describe('通过网页创建的拉取请求', () => {
+  it('不记录客户端、会话或需求，视为手动创建', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature');
@@ -191,8 +191,8 @@ describe('pull requests opened on the web', () => {
   });
 });
 
-describe('GET /api/repos/{o}/{r}/sessions', () => {
-  it('groups pull requests by client, session label and author', async () => {
+describe('读取会话列表：GET /api/repos/{o}/{r}/sessions', () => {
+  it('按客户端、会话标签和作者分组拉取请求', async () => {
     const s = await crewRepo();
     const claude = (await connect(s.t, s.admin, 'Claude Code')).access_token;
     const cursor = (await connect(s.t, s.admin, 'Cursor')).access_token;
@@ -227,7 +227,7 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
     expect(new Set(list.map((x) => x.id)).size).toBe(4);
   });
 
-  it('names an agent author as an agent, with its colour', async () => {
+  it('将代理作者标记为代理并附带其颜色', async () => {
     const s = await crewRepo();
     const agent = await newAgent(s.t, s.admin, 'secagent', 'Security Agent');
     s.repo.refs.set('refs/heads/x', s.main);
@@ -241,7 +241,7 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
     });
   });
 
-  it('keeps one author’s session apart from another’s with the same app and label', async () => {
+  it('相同应用和标签下，不同作者的会话相互独立', async () => {
     const s = await crewRepo();
     const ada = await collaborator(s, 'ada');
     const mine = (await connect(s.t, s.admin, 'Claude Code')).access_token;
@@ -263,7 +263,7 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
     });
   });
 
-  it('gives a session a stable id from the formula, and lists the newest activity first', async () => {
+  it('按公式生成稳定的会话标识，并优先列出最近活动', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
     await s.branch('old');
@@ -290,7 +290,7 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
     expect((await sessions(s)).map((x) => x.id)).toEqual(list.map((x) => x.id));
   });
 
-  it('shows each pull request’s state, and whose move it is for an open one', async () => {
+  it('展示各拉取请求状态，并说明打开的请求应由谁处理', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
     await s.branch('shipped');
@@ -313,7 +313,7 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
     });
   });
 
-  it('is empty for a repository without pull requests, and follows who can read it', async () => {
+  it('没有拉取请求的仓库返回空列表，并遵循仓库读取权限', async () => {
     const s = await crewRepo();
     expect(await sessions(s)).toEqual([]);
     // A private repository is invisible to a member who isn't on it.
@@ -346,8 +346,8 @@ describe('GET /api/repos/{o}/{r}/sessions', () => {
   });
 });
 
-describe('GET /api/repos/{o}/{r}/sessions/{id}', () => {
-  it('returns one session with its pull requests and requests, 404 for an unknown id', async () => {
+describe('读取单个会话：GET /api/repos/{o}/{r}/sessions/{id}', () => {
+  it('返回会话及其拉取请求和用户需求，未知标识返回 404', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
     for (const b of ['a', 'b']) await s.branch(b);
@@ -379,7 +379,7 @@ describe('GET /api/repos/{o}/{r}/sessions/{id}', () => {
   });
 });
 
-describe('the session id on pull request rows', () => {
+describe('拉取请求记录中的会话标识', () => {
   /** The session id GET /sessions gives each pull request number, the one id every other row must agree with. */
   async function idsByNumber(s: Awaited<ReturnType<typeof crewRepo>>) {
     const out = new Map<number, string>();
@@ -411,7 +411,7 @@ describe('the session id on pull request rows', () => {
     return { s, ada, a, b, c, d };
   }
 
-  it('is the same on queue entries as GET /sessions gives the pull request’s session, "by hand" ones included', async () => {
+  it('队列项的会话标识与 GET /sessions 一致，包括手动创建的请求', async () => {
     const { s, a, b, c, d } = await fixture();
     const ids = await idsByNumber(s);
     // Four people/apps, four sessions: by hand is a per-person session of its own.
@@ -428,7 +428,7 @@ describe('the session id on pull request rows', () => {
     }
   });
 
-  it('is the same on a branch’s pull request and on the branch map', async () => {
+  it('分支关联请求和分支图中的会话标识一致', async () => {
     const { s, a, b, c, d } = await fixture();
     const ids = await idsByNumber(s);
     const list = await getJson<
@@ -450,7 +450,7 @@ describe('the session id on pull request rows', () => {
     for (const o of map.open) expect(o.sessionId).toBe(ids.get(o.number));
   });
 
-  it('is the same on the pull request list and detail', async () => {
+  it('拉取请求列表和详情中的会话标识一致', async () => {
     const { s, a, b, c, d } = await fixture();
     const ids = await idsByNumber(s);
     const { pulls } = await getJson<{
@@ -467,7 +467,7 @@ describe('the session id on pull request rows', () => {
     }
   });
 
-  it('is the formula for a by-hand pull request, with an empty client and label', async () => {
+  it('手动创建的请求按空客户端和空标签代入公式', async () => {
     const { s, c } = await fixture();
     const author = (await s.t.env.DB.prepare(
       "SELECT id FROM users WHERE username = 'octocat'"

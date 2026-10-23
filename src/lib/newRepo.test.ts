@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   DESCRIPTION_MAX,
@@ -6,8 +7,8 @@ import {
   repoNameProblem,
 } from './newRepo';
 
-describe('normalizeRepoName', () => {
-  it('trims and turns every run of other characters into one dash, as the server does', () => {
+describe('normalizeRepoName：规范化仓库名', () => {
+  it('与服务端一样去除首尾空白，并将连续非法字符替换为一个连字符', () => {
     expect(normalizeRepoName('  my repo  ')).toBe('my-repo');
     expect(normalizeRepoName('a / b !! c')).toBe('a-b-c');
     expect(normalizeRepoName('keep.these_chars-ok')).toBe(
@@ -16,15 +17,15 @@ describe('normalizeRepoName', () => {
   });
 });
 
-describe('repoNameProblem', () => {
-  it('has nothing to say about an empty or ordinary name', () => {
+describe('repoNameProblem：仓库名问题', () => {
+  it('空名称或普通名称不返回问题', () => {
     expect(repoNameProblem('')).toBeNull();
     expect(repoNameProblem('   ')).toBeNull();
     expect(repoNameProblem('client portal')).toBeNull();
     expect(repoNameProblem('invoices')).toBeNull();
   });
 
-  it('refuses the names the server refuses', () => {
+  it('拒绝服务端拒绝的名称', () => {
     expect(repoNameProblem('..')).toMatch(/dots/);
     expect(repoNameProblem(' . ')).toMatch(/dots/);
     expect(repoNameProblem('site.git')).toMatch(/\.git/);
@@ -33,12 +34,12 @@ describe('repoNameProblem', () => {
   });
 });
 
-describe('inviteFailureMessage', () => {
-  it('is nothing when every reviewer was added', () => {
+describe('inviteFailureMessage：邀请失败消息', () => {
+  it('所有评审者都已添加时为空', () => {
     expect(inviteFailureMessage([])).toBeNull();
   });
 
-  it('ends the reason with a full stop when the server did not', () => {
+  it('服务端原因没有句号时补上句号', () => {
     expect(
       inviteFailureMessage([
         { name: 'Data', reason: 'You must be an admin of this repository' },
@@ -46,7 +47,7 @@ describe('inviteFailureMessage', () => {
     ).toContain('repository. You can add reviewers');
   });
 
-  it('says who could not be added and what to do', () => {
+  it('说明无法添加的代理和后续操作', () => {
     expect(
       inviteFailureMessage([{ name: 'Data', reason: 'You must be an admin.' }])
     ).toBe(
@@ -62,8 +63,8 @@ describe('inviteFailureMessage', () => {
   });
 });
 
-describe('limits', () => {
-  it('matches the server', () => {
+describe('限制', () => {
+  it('与服务端一致', () => {
     expect(DESCRIPTION_MAX).toBe(350);
   });
 });

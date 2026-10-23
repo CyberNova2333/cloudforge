@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, call } from './helpers/app';
 import { newAgent } from './helpers/agents';
@@ -238,7 +239,7 @@ async function world() {
   };
 }
 
-describe('GET /api/agents/{handle}/stats', () => {
+describe('GET /api/agents/{handle}/stats 智能体统计', () => {
   async function seeded() {
     const w = await world();
     await newAgent(w.t, w.admin, 'otheragent', 'Other');
@@ -281,7 +282,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     return w;
   }
 
-  it('counts what it raised, and how many findings stood or were dismissed', async () => {
+  it('统计提出的意见，以及被采纳或驳回的数量', async () => {
     const w = await seeded();
     const s = await w.stats(w.admin);
     expect(s).toMatchObject({
@@ -293,7 +294,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('has no kept share before anything was decided', async () => {
+  it('尚未作出任何决定时，不提供采纳比例', async () => {
     const w = await seeded();
     expect(await w.stats(w.admin, 'quietagent')).toMatchObject({
       raised: 1,
@@ -309,7 +310,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('is all zero and null for an agent that never reviewed anything', async () => {
+  it('智能体从未审查时，所有统计均为零或 null', async () => {
     const w = await world();
     expect(await w.stats(w.admin)).toEqual({
       handle: 'secagent',
@@ -329,7 +330,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('counts the rules it learned, only from lessons that were committed', async () => {
+  it('仅从已提交的学习任务中统计学到的规则', async () => {
     const w = await seeded();
     await w.lesson('l1', 'secagent', 'a1', w.app, 'committed');
     await w.lesson('l2', 'secagent', 'a2', w.app, 'committed');
@@ -341,7 +342,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     expect((await w.stats(w.bob)).rules).toBe(2);
   });
 
-  it('counts the reviews it did, not the ones it was not needed for', async () => {
+  it('统计实际执行的审查，不计入无需参与的审查', async () => {
     const w = await seeded();
     await w.reviewer('r1', 'a1', 'h1', 'secagent', 'approved', ago(1));
     await w.reviewer('r2', 'a2', 'h1', 'secagent', 'not_needed', ago(1));
@@ -350,7 +351,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     expect((await w.stats(w.admin)).reviews).toBe(2);
   });
 
-  it('lists 182 UTC days, oldest first, with the reviews of each', async () => {
+  it('按从早到晚列出 182 个 UTC 日期及各日审查', async () => {
     const w = await seeded();
     await w.reviewer('r1', 'a1', 'h1', 'secagent', 'approved', middayAgo(0));
     await w.reviewer('r2', 'a2', 'h1', 'secagent', 'approved', middayAgo(4));
@@ -380,7 +381,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     expect(asBob.byDay[181].reviews).toBe(2);
   });
 
-  it('names its best catch: the newest finding a person approved', async () => {
+  it('将人工最新批准的审查意见列为最佳发现', async () => {
     const w = await seeded();
     expect((await w.stats(w.admin)).bestCatch).toEqual({
       title: 'Secret catch',
@@ -395,7 +396,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('gives a finding without a title a plain one', async () => {
+  it('为没有标题的审查意见提供普通标题', async () => {
     const w = await world();
     await w.classification('a1-h1', 'a1', 'h1', 'done', ago(1));
     await w.exec(
@@ -416,7 +417,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('shows where it works now: its most pressing status in each invited repository', async () => {
+  it('显示当前工作位置，以及每个受邀仓库中最紧急的状态', async () => {
     const w = await seeded();
     // app: #2 is flagged (newest row), #3 is being reviewed; flagged is the more pressing
     await w.reviewer('r1', 'a2', 'h1', 'secagent', 'approved', ago(4));
@@ -438,7 +439,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     ]);
   });
 
-  it('points at the newest review when several are equally pressing', async () => {
+  it('多个审查紧急程度相同时，指向最新审查', async () => {
     const w = await world();
     await w.reviewer('r1', 'a2', 'h1', 'secagent', 'reviewing', ago(3));
     await w.reviewer('r2', 'a3', 'h1', 'secagent', 'reviewing', ago(1));
@@ -449,7 +450,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('does not keep an older commit’s status once a newer commit did not need it', async () => {
+  it('新提交无需该智能体审查后，不保留旧提交状态', async () => {
     const w = await world();
     const notNeeded = async (id: string, prId: string, at: number) =>
       w.exec(
@@ -484,7 +485,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     expect((await w.stats(w.admin)).reviews).toBe(2);
   });
 
-  it('leaves out what the viewer cannot see, from every number', async () => {
+  it('所有统计均排除查看者无权访问的内容', async () => {
     const w = await seeded();
     expect(await w.stats(w.bob)).toMatchObject({
       raised: 6,
@@ -494,7 +495,7 @@ describe('GET /api/agents/{handle}/stats', () => {
     });
   });
 
-  it('answers for a deleted agent (its history stays), and 404s for a person or nobody', async () => {
+  it('为已删除智能体返回保留的历史，对普通用户或不存在对象返回 404', async () => {
     const w = await seeded();
     await call(w.t, '/api/admin/agents/secagent', {
       cookie: w.admin,
@@ -510,14 +511,14 @@ describe('GET /api/agents/{handle}/stats', () => {
       ).toBe(404);
   });
 
-  it('is for signed-in members only', async () => {
+  it('仅允许已登录成员访问', async () => {
     const w = await seeded();
     expect((await call(w.t, '/api/agents/secagent/stats')).status).toBe(401);
   });
 });
 
-describe('GET /api/agents/builtin', () => {
-  it('describes Clef and Fixer, in that order', async () => {
+describe('GET /api/agents/builtin 内置智能体', () => {
+  it('按顺序描述 Clef 和 Fixer', async () => {
     const w = await world();
     const [clef, fixer] = await w.builtin(w.admin);
     expect([clef.id, clef.name, fixer.id, fixer.name]).toEqual([
@@ -530,7 +531,7 @@ describe('GET /api/agents/builtin', () => {
     expect(fixer.job).toMatch(/\S/);
   });
 
-  it('counts what Clef routed in the last seven days, and how long a decision took', async () => {
+  it('统计 Clef 最近七天的路由数量及决策耗时', async () => {
     const w = await world();
     const c = (
       id: string,
@@ -566,7 +567,7 @@ describe('GET /api/agents/builtin', () => {
     ]);
   });
 
-  it('writes a slow decision in seconds or minutes, and has no timing without a finished review', async () => {
+  it('较慢决定以秒或分钟显示，没有完成审查时不提供耗时', async () => {
     const w = await world();
     expect((await w.builtin(w.admin))[0].stats).toEqual([
       { label: 'changes routed', value: '0' },
@@ -582,7 +583,7 @@ describe('GET /api/agents/builtin', () => {
     expect((await w.builtin(w.admin))[0].stats[1].value).toBe('20 s');
   });
 
-  it('counts Fixer’s attempts from its runs, how many it combined itself, and how many merged anyway', async () => {
+  it('根据运行统计 Fixer 尝试次数、自行解决次数及最终合并次数', async () => {
     const w = await world();
     const r = (
       id: string,
@@ -633,7 +634,7 @@ describe('GET /api/agents/builtin', () => {
     ]);
   });
 
-  it('shows zeros before Fixer ever ran', async () => {
+  it('Fixer 尚未运行时显示零', async () => {
     const w = await world();
     expect((await w.builtin(w.admin))[1].stats).toEqual([
       { label: 'attempts', value: '0' },
@@ -642,7 +643,7 @@ describe('GET /api/agents/builtin', () => {
     ]);
   });
 
-  it('is for signed-in members only', async () => {
+  it('仅允许已登录成员访问', async () => {
     const w = await world();
     expect((await call(w.t, '/api/agents/builtin')).status).toBe(401);
   });

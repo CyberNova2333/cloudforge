@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 /** Finding fixtures: a reviewed pull request with an owner question, guarded agents, flag rows, audit rows, a fake decider. */
 import type { AgentReview } from '../../review/contract';
 import type { DelegateInput, DelegateModel } from '../../review/delegate';
@@ -180,7 +181,7 @@ export async function collaborate(t: TestEnv, admin: string, username: string) {
     }
   );
   if (res.status !== 200)
-    throw new Error(`collaborator failed: ${res.status} ${await res.text()}`);
+    throw new Error(`添加协作者失败： ${res.status} ${await res.text()}`);
 }
 
 /** A scripted decider: `answer(input)` is its raw reply (objects are sent as JSON); every input is kept. */
