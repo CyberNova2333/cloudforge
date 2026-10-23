@@ -183,6 +183,7 @@ jobs:
           worker/src/__tests__/owner-questions.test.ts
           worker/src/__tests__/delegate.test.ts
           worker/src/__tests__/delegation-d1-boundaries.test.ts
+          worker/src/__tests__/delegation-revocation.test.ts
           worker/src/__tests__/pull-states.test.ts
           worker/src/__tests__/rebase-runs.test.ts
           worker/src/__tests__/rebase-resolution.test.ts
@@ -235,6 +236,7 @@ jobs:
           worker/src/__tests__/actions-artifacts.test.ts
           worker/src/__tests__/actions-secrets.test.ts
           worker/src/__tests__/actions-security.test.ts
+          worker/src/__tests__/actions-log-errors.test.ts
           worker/src/__tests__/actions-d1-limits.test.ts
           worker/src/__tests__/cron.test.ts
           worker/src/__tests__/git-http.test.ts
@@ -276,6 +278,7 @@ jobs:
           worker/src/__tests__/protected-branches.test.ts
           worker/src/__tests__/setup-code.test.ts
           worker/src/__tests__/setup-invites.test.ts
+          worker/src/__tests__/invitation-concurrency.test.ts
           worker/src/__tests__/teams-visibility.test.ts
           worker/src/__tests__/admin-setup.test.ts
           worker/src/__tests__/settings.test.ts

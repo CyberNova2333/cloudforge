@@ -250,6 +250,8 @@ export async function decideFinding(
     model?: DelegateModel | null;
     after: (work: Promise<unknown>) => void;
     pullRequestId?: string;
+    /** Background decisions need a current delegation; an explicit click does not. */
+    requireDelegation?: boolean;
   }
 ): Promise<DecideFindingResult> {
   const row = await db
@@ -315,6 +317,21 @@ export async function decideFinding(
       status: 409,
       error: 'Someone already decided this finding',
     };
+  if (
+    deps.requireDelegation &&
+    (!flag.agentId ||
+      !(await db
+        .select({ id: aiDelegations.agentId })
+        .from(aiDelegations)
+        .where(
+          and(
+            eq(aiDelegations.userId, userId),
+            eq(aiDelegations.agentId, flag.agentId)
+          )
+        )
+        .get()))
+  )
+    return { ok: false, status: 403, error: 'This delegation was revoked' };
   const [found, person] = await Promise.all([
     findRepoById(db, pr.repositoryId),
     db.select().from(users).where(eq(users.id, userId)).get(),
@@ -398,7 +415,10 @@ export async function decideFinding(
       ? { kind: 'approve' }
       : { kind: 'request_changes', note: answer.reason },
     deps.after,
-    { via: AI_VIA, ai: { reason: answer.reason } }
+    {
+      via: AI_VIA,
+      ai: { reason: answer.reason, requireDelegation: deps.requireDelegation },
+    }
   );
   if (!result.ok) return result;
   return { ok: true, ...answer, applied: true };
@@ -477,6 +497,7 @@ export async function decideDelegated(
     for (const r of rows) {
       const result = await decideFinding(env, db, r.id, pr.authorId, {
         model,
+        requireDelegation: true,
         after: (w) => void work.push(w),
       });
       if (!result.ok) continue;

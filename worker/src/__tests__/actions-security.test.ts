@@ -491,11 +491,20 @@ jobs:
       )
     ).toMatchObject({ outputs: { token: '' } });
 
-    // Replay earlier durable steps after a credential update. The uncached
-    // following command and post must still recover the prior encrypted state.
+    // Model an unfinished Workflow replay after a credential update. A completed
+    // run is terminal; only the earlier durable steps have finished in this case.
     await save('replacement-secret-54321');
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_runs SET status = 'in_progress', conclusion = NULL, completed_at = NULL WHERE id = ?"
+    )
+      .bind(run.id)
+      .run();
     for (const key of persisted.keys())
-      if (/:step:4(?::done)?$|:post:5$|:complete$/.test(key))
+      if (
+        /:step:4(?::done)?$|:post:5$|:complete$|^(finish-run|auto-merge|states)$/.test(
+          key
+        )
+      )
         persisted.delete(key);
     requests.length = 0;
     expect(await runIt()).toBe('success');
@@ -566,8 +575,19 @@ jobs:
     expect(
       await openState(s.t.env, repo.id, run.id, complete[0], complete[1] as any)
     ).toMatchObject({ outputs: { token: '' } });
+    // Resume an unfinished run, preserving only its earlier durable results.
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_runs SET status = 'in_progress', conclusion = NULL, completed_at = NULL WHERE id = ?"
+    )
+      .bind(run.id)
+      .run();
     for (const name of persisted.keys())
-      if (/:step:3(?::done)?$|:complete$/.test(name)) persisted.delete(name);
+      if (
+        /:step:3(?::done)?$|:complete$|^(finish-run|auto-merge|states)$/.test(
+          name
+        )
+      )
+        persisted.delete(name);
     requests.length = 0;
     expect(await runIt()).toBe('success');
     expect(requests).toHaveLength(1);

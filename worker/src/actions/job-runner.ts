@@ -137,7 +137,12 @@ export class JobRunner
     ).exitCode;
 
     this.masks = [...new Set([...this.masks, ...req.masks])];
-    const live = { number: req.number, text: '', masks: this.masks };
+    // destroy() can interleave while exec/stdout awaits. Keep this step's masks
+    // until its final output and diagnostic have been returned, even after the
+    // runner resets its job-wide state for destruction.
+    const masks = this.masks;
+    const registeredMasks = this.registeredMasks;
+    const live = { number: req.number, text: '', masks };
     this.liveStep = live;
     let pending = '';
     let droppingLine = false;
@@ -146,12 +151,12 @@ export class JobRunner
       for (const value of shown.masks)
         for (const m of [value, ...value.split(/\r?\n/)])
           if (m) {
-            if (!this.masks.includes(m)) this.masks.push(m);
-            if (!this.registeredMasks.includes(m)) this.registeredMasks.push(m);
+            if (!masks.includes(m)) masks.push(m);
+            if (!registeredMasks.includes(m)) registeredMasks.push(m);
           }
       // Parse commands before truncating. Mask before truncating as well, so a
       // value crossing the retained log boundary cannot leak a suffix.
-      live.text += mask(shown.text, this.masks);
+      live.text += mask(shown.text, masks);
       if (live.text.length > MAX_LOG_BYTES * 1.25)
         live.text = capped(live.text);
     };
@@ -228,8 +233,9 @@ export class JobRunner
       // A successful process exit cannot make a failed output read a successful step.
       exitCode = 1;
       const message = e instanceof Error ? e.message : String(e);
-      if (!timedOut) live.text += `\n${message}\n`;
-      if (!timedOut && !this.ctx.container?.running) interrupted = message;
+      if (!timedOut) live.text += `\n${mask(message, masks)}\n`;
+      if (!timedOut && !this.ctx.container?.running)
+        interrupted = mask(message, masks);
     }
     // A non-zero exit is the step's own failure unless the container itself went away.
     if (
@@ -275,8 +281,8 @@ export class JobRunner
     return {
       exitCode,
       timedOut,
-      log: mask(capped(live.text), this.masks),
-      masks: [...this.registeredMasks],
+      log: capped(mask(live.text, masks)),
+      masks: [...registeredMasks],
       outputs,
       envAdds,
       pathAdds,
@@ -289,7 +295,7 @@ export class JobRunner
   async live(stepNumber: number): Promise<string | null> {
     const s = this.liveStep;
     if (!s || s.number !== stepNumber) return null;
-    return mask(capped(s.text), s.masks);
+    return capped(mask(s.text, s.masks));
   }
 
   async destroy(): Promise<void> {
