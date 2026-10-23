@@ -1,0 +1,111 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+import { eq } from 'drizzle-orm';
+import type { DrizzleDB } from '../db/middleware';
+import { sessions, users } from '../db/auth.schema';
+import type { SessionUser } from '../variables';
+
+/**
+ * Who a request is signed in as, read straight from `sessions`: every request of every page needs it,
+ * so it is read here instead of through better-auth's `getSession`, whose endpoint machinery (context,
+ * cookie parsing, validation, a signed-cookie crypto key per call) costs several times the two D1
+ * reads. What must not drift from better-auth is the signed cookie, the row and its expiry, and the
+ * sliding refresh, each noted below. better-auth's rate limiting only covers its own routes
+ * (`/api/auth/*`), which still go through it.
+ */
+
+/** better-auth's session cookie, signed (`<token>.<base64 HMAC-SHA256 of the token>`). */
+const COOKIE = 'cloudforge.session_token';
+/** `base64(hmacSHA256(secret, value))`, as better-call signs and verifies cookies. */
+async function sign(secret: string, value: string) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const mac = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(value)
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(mac)));
+}
+
+/** The raw signed cookie, if the request carries one. */
+function signedCookie(headers: Headers) {
+  const cookie = headers.get('cookie');
+  if (!cookie?.includes(`${COOKIE}=`)) return null;
+  const part = cookie
+    .split(';')
+    .map((s) => s.trim())
+    .find((s) => s.startsWith(`${COOKIE}=`));
+  return part ? part.slice(COOKIE.length + 1) : null;
+}
+
+/**
+ * Signed cookies already verified in this isolate, for 30 s: a page makes many requests with one
+ * cookie, and each signature is an HMAC. An expired token is not special-cased — the session row
+ * decides — and the entry only spares the HMAC, never a read.
+ */
+const verified = new Map<string, number>();
+const VERIFIED_MS = 30_000;
+const VERIFIED_MAX = 1000;
+
+async function sessionToken(secret: string, cookie: string) {
+  const seenUntil = verified.get(cookie);
+  const value = decodeURIComponent(cookie);
+  const dot = value.lastIndexOf('.');
+  if (dot < 1) return null;
+  const token = value.slice(0, dot);
+  if (!(seenUntil && seenUntil > Date.now()))
+    if ((await sign(secret, token)) !== value.slice(dot + 1)) return null;
+  verified.delete(cookie);
+  verified.set(cookie, Date.now() + VERIFIED_MS);
+  if (verified.size > VERIFIED_MAX)
+    for (const [k, until] of verified)
+      if (until <= Date.now() || verified.size > VERIFIED_MAX)
+        verified.delete(k);
+  return token;
+}
+
+/** The signed-in user of a request, or null (no cookie, a bad signature, no row, expired). */
+export async function currentUser(
+  db: DrizzleDB,
+  env: CloudflareBindings,
+  headers: Headers
+): Promise<SessionUser | null> {
+  const cookie = signedCookie(headers);
+  if (!cookie) return null;
+  const token = await sessionToken(env.BETTER_AUTH_SECRET, cookie);
+  if (!token) return null;
+  const row = await db
+    .select({ session: sessions, user: users })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.userId))
+    .where(eq(sessions.token, token))
+    .get();
+  if (!row) return null;
+  const { session, user } = row;
+  if (session.expiresAt <= new Date()) return null;
+  // better-auth's sliding session: rewritten once it is within its update age of expiring.
+  const expiresIn = 7 * 24 * 3600_000;
+  const updateAge = 24 * 3600_000;
+  if (session.expiresAt.getTime() - expiresIn + updateAge <= Date.now())
+    await db
+      .update(sessions)
+      .set({
+        expiresAt: new Date(Date.now() + expiresIn),
+        updatedAt: new Date(),
+      })
+      .where(eq(sessions.id, session.id));
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    image: user.image,
+    banned: user.banned,
+  };
+}

@@ -4,6 +4,7 @@ import { settleStates } from './pulls/settle';
 import { swaggerUI } from '@hono/swagger-ui';
 import { logger } from 'hono/logger';
 import { createAuth } from './auth';
+import { currentUser } from './auth/session';
 import {
   requireAdmin,
   requireAuth,
@@ -64,8 +65,10 @@ app.use('*', async (c, next) => {
   // /mcp and OAuth discovery use bearer tokens, never cookies.
   const p = c.req.path;
   if (p === '/mcp' || p.startsWith('/.well-known/')) return next();
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
-  if (session?.user) c.set('user', session.user as AppEnv['Variables']['user']);
+  // Read straight from `sessions` (auth/session.ts): better-auth's own getSession costs several
+  // times the two reads on every request of every page.
+  const user = await currentUser(c.get('db'), c.env, c.req.raw.headers);
+  if (user) c.set('user', user);
   await next();
 });
 
