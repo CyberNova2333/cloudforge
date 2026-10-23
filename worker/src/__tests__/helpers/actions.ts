@@ -154,6 +154,13 @@ export async function runDetail(t: TestEnv, cookie: string, n: number) {
 }
 
 /**
+ * The events the harness's fake ACTIONS_RUN received. Each harness takes one of its own, so a
+ * test never sees a grant another test's queue fanned out: the queue picks the recipient by name,
+ * and test files share one queue namespace (`helpers/app.ts`).
+ */
+export type RunEvents = { id: string; type: string; payload: unknown }[];
+
+/**
  * Drives executeRun with a direct-call step and a scripted container. `waitForEvent` polls the
  * events the fake ACTIONS_RUN received (briefly, then times out like a real wait); with
  * `loseEvents` it never sees one, so only rechecks start waiting jobs. With `retrySteps`, a step
@@ -172,8 +179,11 @@ export function harness(
     /** Makes the container fail to start with this message. */
     failBoot?: string;
     relevance?: RelevanceModelFor;
+    /** Where the fake Workflow's events land; one of its own by default. */
+    events?: RunEvents;
   } = {}
 ) {
+  const events: RunEvents = opts.events ?? [];
   const requests: StepRequest[] = [];
   const destroyed: string[] = [];
   const boots: string[] = [];
@@ -203,9 +213,8 @@ export function harness(
       for (let i = 0; i < 100; i++) {
         const k = opts.loseEvents
           ? -1
-          : t.actions.events.findIndex((e) => e.type === o.type);
-        if (k >= 0)
-          return { payload: t.actions.events.splice(k, 1)[0].payload };
+          : events.findIndex((e) => e.type === o.type);
+        if (k >= 0) return { payload: events.splice(k, 1)[0].payload };
         await new Promise((r) => setTimeout(r, 5));
       }
       throw new Error(`${name}: timed out`);
