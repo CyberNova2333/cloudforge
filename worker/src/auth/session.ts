@@ -13,34 +13,47 @@ import type { SessionUser } from '../variables';
  * (`/api/auth/*`), which still go through it.
  */
 
-/** better-auth's session cookie, signed (`<token>.<base64 HMAC-SHA256 of the token>`). */
+/**
+ * better-auth's session cookie, signed (`<token>.<base64 HMAC-SHA256 of the token>`). Over HTTPS (a
+ * `https://` BASE_URL) better-auth names it with the `__Secure-` prefix and reads that name first, then
+ * the plain one: so does this.
+ */
 const COOKIE = 'cloudforge.session_token';
-/** `base64(hmacSHA256(secret, value))`, as better-call signs and verifies cookies. */
-async function sign(secret: string, value: string) {
+const NAMES = [`__Secure-${COOKIE}`, COOKIE];
+
+/** Whether `signature` is `base64(hmacSHA256(secret, value))`, as better-call signs cookies; constant time. */
+async function verifies(secret: string, value: string, signature: string) {
+  let mac: Uint8Array;
+  try {
+    mac = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
+  } catch {
+    return false;
+  }
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['verify']
   );
-  const mac = await crypto.subtle.sign(
+  return crypto.subtle.verify(
     'HMAC',
     key,
+    mac,
     new TextEncoder().encode(value)
   );
-  return btoa(String.fromCharCode(...new Uint8Array(mac)));
 }
 
 /** The raw signed cookie, if the request carries one. */
 function signedCookie(headers: Headers) {
   const cookie = headers.get('cookie');
   if (!cookie?.includes(`${COOKIE}=`)) return null;
-  const part = cookie
-    .split(';')
-    .map((s) => s.trim())
-    .find((s) => s.startsWith(`${COOKIE}=`));
-  return part ? part.slice(COOKIE.length + 1) : null;
+  const parts = cookie.split(';').map((s) => s.trim());
+  for (const name of NAMES) {
+    const part = parts.find((s) => s.startsWith(`${name}=`));
+    if (part) return part.slice(name.length + 1);
+  }
+  return null;
 }
 
 /**
@@ -54,12 +67,17 @@ const VERIFIED_MAX = 1000;
 
 async function sessionToken(secret: string, cookie: string) {
   const seenUntil = verified.get(cookie);
-  const value = decodeURIComponent(cookie);
+  let value: string;
+  try {
+    value = decodeURIComponent(cookie);
+  } catch {
+    return null; // A malformed escape is a bad cookie, not a server error.
+  }
   const dot = value.lastIndexOf('.');
   if (dot < 1) return null;
   const token = value.slice(0, dot);
   if (!(seenUntil && seenUntil > Date.now()))
-    if ((await sign(secret, token)) !== value.slice(dot + 1)) return null;
+    if (!(await verifies(secret, token, value.slice(dot + 1)))) return null;
   verified.delete(cookie);
   verified.set(cookie, Date.now() + VERIFIED_MS);
   if (verified.size > VERIFIED_MAX)
