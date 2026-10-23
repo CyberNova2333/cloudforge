@@ -53,4 +53,4 @@ npx gitorange status
 State lives in `~/.gitorange` (override with `GITORANGE_HOME`). Run `npx gitorange --help` for every option.
 
 Docs: [setup](https://github.com/choyiny/gitorange/blob/main/docs/setup.md) ·
-[updating](https://github.com/choyiny/gitorange/blob/main/docs/updating.md). Licensed under Apache-2.0.
+[updating](https://github.com/choyiny/gitorange/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`COPYING`), over Apache-2.0 upstream work (`LICENSE`).

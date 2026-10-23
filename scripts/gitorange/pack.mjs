@@ -28,7 +28,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
     version,
     description:
       'Install, upgrade and adopt a GitOrange deployment on Cloudflare.',
-    license: 'Apache-2.0',
+    license: 'GPL-3.0-or-later',
     type: 'module',
     bin: { gitorange: 'bin/gitorange.js' },
     engines: { node: '>=22.0.0' },
@@ -36,7 +36,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
     gitorangeCommit: commit,
     repository: {
       type: 'git',
-      url: 'git+https://github.com/choyiny/gitorange.git',
+      url: 'git+https://cnb.cool/CyberNova2333/cloudforge.git',
     },
     files: [
       'bin',
@@ -47,6 +47,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
       'wrangler.jsonc.example',
       'README.md',
       'LICENSE',
+      'COPYING',
     ],
   };
 }
@@ -209,7 +210,9 @@ export async function pack(argv) {
     join(ROOT, 'wrangler.jsonc.example'),
     join(out, 'wrangler.jsonc.example')
   );
+  // GPL-3.0-or-later (COPYING) over the Apache-2.0 upstream work (LICENSE): both ship.
   cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
+  cpSync(join(ROOT, 'COPYING'), join(out, 'COPYING'));
   cpSync(
     join(ROOT, 'scripts', 'gitorange', 'npm-README.md'),
     join(out, 'README.md')

@@ -92,9 +92,9 @@
   "resolutions": {
     "vite": "^7.3.6"
   },
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/choyiny/gitorange.git"
+    "url": "https://cnb.cool/CyberNova2333/cloudforge.git"
   }
 }

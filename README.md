@@ -1,3 +1,13 @@
+> **Fork notice.** Independent fork of [choyiny/gitorange](https://github.com/choyiny/gitorange)
+> (Apache-2.0), forked at `b3d5b08` on 2026-10-22.
+>
+> Original portions © 2026 GitOrange contributors, licensed under Apache-2.0 (`LICENSE`).
+> Modifications © 2026 CyberNova, and the combined work is distributed under
+> **GPL-3.0-or-later** (`COPYING`).
+>
+> This fork is not affiliated with, or endorsed by, the upstream author.
+> "GitOrange" and its logo remain the upstream project's marks and are not used here as a product mark.
+
 <p align="center">
   <img src="public/gitorange-logo.svg" alt="GitOrange" width="360" />
 </p>
@@ -5,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/choyiny/gitorange/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/choyiny/gitorange/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/choyiny/gitorange/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/choyiny/gitorange/actions/workflows/codeql.yml/badge.svg" /></a>
-  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" /></a>
+  <a href="COPYING"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
   <a href="https://developers.cloudflare.com/artifacts/"><img alt="Cloudflare Artifacts" src="https://img.shields.io/badge/git%20storage-Cloudflare%20Artifacts-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
@@ -311,7 +321,9 @@ skills and hooks under `.claude/`; they're harmless to ignore if you don't use C
 
 ## License
 
-[Apache License 2.0](LICENSE)
+This fork is distributed under the [GNU General Public License v3.0 or later](COPYING). It is based on
+[GitOrange](https://github.com/choyiny/gitorange) at `b3d5b08` (see `.fork-base`), whose original portions remain
+under the [Apache License 2.0](LICENSE); that license and its copyright notice are kept unchanged.
 
 GitOrange is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. If you run a
 fork as a branded product, please rename it and replace the logo so users aren't confused about which project
