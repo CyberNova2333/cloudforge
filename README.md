@@ -307,6 +307,8 @@ This fork is distributed under the [GNU General Public License v3.0 or later](CO
 [GitOrange](https://github.com/choyiny/gitorange) at `b3d5b08` (see `.fork-base`), whose original portions remain
 under the [Apache License 2.0](LICENSE); that license and its copyright notice are kept unchanged.
 
+Bundled third-party packages and fonts keep their own licenses: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. If you run a
 fork as a branded product, please rename it and replace the logo so users aren't confused about which project
 they're installing.
