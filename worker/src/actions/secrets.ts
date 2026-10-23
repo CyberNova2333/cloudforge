@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import { actionsVariables, type ActionsVariable } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
+import { maskValues } from './commands';
 
 /**
  * Actions secrets and variables (`${{ secrets.X }}`, `${{ vars.X }}`): one `actions_variables` row each, per
@@ -317,16 +318,11 @@ export async function jobValues(
   return out;
 }
 
-/** What job logs hide: each secret, and each line of a multi-line one (GitHub masks those too). */
+/** What job logs hide: each secret, and each line of a multi-line one that could be secret alone (`maskValues`). */
 export function secretMasks(secrets: Record<string, string>): string[] {
   const out = new Set<string>();
-  for (const v of Object.values(secrets)) {
-    if (!v) continue;
-    out.add(v);
-    if (v.includes('\n'))
-      for (const line of v.split(/\r?\n/))
-        if (line.trim()) out.add(line.trim());
-  }
+  for (const v of Object.values(secrets))
+    for (const m of maskValues(v)) out.add(m);
   // Longest first, so a secret that contains another is masked whole.
   return [...out].sort((a, b) => b.length - a.length);
 }

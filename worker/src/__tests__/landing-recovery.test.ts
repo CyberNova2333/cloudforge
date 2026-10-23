@@ -307,6 +307,57 @@ it('keeps a receipt-only partial prepare unmerged and can retry that same intent
   expect(await f.db.select().from(landingIntents)).toHaveLength(1);
 });
 
+it('closes an attempt whose target moved before its CAS, so later merges and recovery stop re-checking it', async () => {
+  const f = await ready();
+  const push = f.opts.git.client.push.bind(f.opts.git.client);
+  let moved = '';
+  f.opts.git.client.push = async (updates, objects) => {
+    await push(updates, objects);
+    // Someone else lands into main between this attempt's prepare and its target push.
+    if (updates.some((u) => u.ref.includes('/landings/')))
+      moved = await commitPaths(
+        f.repo,
+        'main',
+        { ...BASE, 'other.txt': 'other\n' },
+        'Moved on'
+      );
+  };
+  expect(await landPull(f.opts)).toMatchObject({ ok: false, status: 409 });
+  expect(f.repo.refs.get('refs/heads/main')).toBe(moved);
+  const intent = (await f.db.select().from(landingIntents).get())!;
+  expect(intent.recordedAt).toBeNull();
+  expect(intent.finishedAt).not.toBeNull();
+  await recoverLandings(f.t.env, f.db);
+  expect(
+    (await f.db.select().from(landingIntents).get())!.attemptedAt
+  ).toBeNull();
+  expect((await f.read())!.state).toBe('open');
+});
+
+it('recovery closes a pending attempt once its target has moved on without it', async () => {
+  const f = await ready();
+  f.opts.git.client.push = async () => {
+    throw new Error('offline before push');
+  };
+  expect(await landPull(f.opts)).toMatchObject({ ok: false });
+  // Still landable while main sits at the attempt's base: recovery keeps it.
+  await recoverLandings(f.t.env, f.db);
+  expect(
+    (await f.db.select().from(landingIntents).get())!.finishedAt
+  ).toBeNull();
+  await commitPaths(
+    f.repo,
+    'main',
+    { ...BASE, 'other.txt': 'other\n' },
+    'Moved on'
+  );
+  await recoverLandings(f.t.env, f.db);
+  const intent = (await f.db.select().from(landingIntents).get())!;
+  expect(intent.finishedAt).not.toBeNull();
+  expect(intent.recordedAt).toBeNull();
+  expect((await f.read())!.state).toBe('open');
+});
+
 it('abandons a prepared attempt if the PR closes before the target CAS', async () => {
   const f = await ready();
   const before = f.repo.refs.get('refs/heads/main');

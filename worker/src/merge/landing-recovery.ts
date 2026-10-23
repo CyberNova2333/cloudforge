@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
   landingIntents,
   pullRequests,
@@ -23,20 +23,36 @@ import { d1Of } from '../pulls/events';
 export const landingReceipt = (pr: number, id: string) =>
   `refs/pull/${pr}/landings/${id}`;
 
-/** A prepared, authorized intent is fulfilled when its receipt exists and the target contains its exact result. */
-export async function landingWasPushed(
+/**
+ * Where an attempt stands, from one ref snapshot. `pushed`: its receipt exists and the target contains its exact
+ * result. `stale`: the target has moved off the attempt's base without its result, so the attempt's compare-and-swap
+ * can never succeed (short of the target being reset to that base). `pending`: neither yet.
+ */
+export async function landingStatus(
   git: GitService,
   pr: PullRequest,
   intent: LandingIntent
-): Promise<boolean> {
+): Promise<'pushed' | 'stale' | 'pending'> {
   const { refs } = await git.client.listRefs();
   const target = refs.get(`refs/heads/${intent.target}`);
-  return (
-    refs.get(landingReceipt(pr.number, intent.id)) === intent.landHeadSha &&
+  const contains =
     !!target &&
     (target === intent.landHeadSha ||
-      (await git.mergeBase(target, intent.landHeadSha)) === intent.landHeadSha)
-  );
+      (await git.mergeBase(target, intent.landHeadSha)) === intent.landHeadSha);
+  if (
+    contains &&
+    refs.get(landingReceipt(pr.number, intent.id)) === intent.landHeadSha
+  )
+    return 'pushed';
+  return !contains && target !== intent.baseSha ? 'stale' : 'pending';
+}
+
+/** Closes an attempt that never landed and never can: later merges and the daily recovery stop re-checking it. */
+export async function closeStaleLanding(db: DrizzleDB, id: string) {
+  await db
+    .update(landingIntents)
+    .set({ finishedAt: new Date() })
+    .where(and(eq(landingIntents.id, id), isNull(landingIntents.recordedAt)));
 }
 
 /** Git is already committed. PR state, repository time, audit entry and recovery checkpoint commit together. */
@@ -271,8 +287,9 @@ export async function recoverLandings(
         continue;
       }
       if (!intent.recordedAt) {
-        if (!(await landingWasPushed(gitFor(env, found.repo), pr, intent)))
-          continue;
+        const status = await landingStatus(gitFor(env, found.repo), pr, intent);
+        if (status === 'stale') await closeStaleLanding(db, intent.id);
+        if (status !== 'pushed') continue;
         if (!(await recordLanding(db, pr, intent))) {
           await db
             .update(landingIntents)

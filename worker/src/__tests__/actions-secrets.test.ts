@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { decryptSecret, encryptSecret, secretMasks } from '../actions/secrets';
+import { mask } from '../actions/commands';
 import { addMember, call } from './helpers/app';
 import {
   harness,
@@ -74,6 +75,19 @@ describe('secret encryption', () => {
       'line-two',
       'abc',
     ]);
+  });
+
+  it('does not mask a multi-line secret’s structural lines on their own', () => {
+    const key = '{\n  "private_key": "s3cr3t-value"\n}';
+    const masks = secretMasks({ KEY: key, PIN: '42' });
+    // The whole value and a line that could be secret alone; never `{` or `}`. A short secret is still masked whole.
+    expect(masks).toEqual([key, '"private_key": "s3cr3t-value"', '42']);
+    expect(
+      mask(
+        'npm ERR! {"code":"E404"} "private_key": "s3cr3t-value" pin 42',
+        masks
+      )
+    ).toBe('npm ERR! {"code":"E404"} *** pin ***');
   });
 });
 

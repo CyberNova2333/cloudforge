@@ -31,9 +31,10 @@ import { protectedBy } from '../lib/protected-branches';
 import { stackGate } from '../stack/gate';
 import { holdsWhole, lineageOf, sharedWith } from '../stack/lineage';
 import {
+  closeStaleLanding,
   finishLanding,
   landingReceipt,
-  landingWasPushed,
+  landingStatus,
   recordLanding,
 } from './landing-recovery';
 
@@ -109,8 +110,11 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
   // an arbitrary contained head into a merge; both a pre-push durable intent and its remote receipt are required.
   for (const previous of attempts) {
     if (previous.finishedAt && !previous.recordedAt) continue;
-    if (!previous.recordedAt && !(await landingWasPushed(git, pr, previous)))
-      continue;
+    if (!previous.recordedAt) {
+      const status = await landingStatus(git, pr, previous);
+      if (status === 'stale') await closeStaleLanding(db, previous.id);
+      if (status !== 'pushed') continue;
+    }
     if (!previous.recordedAt && !(await recordLanding(db, pr, previous)))
       continue;
     if (!previous.finishedAt)
@@ -294,7 +298,8 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
   } catch (e) {
     // A lost response can hide a successful push. Keep the intent on transport errors so a retry or Cron can
     // verify it. A rejected CAS with no committed landing can be retried with fresh gates and a new intent.
-    if (await landingWasPushed(git, pr, intent)) {
+    const status = await landingStatus(git, pr, intent);
+    if (status === 'pushed') {
       if (!(await recordLanding(db, pr, intent)))
         return {
           ok: false,
@@ -309,7 +314,9 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     }
     if (e instanceof GitPushError) {
       // Keep the attempted operation as evidence, including partial multi-ref pushes. Fresh tips can create a
-      // new attempt; recovery never guesses that receipt-only means the target moved.
+      // new attempt; recovery never guesses that receipt-only means the target moved. A target the remote has
+      // moved off this attempt's base can never take its compare-and-swap, so that attempt is closed now.
+      if (status === 'stale') await closeStaleLanding(db, intent.id);
       return {
         ok: false,
         status: 409,
