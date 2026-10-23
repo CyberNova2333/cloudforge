@@ -20,11 +20,11 @@ export type Ctx = {
   cf: Cloudflare;
   runner: Runner;
   io: Io;
-  /** Where state and lock files live (`.gitorange/`). */
+  /** Where state and lock files live (`.cloudforge/`). */
   dir: string;
   /** Where the installer runs from: a checkout or the npm package. */
   source: Source;
-  /** Where the generated wrangler.jsonc lives: the checkout root, or `~/.gitorange/<slug>`. */
+  /** Where the generated wrangler.jsonc lives: the checkout root, or `~/.cloudforge/<slug>`. */
   configDir: string;
   fetchImpl: typeof fetch;
   sleep(ms: number): Promise<void>;
@@ -171,7 +171,7 @@ export function writeConfig(
   doNamespaceIds = s.doNamespaceIds
 ): string {
   const { text, hash } = renderConfig(ctx, s, version, doNamespaceIds);
-  // Under ~/.gitorange the config sits with the state file, so it is private like it; a checkout's is the repo's own.
+  // Under ~/.cloudforge the config sits with the state file, so it is private like it; a checkout's is the repo's own.
   if (text !== existingConfig(ctx))
     writeFileSync(
       configPath(ctx),
@@ -362,7 +362,7 @@ export async function setupStatus(
 }
 
 /**
- * `/.well-known/gitorange` must report this installation at `version` (retried every 5 s for
+ * `/.well-known/cloudforge` must report this installation at `version` (retried every 5 s for
  * 60 s), then setup must not be open without a code. Returns the setup status. `resume` is the
  * command a failure tells the person to run (default: `install --resume`).
  */
@@ -372,7 +372,7 @@ export async function verifyAt(
   version: string,
   resume: string = resumeCommand(s, ctx.source)
 ): Promise<SetupStatus> {
-  const url = `${s.baseUrl}/.well-known/gitorange`;
+  const url = `${s.baseUrl}/.well-known/cloudforge`;
   let last = '';
   for (let attempt = 1; ; attempt++) {
     try {
@@ -427,7 +427,7 @@ export function summary(
   optional: Optional,
   source: Source
 ): string {
-  const lines = [`GitOrange is installed at ${s.baseUrl}`, ''];
+  const lines = [`CloudForge is installed at ${s.baseUrl}`, ''];
   if (code) {
     lines.push(
       `Setup code: ${code}`,

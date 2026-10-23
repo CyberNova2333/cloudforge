@@ -83,7 +83,7 @@ export type UpgradePlan = {
 export const IRREVERSIBLE_LINE =
   'Migrations cannot be undone. If the new release is broken, the way back is the next release.';
 
-/** What `/.well-known/gitorange` reports, compared with this package. */
+/** What `/.well-known/cloudforge` reports, compared with this package. */
 type Running = {
   installationId: string | null;
   version: string | null;
@@ -101,7 +101,7 @@ async function inspect(
   s: InstallState,
   to: string
 ): Promise<Running> {
-  const url = `${s.baseUrl}/.well-known/gitorange`;
+  const url = `${s.baseUrl}/.well-known/cloudforge`;
   let installationId: string | null = null;
   let version: string | null = null;
   let res: Response;
@@ -166,7 +166,7 @@ async function pendingMigrations(
     );
     if (tables.length === 0) return files;
     throw new Error(
-      `D1 ${d1.name} has tables but no d1_migrations table; GitOrange cannot tell which migrations ran. ` +
+      `D1 ${d1.name} has tables but no d1_migrations table; CloudForge cannot tell which migrations ran. ` +
         'Record the migrations that already ran in a d1_migrations table (as `wrangler d1 migrations apply` does), then run the upgrade again. Nothing was changed.'
     );
   }
@@ -195,7 +195,7 @@ function planLines(p: Omit<UpgradePlan, 'digest'>): string[] {
   const lines = [`Upgrade ${p.name}: ${from} → ${p.to}`];
   if (p.comparison.kind === 'custom') {
     lines.push(
-      `Replacing custom code: ${from} (${p.comparison.reason}) → GitOrange ${p.to}`
+      `Replacing custom code: ${from} (${p.comparison.reason}) → CloudForge ${p.to}`
     );
   }
   lines.push(
@@ -319,7 +319,7 @@ function checkRunning(
   to: string,
   replaceCustomCode: boolean
 ): void {
-  const url = `${s.baseUrl}/.well-known/gitorange`;
+  const url = `${s.baseUrl}/.well-known/cloudforge`;
   const sameId =
     r.installationId === s.installationId ||
     (r.installationId === null && firstAfterAdopt(s));
@@ -331,13 +331,13 @@ function checkRunning(
   const running = r.version ?? 'unknown';
   if (r.comparison.kind === 'downgrade') {
     throw new Error(
-      `${s.baseUrl} runs ${running}, newer than this package (${to}); upgrade never downgrades. Run that version instead: npx gitorange@${running} upgrade --name ${s.inputs.name}. Nothing was changed.`
+      `${s.baseUrl} runs ${running}, newer than this package (${to}); upgrade never downgrades. Run that version instead: npx @cybernova2333/cloudforge@${running} upgrade --name ${s.inputs.name}. Nothing was changed.`
     );
   }
   if (r.comparison.kind === 'custom' && !replaceCustomCode) {
     throw new Error(
       `${s.baseUrl} runs code that is not a release (${running}: ${r.comparison.reason}). ` +
-        `Upgrading would replace it with stock GitOrange ${to}; forks keep deploying from their own checkout. ` +
+        `Upgrading would replace it with stock CloudForge ${to}; forks keep deploying from their own checkout. ` +
         `To replace it anyway: ${ctx.source.command(`upgrade --name ${s.inputs.name} --replace-custom-code`)}. Nothing was changed.`
     );
   }
@@ -400,7 +400,7 @@ export async function upgrade(
     if (unfinished) {
       if (s.upgradeTarget !== to) {
         throw new Error(
-          `An upgrade to ${s.upgradeTarget} is unfinished; run npx gitorange@${s.upgradeTarget} upgrade --resume --name ${slug}.`
+          `An upgrade to ${s.upgradeTarget} is unfinished; run npx @cybernova2333/cloudforge@${s.upgradeTarget} upgrade --resume --name ${slug}.`
         );
       }
       if (!opts.resume && !opts.plan) {

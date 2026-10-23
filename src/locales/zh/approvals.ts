@@ -25,12 +25,12 @@ export const approvals: Record<string, string> = {
   'Nothing has merged in the last 7 days.': '过去 7 天没有合并任何改动。',
   '{n} change': '{n} 个改动',
   '{n} changes': '{n} 个改动',
-  'GitOrange merged {changes} in the last 7 days, and it needed no merge click.':
-    '过去 7 天 GitOrange 合并了 {changes}，无需手动点击合并。',
-  'GitOrange merged {changes} in the last 7 days, and none needed a merge click.':
-    '过去 7 天 GitOrange 合并了 {changes}，全部无需手动点击合并。',
-  'GitOrange merged {changes} in the last 7 days; {automatic} needed no merge click.':
-    '过去 7 天 GitOrange 合并了 {changes}，其中 {automatic} 个无需手动点击合并。',
+  'CloudForge merged {changes} in the last 7 days, and it needed no merge click.':
+    '过去 7 天 CloudForge 合并了 {changes}，无需手动点击合并。',
+  'CloudForge merged {changes} in the last 7 days, and none needed a merge click.':
+    '过去 7 天 CloudForge 合并了 {changes}，全部无需手动点击合并。',
+  'CloudForge merged {changes} in the last 7 days; {automatic} needed no merge click.':
+    '过去 7 天 CloudForge 合并了 {changes}，其中 {automatic} 个无需手动点击合并。',
   '{area} in {repo}': '{repo} 的 {area}',
   '{area}: {detail}': '{area}：{detail}',
   '{n} area in {repo} unchanged': '{repo} 中 {n} 个方面无变化',

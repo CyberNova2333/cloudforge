@@ -172,7 +172,7 @@ describe('MCP server', () => {
       result: { protocolVersion: string; serverInfo: { name: string } };
     };
     expect(init.result.protocolVersion).toBe('2025-06-18');
-    expect(init.result.serverInfo.name).toBe('gitorange');
+    expect(init.result.serverInfo.name).toBe('cloudforge');
     const notified = await rpc(
       t,
       access_token,
@@ -377,10 +377,10 @@ describe('MCP server', () => {
 
 describe('instance name', () => {
   it('turns APP_NAME into an MCP server id', () => {
-    expect(mcpServerName('GitOrange')).toBe('gitorange');
+    expect(mcpServerName('CloudForge')).toBe('cloudforge');
     expect(mcpServerName('XY Space Git')).toBe('xy-space-git');
     expect(mcpServerName('  Café — Code! ')).toBe('cafe-code');
-    expect(mcpServerName('!!!')).toBe('gitorange');
+    expect(mcpServerName('!!!')).toBe('cloudforge');
   });
 
   it('names the MCP server, discovery, and the web app after APP_NAME', async () => {
@@ -448,7 +448,7 @@ describe('MCP pull request tools', () => {
     return { t, admin, token: access_token, repo };
   }
 
-  it('tells the agent to rebase its local commits onto the branch GitOrange rebased', async () => {
+  it('tells the agent to rebase its local commits onto the branch CloudForge rebased', async () => {
     const { t, token, repo } = await repoWithBranch();
     await tool(t, token, 'gitorange_create_pull_request', {
       repository: 'octocat/app',
@@ -478,7 +478,7 @@ describe('MCP pull request tools', () => {
     expect((await get()).rebased).toEqual({
       from: old,
       to: now,
-      note: `GitOrange rebased this branch (${old.slice(0, 7)} → ${now.slice(0, 7)}); run \`git fetch && git rebase --onto origin/feature ${old}\` before you push again (it keeps your unpushed commits).`,
+      note: `CloudForge rebased this branch (${old.slice(0, 7)} → ${now.slice(0, 7)}); run \`git fetch && git rebase --onto origin/feature ${old}\` before you push again (it keeps your unpushed commits).`,
     });
     // Once the agent pushes on top, the note goes.
     await commitPaths(
@@ -916,7 +916,7 @@ describe('MCP pull request tools', () => {
     });
     expect(refused.isError).toBe(true);
     expect(refused.content[0].text).toMatch(
-      /People approve in GitOrange's web UI, or through a moderator app/
+      /People approve in CloudForge's web UI, or through a moderator app/
     );
     // A person approves the commit in the web UI; the agent's change request still holds it.
     await call(t, '/api/repos/octocat/app/pulls/1/approval', {

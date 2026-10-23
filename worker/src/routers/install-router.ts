@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { schema } from '../db/schema';
 import type { AppEnv } from '../variables';
 
-/** Public: what `yarn gitorange install` reads to recognise an existing installation. Never the nonce. */
+/** Public: what `yarn cloudforge install` reads to recognise an existing installation. Never the nonce. */
 export const installRouter = new Hono<AppEnv>();
 
 function installationIdOf(raw: string | undefined): string | null {
@@ -28,8 +28,8 @@ function schemaDigestOf(manifestJson: string | null | undefined) {
   }
 }
 
-installRouter.get('/.well-known/gitorange', async (c) => {
-  const installationId = installationIdOf(c.env.GITORANGE_INSTALLATION);
+installRouter.get('/.well-known/cloudforge', async (c) => {
+  const installationId = installationIdOf(c.env.CLOUDFORGE_INSTALLATION);
   let schemaDigest: string | null = null;
   if (installationId) {
     const row = await drizzle(c.env.DB, { schema })
@@ -41,7 +41,7 @@ installRouter.get('/.well-known/gitorange', async (c) => {
   }
   return c.json({
     installationId,
-    version: c.env.GITORANGE_VERSION || null,
+    version: c.env.CLOUDFORGE_VERSION || null,
     schemaDigest,
   });
 });

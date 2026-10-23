@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     // The npm package is built from a placeholder config (scripts/gitorange/pack.mjs); a normal
     // build reads ./wrangler.jsonc.
-    cloudflare({ configPath: process.env.GITORANGE_BUILD_CONFIG }),
+    cloudflare({ configPath: process.env.CLOUDFORGE_BUILD_CONFIG }),
     react(),
     licenseBanners(),
   ],

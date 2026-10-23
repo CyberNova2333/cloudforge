@@ -39,7 +39,7 @@ export type RepoStats = {
   merged7d: number;
   /** Merges per UTC day over those seven days, oldest first, today last. */
   mergedByDay: number[];
-  /** The share of merged7d that GitOrange merged on its own, 0 to 100; null when nothing merged. */
+  /** The share of merged7d that CloudForge merged on its own, 0 to 100; null when nothing merged. */
   mergedAutomaticallyPct: number | null;
   /** The agents invited to review it, and what each is doing. */
   agents: {

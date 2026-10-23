@@ -16,7 +16,7 @@ export default function Login() {
     ? params.get('return_to')!
     : '/';
   const status = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
-  const appName = status.data?.appName || 'GitOrange';
+  const appName = status.data?.appName || 'CloudForge';
   const { data: session, isPending } = useSession();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');

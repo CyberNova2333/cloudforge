@@ -67,7 +67,7 @@ describe('Settings → Emails', () => {
     });
     const mail = t.sent.at(-1)!;
     expect(mail.to).toBe('me@work.example');
-    expect(mail.subject).toBe('Verify your email for GitOrange');
+    expect(mail.subject).toBe('Verify your email for CloudForge');
     expect(mail.text).toMatch(
       /http:\/\/test\.local\/settings\/emails\/verify\?token=gve_[0-9a-f]+/
     );

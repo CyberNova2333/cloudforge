@@ -11,7 +11,7 @@
  *   member 成员 · collaborator 协作者 · team 团队 · site admin 站点管理员 · instance 实例 ·
  *   personal access token 个人访问令牌 · token 令牌 · sign in 登录 · sign out 退出登录 · settings 设置 ·
  *   private 私有 · internal 内部 · public 公开 · insights 洞察 · health 健康度 · invite 邀请 ·
- *   Clef, Fixer, GitOrange, Git LFS, MCP, Markdown: kept as is.
+ *   Clef, Fixer, CloudForge, Git LFS, MCP, Markdown: kept as is.
  */
 import { actions } from './actions';
 import { admin } from './admin';

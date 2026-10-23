@@ -450,7 +450,7 @@ export async function resumeInstalled(
         `${ctx.source.kind === 'checkout' ? 'This checkout' : 'This package'} (${head}) differs from the deployed version (${s.deployedVersion ?? 'unknown'}). ` +
           (ctx.source.kind === 'package'
             ? `Run ${ctx.source.command(`upgrade --name ${s.names.worker}`)} to move it to ${head}. wrangler.jsonc was left as it is.`
-            : `Upgrades: run npx gitorange adopt --from ${ctx.configDir}, then npx gitorange upgrade. wrangler.jsonc was left as it is.`)
+            : `Upgrades: run npx @cybernova2333/cloudforge adopt --from ${ctx.configDir}, then npx @cybernova2333/cloudforge upgrade. wrangler.jsonc was left as it is.`)
       );
       if (changed) {
         throw new Error(

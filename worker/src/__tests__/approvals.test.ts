@@ -575,7 +575,7 @@ describe('Approvals: who decides each finding', () => {
     };
   };
 
-  it("shows a finding GitOrange AI sent back, with its reason, and a guarded agent's finding as guarded", async () => {
+  it("shows a finding CloudForge AI sent back, with its reason, and a guarded agent's finding as guarded", async () => {
     const { t, admin, person } = await questionedPull();
     const db = drizzle(t.env.DB, { schema });
     const result = await decideFinding(t.env, db, person.id, await userId(t), {
@@ -595,7 +595,7 @@ describe('Approvals: who decides each finding', () => {
         question: QUESTION,
         guarded: false,
         assignee: null,
-        decidedVia: 'GitOrange AI',
+        decidedVia: 'CloudForge AI',
         reason: 'Ask which invoices were in US dollars.',
         changesRequestedNote: 'Ask which invoices were in US dollars.',
         teach: null,

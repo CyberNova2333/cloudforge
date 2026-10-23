@@ -1,6 +1,6 @@
 /**
- * The Site admin "Usage & cost" report for one calendar month (UTC): GitOrange's own usage, its
- * cost at list price, the cost if GitOrange had the account's included allowances to itself,
+ * The Site admin "Usage & cost" report for one calendar month (UTC): CloudForge's own usage, its
+ * cost at list price, the cost if CloudForge had the account's included allowances to itself,
  * and a projection to month end. Costs are computed here from pricing.ts, never stored.
  */
 import { and, gte, isNull, lt, or } from 'drizzle-orm';
@@ -51,8 +51,8 @@ export interface UsageLine {
   status: LineStatus;
   /** Why a line is unavailable or not configured, or which resources failed to sync. */
   reason?: string;
-  /** cloudflare: GraphQL Analytics. gitorange: counted by the app. estimate: an upper bound or approximation. */
-  source: 'cloudflare' | 'gitorange' | 'estimate';
+  /** cloudflare: GraphQL Analytics. cloudforge: counted by the app. estimate: an upper bound or approximation. */
+  source: 'cloudflare' | 'cloudforge' | 'estimate';
   note?: string;
   billedFrom?: string;
   resources: { resource: string; quantity: number }[];
@@ -378,7 +378,7 @@ export async function usageReport(
     );
   }
 
-  // ── Email (counted by GitOrange) ──
+  // ── Email (counted by CloudForge) ──
   {
     const p = book.prices['email.sends'];
     const s = series.get('email.sends');
@@ -391,7 +391,7 @@ export async function usageReport(
     lines.push(
       line('email.sends', p, priced, {
         status: 'measured',
-        source: 'gitorange',
+        source: 'cloudforge',
       })
     );
   }
@@ -461,11 +461,11 @@ export async function usageReport(
     lines.push(
       line(metric, p, priced, {
         status: 'measured',
-        source: metric === 'containers.vcpu_s' ? 'estimate' : 'gitorange',
+        source: metric === 'containers.vcpu_s' ? 'estimate' : 'cloudforge',
         note:
           metric === 'containers.vcpu_s'
             ? 'Runner time × vCPUs. Cloudflare bills vCPU on active use only, so the real charge is lower.'
-            : 'Runner time × the instance size, from GitOrange Actions jobs.',
+            : 'Runner time × the instance size, from CloudForge Actions jobs.',
       })
     );
   }

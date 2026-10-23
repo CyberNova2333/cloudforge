@@ -1,4 +1,4 @@
-// `gitorange <command>`: the user-facing installer (spec §2–§6). Every outside effect comes in
+// `cloudforge <command>`: the user-facing installer (spec §2–§6). Every outside effect comes in
 // through `Deps`, so tests drive `main` with fakes; the real wiring is at the bottom.
 import { realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -12,7 +12,7 @@ import { restCloudflare, type Cloudflare } from './cloudflare.ts';
 import { clackIo, collect, type Io } from './collect.ts';
 import { ConfigConflict } from './config.ts';
 import {
-  gitorangeHome,
+  cloudforgeHome,
   installDir,
   pickInstall,
   pickResumable,
@@ -44,13 +44,13 @@ export const usage = (
 ) => `Usage: ${source.command('<command> [options]')}
 
 Commands:
-  install    Create or update a GitOrange installation on Cloudflare
+  install    Create or update a CloudForge installation on Cloudflare
   status     Show a recorded installation and check that it answers
   upgrade    Move an installation to this package's version (npx only)
   adopt      Take over an installation made from a checkout or by hand (npx only)
 
 install options:
-  --name <name>          Installation name (default: gitorange)
+  --name <name>          Installation name (default: cloudforge)
   --account <id|name>    Cloudflare account (not needed when the login sees one)
   --hostname <host>      Serve on a custom hostname in one of the account's zones
   --workers-dev          Serve on <name>.<subdomain>.workers.dev instead
@@ -63,8 +63,8 @@ install options:
                          replace the setup code (the old one stops working)
   --yes                  Apply without asking (required when not in a terminal)
 
-  Environment: CLOUDFLARE_API_TOKEN (else wrangler's login), GITORANGE_R2_ACCESS_KEY_ID,
-  GITORANGE_R2_SECRET_ACCESS_KEY, GITORANGE_CF_ANALYTICS_TOKEN.
+  Environment: CLOUDFLARE_API_TOKEN (else wrangler's login), CLOUDFORGE_R2_ACCESS_KEY_ID,
+  CLOUDFORGE_R2_SECRET_ACCESS_KEY, CLOUDFORGE_CF_ANALYTICS_TOKEN.
 
 status options:
   --name <name>          Which installation (default: the only one recorded)
@@ -80,7 +80,7 @@ upgrade options:
                          the worker lacks are then left out and listed (add them later)
 
 adopt options:
-  --from <checkout>      The checkout whose installation moves under ~/.gitorange
+  --from <checkout>      The checkout whose installation moves under ~/.cloudforge
   --name <name>          Which installation, when the checkout holds several
   --worker <name>        Or: the deployed worker of an installation made without this CLI
                          (read from Cloudflare; nothing there changes)
@@ -90,7 +90,7 @@ adopt options:
   --yes                  Adopt without asking (required when not in a terminal)
 `;
 
-const DEFAULT_NAME = 'gitorange';
+const DEFAULT_NAME = 'cloudforge';
 
 export type Deps = Omit<Ctx, 'cf'> & {
   env: Record<string, string | undefined>;
@@ -171,7 +171,7 @@ const ADOPT_OPTIONS = {
 const WORKER_ONLY = ['account', 'plan', 'expect-plan'] as const;
 
 const movedMessage = (movedTo: string) =>
-  `This install moved to ${movedTo}. Run npx gitorange upgrade --name ${basename(movedTo)}.`;
+  `This install moved to ${movedTo}. Run npx @cybernova2333/cloudforge upgrade --name ${basename(movedTo)}.`;
 
 const NOT_A_TERMINAL =
   'Not running in a terminal: pass --yes to apply (or --plan to only review).';
@@ -247,11 +247,11 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
       if (values.from !== undefined) {
         if (deps.home === null) {
           deps.io.print(
-            'status --from reads a checkout from the installed package; in a checkout, run yarn gitorange status.'
+            'status --from reads a checkout from the installed package; in a checkout, run yarn cloudforge status.'
           );
           return 2;
         }
-        // Read-only: the checkout's own .gitorange, never moved or written.
+        // Read-only: the checkout's own .cloudforge, never moved or written.
         let picked: InstallState;
         try {
           picked = pickCheckoutState(values.from, values.name);
@@ -262,7 +262,7 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
         }
         return await status(
           { name: picked.inputs.name, checkout: resolve(values.from) },
-          { ...deps, dir: join(values.from, '.gitorange'), latest }
+          { ...deps, dir: join(values.from, '.cloudforge'), latest }
         );
       }
       // Package mode: the install's own directory under home.
@@ -532,12 +532,12 @@ async function collectOptional(
   const later = `add it later with: ${deps.source.command(`install --resume --name ${s.inputs.name}`)}`;
 
   if (offer.has('r2-keys')) {
-    const id = env.GITORANGE_R2_ACCESS_KEY_ID;
-    const secret = env.GITORANGE_R2_SECRET_ACCESS_KEY;
+    const id = env.CLOUDFORGE_R2_ACCESS_KEY_ID;
+    const secret = env.CLOUDFORGE_R2_SECRET_ACCESS_KEY;
     if (id || secret) {
       if (!id || !secret) {
         throw new UsageError(
-          'Set both GITORANGE_R2_ACCESS_KEY_ID and GITORANGE_R2_SECRET_ACCESS_KEY, or neither.'
+          'Set both CLOUDFORGE_R2_ACCESS_KEY_ID and CLOUDFORGE_R2_SECRET_ACCESS_KEY, or neither.'
         );
       }
       optional.r2 = { id, secret };
@@ -563,17 +563,17 @@ async function collectOptional(
   if (offer.has('analytics-token')) {
     const check = (t: string) =>
       checkAnalyticsToken(s.accountId, t, deps.fetchImpl);
-    const fromEnv = env.GITORANGE_CF_ANALYTICS_TOKEN;
+    const fromEnv = env.CLOUDFORGE_CF_ANALYTICS_TOKEN;
     if (fromEnv) {
       const problem = await check(fromEnv);
-      if (problem) throw new Error(`GITORANGE_CF_ANALYTICS_TOKEN: ${problem}`);
+      if (problem) throw new Error(`CLOUDFORGE_CF_ANALYTICS_TOKEN: ${problem}`);
       optional.analytics = fromEnv;
     } else if (prompt) {
       io.print(
         [
           '',
           'Optional: a token for the Usage & cost page (Account Analytics, read).',
-          `  ${analyticsTokenLink(s.accountId, `GitOrange analytics (${s.inputs.name})`)}`,
+          `  ${analyticsTokenLink(s.accountId, `CloudForge analytics (${s.inputs.name})`)}`,
           `Leave empty to skip (${later}).`,
         ].join('\n')
       );
@@ -801,8 +801,8 @@ async function runAdopt(f: AdoptFlags, deps: Deps): Promise<number> {
   if (home === null) {
     io.print(
       f.worker !== undefined
-        ? `Adopting runs from npm: npx gitorange adopt --worker ${f.worker}.`
-        : `Adopting runs from npm: npx gitorange adopt --from ${deps.configDir}.`
+        ? `Adopting runs from npm: npx @cybernova2333/cloudforge adopt --worker ${f.worker}.`
+        : `Adopting runs from npm: npx @cybernova2333/cloudforge adopt --from ${deps.configDir}.`
     );
     return 2;
   }
@@ -831,7 +831,7 @@ async function runAdopt(f: AdoptFlags, deps: Deps): Promise<number> {
     const dir = installDir(home, picked.names.worker);
     io.print(
       `Move ${picked.inputs.name} (${picked.baseUrl}) from ${checkout} to ${dir}:\n` +
-        `  copy  ${join(checkout, '.gitorange', `${picked.installationId}.json`)}\n` +
+        `  copy  ${join(checkout, '.cloudforge', `${picked.installationId}.json`)}\n` +
         `  copy  ${join(checkout, 'wrangler.jsonc')}\n` +
         'The checkout keeps a marker and refuses to install or resume it afterwards. Nothing on Cloudflare changes.'
     );
@@ -847,7 +847,7 @@ async function runAdopt(f: AdoptFlags, deps: Deps): Promise<number> {
       now: deps.now,
     });
     io.print(
-      `Moved ${picked.inputs.name} to ${r.dir}.\nCheck it: npx gitorange status --name ${r.slug}\nUpgrade it: npx gitorange upgrade --name ${r.slug}`
+      `Moved ${picked.inputs.name} to ${r.dir}.\nCheck it: npx @cybernova2333/cloudforge status --name ${r.slug}\nUpgrade it: npx @cybernova2333/cloudforge upgrade --name ${r.slug}`
     );
     return 0;
   } catch (e) {
@@ -939,7 +939,7 @@ async function runUpgrade(f: UpgradeFlags, deps: Deps): Promise<number> {
   const { io, home } = deps;
   if (home === null) {
     io.print(
-      `Upgrades run from npm: npx gitorange adopt --from ${deps.configDir}, then npx gitorange upgrade.`
+      `Upgrades run from npm: npx @cybernova2333/cloudforge adopt --from ${deps.configDir}, then npx @cybernova2333/cloudforge upgrade.`
     );
     return 2;
   }
@@ -1000,10 +1000,10 @@ export function isEntry(
 
 if (isEntry(import.meta.main, process.argv[1], import.meta.url)) {
   const cwd = process.cwd();
-  // The npm bundle defines __GITORANGE_PACKAGE_ROOT__; in a checkout it is not defined at all.
-  const PACKAGED = typeof __GITORANGE_PACKAGE_ROOT__ === 'string';
-  const home = PACKAGED ? gitorangeHome(process.env) : null;
-  // The bundle lives at <root>/bin/gitorange.js.
+  // The npm bundle defines __CLOUDFORGE_PACKAGE_ROOT__; in a checkout it is not defined at all.
+  const PACKAGED = typeof __CLOUDFORGE_PACKAGE_ROOT__ === 'string';
+  const home = PACKAGED ? cloudforgeHome(process.env) : null;
+  // The bundle lives at <root>/bin/cloudforge.js.
   const source = PACKAGED
     ? packageSource(dirname(dirname(fileURLToPath(import.meta.url))))
     : checkoutSource(cwd);
@@ -1011,7 +1011,7 @@ if (isEntry(import.meta.main, process.argv[1], import.meta.url)) {
     io: clackIo,
     env: process.env,
     runner: processRunner,
-    dir: home ?? join(cwd, '.gitorange'),
+    dir: home ?? join(cwd, '.cloudforge'),
     source,
     home,
     configDir: home ?? cwd,

@@ -15,7 +15,7 @@ describe('first-run setup', () => {
     expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
       codeRequired: false,
-      appName: 'GitOrange',
+      appName: 'CloudForge',
       // Nobody can sign up before the first admin exists.
       signup: { enabled: false },
     });
@@ -23,7 +23,7 @@ describe('first-run setup', () => {
     expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: false,
       codeRequired: false,
-      appName: 'GitOrange',
+      appName: 'CloudForge',
     });
 
     const again = await call(t, '/api/setup', {
@@ -117,7 +117,7 @@ describe('invitations', () => {
     const counted = await t.env.DB.prepare(
       "SELECT quantity, source FROM usage_daily WHERE metric = 'email.sends'"
     ).first<{ quantity: number; source: string }>();
-    expect(counted).toEqual({ quantity: 1, source: 'gitorange' });
+    expect(counted).toEqual({ quantity: 1, source: 'cloudforge' });
 
     const token = body.inviteUrl.split('/invite/')[1];
     expect((await call(t, `/api/invites/token/${token}`)).status).toBe(200);

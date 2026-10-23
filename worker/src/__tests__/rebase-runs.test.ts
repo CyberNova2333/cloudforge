@@ -564,7 +564,7 @@ describe('rebase runs', () => {
       cookie: admin,
       json: { title: 'Child', body: '', base: 'main', head: 'child' },
     });
-    // Stacked by GitOrange (as a reconcile does): base_ref is the parent's branch, it still lands on main.
+    // Stacked by CloudForge (as a reconcile does): base_ref is the parent's branch, it still lands on main.
     await t.env.DB.prepare(
       "UPDATE pull_requests SET base_ref = 'feature', land_target = 'main' WHERE number = 2"
     ).run();

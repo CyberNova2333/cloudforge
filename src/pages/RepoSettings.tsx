@@ -227,7 +227,7 @@ export default function RepoSettings() {
           </label>
           <p className="note mt-0 mb-1">
             {t(
-              'GitOrange never rebases these branches. The default branch is always protected.'
+              'CloudForge never rebases these branches. The default branch is always protected.'
             )}
           </p>
           <textarea

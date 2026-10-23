@@ -62,7 +62,7 @@ export function markerLines(files: Record<string, string>) {
 }
 
 function preamble(labels: ResolveRequest['labels']) {
-  return `You resolve git merge conflicts for GitOrange, a git server. The conflicted files are under ${ROOT}.
+  return `You resolve git merge conflicts for CloudForge, a git server. The conflicted files are under ${ROOT}.
 Each conflict uses diff3 markers:
 <<<<<<< ${labels.ours}   (the target branch, already landed)
 ...

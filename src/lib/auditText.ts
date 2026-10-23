@@ -126,14 +126,14 @@ export function agentLabel(
   return m ? cap(m[1]) : handle;
 }
 
-/** Who did it, as a name: a person's username, an agent's name, "GitOrange AI" or "System". */
+/** Who did it, as a name: a person's username, an agent's name, "CloudForge AI" or "System". */
 export function actorName(
   actor: Actor,
   names?: Record<string, string>
 ): string {
   switch (actor.kind) {
     case 'ai':
-      return 'GitOrange AI';
+      return 'CloudForge AI';
     case 'system':
       // Not t('System'): the theme menu uses that key for "follow the system" (跟随系统).
       return lang === 'zh' ? '系统' : 'System';
@@ -246,7 +246,7 @@ export function auditParts(
     agentName
       ? `${possessive(agentName)} ${findingOf(d.kind)}`
       : t('a {finding}', { finding: findingOf(d.kind) });
-  /** " via Claude Code": the app a person acted through (GitOrange AI is already the actor). */
+  /** " via Claude Code": the app a person acted through (CloudForge AI is already the actor). */
   const via = () =>
     e.via && e.actor.kind !== 'ai' ? t(' via {app}', { app: e.via }) : '';
   const forPerson = () =>
@@ -329,7 +329,7 @@ export function auditParts(
         via()
       );
     case 'branch.deleted':
-      // GitOrange deletes a branch once its pull request has landed; a person deletes one by hand.
+      // CloudForge deletes a branch once its pull request has landed; a person deletes one by hand.
       if (e.pull !== null)
         return say(
           t(' deleted branch '),

@@ -342,7 +342,7 @@ export default function NewRepo() {
                 ))}
                 <span className="hint">
                   {t(
-                    "Reviewers read each pull request they are needed on. With at least one, GitOrange can merge on its own once they pass. You can change this later in the repository's settings."
+                    "Reviewers read each pull request they are needed on. With at least one, CloudForge can merge on its own once they pass. You can change this later in the repository's settings."
                   )}
                 </span>
               </fieldset>

@@ -30,7 +30,7 @@ afterEach(() => vi.restoreAllMocks());
 function configured(t: TestEnv) {
   Object.assign(t.env, {
     CF_ANALYTICS_TOKEN: TOKEN,
-    AI_GATEWAY: 'xyspace-gitorange',
+    AI_GATEWAY: 'xyspace-cloudforge',
   });
   return t;
 }
@@ -261,7 +261,7 @@ describe('Usage sync', () => {
       expect(c.accountTag).toBe(t.env.R2_ACCOUNT_ID);
       // Every query is filtered to one of this deployment's resources.
       expect(c.query).toMatch(
-        /scriptName: "gitorange-test"|namespaceId: "ns-(job-runner|merge-resolver)"|workflowName: "gitorange-(actions-run|merge-resolution)-test"|databaseId: "11111111-2222-3333-4444-555555555555"|bucketName: "gitorange-(lfs|actions-logs|actions-cache)-test"|repositoryNamespace: "gitorange-test"|gateway: "xyspace-gitorange"/
+        /scriptName: "cloudforge-test"|namespaceId: "ns-(job-runner|merge-resolver)"|workflowName: "cloudforge-(actions-run|merge-resolution)-test"|databaseId: "11111111-2222-3333-4444-555555555555"|bucketName: "cloudforge-(lfs|actions-logs|actions-cache)-test"|repositoryNamespace: "cloudforge-test"|gateway: "xyspace-cloudforge"/
       );
     }
     // LIVE_NAMESPACE_ID is empty in the test config: LiveHub is not asked about.
@@ -271,25 +271,25 @@ describe('Usage sync', () => {
     const q = (metric: string, resource: string) =>
       rows.find((r) => r.metric === metric && r.resource === resource)
         ?.quantity;
-    expect(q('workers.requests', 'gitorange-test')).toBe(1000);
+    expect(q('workers.requests', 'cloudforge-test')).toBe(1000);
     expect(q('do.requests', 'JobRunner')).toBe(50);
     expect(q('do.duration_gb_s', 'MergeResolver')).toBe(1); // 8 s × 0.125 GB
-    expect(q('workflows.steps', 'gitorange-actions-run-test')).toBe(7);
+    expect(q('workflows.steps', 'cloudforge-actions-run-test')).toBe(7);
     expect(q('d1.rows_written', '11111111-2222-3333-4444-555555555555')).toBe(
       300
     );
-    expect(q('r2.class_a', 'gitorange-lfs-test')).toBe(10);
-    expect(q('r2.class_b', 'gitorange-lfs-test')).toBe(40);
-    expect(q('r2.storage_bytes', 'gitorange-actions-cache-test')).toBe(
+    expect(q('r2.class_a', 'cloudforge-lfs-test')).toBe(10);
+    expect(q('r2.class_b', 'cloudforge-lfs-test')).toBe(40);
+    expect(q('r2.storage_bytes', 'cloudforge-actions-cache-test')).toBe(
       1_001_000
     );
-    expect(q('artifacts.operations', 'gitorange-test')).toBe(20);
-    expect(q('ai-gateway.requests', 'xyspace-gitorange')).toBe(12);
+    expect(q('artifacts.operations', 'cloudforge-test')).toBe(20);
+    expect(q('ai-gateway.requests', 'xyspace-cloudforge')).toBe(12);
     expect(rows.find((r) => r.metric === 'do.requests')?.product).toBe(
       'durable-objects'
     );
     // The unknown field failed only its own probe.
-    expect(q('workers.cpu_ms', 'gitorange-test')).toBeUndefined();
+    expect(q('workers.cpu_ms', 'cloudforge-test')).toBeUndefined();
     const sync = await t.env.DB.prepare(
       'SELECT status, errors FROM usage_syncs WHERE id = ?'
     )
@@ -297,7 +297,7 @@ describe('Usage sync', () => {
       .first<{ status: string; errors: string }>();
     expect(sync?.status).toBe('partial');
     const errors = JSON.parse(sync!.errors);
-    expect(errors['workers.cpu:gitorange-test']).toContain('cpuTimeUs');
+    expect(errors['workers.cpu:cloudforge-test']).toContain('cpuTimeUs');
     expect(errors['durable-objects:unconfigured']).toBeUndefined();
     expect(JSON.stringify(errors)).not.toContain(TOKEN);
   });
@@ -306,7 +306,7 @@ describe('Usage sync', () => {
     const t = configured(makeEnv());
     await t.env.DB.prepare(
       `INSERT INTO usage_daily (date, product, metric, resource, quantity, source, fetched_at)
-       VALUES ('2026-10-01', 'email', 'email.sends', '', 3, 'gitorange', 0)`
+       VALUES ('2026-10-01', 'email', 'email.sends', '', 3, 'cloudforge', 0)`
     ).run();
     await syncUsage(t.env, ['2026-10-01'], { fetch: fakeGraphql().fetch });
     await syncUsage(t.env, ['2026-10-01'], { fetch: fakeGraphql(2).fetch });
@@ -459,9 +459,9 @@ describe('Usage report', () => {
     const cpu = r.lines.find((l) => l.metric === 'workers.cpu_ms')!;
     expect(cpu.status).toBe('unavailable');
     expect(cpu.reason).toContain('cpuTimeUs');
-    // The gateway is reported apart, never in GitOrange's totals.
+    // The gateway is reported apart, never in CloudForge's totals.
     expect(r.gateway).toMatchObject({
-      id: 'xyspace-gitorange',
+      id: 'xyspace-cloudforge',
       requests: 24,
       estimatedCost: 1,
       status: 'measured',

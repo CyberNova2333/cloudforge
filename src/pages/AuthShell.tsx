@@ -11,7 +11,7 @@ function Brand() {
   return (
     <div className="auth-brand">
       <img src="/logo.png" width={32} height={32} alt="" />
-      <span className="brand-wordmark">GitOrange</span>
+      <span className="brand-wordmark">CloudForge</span>
     </div>
   );
 }

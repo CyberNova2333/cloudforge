@@ -1,7 +1,7 @@
-// Builds the npm package `gitorange` into a directory (default build/npm):
+// Builds the npm package `@cybernova2333/cloudforge` into a directory (default build/npm):
 //   node scripts/gitorange/pack.mjs [--out build/npm] [--version <semver>]
 // Plain JavaScript so it runs on any Node 22. Leaves no tracked changes: the build reads a
-// placeholder config through GITORANGE_BUILD_CONFIG and writes under build/ (gitignored, except
+// placeholder config through CLOUDFORGE_BUILD_CONFIG and writes under build/ (gitignored, except
 // the tracked build/license-banners.ts).
 import { execFileSync } from 'node:child_process';
 import {
@@ -24,16 +24,16 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 /** The package.json written into the package. */
 export function npmManifest({ version, commit, wranglerVersion }) {
   return {
-    name: 'gitorange',
+    name: '@cybernova2333/cloudforge',
     version,
     description:
-      'Install, upgrade and adopt a GitOrange deployment on Cloudflare.',
+      'Install, upgrade and adopt a CloudForge deployment on Cloudflare.',
     license: 'GPL-3.0-or-later',
     type: 'module',
-    bin: { gitorange: 'bin/gitorange.js' },
+    bin: { cloudforge: 'bin/cloudforge.js' },
     engines: { node: '>=22.0.0' },
     dependencies: { wrangler: wranglerVersion },
-    gitorangeCommit: commit,
+    cloudforgeCommit: commit,
     repository: {
       type: 'git',
       url: 'git+https://cnb.cool/CyberNova2333/cloudforge.git',
@@ -119,7 +119,7 @@ function viteBuild(configPath, outDir) {
     execFileSync('yarn', ['-s', 'build', '--outDir', outDir], {
       cwd: ROOT,
       stdio: 'inherit',
-      env: { ...process.env, GITORANGE_BUILD_CONFIG: configPath },
+      env: { ...process.env, CLOUDFORGE_BUILD_CONFIG: configPath },
     });
   } finally {
     if (before) writeFileSync(redirect, before);
@@ -214,15 +214,15 @@ export async function pack(argv) {
   cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
   cpSync(join(ROOT, 'COPYING'), join(out, 'COPYING'));
   cpSync(
-    join(ROOT, 'scripts', 'gitorange', 'npm-README.md'),
+    join(ROOT, 'scripts', 'cloudforge', 'npm-README.md'),
     join(out, 'README.md')
   );
 
   // (4) The installer, bundled to plain JavaScript (no type stripping needed at run time).
   const { build } = await import('esbuild');
-  const bin = join(out, 'bin', 'gitorange.js');
+  const bin = join(out, 'bin', 'cloudforge.js');
   await build({
-    entryPoints: [join(ROOT, 'scripts', 'gitorange', 'cli.ts')],
+    entryPoints: [join(ROOT, 'scripts', 'cloudforge', 'cli.ts')],
     outfile: bin,
     bundle: true,
     platform: 'node',
@@ -232,14 +232,14 @@ export async function pack(argv) {
     // Prefer ESM builds: jsonc-parser's `main` is a UMD bundle whose relative require()s cannot be
     // bundled.
     mainFields: ['module', 'main'],
-    define: { __GITORANGE_PACKAGE_ROOT__: '"bundled"' },
+    define: { __CLOUDFORGE_PACKAGE_ROOT__: '"bundled"' },
     // Bundled CommonJS dependencies call require(); ESM has none. Aliased so it cannot clash with
     // the bundle's own `createRequire` import.
     banner: {
       js: [
         '#!/usr/bin/env node',
-        'import { createRequire as __gitorangeCreateRequire } from "node:module";',
-        'const require = __gitorangeCreateRequire(import.meta.url);',
+        'import { createRequire as __cloudforgeCreateRequire } from "node:module";',
+        'const require = __cloudforgeCreateRequire(import.meta.url);',
       ].join('\n'),
     },
     logLevel: 'warning',
@@ -263,7 +263,9 @@ export async function pack(argv) {
     JSON.stringify(npmManifest({ version, commit, wranglerVersion }), null, 2) +
       '\n'
   );
-  console.log(`Packed gitorange ${version} (${commit.slice(0, 12)}) in ${out}`);
+  console.log(
+    `Packed cloudforge ${version} (${commit.slice(0, 12)}) in ${out}`
+  );
 }
 
 const isMain =

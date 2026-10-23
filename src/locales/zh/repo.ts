@@ -291,8 +291,8 @@ export const repo: Record<string, string> = {
     '团队仓库对 {team} 的所有成员可见。你和添加的协作者可以推送。',
   "Could not load the reviewer agents ({error}). You can add them in the repository's settings after creating it.":
     '无法加载评审 Agent（{error}）。创建仓库后可以在仓库设置中添加。',
-  "Reviewers read each pull request they are needed on. With at least one, GitOrange can merge on its own once they pass. You can change this later in the repository's settings.":
-    '评审者会阅读需要它的每个拉取请求。至少有一个评审 Agent 时，它们通过后 GitOrange 可以自行合并。之后可以在仓库设置中更改。',
+  "Reviewers read each pull request they are needed on. With at least one, CloudForge can merge on its own once they pass. You can change this later in the repository's settings.":
+    '评审者会阅读需要它的每个拉取请求。至少有一个评审 Agent 时，它们通过后 CloudForge 可以自行合并。之后可以在仓库设置中更改。',
   'Add a README file': '添加 README 文件',
   'This is where you can write a long description for your project. Moving a project from GitHub? Leave this empty.':
     '你可以在这里为项目写一段详细的描述。要从 GitHub 迁移项目？请留空。',
@@ -320,8 +320,8 @@ export const repo: Record<string, string> = {
   Collaborators: '协作者',
   'Default branch': '默认分支',
   'Protected branches': '受保护分支',
-  'GitOrange never rebases these branches. The default branch is always protected.':
-    'GitOrange 从不对这些分支执行变基。默认分支始终受保护。',
+  'CloudForge never rebases these branches. The default branch is always protected.':
+    'CloudForge 从不对这些分支执行变基。默认分支始终受保护。',
   'Collaborators can see this private repository, push branches, and merge pull requests.':
     '协作者可以看到这个私有仓库、推送分支并合并拉取请求。',
   'Every member can read this repository. Collaborators can also push branches and merge pull requests.':

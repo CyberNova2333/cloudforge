@@ -1,6 +1,6 @@
-# Skipping tests a change can't affect (`gitorange/relevance@v1`)
+# Skipping tests a change can't affect (`cloudforge/relevance@v1`)
 
-`gitorange/relevance@v1` is a GitOrange-only workflow step. It asks Clef, a fast decision model on Workers AI, whether a change could affect a workflow's tests (as a whole and per module), and sets outputs that later jobs read in their `if:`. It's made for many small pull requests: a docs change skips the test jobs, a change to one area runs only that area's tests.
+`cloudforge/relevance@v1` is a CloudForge-only workflow step. It asks Clef, a fast decision model on Workers AI, whether a change could affect a workflow's tests (as a whole and per module), and sets outputs that later jobs read in their `if:`. It's made for many small pull requests: a docs change skips the test jobs, a change to one area runs only that area's tests.
 
 ```yaml
 jobs:
@@ -11,7 +11,7 @@ jobs:
       run-stacking: ${{ steps.relevance.outputs.run-stacking }}
     steps:
       - id: relevance
-        uses: gitorange/relevance@v1
+        uses: cloudforge/relevance@v1
         with:
           skip-below: 0.2
           always-run-paths: |
@@ -62,7 +62,7 @@ Any of these makes every output `'true'`, checked in this order:
 
 The step log shows which net fired, or each question's probability and the decision. Jobs skipped by the gate show as skipped; a run whose only non-successes are skipped jobs passes, so auto-merge treats it like any passing run. If the gate step itself fails (a bad input, for example), the module jobs that need it are skipped and the run fails.
 
-On GitHub, `gitorange/` actions don't exist: give the gate job `if: github.server_url != 'https://github.com'` and write each module's `if:` so a skipped gate runs it (`needs.gate.result == 'skipped' || …`), as above.
+On GitHub, `cloudforge/` actions don't exist: give the gate job `if: github.server_url != 'https://github.com'` and write each module's `if:` so a skipped gate runs it (`needs.gate.result == 'skipped' || …`), as above.
 
 ## Cost
 

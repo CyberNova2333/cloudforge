@@ -1,4 +1,4 @@
-// `gitorange adopt --worker <name>` (spec §7): takes over a GitOrange deployed by hand (no state
+// `cloudforge adopt --worker <name>` (spec §7): takes over a CloudForge deployed by hand (no state
 // file, no ownership markers) from the deployed worker's settings. Read-only up to the confirmed
 // report; then writes the state and the generated wrangler.jsonc under <home>/<worker>/. Never
 // deploys, never runs wrangler or docker, never reads or sends a secret value.
@@ -61,7 +61,7 @@ const DO_TYPE = 'durable_object_namespace';
 
 const NOTHING = 'Nothing was changed.';
 
-/** Secret names GitOrange uses: a plain var of that name likely holds one, so its value is never shown. */
+/** Secret names CloudForge uses: a plain var of that name likely holds one, so its value is never shown. */
 const SECRET_NAMES = new Set([
   'BETTER_AUTH_SECRET',
   'SETUP_CODE_HASH',
@@ -73,12 +73,12 @@ const SECRET_NAMES = new Set([
 const GENERATED_SECRET = 'BETTER_AUTH_SECRET';
 /** Vars the first upgrade is expected to change. */
 const EXPECTED_TO_CHANGE = new Set([
-  'GITORANGE_VERSION',
-  'GITORANGE_INSTALLATION',
+  'CLOUDFORGE_VERSION',
+  'CLOUDFORGE_INSTALLATION',
 ]);
 const DO_ID_VARS = new Set(Object.values(DO_VARS));
 /**
- * Vars older GitOrange versions set that the worker no longer reads: dropping them changes
+ * Vars older CloudForge versions set that the worker no longer reads: dropping them changes
  * nothing. None yet; add a var here when a release stops reading it.
  */
 const RETIRED_VARS: ReadonlySet<string> = new Set<string>();
@@ -102,7 +102,7 @@ const origins = (v: string) =>
  * The worker's plain vars that the first upgrade's deploy would drop or change (wrangler deploy
  * replaces every var with the generated config's): one line each, current -> new. `stops` would
  * change what the worker does; `drops` do not (retired vars, a TRUSTED_ORIGINS that only trusts
- * local development origins, which GitOrange never reads) and are shown in the report. A var
+ * local development origins, which CloudForge never reads) and are shown in the report. A var
  * named like a secret has its value withheld. An empty Durable Object namespace id var is one
  * the upgrade fills in. Tunable vars are skipped (adopt keeps them as found) except those named in
  * `compare`, which an upgrade checks for dashboard edits since adopt or the last upgrade.
@@ -135,7 +135,7 @@ export function varChanges(
     } else if (!(name in next)) {
       if (retired.has(name)) {
         drops.push(
-          `  ${name}  ${JSON.stringify(value)} -> removed (GitOrange no longer reads it)`
+          `  ${name}  ${JSON.stringify(value)} -> removed (CloudForge no longer reads it)`
         );
       } else if (
         name === 'TRUSTED_ORIGINS' &&
@@ -146,7 +146,7 @@ export function varChanges(
         );
       } else {
         stops.push(
-          `  ${name}  ${JSON.stringify(value)} -> removed (GitOrange's config does not set it)`
+          `  ${name}  ${JSON.stringify(value)} -> removed (CloudForge's config does not set it)`
         );
       }
     } else if (next[name] !== value) {
@@ -228,13 +228,13 @@ const isTemplate = (b: WorkerBinding) =>
 export const noWorker = (worker: string, accountId: string) =>
   `No worker named ${worker} on account ${accountId}. ${NOTHING}`;
 
-/** The deployed `version` from `/.well-known/gitorange`, else null (hand-deployed workers may not say). */
+/** The deployed `version` from `/.well-known/cloudforge`, else null (hand-deployed workers may not say). */
 async function wellKnownVersion(
   ctx: Ctx,
   baseUrl: string
 ): Promise<string | null> {
   try {
-    const res = await ctx.fetchImpl(`${baseUrl}/.well-known/gitorange`, {
+    const res = await ctx.fetchImpl(`${baseUrl}/.well-known/cloudforge`, {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
@@ -292,7 +292,7 @@ async function boundResources(
   const db = bound('DB');
   if (!db) {
     throw new Error(
-      `The worker has no D1 binding DB: it does not look like a GitOrange install. ${NOTHING}`
+      `The worker has no D1 binding DB: it does not look like a CloudForge install. ${NOTHING}`
     );
   }
   const dbId = db.id ?? db.database_id ?? '(no id)';
@@ -342,7 +342,7 @@ const NOT_VERIFIED = '(bound, not verified)';
 
 /**
  * What adopting `worker` would record, as a report and its digest. Read-only: Cloudflare reads,
- * one GET of `/.well-known/gitorange` (and the GitHub compare `compareRunning` makes), nothing
+ * one GET of `/.well-known/cloudforge` (and the GitHub compare `compareRunning` makes), nothing
  * written. Throws (with what was found) on anything it cannot map.
  */
 export async function planAdoptWorker(
@@ -383,7 +383,7 @@ export async function planAdoptWorker(
   const unknownClasses = ownClasses.filter((c) => !shape.classes.includes(c));
   if (unknownClasses.length > 0) {
     throw new Error(
-      `Worker ${worker} has Durable Object classes GitOrange's template does not declare: ${unknownClasses.join(', ')}. ` +
+      `Worker ${worker} has Durable Object classes CloudForge's template does not declare: ${unknownClasses.join(', ')}. ` +
         `The first upgrade's config declares exactly the template's classes (${shape.classes.join(', ')}). ${NOTHING}`
     );
   }
@@ -398,13 +398,13 @@ export async function planAdoptWorker(
   });
   if (unknown.length > 0) {
     throw new Error(
-      `Worker ${worker} has bindings GitOrange's template does not: ${unknown.map((b) => `${b.name} (${b.type})`).join(', ')}. ${NOTHING}`
+      `Worker ${worker} has bindings CloudForge's template does not: ${unknown.map((b) => `${b.name} (${b.type})`).join(', ')}. ${NOTHING}`
     );
   }
   const vars = plainTextVars(bindings);
-  if (vars.GITORANGE_INSTALLATION) {
+  if (vars.CLOUDFORGE_INSTALLATION) {
     throw new Error(
-      `Worker ${worker} already carries a gitorange installation (GITORANGE_INSTALLATION): adopt it from its checkout with ${ctx.source.command('adopt --from <checkout>')}. ${NOTHING}`
+      `Worker ${worker} already carries a cloudforge installation (CLOUDFORGE_INSTALLATION): adopt it from its checkout with ${ctx.source.command('adopt --from <checkout>')}. ${NOTHING}`
     );
   }
   const secrets = bindings
@@ -563,7 +563,7 @@ export async function planAdoptWorker(
     );
 
   const running =
-    (await wellKnownVersion(ctx, baseUrl)) ?? (vars.GITORANGE_VERSION || null);
+    (await wellKnownVersion(ctx, baseUrl)) ?? (vars.CLOUDFORGE_VERSION || null);
   if (running !== null) s.deployedVersion = running;
   const cmp = await compareRunning(
     running,

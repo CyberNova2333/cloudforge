@@ -755,7 +755,7 @@ function Outcome({ f, me }: { f: FindingData; me: string | null }) {
   );
 }
 
-/** "Let Claude decide this one": GitOrange AI answers as you, now. */
+/** "Let Claude decide this one": CloudForge AI answers as you, now. */
 function DelegateOne({ f }: { f: FindingData }) {
   const toast = useToast();
   const refresh = useRefresh();

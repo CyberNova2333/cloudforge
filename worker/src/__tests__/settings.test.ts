@@ -75,8 +75,8 @@ describe('instance settings', () => {
     const before = await get(t, admin);
     const name = before.settings.find((s) => s.key === 'app.name')!;
     expect(name).toMatchObject({
-      value: 'GitOrange', // APP_NAME in wrangler.test.jsonc
-      default: 'GitOrange',
+      value: 'CloudForge', // APP_NAME in wrangler.test.jsonc
+      default: 'CloudForge',
       overridden: false,
     });
     expect(
@@ -125,7 +125,7 @@ describe('instance settings', () => {
           appName: string;
         }
       ).appName
-    ).toBe('GitOrange');
+    ).toBe('CloudForge');
   });
 
   it('validates values, rejects unknown keys, and is for site admins only', async () => {

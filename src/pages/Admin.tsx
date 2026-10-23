@@ -164,7 +164,7 @@ export default function Admin() {
                       id="team-slug"
                       className="form-control mono"
                       required
-                      placeholder="xyspace"
+                      placeholder="acme"
                       value={teamForm.slug}
                       onChange={(e) =>
                         setTeamForm({ ...teamForm, slug: e.target.value })

@@ -153,7 +153,7 @@ describe('trying a stopped rebase again', () => {
     expect((await rows(t)).map((r) => r.status)).toEqual(['failed']);
   });
 
-  it('refuses a branch GitOrange never rebases, with why', async () => {
+  it('refuses a branch CloudForge never rebases, with why', async () => {
     const { t, admin } = await divergedPull({ conflict: true });
     const patched = await call(t, '/api/repos/octocat/app', {
       cookie: admin,
@@ -171,11 +171,11 @@ describe('trying a stopped rebase again', () => {
 
   it('refuses when nothing is stopped', async () => {
     const { t, admin, root } = await divergedPull();
-    // Behind, not stopped: GitOrange is rebasing it.
+    // Behind, not stopped: CloudForge is rebasing it.
     const behind = await retry(t, admin);
     expect(behind.status).toBe(409);
     expect(await behind.json()).toEqual({
-      error: 'Nothing to retry: GitOrange is rebasing it onto main.',
+      error: 'Nothing to retry: CloudForge is rebasing it onto main.',
     });
     await moved(t, 'main', root);
     await runRebases(t);

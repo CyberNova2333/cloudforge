@@ -10,16 +10,16 @@ describe('npmManifest', () => {
         wranglerVersion: '4.146.0',
       })
     ).toEqual({
-      name: 'gitorange',
+      name: '@cybernova2333/cloudforge',
       version: '1.0.0',
       description:
-        'Install, upgrade and adopt a GitOrange deployment on Cloudflare.',
+        'Install, upgrade and adopt a CloudForge deployment on Cloudflare.',
       license: 'GPL-3.0-or-later',
       type: 'module',
-      bin: { gitorange: 'bin/gitorange.js' },
+      bin: { cloudforge: 'bin/cloudforge.js' },
       engines: { node: '>=22.0.0' },
       dependencies: { wrangler: '4.146.0' },
-      gitorangeCommit: 'abc',
+      cloudforgeCommit: 'abc',
       repository: {
         type: 'git',
         url: 'git+https://cnb.cool/CyberNova2333/cloudforge.git',

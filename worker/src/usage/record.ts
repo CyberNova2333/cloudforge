@@ -1,5 +1,5 @@
 /**
- * Usage GitOrange attributes itself, as it happens: Actions runner containers (boot to destroy)
+ * Usage CloudForge attributes itself, as it happens: Actions runner containers (boot to destroy)
  * and Workers AI calls with their token counts. Recording never fails the work it describes.
  */
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
@@ -196,7 +196,7 @@ export async function runnersStopped(db: DrizzleDB, jobIds: string[]) {
   }
 }
 
-/** Adds to a GitOrange-counted metric for today (e.g. an email sent). Never throws. */
+/** Adds to a CloudForge-counted metric for today (e.g. an email sent). Never throws. */
 export async function countUsage(
   env: Pick<CloudflareBindings, 'DB'>,
   metric: string,
@@ -214,7 +214,7 @@ export async function countUsage(
         metric,
         resource,
         quantity: amount,
-        source: 'gitorange',
+        source: 'cloudforge',
         fetchedAt: now,
       })
       .onConflictDoUpdate({

@@ -65,8 +65,8 @@ describe('collect', () => {
     ).rejects.toThrow('--name is required');
   });
   it('without a terminal, returns the fallback instead of failing', async () => {
-    expect(await collect(io(false), { ...base, fallback: 'gitorange' })).toBe(
-      'gitorange'
+    expect(await collect(io(false), { ...base, fallback: 'cloudforge' })).toBe(
+      'cloudforge'
     );
   });
   it('passes the initial value to the prompt', async () => {
@@ -76,8 +76,8 @@ describe('collect', () => {
       seen = opts.initial;
       return 'x';
     };
-    expect(await collect(i, { ...base, initial: 'gitorange' })).toBe('x');
-    expect(seen).toBe('gitorange');
+    expect(await collect(i, { ...base, initial: 'cloudforge' })).toBe('x');
+    expect(seen).toBe('cloudforge');
   });
   it('a cancelled prompt throws', async () => {
     await expect(collect(io(true, null), base)).rejects.toThrow('Cancelled.');

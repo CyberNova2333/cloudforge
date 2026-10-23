@@ -65,9 +65,9 @@ let cwd: string;
 let dir: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gitorange-cli-'));
+  root = mkdtempSync(join(tmpdir(), 'cloudforge-cli-'));
   cwd = join(root, 'repo');
-  dir = join(cwd, '.gitorange');
+  dir = join(cwd, '.cloudforge');
   mkdirSync(join(cwd, 'migrations'), { recursive: true });
   copyFileSync(
     new URL('../../../wrangler.jsonc.example', import.meta.url),
@@ -175,11 +175,11 @@ function harness(
           : { data: { viewer: { accounts: [{ accountTag: ACCOUNT }] } } }
       );
     }
-    if (url === `${BASE}/.well-known/gitorange`) {
+    if (url === `${BASE}/.well-known/cloudforge`) {
       if (opts.wellKnown) return opts.wellKnown();
       return Response.json({ installationId: ID, version: VERSION });
     }
-    if (url === 'https://registry.npmjs.org/gitorange') {
+    if (url === 'https://registry.npmjs.org/@cybernova2333%2fcloudforge') {
       if (opts.latest === undefined || opts.latest === null)
         return new Response('down', { status: 500 });
       return Response.json({ 'dist-tags': { latest: opts.latest } });
@@ -313,7 +313,7 @@ describe('install', () => {
     const digest = /Plan ([0-9a-f]{12})/.exec(text)?.[1];
     expect(digest).toBeDefined();
     expect(h.out.at(-1)).toBe(
-      `yarn gitorange install --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan ${digest} --yes`
+      `yarn cloudforge install --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan ${digest} --yes`
     );
     expect(existsSync(dir)).toBe(false);
     expect(existsSync(join(cwd, 'wrangler.jsonc'))).toBe(false);
@@ -349,7 +349,7 @@ describe('install', () => {
       await main(['install', '--plan', '--workers-dev', '--no-email'], h.deps)
     ).toBe(0);
     expect(h.out.at(-1)).toContain(
-      `--name gitorange --account ${ACCOUNT} --workers-dev --no-email`
+      `--name cloudforge --account ${ACCOUNT} --workers-dev --no-email`
     );
   });
 
@@ -411,7 +411,7 @@ describe('install', () => {
     const s = readState(dir, ID)!;
     expect(s.status).toBe('installed');
     expect(s.skipped).toEqual(['r2-keys', 'analytics-token']);
-    expect(h.text()).toContain(`GitOrange is installed at ${BASE}`);
+    expect(h.text()).toContain(`CloudForge is installed at ${BASE}`);
   });
 
   it('--expect-plan with a stale digest fails without creating anything', async () => {
@@ -506,7 +506,7 @@ describe('install', () => {
     ).toBe(0);
     expect(h.out.at(-1)).toMatch(
       new RegExp(
-        `^yarn gitorange install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan [0-9a-f]{12} --yes$`
+        `^yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan [0-9a-f]{12} --yes$`
       )
     );
   });
@@ -518,7 +518,7 @@ describe('install', () => {
       await main(['install', '--plan', '--resume', '--name', 'acme'], h.deps)
     ).toBe(0);
     expect(h.out.at(-1)).toBe(
-      `yarn gitorange install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --yes`
+      `yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --yes`
     );
   });
 
@@ -544,7 +544,7 @@ describe('install', () => {
         )
     ).toEqual([]);
     expect(h.runner.calls.some((c) => c.args[1] === 'deploy')).toBe(false);
-    expect(h.fetched).toContain(`${BASE}/.well-known/gitorange`);
+    expect(h.fetched).toContain(`${BASE}/.well-known/cloudforge`);
     expect(readState(dir, ID)!.status).toBe('installed');
   });
 
@@ -597,13 +597,13 @@ describe('install', () => {
       )
     ).toBe(0);
     expect(h.out.at(-1)).toBe(
-      `yarn gitorange install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --new-setup-code --yes`
+      `yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --new-setup-code --yes`
     );
   });
 
   it('a rejected analytics token from the env exits 1 without a terminal', async () => {
     const h = harness({
-      env: { GITORANGE_CF_ANALYTICS_TOKEN: 'bad' },
+      env: { CLOUDFORGE_CF_ANALYTICS_TOKEN: 'bad' },
       analyticsOk: false,
     });
     expect(await main(['install', '--yes', ...FLAGS], h.deps)).toBe(1);
@@ -632,8 +632,8 @@ describe('status', () => {
     expect(text).toContain(BASE);
     expect(text).toContain('acme-db');
     expect(h.fetched).toEqual([
-      'https://registry.npmjs.org/gitorange',
-      `${BASE}/.well-known/gitorange`,
+      'https://registry.npmjs.org/@cybernova2333%2fcloudforge',
+      `${BASE}/.well-known/cloudforge`,
     ]);
     expect(h.cf()).toBeNull();
     expect(h.runner.calls).toEqual([]);
@@ -664,10 +664,10 @@ describe('status', () => {
     const h = harness();
     writeState(dir, {
       ...installedState(),
-      movedTo: '/home/me/.gitorange/acme',
+      movedTo: '/home/me/.cloudforge/acme',
     });
     await main(['status'], h.deps);
-    expect(h.text()).toMatch(/Moved\s+\/home\/me\/\.gitorange\/acme/);
+    expect(h.text()).toMatch(/Moved\s+\/home\/me\/\.cloudforge\/acme/);
   });
 
   it('live line compares running and state', async () => {
@@ -697,7 +697,7 @@ describe('status', () => {
     writeState(dir, installedState());
     expect(await main(['status'], h.deps)).toBe(1);
     expect(h.text()).toContain(
-      `Unexpected answer from ${BASE}/.well-known/gitorange`
+      `Unexpected answer from ${BASE}/.well-known/cloudforge`
     );
   });
 
@@ -807,7 +807,7 @@ describe('applyCommand', () => {
       },
     };
     expect(applyCommand(s, false, 'abc', false, source)).toBe(
-      `yarn gitorange install --name acme --account ${ACCOUNT} --workers-dev --from-email 'o'\\''brien+git@example.com' --expect-plan abc --yes`
+      `yarn cloudforge install --name acme --account ${ACCOUNT} --workers-dev --from-email 'o'\\''brien+git@example.com' --expect-plan abc --yes`
     );
   });
 });
@@ -891,12 +891,14 @@ describe('package mode', () => {
     });
     expect(await main(['status'], h.deps)).toBe(0);
     expect(h.text()).toMatch(/Latest\s+9\.9\.9/);
-    expect(h.text()).toContain('(npx gitorange@9.9.9 upgrade --name acme)');
+    expect(h.text()).toContain(
+      '(npx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)'
+    );
   });
 
   it('status --from reads a checkout, read-only, and hints adopt then upgrade', async () => {
     const checkout = join(root, 'checkout');
-    const cdir = join(checkout, '.gitorange');
+    const cdir = join(checkout, '.cloudforge');
     writeState(cdir, { ...installedState(), deployedVersion: '1.0.0' });
     const pkgOpts = pkg();
     const h = harness({
@@ -907,7 +909,7 @@ describe('package mode', () => {
     expect(await main(['status', '--from', checkout], h.deps)).toBe(0);
     expect(h.text()).toContain('acme-db');
     expect(h.text()).toContain(
-      `(npx gitorange@9.9.9 adopt --from ${checkout} --name acme, then npx gitorange@9.9.9 upgrade --name acme)`
+      `(npx @cybernova2333/cloudforge@9.9.9 adopt --from ${checkout} --name acme, then npx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)`
     );
     expect(listStates(cdir)).toHaveLength(1);
     expect(existsSync(join(pkgOpts.home, 'acme'))).toBe(false);
@@ -933,7 +935,7 @@ describe('package mode', () => {
 
 describe('docker', () => {
   const NOT_INSTALLED =
-    'Docker is not installed. GitOrange runs Actions jobs in containers, and deploying builds the runner image with Docker. Install Docker Desktop (https://docs.docker.com/get-docker/), start it, then run the same command again.';
+    'Docker is not installed. CloudForge runs Actions jobs in containers, and deploying builds the runner image with Docker. Install Docker Desktop (https://docs.docker.com/get-docker/), start it, then run the same command again.';
   const NOT_RUNNING =
     'Docker is installed but not running. Start Docker Desktop (or the Docker daemon), then run the same command again.';
   const ok = { code: 0, stdout: '27.0.0\n', stderr: '' };
@@ -1020,7 +1022,7 @@ describe('upgrade', () => {
       ],
       workerVars: {
         acme: {
-          GITORANGE_INSTALLATION: JSON.stringify({
+          CLOUDFORGE_INSTALLATION: JSON.stringify({
             installationId: s.installationId,
             ownershipNonce: s.ownershipNonce,
           }),
@@ -1110,7 +1112,7 @@ describe('upgrade', () => {
     const digest = /Plan ([0-9a-f]{12})/.exec(text)?.[1];
     expect(digest).toBeDefined();
     expect(text).toContain(
-      `npx gitorange@1.3.0 upgrade --name acme --expect-plan ${digest} --yes`
+      `npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --expect-plan ${digest} --yes`
     );
     expect(h.deploys).toHaveLength(0);
     expect(readFileSync(join(idir(), `${ID}.json`), 'utf8')).toBe(before);
@@ -1146,9 +1148,11 @@ describe('upgrade', () => {
     expect(await main(['upgrade', '--yes', '--name', 'acme'], first.deps)).toBe(
       1
     );
-    const printed = /Run: (npx gitorange@1\.3\.0 (.+))$/m.exec(first.text());
+    const printed = /Run: (npx @cybernova2333\/cloudforge@1\.3\.0 (.+))$/m.exec(
+      first.text()
+    );
     expect(printed?.[1]).toBe(
-      'npx gitorange@1.3.0 upgrade --resume --name acme'
+      'npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
     );
     const failed = readState(idir(), ID)!;
     expect(failed.status).toBe('failed');
@@ -1175,7 +1179,7 @@ describe('upgrade', () => {
       'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY\n'
     );
     expect(text).toContain(
-      'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY. Add them with: npx gitorange@1.3.0 install --resume --name acme'
+      'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY. Add them with: npx @cybernova2333/cloudforge@1.3.0 install --resume --name acme'
     );
     expect(readState(idir(), ID)!.skipped).toEqual(['r2-keys']);
   });
@@ -1241,7 +1245,7 @@ describe('upgrade', () => {
     const h = harness();
     expect(await main(['upgrade', '--yes'], h.deps)).toBe(2);
     expect(h.text()).toContain(
-      `Upgrades run from npm: npx gitorange adopt --from ${cwd}, then npx gitorange upgrade.`
+      `Upgrades run from npm: npx @cybernova2333/cloudforge adopt --from ${cwd}, then npx @cybernova2333/cloudforge upgrade.`
     );
     expect(h.tokenCalls()).toBe(0);
   });
@@ -1258,7 +1262,7 @@ describe('upgrade', () => {
         await main(['install', '--resume', '--yes', '--name', 'acme'], h.deps)
       ).toBe(1);
       expect(h.text()).toContain(
-        'An upgrade to 1.3.0 is unfinished; run npx gitorange@1.3.0 upgrade --resume --name acme.'
+        'An upgrade to 1.3.0 is unfinished; run npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme.'
       );
       expect(h.deploys).toHaveLength(0);
     }
@@ -1275,7 +1279,7 @@ describe('adopt', () => {
     return s;
   };
   const MOVED_LINE = () =>
-    `This install moved to ${MOVED()}. Run npx gitorange upgrade --name ${resourceNames('acme').worker}.`;
+    `This install moved to ${MOVED()}. Run npx @cybernova2333/cloudforge upgrade --name ${resourceNames('acme').worker}.`;
   const pkgHarness = (o: { tty?: boolean; confirm?: boolean } = {}) =>
     harness({
       ...o,
@@ -1350,7 +1354,9 @@ describe('adopt', () => {
     seedCheckout();
     const h = harness({});
     expect(await main(['adopt', '--from', cwd, '--yes'], h.deps)).toBe(2);
-    expect(h.text()).toContain(`npx gitorange adopt --from ${cwd}`);
+    expect(h.text()).toContain(
+      `npx @cybernova2333/cloudforge adopt --from ${cwd}`
+    );
     expect(readState(dir, ID)!.movedTo).toBeUndefined();
   });
 
@@ -1400,7 +1406,7 @@ describe('adopt --worker', () => {
     const text = h.text();
     expect(text).toContain('Adopt worker acme');
     const digest = /Plan ([0-9a-f]{12})/.exec(text)![1]!;
-    const command = `npx gitorange@1.2.0 adopt --worker acme --account ${ACCOUNT} --expect-plan ${digest} --yes`;
+    const command = `npx @cybernova2333/cloudforge@1.2.0 adopt --worker acme --account ${ACCOUNT} --expect-plan ${digest} --yes`;
     expect(text).toContain(command);
     expect(existsSync(home())).toBe(false);
 
@@ -1427,7 +1433,9 @@ describe('adopt --worker', () => {
     expect(h.text()).toContain('Not running in a terminal');
     const c = harness({ seed });
     expect(await main(['adopt', '--worker', 'acme', '--yes'], c.deps)).toBe(2);
-    expect(c.text()).toContain('npx gitorange adopt --worker acme');
+    expect(c.text()).toContain(
+      'npx @cybernova2333/cloudforge adopt --worker acme'
+    );
     expect(c.tokenCalls()).toBe(0);
   });
 

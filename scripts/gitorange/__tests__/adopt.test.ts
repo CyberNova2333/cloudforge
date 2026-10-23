@@ -26,7 +26,7 @@ let checkout: string;
 let home: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gitorange-adopt-'));
+  root = mkdtempSync(join(tmpdir(), 'cloudforge-adopt-'));
   checkout = join(root, 'repo');
   home = join(root, 'home');
   mkdirSync(checkout, { recursive: true });
@@ -52,7 +52,7 @@ function seed(name: string, id: string): InstallState {
     }),
     status: 'installed',
   };
-  writeState(join(checkout, '.gitorange'), s);
+  writeState(join(checkout, '.cloudforge'), s);
   return s;
 }
 
@@ -73,12 +73,12 @@ describe('adoptFromCheckout', () => {
     expect(readFileSync(join(r.dir, 'wrangler.jsonc'), 'utf8')).toBe(
       '// config\n{}\n'
     );
-    const stub = readState(join(checkout, '.gitorange'), s.installationId)!;
+    const stub = readState(join(checkout, '.cloudforge'), s.installationId)!;
     expect(stub.movedTo).toBe(r.dir);
     // No lock files are left behind.
     expect(existsSync(join(r.dir, `${s.installationId}.lock`))).toBe(false);
     expect(
-      existsSync(join(checkout, '.gitorange', `${s.installationId}.lock`))
+      existsSync(join(checkout, '.cloudforge', `${s.installationId}.lock`))
     ).toBe(false);
   });
 
@@ -98,13 +98,13 @@ describe('adoptFromCheckout', () => {
     const dest = join(home, s.names.worker);
     writeState(dest, { ...s, deployedVersion: '9.9.9' });
     const before = readFileSync(
-      join(checkout, '.gitorange', `${s.installationId}.json`),
+      join(checkout, '.cloudforge', `${s.installationId}.json`),
       'utf8'
     );
     await expect(adopt()).rejects.toThrow(`${dest} already has an install`);
     expect(
       readFileSync(
-        join(checkout, '.gitorange', `${s.installationId}.json`),
+        join(checkout, '.cloudforge', `${s.installationId}.json`),
         'utf8'
       )
     ).toBe(before);
@@ -118,7 +118,7 @@ describe('adoptFromCheckout', () => {
     await expect(adopt()).rejects.toThrow(/wrangler\.jsonc is missing/);
     expect(existsSync(join(home, s.names.worker))).toBe(false);
     expect(
-      readState(join(checkout, '.gitorange'), s.installationId)!.movedTo
+      readState(join(checkout, '.cloudforge'), s.installationId)!.movedTo
     ).toBeUndefined();
   });
 

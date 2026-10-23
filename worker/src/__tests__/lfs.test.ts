@@ -113,7 +113,7 @@ describe('Git LFS batch API', () => {
     expect(href.host).toBe(
       '0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
     );
-    expect(href.pathname).toBe(`/gitorange-lfs-test/lfs/${repoId}/${f.oid}`);
+    expect(href.pathname).toBe(`/cloudforge-lfs-test/lfs/${repoId}/${f.oid}`);
     expect(href.searchParams.get('X-Amz-Expires')).toBe('900');
     expect(href.searchParams.get('X-Amz-SignedHeaders')).toContain(
       'x-amz-checksum-sha256'
@@ -154,7 +154,7 @@ describe('Git LFS batch API', () => {
       })
     ).json()) as Batch;
     expect(new URL(down.objects[0].actions!.download.href).pathname).toBe(
-      `/gitorange-lfs-test/lfs/${repoId}/${f.oid}`
+      `/cloudforge-lfs-test/lfs/${repoId}/${f.oid}`
     );
   });
 
@@ -295,7 +295,7 @@ describe('Git LFS in the web UI', () => {
     expect(dl.status).toBe(302);
     const location = new URL(dl.headers.get('Location')!);
     expect(location.pathname).toBe(
-      `/gitorange-lfs-test/lfs/${repoId}/${f.oid}`
+      `/cloudforge-lfs-test/lfs/${repoId}/${f.oid}`
     );
     expect(location.searchParams.get('response-content-disposition')).toBe(
       'attachment; filename="logo.png"'
@@ -310,7 +310,7 @@ describe('Git LFS in the web UI', () => {
     expect(raw.status).toBe(302);
     const rawLocation = new URL(raw.headers.get('Location')!);
     expect(rawLocation.pathname).toBe(
-      `/gitorange-lfs-test/lfs/${repoId}/${f.oid}`
+      `/cloudforge-lfs-test/lfs/${repoId}/${f.oid}`
     );
     expect(
       rawLocation.searchParams.get('response-content-disposition')

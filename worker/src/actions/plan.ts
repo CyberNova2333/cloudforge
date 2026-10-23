@@ -114,17 +114,17 @@ const SIZES: InstanceType[] = [
 
 /**
  * `runs-on` → container instance type. GitHub's Linux labels get `standard-2` (12 GB disk: a cold
- * JS install can need 6+ GB); `[gitorange-]standard-N` picks a size explicitly.
+ * JS install can need 6+ GB); `[cloudforge-]standard-N` picks a size explicitly.
  */
 export function instanceTypeFor(runsOn: string): InstanceType {
   const labels = runsOn.split(',').map((l) => l.trim().toLowerCase());
   for (const l of labels) {
-    const size = l.replace(/^gitorange-/, '');
+    const size = l.replace(/^cloudforge-/, '');
     if ((SIZES as string[]).includes(size)) return size as InstanceType;
   }
   if (labels.some((l) => /^(windows|macos)/.test(l)))
     throw new WorkflowFileError(
-      `runs-on: ${runsOn} is not available. GitOrange Actions runs Linux jobs only (use ubuntu-latest).`
+      `runs-on: ${runsOn} is not available. CloudForge Actions runs Linux jobs only (use ubuntu-latest).`
     );
   return 'standard-2';
 }

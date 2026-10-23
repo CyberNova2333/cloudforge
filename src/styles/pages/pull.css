@@ -491,7 +491,7 @@
   margin-bottom: 8px;
 }
 
-/* GitOrange's own events: a small icon on the line, then the sentence. */
+/* CloudForge's own events: a small icon on the line, then the sentence. */
 .pr-event {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);

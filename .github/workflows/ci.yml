@@ -2,12 +2,12 @@
 # Formatting is checked in format.yml, security in codeql.yml.
 #
 # build installs, builds, and typechecks once, and caches node_modules and dist/ by commit for the
-# test jobs. On GitOrange, gate asks gitorange/relevance@v1 (docs/ci-relevance.md) which modules a
+# test jobs. On CloudForge, gate asks cloudforge/relevance@v1 (docs/ci-relevance.md) which modules a
 # change can affect; on GitHub it is skipped and every module runs. Each module job (test-<module>)
 # restores the build and runs its own test files. Modules are few and balanced by runtime: each job
 # pays for restoring the build and starting vitest, so fewer, larger jobs finish sooner.
 #
-# build and the test jobs run on gitorange-standard-4 on GitOrange (runs-on is an expression; the
+# build and the test jobs run on cloudforge-standard-4 on CloudForge (runs-on is an expression; the
 # label means nothing on GitHub, which gets ubuntu-latest).
 #
 # Every test file belongs to exactly one module. Adding a test file? Add it to its module's
@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -71,7 +71,7 @@ jobs:
 
   gate:
     name: Relevance
-    # gitorange/ actions exist only on GitOrange; on GitHub this job is skipped and every module runs.
+    # cloudforge/ actions exist only on CloudForge; on GitHub this job is skipped and every module runs.
     if: github.server_url != 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -82,7 +82,7 @@ jobs:
       run-core: ${{ steps.relevance.outputs.run-core }}
     steps:
       - id: relevance
-        uses: gitorange/relevance@v1
+        uses: cloudforge/relevance@v1
         with:
           skip-below: 0.2
           # Shared test setup and the schema every test runs against (added to the defaults).
@@ -94,14 +94,14 @@ jobs:
           modules: |
             stacking: Stacked pull requests: stack discovery and pair edges, the stack tree, reconcile and retargeting, stack gates on landing, and land targets (worker/src/stack/, pull_requests.land_target)
             review: Reviewing and merging pull requests: reviews by reviewer agents (worker/src/review/: per-file one-liners, the Clef trigger, agent reviews and their findings (single pass, and engine: pi reviews in the AgentReviewer Durable Object with its read-only checkout), the review gate and person approvals, .orangeignore, auto-merge), the Approvals inbox, pull request states (worker/src/pulls/: state reasons, signals, settle, pr_events), merging and landing (worker/src/merge/, landPull), the merge queue and pausing merging (worker/src/lib/queue.ts), reverting a merged pull request (worker/src/lib/revert.ts), three-way tree merges and diff3 conflicts (worker/src/git/service.ts), AI conflict resolution (MergeResolver, MERGE_RESOLUTION attempts and sweeps), generated-file matching, and agent runs (worker/src/agent-runs/: how the review, conflict resolution, sweep, and stack discovery Workflows record their steps, decisions, and AI usage, and agent run retention), agents learning from dismissed change requests (worker/src/learn/: lessons, the learn mode of AgentReviewer, validating and committing the learned edit)
-            actions: GitOrange Actions (worker/src/actions/: workflow syntax and expressions, triggers, job planning and runner sizes, the executor and JobRunner containers, the job queue, the cache, log retention, the gitorange/relevance action), the Cron Triggers (worker/src/cron.ts), and git transport and storage: the git smart-HTTP endpoint (worker/src/git-http.ts), git objects, packfiles and pkt-lines (worker/src/git/), Git LFS (worker/src/lfs-http.ts, worker/src/lib/lfs.ts), and raw file serving
+            actions: CloudForge Actions (worker/src/actions/: workflow syntax and expressions, triggers, job planning and runner sizes, the executor and JobRunner containers, the job queue, the cache, log retention, the cloudforge/relevance action), the Cron Triggers (worker/src/cron.ts), and git transport and storage: the git smart-HTTP endpoint (worker/src/git-http.ts), git objects, packfiles and pkt-lines (worker/src/git/), Git LFS (worker/src/lfs-http.ts, worker/src/lib/lfs.ts), and raw file serving
             core: The API outside the modules above (worker/src/routers/, worker/src/lib/, worker/src/auth/, worker/src/index.ts): repositories and pull requests, access and visibility (worker/src/lib/repos.ts), setup and invitations, teams, Site admin and instance settings, the audit log (worker/src/lib/audit.ts), branches and the branch map (worker/src/lib/branches.ts), coding sessions (worker/src/lib/sessions.ts), repository health (worker/src/lib/health.ts), the Live page payload (worker/src/lib/live-feed.ts), global search (worker/src/lib/search.ts), reviewer agent presets (worker/src/agents/presets.ts), commit emails and attribution, live updates (worker/src/live/), usage and cost (worker/src/usage/), insights, the AI Gateway, API smoke tests; the MCP server (worker/src/mcp/: JSON-RPC tools) and its OAuth sign-in (better-auth OAuth provider, JWT access tokens, consent); and the web app's client-side libraries in src/lib (agent prompts, syntax highlighting, repository URLs, the stack tree and pull request state display)
 
   test-stacking:
     name: Test (stacking)
     needs: [build, gate]
     if: always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-stacking == 'true')
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -135,7 +135,7 @@ jobs:
     name: Test (review and merge)
     needs: [build, gate]
     if: always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-review == 'true')
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -198,7 +198,7 @@ jobs:
     name: Test (actions and git)
     needs: [build, gate]
     if: always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-actions == 'true')
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -237,7 +237,7 @@ jobs:
     name: Test (core, mcp, ui)
     needs: [build, gate]
     if: always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-core == 'true')
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -309,7 +309,7 @@ jobs:
   # Independent of the build: it builds from a placeholder config of its own.
   package:
     name: Package
-    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}
+    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -331,7 +331,7 @@ jobs:
       # No Docker here: --containers-rollout=none makes wrangler skip building the runner image.
       - name: The shipped build deploys with the generated config (dry run)
         run: yarn -s wrangler deploy --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/o" --config "$RUNNER_TEMP/smoke/wrangler.jsonc"
-      # The package's Node floor (engines: >=22.0.0). GitOrange runners use the image's Node.js
+      # The package's Node floor (engines: >=22.0.0). CloudForge runners use the image's Node.js
       # whatever node-version asks for, so the floor is checked on GitHub only.
       - name: Use Node.js 22.0.0 (GitHub only)
         if: github.server_url == 'https://github.com'
@@ -345,18 +345,18 @@ jobs:
           cd "$RUNNER_TEMP/app"
           npm init -y > /dev/null
           npm install "$TARBALL"
-      - name: gitorange --help
+      - name: cloudforge --help
         run: |
           cd "$RUNNER_TEMP/app"
-          npx gitorange --help | tee help.txt
+          npx @cybernova2333/cloudforge --help | tee help.txt
           for c in install upgrade adopt status; do
             grep -E "^  $c " help.txt || { echo "::error::--help does not list $c"; exit 1; }
           done
-      - name: gitorange install --plan stops without a Cloudflare login
+      - name: cloudforge install --plan stops without a Cloudflare login
         run: |
           cd "$RUNNER_TEMP/app"
           set +e
-          env -u CLOUDFLARE_API_TOKEN GITORANGE_HOME="$RUNNER_TEMP/h" npx gitorange install --plan --name smoke < /dev/null > out.txt 2>&1
+          env -u CLOUDFLARE_API_TOKEN CLOUDFORGE_HOME="$RUNNER_TEMP/h" npx @cybernova2333/cloudforge install --plan --name smoke < /dev/null > out.txt 2>&1
           code=$?
           set -e
           cat out.txt

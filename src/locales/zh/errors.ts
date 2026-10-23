@@ -68,10 +68,10 @@ export const errors: Record<string, string> = {
     '在你查看之后，分支有了新提交。请重试。',
   'Only a merged pull request can be reverted.':
     '只有已合并的拉取请求才能还原。',
-  'GitOrange can’t find the commits this pull request landed, so it can’t revert it.':
-    'GitOrange 找不到此拉取请求落地的提交，因此无法还原它。',
-  'GitOrange can’t read the commits it would revert.':
-    'GitOrange 无法读取它要还原的提交。',
+  'CloudForge can’t find the commits this pull request landed, so it can’t revert it.':
+    'CloudForge 找不到此拉取请求落地的提交，因此无法还原它。',
+  'CloudForge can’t read the commits it would revert.':
+    'CloudForge 无法读取它要还原的提交。',
   'Only open pull requests are reviewed': '只有开启的拉取请求才会评审',
   'You do not have permission to merge': '你没有合并权限',
   'You do not have permission to approve': '你没有批准权限',
@@ -107,8 +107,8 @@ export const errors: Record<string, string> = {
     '这是 Agent 自己的更改请求：请推送更改，或驳回它',
   'This finding is already approved: undo the approval to teach the agent with it':
     '这条评审意见已经批准：要借此教会 Agent，请先撤销批准',
-  "GitOrange AI decides findings that need a person. This is the agent's own change request, for the pull request's agent.":
-    'GitOrange AI 决定需要人工处理的评审意见。这条是 Agent 自己的更改请求，应由拉取请求的 Agent 处理。',
+  "CloudForge AI decides findings that need a person. This is the agent's own change request, for the pull request's agent.":
+    'CloudForge AI 决定需要人工处理的评审意见。这条是 Agent 自己的更改请求，应由拉取请求的 Agent 处理。',
   'The pull request has new commits since you looked. Review them, then decide again.':
     '在你查看之后，拉取请求有了新提交。请重新评审后再决定。',
   'The pull request has new commits since you looked. Review them, then approve again.':
@@ -131,10 +131,10 @@ export const errors: Record<string, string> = {
   'Too many files to review automatically — a person must approve.':
     '文件太多，无法自动评审——需要人工批准。',
   'The review stopped unexpectedly. Try again.': '评审意外停止，请重试。',
-  "GitOrange AI isn't set up on this server, so this finding waits for you.":
-    '此服务器未配置 GitOrange AI，因此这条评审意见会等你处理。',
-  "GitOrange AI couldn't decide this one, so it waits for you.":
-    'GitOrange AI 无法决定这一条，因此它等你处理。',
+  "CloudForge AI isn't set up on this server, so this finding waits for you.":
+    '此服务器未配置 CloudForge AI，因此这条评审意见会等你处理。',
+  "CloudForge AI couldn't decide this one, so it waits for you.":
+    'CloudForge AI 无法决定这一条，因此它等你处理。',
   "The Pi review's workspace was gone before it answered. Try again.":
     'Pi 评审的工作区在它作答之前就不见了，请重试。',
   'Stopped: a newer commit replaced this one.':
@@ -151,8 +151,8 @@ export const errors: Record<string, string> = {
   'A retry is already in progress.': '已有重试正在进行。',
   'A rebase run is still finishing; try again in a moment.':
     '还有变基运行正在结束，请稍后再试。',
-  'GitOrange does not rebase pull requests on this instance: rebase it locally.':
-    '此实例的 GitOrange 不对拉取请求做变基：请在本地变基。',
+  'CloudForge does not rebase pull requests on this instance: rebase it locally.':
+    '此实例的 CloudForge 不对拉取请求做变基：请在本地变基。',
   'The commits could not be read.': '无法读取提交。',
   "The agent's repository was deleted.": 'Agent 的仓库已被删除。',
   "The agent's repository could not be read.": 'Agent 的仓库无法读取。',
@@ -240,7 +240,7 @@ export const errors: Record<string, string> = {
   'No agent reviewed it: a person needs to approve it':
     '没有 Agent 评审：需要人工批准',
   'The review failed': '评审失败',
-  'GitOrange is fixing a clash': 'GitOrange 正在修复冲突',
+  'CloudForge is fixing a clash': 'CloudForge 正在修复冲突',
   'Checking how it relates to other pull requests':
     '正在检查它与其他拉取请求的关系',
   'Clashes with newer changes': '与更新的更改冲突',
@@ -331,8 +331,8 @@ export const errors: Record<string, string> = {
     '仍是 .dev.vars.example 中的占位值，任何人都能伪造会话。请换成随机值。',
   'Both set. Git LFS and the Actions cache can sign R2 URLs.':
     '均已设置。Git LFS 和 Actions 缓存可以签发 R2 URL。',
-  'Set: the first admin needs the code from `yarn gitorange install`.':
-    '已设置：首位管理员需要 `yarn gitorange install` 打印的代码。',
+  'Set: the first admin needs the code from `yarn cloudforge install`.':
+    '已设置：首位管理员需要 `yarn cloudforge install` 打印的代码。',
   'Not set: the first account created becomes the site admin.':
     '未设置：创建的第一个账户将成为站点管理员。',
   'Bound.': '已绑定。',
@@ -416,8 +416,8 @@ export const errors: Record<string, string> = {
     '未设置 FROM_EMAIL，因此不会发送邀请和验证邮件。',
   'Not set. Sign-in, invite links, and MCP OAuth use it.':
     '未设置。登录、邀请链接和 MCP OAuth 都会用到它。',
-  'Not set; the instance is called "GitOrange" in titles, emails, and the MCP server id.':
-    '未设置；标题、邮件和 MCP 服务器 ID 中实例名为“GitOrange”。',
+  'Not set; the instance is called "CloudForge" in titles, emails, and the MCP server id.':
+    '未设置；标题、邮件和 MCP 服务器 ID 中实例名为“CloudForge”。',
   'Not set. Git LFS and the Actions cache cannot build R2 URLs.':
     '未设置。Git LFS 和 Actions 缓存无法构建 R2 URL。',
   "Doesn't look like a Cloudflare account id (32 hex characters).":
@@ -437,8 +437,8 @@ export const errors: Record<string, string> = {
     'AI 调用会记录在“default”网关中（首次使用时创建）。免费检查无法证明网关会接受请求：请使用 测试 发送一个极小的请求。',
   'Set. Usage & cost pulls Cloudflare analytics daily.':
     '已设置。用量与费用 会每天拉取 Cloudflare 分析数据。',
-  "Not set. Usage & cost shows only GitOrange's own records (Actions runners, AI tokens, emails), not Cloudflare's analytics.":
-    '未设置。用量与费用 只显示 GitOrange 自己的记录（Actions 运行器、AI 令牌、邮件），不含 Cloudflare 的分析数据。',
+  "Not set. Usage & cost shows only CloudForge's own records (Actions runners, AI tokens, emails), not Cloudflare's analytics.":
+    '未设置。用量与费用 只显示 CloudForge 自己的记录（Actions 运行器、AI 令牌、邮件），不含 Cloudflare 的分析数据。',
   'Worker, D1, buckets, Artifacts namespace, and Workflows are all named.':
     'Worker、D1、存储桶、Artifacts 命名空间和 Workflows 都已指定。',
   'JobRunner, MergeResolver, AgentReviewer, and LiveHub are all set.':
@@ -669,8 +669,8 @@ export const zhPatterns: [RegExp, string][] = [
     '$1 已不再评审此仓库：请自行决定这条评审意见',
   ],
   [
-    /^(.+)'s findings always come to a person: GitOrange AI never decides them\.$/,
-    '$1 的评审意见始终由人决定：GitOrange AI 从不决定它们。',
+    /^(.+)'s findings always come to a person: CloudForge AI never decides them\.$/,
+    '$1 的评审意见始终由人决定：CloudForge AI 从不决定它们。',
   ],
   [
     /^Approving (.+)'s findings needs a reason\. It goes in the audit log with your name\.$/,
@@ -715,8 +715,8 @@ export const zhPatterns: [RegExp, string][] = [
     '没有可重试的内容：AI 正在解决冲突。',
   ],
   [
-    /^Nothing to retry: GitOrange is rebasing it onto (.+)\.$/,
-    '没有可重试的内容：GitOrange 正在将它变基到 $1。',
+    /^Nothing to retry: CloudForge is rebasing it onto (.+)\.$/,
+    '没有可重试的内容：CloudForge 正在将它变基到 $1。',
   ],
   [
     /^Nothing to retry: it is up to date with (.+)\.$/,
@@ -752,8 +752,8 @@ export const zhPatterns: [RegExp, string][] = [
     '提交 $1 在 $2 中冲突。请在本地变基。',
   ],
   [
-    /^Rebasing onto (.+) stops at commit (.+), which conflicts in (.+)\. GitOrange is resolving it; merge again once it has\.$/,
-    '变基到 $1 时在提交 $2 处停止，冲突文件：$3。GitOrange 正在解决；解决后再合并。',
+    /^Rebasing onto (.+) stops at commit (.+), which conflicts in (.+)\. CloudForge is resolving it; merge again once it has\.$/,
+    '变基到 $1 时在提交 $2 处停止，冲突文件：$3。CloudForge 正在解决；解决后再合并。',
   ],
   [
     /^Rebasing onto (.+) stops at commit (.+), which conflicts in (.+)\. Rebase it locally and push\.$/,

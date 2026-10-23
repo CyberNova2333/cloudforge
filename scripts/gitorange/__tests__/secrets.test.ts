@@ -70,7 +70,7 @@ describe('token links', () => {
     expect(u.searchParams.get('permission')).toBe('object-write');
   });
   it('analytics link is account-owned with the read permission', () => {
-    const u = new URL(analyticsTokenLink('acc123', 'gitorange'));
+    const u = new URL(analyticsTokenLink('acc123', 'cloudforge'));
     expect(u.searchParams.get('to')).toBe('/acc123/api-tokens');
     expect(JSON.parse(u.searchParams.get('permissionGroupKeys')!)).toEqual([
       { key: 'account_analytics', type: 'read' },

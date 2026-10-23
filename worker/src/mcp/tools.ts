@@ -179,7 +179,7 @@ const getRepository: ToolModule = {
     title: 'Get repository',
     description:
       'Get one repository by its full name (owner/name, from gitorange_list_repositories): description, ' +
-      'visibility, default branch, protected branch patterns (never rebased by GitOrange), branches, open pull request count, the latest commit on the default ' +
+      'visibility, default branch, protected branch patterns (never rebased by CloudForge), branches, open pull request count, the latest commit on the default ' +
       'branch, the latest Actions run status, and how to clone it.',
     annotations: { readOnlyHint: true, title: 'Get repository' },
     inputSchema: {
@@ -241,7 +241,7 @@ const getRepository: ToolModule = {
           permissions: perms,
           empty: branches.length === 0,
           default_branch: repo.defaultBranch,
-          // Branches GitOrange never rebases, besides the default branch (globs: * within a segment, ** across).
+          // Branches CloudForge never rebases, besides the default branch (globs: * within a segment, ** across).
           protected_branches: repo.protectedBranches ?? [],
           branches: branches.map((b) => b.name),
           open_pull_requests: Number(openPulls?.n ?? 0),
@@ -290,7 +290,7 @@ const getRepositoryInsights: ToolModule = {
     title: 'Get repository insights',
     description:
       "KPIs for one repository's pull requests over the last N days (default 30): opened, merged, how many " +
-      'GitOrange auto-merged versus a person merged, how many merged with no person involved, how often the ' +
+      'CloudForge auto-merged versus a person merged, how many merged with no person involved, how often the ' +
       'review needed a person (findings by agent, approved, still pending, median time to ' +
       'approval), AI conflict resolution attempts and outcomes, the CI pass rate on pull requests, and median ' +
       'times to merge and to the first green run (in seconds). Use it to see how well agents land changes.',
@@ -352,11 +352,11 @@ const getUsage: ToolModule = {
     name: 'gitorange_get_usage',
     title: 'Get usage and cost',
     description:
-      "Site admins only. This GitOrange deployment's Cloudflare usage and estimated cost for a calendar month " +
-      '(UTC, default the current one): per product and metric, the cost at list price, the cost if GitOrange had ' +
+      "Site admins only. This CloudForge deployment's Cloudflare usage and estimated cost for a calendar month " +
+      '(UTC, default the current one): per product and metric, the cost at list price, the cost if CloudForge had ' +
       "the account's included allowances to itself, and a projection to month end; Actions runner minutes and " +
       'cost by repository; Workers AI cost by feature. Figures are estimates from Cloudflare analytics and ' +
-      "GitOrange's own records, not an invoice. Lines that could not be measured say why.",
+      "CloudForge's own records, not an invoice. Lines that could not be measured say why.",
     annotations: { readOnlyHint: true, title: 'Get usage and cost' },
     inputSchema: {
       type: 'object',

@@ -35,7 +35,7 @@ describe('setup code', () => {
     expect(await (await call(t, '/api/setup/status')).json()).toMatchObject({
       setupRequired: true,
       codeRequired: true,
-      appName: 'GitOrange',
+      appName: 'CloudForge',
     });
   });
 

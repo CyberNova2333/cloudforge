@@ -1,5 +1,5 @@
 /**
- * Protected branches: per-repository branch name patterns (repositories.protected_branches) that GitOrange never
+ * Protected branches: per-repository branch name patterns (repositories.protected_branches) that CloudForge never
  * rebases (merge/rebase.ts rebaseBlocked). The default branch is always protected, whatever the patterns say.
  *
  * A pattern is an exact branch name, or a glob: `*` matches within one path segment (`release/*` matches

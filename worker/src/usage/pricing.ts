@@ -1,5 +1,5 @@
 /**
- * Cloudflare list prices for everything GitOrange uses, on the Workers Paid plan. This is the only
+ * Cloudflare list prices for everything CloudForge uses, on the Workers Paid plan. This is the only
  * place prices live. Add a new book (with its `effectiveFrom`) when Cloudflare changes a price, so
  * past months keep the prices that were in force.
  *

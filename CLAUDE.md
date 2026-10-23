@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-GitOrange is a single-tenant GitHub Enterprise Server–style app. One Cloudflare Worker serves a Hono +
+CloudForge is a single-tenant GitHub Enterprise Server–style app. One Cloudflare Worker serves a Hono +
 Zod-OpenAPI API and a React + Vite SPA (its own design system over GitHub's Primer CSS) on one origin, with
-Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifacts repo per GitOrange repo.
+Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifacts repo per CloudForge repo.
 
 ## Architecture notes
 
@@ -63,7 +63,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   Moderator apps (`mcp_moderators`, `worker/src/mcp/moderators.ts`): only a connection the user marked as a moderator
   lists and calls the approve/dismiss tools; checked on every call, never cached; the tools reuse `decideFlag` /
   `approvePull` and record `via`.
-- Merging is rebase + fast-forward (details in `docs/architecture.md`). GitOrange rebases open PRs itself: engine `git/rebase.ts`, runs on `MERGE_RESOLUTION`
+- Merging is rebase + fast-forward (details in `docs/architecture.md`). CloudForge rebases open PRs itself: engine `git/rebase.ts`, runs on `MERGE_RESOLUTION`
   (`merge/rebase.ts`, `ensureRebase`; CAS on the old head, old head kept as `refs/pull/N/pre-rebase/<sha7>`); per-commit
   AI conflict resolution in `merge/commit-resolution.ts`; a stop is `rebase_conflict` or "Not rebased: …" (`rebaseBlocked`: default branch, a
   `repositories.protected_branches` glob, a head shared into another base). `review/carry.ts`
@@ -99,7 +99,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   person with push access, never an agent). Let Claude decide (`review/delegate.ts`): `ai_delegations` (user, agent;
   `GET`/`PUT /api/me/delegations`, guarded agents refused) → `decideDelegated` runs as a `delegate` step after a
   review or an agent's retry when the author delegates (`delegatesAny`), and `…/delegate` (`decideFinding`) decides one now; both only
-  undecided `needs_person` findings of live, invited, unguarded agents, as the person, `approved_via` "GitOrange AI",
+  undecided `needs_person` findings of live, invited, unguarded agents, as the person, `approved_via` "CloudForge AI",
   audited as `finding.delegated` (actor kind `ai`); no model or a bad answer leaves it. Tests pass a fake
   `DelegateModel`.
 - Audit log (`worker/src/lib/audit.ts`, D1 `audit_events`): `recordAudit` writes a row next to each mutation (actions
@@ -164,16 +164,16 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   kind `ordered_after`) and retargets `base_ref` (metadata only, CAS); `stackGate` blocks `landPull`, which also refuses a head carrying another
   open PR's commits (`carriedPull`). Tests drive
   `executeReconcile` with fake `StackModels` (`order`, `recheck`).
-- Installer (`scripts/gitorange/`, `yarn gitorange install|status` from a checkout, `npx gitorange install|upgrade|adopt|status` from the npm package `gitorange`):
+- Installer (`scripts/gitorange/`, `yarn cloudforge install|status` from a checkout, `npx @cybernova2333/cloudforge install|upgrade|adopt|status` from the npm package `@cybernova2333/cloudforge`):
   pure modules (`names`, `plan`, `config`, `state`) plus ports for Cloudflare (`cloudflare.ts`) and processes (`runner.ts`) and
   the prompts (`collect.ts`), all injected through `Deps`/`Ctx`. Same inputs give the same names, plan digest and generated
-  `wrangler.jsonc` (header marker; a hand-written one is never overwritten). State and lock live in `.gitorange/<id>.json`
+  `wrangler.jsonc` (header marker; a hand-written one is never overwritten). State and lock live in `.cloudforge/<id>.json`
   (gitignored): `apply.ts` records each step, so `--resume` continues; resources carry an ownership marker and are never
-  touched otherwise. The setup code's hash is the `SETUP_CODE_HASH` secret; `/.well-known/gitorange` is what verify reads.
+  touched otherwise. The setup code's hash is the `SETUP_CODE_HASH` secret; `/.well-known/cloudforge` is what verify reads.
   Tests are Node vitest (`scripts/gitorange/vitest.config.ts`), no workerd. Both entry points run the same code over a
   `Source` (`source.ts`: `checkoutSource` or `packageSource`) that says where the built release, migrations and runner
-  Dockerfile come from and prints commands (`yarn gitorange …` vs `npx gitorange@<version> …`); package mode keeps state in
-  `~/.gitorange/<slug>/` (`GITORANGE_HOME`, `home.ts`) and runs its own pinned wrangler from there. `upgrade.ts` plans first
+  Dockerfile come from and prints commands (`yarn cloudforge …` vs `npx @cybernova2333/cloudforge@<version> …`); package mode keeps state in
+  `~/.cloudforge/<slug>/` (`CLOUDFORGE_HOME`, `home.ts`) and runs its own pinned wrangler from there. `upgrade.ts` plans first
   (`--plan`/`--expect-plan`), never downgrades, adds only the secrets the worker lacks (never `SETUP_CODE_HASH`), and stops
   on code that is not a release unless `--replace-custom-code`; `adopt` (`adopt.ts` from a checkout, `adopt-worker.ts` from a
   deployed worker, read-only on Cloudflare) records an existing install. `install` and `upgrade` check Docker in preflight.
@@ -181,7 +181,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   origin and main with git, builds that commit in a fresh worktree, tests, packs, confirms, `npm publish`). Docs:
   `docs/updating.md`.
 - Artifacts has no local emulator: `yarn dev` runs `env.dev`, which uses the remote service in the
-  `gitorange-dev` namespace. Tests use `wrangler.test.jsonc` (no remote bindings) plus an in-memory
+  `cloudforge-dev` namespace. Tests use `wrangler.test.jsonc` (no remote bindings) plus an in-memory
   Artifacts fake.
 
 ## Configuration files
@@ -191,25 +191,22 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 - When adding a binding or var, update all of: `wrangler.jsonc.example` (top level **and** `env.dev`),
   `wrangler.jsonc.ci`, `wrangler.test.jsonc` (if tests need it), and `docs/configuration.md`; then run
   `yarn cf-typegen` (which generates types from `wrangler.jsonc.ci`, never the local file).
-- A first deployment is `yarn gitorange install` (`/gitorange-onboarding` runs it with the user); keep the skill, `docs/setup.md`, and the installer's flags and messages in sync.
+- A first deployment is `yarn cloudforge install` (`/cloudforge-onboarding` runs it with the user); keep the skill, `docs/setup.md`, and the installer's flags and messages in sync.
 
 ## Git Workflow
 
-- ALL work happens on a new feature branch — never commit directly to `main`.
-- **NEVER push directly to `main`**.
-- **Deploy only when a person says so.** git.xyspace.dev runs releases only: cut a release (Releases tab or
-  `gitorange_create_release`), run `yarn release:publish vX.Y.Z` from a person's own machine, then
-  `npx gitorange@<version> upgrade --name gitorange`. Do each only when a person directs it in the conversation, or after
-  you ask and they confirm; never on your own initiative, and never as part of finishing a task. Say what you
-  deployed (the version) when done. For forks and other deployers, `yarn deploy` (or any `wrangler deploy`) and
-  `yarn db:migrate:prod` deploy `main` from a clean checkout of `origin/main` (a separate worktree with `wrangler.jsonc`
-  copied in), never from a feature branch or a dirty tree, with pending migrations applied before `yarn deploy`; the same
-  rule applies. The `/gitorange-onboarding` skill deploys step by step with the deployer's confirmation.
-- Submit work as a pull request for human review, on **git.xyspace.dev** (`origin`,
-  `choyiny/gitorange`): push the branch, then open it with the `gitorange_create_pull_request` MCP tool
-  (server `xy-space-gitorange`) and follow it with `gitorange_get_pull_request`. GitHub (`github` remote) is a
-  mirror for CodeQL and Dependabot; keep it in sync with `git push github main` after merges. Never approve
-  pull requests or review findings on someone's behalf.
+- CloudForge is an independent fork of GitOrange (`.fork-base`, tag `upstream-baseline`), distributed under
+  GPL-3.0-or-later (`COPYING`) over the Apache-2.0 upstream work (`LICENSE`). Never edit `LICENSE`; never push to the
+  `upstream` remote (its push URL is disabled); never rewrite published history.
+- `origin` is https://cnb.cool/CyberNova2333/cloudforge (CNB). ALL work happens on a feature branch merged into `main`.
+  Sign off every commit (`git commit -s`, see `CONTRIBUTING.md`).
+- A file changed from upstream carries a first-line notice ("Modified by CyberNova for the CloudForge fork … Originally
+  Apache-2.0 (see LICENSE)"); keep it when editing, and add it to an upstream file you change for the first time.
+- **Deploy only when a person says so.** `yarn deploy` (or any `wrangler deploy`) and `yarn db:migrate:prod` run only
+  when a person directs it in the conversation, or after you ask and they confirm; never on your own initiative, and
+  never as part of finishing a task. Apply pending migrations before deploying, and say what you deployed (the commit)
+  when done. The `/cloudforge-onboarding` skill deploys step by step with the deployer's confirmation.
+- Never approve pull requests or review findings on someone's behalf.
 
 ## Package Manager
 

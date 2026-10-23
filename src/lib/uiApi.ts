@@ -64,7 +64,7 @@ export type Repo = {
   fullName: string;
   description: string | null;
   defaultBranch: string;
-  /** Branch name patterns GitOrange never rebases (exact names, or globs: `*` within a segment, `**` across). */
+  /** Branch name patterns CloudForge never rebases (exact names, or globs: `*` within a segment, `**` across). */
   protectedBranches: string[];
   /** Every landing (the merge button or auto-merge) deletes the pull request's head branch. */
   deleteMergedBranches: boolean;
@@ -174,7 +174,7 @@ export type Pull = {
   reviewers?: PullReviewer[];
   mergeCommitSha: string | null;
   mergedBy: User | null;
-  /** GitOrange merged it on its own (auto-merge); mergedBy is then null. */
+  /** CloudForge merged it on its own (auto-merge); mergedBy is then null. */
   mergedAutomatically: boolean;
   mergedAt: string | null;
   closedAt: string | null;
@@ -218,7 +218,7 @@ export type PullStateName =
 /** A structured reason; fields other than kind depend on it (snake_case). */
 export type PullReason = { kind: string; [key: string]: unknown };
 export type PullState = { state: PullStateName; reasons: PullReason[] };
-/** GitOrange's own timeline entry on a pull request. */
+/** CloudForge's own timeline entry on a pull request. */
 export type PullEvent = {
   id: string;
   kind: string;
@@ -321,9 +321,9 @@ export type ReviewFlag = {
   guarded: boolean;
   /** Who was asked to decide it. */
   assignee: PersonRef | null;
-  /** How the current decision was made: a moderator app's name, or "GitOrange AI"; null from the web, or open. */
+  /** How the current decision was made: a moderator app's name, or "CloudForge AI"; null from the web, or open. */
   decidedVia: string | null;
-  /** The decider's reason (a person's for an approval, GitOrange AI's for either decision). */
+  /** The decider's reason (a person's for an approval, CloudForge AI's for either decision). */
   reason: string | null;
   /** What the decider taught the agent with the decision. */
   teach: string | null;
@@ -757,7 +757,7 @@ export type UsageLine = {
   projectedDedicatedCost: number;
   status: UsageLineStatus;
   reason?: string;
-  source: 'cloudflare' | 'gitorange' | 'estimate';
+  source: 'cloudflare' | 'cloudforge' | 'estimate';
   note?: string;
   billedFrom?: string;
   resources: { resource: string; quantity: number }[];
@@ -833,7 +833,7 @@ export type RepoStats = {
   merged7d: number;
   /** Merges per UTC day over those seven days, oldest first, today last. */
   mergedByDay: number[];
-  /** The share GitOrange merged on its own, 0 to 100; null when nothing merged. */
+  /** The share CloudForge merged on its own, 0 to 100; null when nothing merged. */
   mergedAutomaticallyPct: number | null;
   agents: {
     handle: string;
@@ -866,7 +866,7 @@ export type AgentStats = {
   bestCatch: { title: string; repo: string; number: number } | null;
   repos: { repo: string; status: AgentActivity; number: number | null }[];
 };
-/** Clef or Fixer: the agents GitOrange has built in (GET /api/agents/builtin). */
+/** Clef or Fixer: the agents CloudForge has built in (GET /api/agents/builtin). */
 export type BuiltinAgent = {
   id: 'clef' | 'fixer';
   name: string;
@@ -906,7 +906,7 @@ export type AuditEvent = {
     login: string | null;
     name: string | null;
   };
-  /** The app it went through: a connected MCP app's name, or "GitOrange AI". */
+  /** The app it went through: a connected MCP app's name, or "CloudForge AI". */
   via: string | null;
   action: string;
   target: string;
@@ -922,7 +922,7 @@ export type AuditPage = {
   nextCursor: string | null;
 };
 
-/** `data` of a `finding.delegated` event: what GitOrange AI answered for you (the pull request is the event's `pull`). */
+/** `data` of a `finding.delegated` event: what CloudForge AI answered for you (the pull request is the event's `pull`). */
 export type DelegatedData = {
   /** The finding's id. */
   finding: string;
@@ -939,7 +939,7 @@ export type DelegatedData = {
 export type DelegatedEvent = AuditEvent & { data: DelegatedData };
 /** GET/PUT /api/me/delegations. */
 export type Delegations = {
-  /** Every reviewer agent, and whether GitOrange AI decides its findings on your pull requests. */
+  /** Every reviewer agent, and whether CloudForge AI decides its findings on your pull requests. */
   agents: {
     handle: string;
     name: string;
@@ -948,7 +948,7 @@ export type Delegations = {
     guarded: boolean;
     delegated: boolean;
   }[];
-  /** GitOrange AI's answers for you since UTC midnight (`finding.delegated`), newest first. */
+  /** CloudForge AI's answers for you since UTC midnight (`finding.delegated`), newest first. */
   today: DelegatedEvent[];
 };
 
@@ -974,7 +974,7 @@ export type Finding = {
   state: FindingState;
   decidedBy: PersonRef | null;
   decidedAt: number | null;
-  /** A moderator app's name, or "GitOrange AI"; null from the web, or while open. */
+  /** A moderator app's name, or "CloudForge AI"; null from the web, or while open. */
   decidedVia: string | null;
   reason: string | null;
   /** The note sent with a request for changes. */
@@ -1005,14 +1005,14 @@ export type Finding = {
     bio: string;
     repository: string | null;
   } | null;
-  /** You let GitOrange AI decide this agent's findings on your pull requests. */
+  /** You let CloudForge AI decide this agent's findings on your pull requests. */
   delegated: boolean;
   /** What you can do with it now: decide (push rights, open), undo your decision, delegate it, assign it. */
   can: { decide: boolean; undo: boolean; delegate: boolean; assign: boolean };
   /** Its audit entries, oldest first. */
   history: AuditEvent[];
 };
-/** POST …/review/flags/{id}/delegate: what GitOrange AI decided. */
+/** POST …/review/flags/{id}/delegate: what CloudForge AI decided. */
 export type DelegateResult = {
   decision: 'approve' | 'request_changes' | 'leave';
   reason: string;
@@ -1671,7 +1671,7 @@ export const api = {
   preferences: () => apiFetch<Preferences>('/api/me/preferences'),
   savePreferences: (body: Preferences) =>
     apiFetch<Preferences>('/api/me/preferences', { method: 'PUT', json: body }),
-  /** Replaces the set of agents GitOrange AI decides for you (handles); 400 for an unknown agent, 422 for a guarded one. */
+  /** Replaces the set of agents CloudForge AI decides for you (handles); 400 for an unknown agent, 422 for a guarded one. */
   setDelegations: (agents: string[]) =>
     apiFetch<Delegations>('/api/me/delegations', {
       method: 'PUT',
@@ -1730,12 +1730,12 @@ export const api = {
       `${r(o, n)}/pulls/${num}/review/flags/${id}/assign`,
       { method: 'POST', json: { login } }
     ),
-  /** Reopen your decision (or GitOrange AI's for you) while the pull request is open; 403 for anyone else's, 409 after it closed. */
+  /** Reopen your decision (or CloudForge AI's for you) while the pull request is open; 403 for anyone else's, 409 after it closed. */
   undoFlag: (o: string, n: string, num: number, id: string) =>
     apiFetch<{ ok: true }>(`${r(o, n)}/pulls/${num}/review/flags/${id}/undo`, {
       method: 'POST',
     }),
-  /** Let GitOrange AI decide this finding now, as you. 422 for a guarded agent, 400 for an agent's own change request. */
+  /** Let CloudForge AI decide this finding now, as you. 422 for a guarded agent, 400 for an agent's own change request. */
   delegateFlag: (o: string, n: string, num: number, id: string) =>
     apiFetch<DelegateResult>(
       `${r(o, n)}/pulls/${num}/review/flags/${id}/delegate`,

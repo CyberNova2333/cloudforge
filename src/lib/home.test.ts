@@ -244,13 +244,13 @@ describe('healthState', () => {
 describe('homeLede', () => {
   it('tells what merged and how much needed no merge click', () => {
     expect(homeLede({ merged7d: 67, automatic: 56 })).toBe(
-      'GitOrange merged 67 changes in the last 7 days; 56 needed no merge click.'
+      'CloudForge merged 67 changes in the last 7 days; 56 needed no merge click.'
     );
     expect(homeLede({ merged7d: 1, automatic: 1 })).toBe(
-      'GitOrange merged 1 change in the last 7 days, and it needed no merge click.'
+      'CloudForge merged 1 change in the last 7 days, and it needed no merge click.'
     );
     expect(homeLede({ merged7d: 3, automatic: 3 })).toBe(
-      'GitOrange merged 3 changes in the last 7 days, and none needed a merge click.'
+      'CloudForge merged 3 changes in the last 7 days, and none needed a merge click.'
     );
     expect(homeLede({ merged7d: 0, automatic: 0 })).toBe(
       'Nothing has merged in the last 7 days.'

@@ -35,7 +35,7 @@ const ABOUT = {
   ],
 } as const;
 
-/** Clef or Fixer, at `/agents/clef` and `/agents/fixer`: built into GitOrange, with no account or repository. */
+/** Clef or Fixer, at `/agents/clef` and `/agents/fixer`: built into CloudForge, with no account or repository. */
 export default function AgentBuiltin() {
   const { id = '' } = useParams();
   const known = id === 'clef' || id === 'fixer' ? id : null;
@@ -106,7 +106,7 @@ export default function AgentBuiltin() {
               ))}
               <p className="muted small">
                 {tx(
-                  'Built into GitOrange. It has no account and no instruction repository; reviewers are the agents you can add and change. See {link}.',
+                  'Built into CloudForge. It has no account and no instruction repository; reviewers are the agents you can add and change. See {link}.',
                   { link: <Link to="/agents">{t('all agents')}</Link> }
                 )}
               </p>

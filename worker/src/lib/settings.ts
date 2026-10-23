@@ -370,7 +370,7 @@ function bounds(schema: z.ZodType): { min?: number; max?: number } {
   };
 }
 
-/** The instance's display name: Site admin's setting, else `APP_NAME`, else "GitOrange". */
+/** The instance's display name: Site admin's setting, else `APP_NAME`, else "CloudForge". */
 export const instanceName = (db: DrizzleDB, env: CloudflareBindings) =>
   getSetting(db, env, 'app.name');
 

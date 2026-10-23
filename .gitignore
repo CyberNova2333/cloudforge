@@ -12,8 +12,8 @@ wrangler.jsonc
 # Superpowers subagent-driven-development workspaces
 .superpowers/
 
-# GitOrange installer state
-.gitorange/
+# CloudForge installer state
+.cloudforge/
 
 # yarn pack:npm output (the npm package and its build). build/ also holds tracked build code.
 /build/*

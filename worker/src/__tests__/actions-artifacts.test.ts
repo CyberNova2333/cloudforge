@@ -111,7 +111,7 @@ jobs:
       ARTIFACT_HIDDEN: 'false',
     });
     expect(dist.masks).toContain(dist.env.ARTIFACT_URL);
-    expect(script(dist)).toContain("python3 - <<'GITORANGE_ZIP'");
+    expect(script(dist)).toContain("python3 - <<'CLOUDFORGE_ZIP'");
     expect(script(dist)).toContain('retention-days is not used here');
     expect(script(dist)).toContain(
       `artifact-url=http://test.local/api/repos/octocat/app/actions/runs/1/artifacts/dist/zip`
@@ -126,7 +126,7 @@ jobs:
     expect(keyOf(one.env.ARTIFACT_URL_0)).toBe(keyOf(dist.env.ARTIFACT_URL));
     expect(one.env.ARTIFACT_URL_1).toBeUndefined();
     expect(script(one)).toContain(
-      "unzip -oq /tmp/gitorange-artifact-0.zip -d '/workspace/out'"
+      "unzip -oq /tmp/cloudforge-artifact-0.zip -d '/workspace/out'"
     );
     expect(script(one)).toContain("'download-path=/workspace/out'");
     // A pattern, merged into the workspace.

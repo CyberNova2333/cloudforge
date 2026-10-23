@@ -1,5 +1,5 @@
 {
-  // `yarn gitorange install` generates wrangler.jsonc from this file and your answers (see docs/setup.md).
+  // `yarn cloudforge install` generates wrangler.jsonc from this file and your answers (see docs/setup.md).
   // Copying it to wrangler.jsonc and filling in your values by hand still works.
   // wrangler.jsonc is gitignored so each deployer keeps their own account and resource IDs.
   //
@@ -7,7 +7,7 @@
   // `env.dev` is what `yarn dev` runs locally: local D1, but Artifacts has no local emulator,
   // so dev talks to the real service in a separate namespace and never touches production repos.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "gitorange",
+  "name": "cloudforge",
   "main": "worker/src/index.ts",
   "account_id": "<your-cloudflare-account-id>",
   "compatibility_date": "2026-10-01",
@@ -19,25 +19,25 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "gitorange-db",
+      "database_name": "cloudforge-db",
       "database_id": "<your-d1-database-id>",
       "migrations_dir": "migrations"
     }
   ],
-  // Git storage. One Artifacts repo per GitOrange repository, all in this namespace.
-  "artifacts": [{ "binding": "ARTIFACTS", "namespace": "gitorange" }],
+  // Git storage. One Artifacts repo per CloudForge repository, all in this namespace.
+  "artifacts": [{ "binding": "ARTIFACTS", "namespace": "cloudforge" }],
   // Invitation emails. FROM_EMAIL's domain must be onboarded to Cloudflare Email Sending:
   // https://dash.cloudflare.com/?to=/:account/email-service
   "send_email": [{ "name": "EMAIL" }],
-  // Optional secret SETUP_CODE_HASH: hash of the one-time setup code that gates the first admin (set by `yarn gitorange install`).
+  // Optional secret SETUP_CODE_HASH: hash of the one-time setup code that gates the first admin (set by `yarn cloudforge install`).
   // Git LFS file contents. Clients upload/download directly via pre-signed URLs, which need an
   // R2 API token: `wrangler secret put R2_ACCESS_KEY_ID` and `wrangler secret put R2_SECRET_ACCESS_KEY`.
   "r2_buckets": [
-    { "binding": "LFS", "bucket_name": "gitorange-lfs" },
-    { "binding": "ACTIONS_LOGS", "bucket_name": "gitorange-actions-logs" },
-    { "binding": "ACTIONS_CACHE", "bucket_name": "gitorange-actions-cache" }
+    { "binding": "LFS", "bucket_name": "cloudforge-lfs" },
+    { "binding": "ACTIONS_LOGS", "bucket_name": "cloudforge-actions-logs" },
+    { "binding": "ACTIONS_CACHE", "bucket_name": "cloudforge-actions-cache" }
   ],
-  // GitOrange Actions. Each run is a Workflow; each job gets its own container, started by a
+  // CloudForge Actions. Each run is a Workflow; each job gets its own container, started by a
   // JobRunner Durable Object (scheduling policy "durable_object"), which picks the instance size
   // from the job's runs-on. Wrangler builds the runner image from actions/runner/Dockerfile on
   // deploy. Step logs go to R2. The ActionsQueue Durable Object caps how many jobs run at once (Site admin → Settings). Remove these entries to deploy without Actions.
@@ -65,8 +65,8 @@
     "LiveHub": { "type": "durable-object", "storage": "sqlite" }
   },
   "workflows": [
-    { "name": "gitorange-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
-    { "name": "gitorange-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
+    { "name": "cloudforge-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
+    { "name": "cloudforge-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
   ],
   // Daily housekeeping: deletes Actions runs past their retention (Site admin → Actions).
   "triggers": { "crons": ["17 4 * * *", "30 2 * * *"] },
@@ -83,32 +83,32 @@
   },
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "vars": {
-    "APP_NAME": "GitOrange",
+    "APP_NAME": "CloudForge",
     // Public URL of the instance; used in invite links and auth redirects.
     "BASE_URL": "https://<your-deployed-host>",
     "FROM_EMAIL": "noreply@<your-email-sending-domain>",
     // Where pre-signed LFS URLs point: https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com/<LFS_BUCKET_NAME>
     "R2_ACCOUNT_ID": "<your-cloudflare-account-id>",
-    "LFS_BUCKET_NAME": "gitorange-lfs",
-    "ACTIONS_CACHE_BUCKET_NAME": "gitorange-actions-cache",
+    "LFS_BUCKET_NAME": "cloudforge-lfs",
+    "ACTIONS_CACHE_BUCKET_NAME": "cloudforge-actions-cache",
     // Workers AI model that resolves merge conflicts (pi agent with file tools).
     "RESOLVER_MODEL": "@cf/zai-org/glm-5.3",
-    "GITORANGE_INSTALLATION": "",
-    "GITORANGE_VERSION": "",
+    "CLOUDFORGE_INSTALLATION": "",
+    "CLOUDFORGE_VERSION": "",
     "AI_GATEWAY": "default",
     "SUMMARY_MODEL": "@cf/zai-org/glm-5.3-flash",
     "REVIEW_MODEL": "@cf/zai-org/glm-5.3",
     // Usage & cost (Site admin): which Cloudflare resources are this deployment's, so analytics
-    // are filtered to GitOrange and never show the rest of the account. Leave a value empty to
+    // are filtered to CloudForge and never show the rest of the account. Leave a value empty to
     // skip that metric. Each DO namespace ID is on the dashboard's Durable Objects page (select
     // the class; the ID is shown on the namespace and in its URL). Needs the CF_ANALYTICS_TOKEN
     // secret: an account API token with Account Analytics: Read.
-    "WORKER_NAME": "gitorange",
+    "WORKER_NAME": "cloudforge",
     "D1_DATABASE_ID": "<your-d1-database-id>",
-    "ACTIONS_LOGS_BUCKET_NAME": "gitorange-actions-logs",
-    "ARTIFACTS_NAMESPACE": "gitorange",
-    "ACTIONS_WORKFLOW_NAME": "gitorange-actions-run",
-    "MERGE_RESOLUTION_WORKFLOW_NAME": "gitorange-merge-resolution",
+    "ACTIONS_LOGS_BUCKET_NAME": "cloudforge-actions-logs",
+    "ARTIFACTS_NAMESPACE": "cloudforge",
+    "ACTIONS_WORKFLOW_NAME": "cloudforge-actions-run",
+    "MERGE_RESOLUTION_WORKFLOW_NAME": "cloudforge-merge-resolution",
     "JOB_RUNNER_NAMESPACE_ID": "",
     "MERGE_RESOLVER_NAMESPACE_ID": "",
     "AGENT_REVIEWER_NAMESPACE_ID": "",
@@ -122,17 +122,17 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "gitorange-db-dev",
+          "database_name": "cloudforge-db-dev",
           "database_id": "local",
           "migrations_dir": "migrations"
         }
       ],
-      "artifacts": [{ "binding": "ARTIFACTS", "namespace": "gitorange-dev", "remote": true }],
+      "artifacts": [{ "binding": "ARTIFACTS", "namespace": "cloudforge-dev", "remote": true }],
       "send_email": [{ "name": "EMAIL" }],
       "r2_buckets": [
-        { "binding": "LFS", "bucket_name": "gitorange-lfs-dev", "remote": true },
-        { "binding": "ACTIONS_LOGS", "bucket_name": "gitorange-actions-logs-dev" },
-        { "binding": "ACTIONS_CACHE", "bucket_name": "gitorange-actions-cache-dev", "remote": true }
+        { "binding": "LFS", "bucket_name": "cloudforge-lfs-dev", "remote": true },
+        { "binding": "ACTIONS_LOGS", "bucket_name": "cloudforge-actions-logs-dev" },
+        { "binding": "ACTIONS_CACHE", "bucket_name": "cloudforge-actions-cache-dev", "remote": true }
       ],
       // Actions jobs run in local Docker containers in dev (Docker must be running).
       "containers": [
@@ -152,32 +152,32 @@
         ]
       },
       "workflows": [
-        { "name": "gitorange-actions-run-dev", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
-        { "name": "gitorange-merge-resolution-dev", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
+        { "name": "cloudforge-actions-run-dev", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
+        { "name": "cloudforge-merge-resolution-dev", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
       ],
       // Daily housekeeping: deletes Actions runs past their retention (Site admin → Actions).
       "triggers": { "crons": ["17 4 * * *", "30 2 * * *"] },
       // Workers AI has no local emulator either; dev calls the real service.
       "ai": { "binding": "AI", "remote": true },
       "vars": {
-        "APP_NAME": "GitOrange",
+        "APP_NAME": "CloudForge",
         "BASE_URL": "http://localhost:8080",
         "FROM_EMAIL": "noreply@<your-email-sending-domain>",
         "R2_ACCOUNT_ID": "<your-cloudflare-account-id>",
-        "LFS_BUCKET_NAME": "gitorange-lfs-dev",
-        "ACTIONS_CACHE_BUCKET_NAME": "gitorange-actions-cache-dev",
+        "LFS_BUCKET_NAME": "cloudforge-lfs-dev",
+        "ACTIONS_CACHE_BUCKET_NAME": "cloudforge-actions-cache-dev",
         "RESOLVER_MODEL": "@cf/zai-org/glm-5.3",
-        "GITORANGE_INSTALLATION": "",
-        "GITORANGE_VERSION": "",
+        "CLOUDFORGE_INSTALLATION": "",
+        "CLOUDFORGE_VERSION": "",
         "AI_GATEWAY": "default",
         "SUMMARY_MODEL": "@cf/zai-org/glm-5.3-flash",
         "REVIEW_MODEL": "@cf/zai-org/glm-5.3",
-        "WORKER_NAME": "gitorange-dev",
+        "WORKER_NAME": "cloudforge-dev",
         "D1_DATABASE_ID": "",
-        "ACTIONS_LOGS_BUCKET_NAME": "gitorange-actions-logs-dev",
-        "ARTIFACTS_NAMESPACE": "gitorange-dev",
-        "ACTIONS_WORKFLOW_NAME": "gitorange-actions-run-dev",
-        "MERGE_RESOLUTION_WORKFLOW_NAME": "gitorange-merge-resolution-dev",
+        "ACTIONS_LOGS_BUCKET_NAME": "cloudforge-actions-logs-dev",
+        "ARTIFACTS_NAMESPACE": "cloudforge-dev",
+        "ACTIONS_WORKFLOW_NAME": "cloudforge-actions-run-dev",
+        "MERGE_RESOLUTION_WORKFLOW_NAME": "cloudforge-merge-resolution-dev",
         "JOB_RUNNER_NAMESPACE_ID": "",
         "MERGE_RESOLVER_NAMESPACE_ID": "",
         "AGENT_REVIEWER_NAMESPACE_ID": "",

@@ -458,7 +458,7 @@ export function probeQuery(p: Probe, day: string): string {
     ...Object.entries(p.filter).map(([k, v]) => `${k}: ${lit(v)}`),
     timeFilter(p.time, day),
   ].join(', ');
-  return `query GitOrangeUsage($accountTag: string!) {
+  return `query CloudForgeUsage($accountTag: string!) {
   viewer {
     accounts(filter: { accountTag: $accountTag }) {
       groups: ${p.dataset}(limit: 10000, filter: { ${filter} }) { ${p.select} }

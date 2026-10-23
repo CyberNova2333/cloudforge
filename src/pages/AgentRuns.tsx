@@ -156,7 +156,7 @@ export function AgentRunList({
                   : t('No agent runs yet')
               }
               body={t(
-                "Each time GitOrange's AI works on this repository, the run shows here with its steps, models, tokens and decisions."
+                "Each time CloudForge's AI works on this repository, the run shows here with its steps, models, tokens and decisions."
               )}
             />
           </div>

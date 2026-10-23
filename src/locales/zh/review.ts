@@ -289,8 +289,8 @@ export const review: Record<string, string> = {
   Title: '标题',
 
   // RepoTags
-  'Every tag in the repository. A tag pushed with git is listed too, but only a release GitOrange cut counts as a version.':
-    '仓库中的每个标签。用 git 推送的标签也会列出，但只有 GitOrange 发布的发行版才算作版本。',
+  'Every tag in the repository. A tag pushed with git is listed too, but only a release CloudForge cut counts as a version.':
+    '仓库中的每个标签。用 git 推送的标签也会列出，但只有 CloudForge 发布的发行版才算作版本。',
   'The tags did not load': '标签未能加载',
   'No tags yet': '还没有标签',
   'Cutting a release tags the default branch; tags pushed with git show up here too.':

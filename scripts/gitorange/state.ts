@@ -55,7 +55,7 @@ export interface InstallState {
   doNamespaceIds: Record<string, string>;
   /** sha256 of the wrangler.jsonc text last deployed successfully. */
   deployedConfigHash?: string;
-  /** The `GITORANGE_VERSION` last deployed successfully: what verify expects. */
+  /** The `CLOUDFORGE_VERSION` last deployed successfully: what verify expects. */
   deployedVersion?: string;
   /** Absolute state dir this installation moved to; this file is then a stub. */
   movedTo?: string;
@@ -204,7 +204,7 @@ export function acquireLock(
     startedAt: new Date().toISOString(),
   };
   const heldMessage = (h: LockInfo) =>
-    `Another gitorange run is using this installation (pid ${h.pid} on ${h.host}).`;
+    `Another cloudforge run is using this installation (pid ${h.pid} on ${h.host}).`;
 
   // The lock file appears only fully written: write a private file, then link it into place.
   const tryCreate = (): boolean => {
@@ -254,7 +254,7 @@ export function acquireLock(
       held = JSON.parse(raw) as LockInfo;
     } catch {
       throw new Error(
-        `Another gitorange run is using this installation (lock file ${path} is unreadable). ` +
+        `Another cloudforge run is using this installation (lock file ${path} is unreadable). ` +
           'If that run is gone, delete the file.'
       );
     }

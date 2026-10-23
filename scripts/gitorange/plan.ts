@@ -246,7 +246,7 @@ function decide(
         }
         return 'create';
       }
-      const m = parseObject(observed.worker.vars?.GITORANGE_INSTALLATION);
+      const m = parseObject(observed.worker.vars?.CLOUDFORGE_INSTALLATION);
       if (
         m &&
         m.installationId === installationId &&

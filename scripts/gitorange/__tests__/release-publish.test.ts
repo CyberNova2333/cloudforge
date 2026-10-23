@@ -106,14 +106,14 @@ describe('packageSmoke', () => {
     worktree: '/wt',
     pkgDir: '/wt/build/npm',
     scratch: '/s',
-    name: 'gitorange',
+    name: '@cybernova2333/cloudforge',
     version: '1.2.3',
     node: '/usr/bin/node',
   };
 
   it("runs CI's Package job checks, argv only, with the worktree's wrangler", () => {
     const p = packageSmoke(o);
-    expect(p.tarball).toBe('/s/pkg/gitorange-1.2.3.tgz');
+    expect(p.tarball).toBe('/s/pkg/cybernova2333-cloudforge-1.2.3.tgz');
     expect(p.steps).toEqual([
       {
         cmd: 'npm',
@@ -146,12 +146,12 @@ describe('packageSmoke', () => {
       { cmd: 'npm', args: ['init', '-y'], cwd: '/s/app' },
       {
         cmd: 'npm',
-        args: ['install', '/s/pkg/gitorange-1.2.3.tgz'],
+        args: ['install', '/s/pkg/cybernova2333-cloudforge-1.2.3.tgz'],
         cwd: '/s/app',
       },
     ]);
     expect(p.help).toEqual({
-      cmd: '/s/app/node_modules/.bin/gitorange',
+      cmd: '/s/app/node_modules/.bin/cloudforge',
       args: ['--help'],
       cwd: '/s/app',
     });
@@ -161,7 +161,7 @@ describe('packageSmoke', () => {
 describe('missingCommands', () => {
   it('names the commands --help does not list', () => {
     const help =
-      'Usage: gitorange <command>\n\n  install  Install\n  status   Show\n';
+      'Usage: cloudforge <command>\n\n  install  Install\n  status   Show\n';
     expect(missingCommands(help)).toEqual(['upgrade', 'adopt']);
     expect(
       missingCommands('  install  a\n  upgrade  b\n  adopt  c\n  status  d\n')

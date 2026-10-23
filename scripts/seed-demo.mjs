@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fills a local GitOrange dev instance with a demo: a teammate, an invoicing project with ten days of history, eight
+// Fills a local CloudForge dev instance with a demo: a teammate, an invoicing project with ten days of history, eight
 // merged pull requests, six open ones, the reviewer crew, their findings and a week of test runs, so every page has
 // something to show. Development only: it refuses any host that is not local.
 //
@@ -385,7 +385,7 @@ async function main() {
       pr.number = made.number;
       pr.id = made.id;
     };
-    // GitOrange's AI works on a pull request in the background when it opens (stack discovery); landing and the states
+    // CloudForge's AI works on a pull request in the background when it opens (stack discovery); landing and the states
     // wait for it so the demo does not depend on a race.
     const waitIdle = async (timeoutMs = 240_000, quietPolls = 2) => {
       if (dry) return;
@@ -562,7 +562,7 @@ async function main() {
       const moved = await openPullsMoved();
       if (moved.length)
         throw new Error(
-          `GitOrange's own AI work moved ${moved.join(', ')} while the demo was being built (it rebased or stacked it), so the reviews would describe a commit that is gone. Run again with --reset.`
+          `CloudForge's own AI work moved ${moved.join(', ')} while the demo was being built (it rebased or stacked it), so the reviews would describe a commit that is gone. Run again with --reset.`
         );
     }
 

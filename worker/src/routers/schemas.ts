@@ -57,7 +57,7 @@ export const repoSchema = z
     visibility: z.enum(['private', 'internal', 'public']),
     description: z.string().nullable(),
     defaultBranch: z.string(),
-    // Branch name patterns GitOrange never rebases (exact names, or globs: * within a segment, ** across).
+    // Branch name patterns CloudForge never rebases (exact names, or globs: * within a segment, ** across).
     protectedBranches: z.array(z.string()),
     // Every landing (the merge button or auto-merge) deletes the pull request's head branch.
     deleteMergedBranches: z.boolean(),
@@ -87,7 +87,7 @@ export const repoStatsSchema = z
     merged7d: z.number(),
     /** Merges per UTC day over those seven days, oldest first, today last. */
     mergedByDay: z.array(z.number()),
-    /** The share GitOrange merged on its own, 0 to 100; null when nothing merged. */
+    /** The share CloudForge merged on its own, 0 to 100; null when nothing merged. */
     mergedAutomaticallyPct: z.number().nullable(),
     agents: z.array(
       z.object({
@@ -138,7 +138,7 @@ export const agentStatsSchema = z
   })
   .openapi('AgentStats');
 
-/** Clef or Fixer: the agents GitOrange has built in. */
+/** Clef or Fixer: the agents CloudForge has built in. */
 export const builtinAgentSchema = z
   .object({
     id: z.enum(['clef', 'fixer']),
@@ -261,9 +261,9 @@ export const flagDecisionFields = {
   guarded: z.boolean(),
   /** Who was asked to decide it. */
   assignee: personRefSchema.nullable(),
-  /** How the current decision was made: a moderator app's name, or "GitOrange AI"; null from the web, or open. */
+  /** How the current decision was made: a moderator app's name, or "CloudForge AI"; null from the web, or open. */
   decidedVia: z.string().nullable(),
-  /** The decider's reason (a person's for an approval, GitOrange AI's for either decision). */
+  /** The decider's reason (a person's for an approval, CloudForge AI's for either decision). */
   reason: z.string().nullable(),
   /** What the decider taught the agent with the decision. */
   teach: z.string().nullable(),
@@ -280,7 +280,7 @@ export const auditEventSchema = z
       login: z.string().nullable(),
       name: z.string().nullable(),
     }),
-    /** The app it went through: a connected MCP app's name, or "GitOrange AI". */
+    /** The app it went through: a connected MCP app's name, or "CloudForge AI". */
     via: z.string().nullable(),
     action: z.string(),
     target: z.string(),

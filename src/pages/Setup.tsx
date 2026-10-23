@@ -79,7 +79,7 @@ export default function Setup() {
             />
             <p id="code-hint" className="hint">
               {tx('Printed at the end of {command}.', {
-                command: <code>yarn gitorange install</code>,
+                command: <code>yarn cloudforge install</code>,
               })}
             </p>
           </div>

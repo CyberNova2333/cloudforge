@@ -25,7 +25,7 @@ export function rebaseHeadline(
       return {
         title: t('Behind {onto}', { onto: r.onto }),
         detail: t(
-          'GitOrange rebases it onto the latest commits; merging rebases it first if it still needs to.'
+          'CloudForge rebases it onto the latest commits; merging rebases it first if it still needs to.'
         ),
       };
     case 'resolving':
@@ -59,7 +59,7 @@ export function rebaseHeadline(
 }
 
 /**
- * Whether a person may try the rebase again: it stopped (a conflict), and not on a branch GitOrange never rebases
+ * Whether a person may try the rebase again: it stopped (a conflict), and not on a branch CloudForge never rebases
  * ("Not rebased: …", which only bringing the branch up to date clears).
  */
 export function canRetryRebase(r: RebaseView | null): boolean {
@@ -72,7 +72,7 @@ export function rebasedText(d: Record<string, unknown>): string {
   const resolved = Number(d.resolved) || 0;
   const onto = d.onto != null ? String(d.onto) : t('its base');
   return (
-    t('GitOrange rebased this branch onto {onto} ({from} → {to})', {
+    t('CloudForge rebased this branch onto {onto} ({from} → {to})', {
       onto,
       from: sha7(d.from),
       to: sha7(d.to),

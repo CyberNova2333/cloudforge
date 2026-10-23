@@ -152,15 +152,15 @@ export function homeLede(input: {
   if (automatic === merged7d)
     return merged7d === 1
       ? t(
-          'GitOrange merged {changes} in the last 7 days, and it needed no merge click.',
+          'CloudForge merged {changes} in the last 7 days, and it needed no merge click.',
           { changes }
         )
       : t(
-          'GitOrange merged {changes} in the last 7 days, and none needed a merge click.',
+          'CloudForge merged {changes} in the last 7 days, and none needed a merge click.',
           { changes }
         );
   return t(
-    'GitOrange merged {changes} in the last 7 days; {automatic} needed no merge click.',
+    'CloudForge merged {changes} in the last 7 days; {automatic} needed no merge click.',
     { changes, automatic }
   );
 }

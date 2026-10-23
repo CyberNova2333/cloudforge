@@ -31,7 +31,7 @@ export type SetupCheck = {
 
 const PROBE_TIMEOUT_MS = 4000;
 /** A key that never exists: probes only read it. */
-const PROBE_KEY = '__gitorange-setup-probe';
+const PROBE_KEY = '__cloudforge-setup-probe';
 /** `.dev.vars.example`'s placeholder. */
 const EXAMPLE_AUTH_SECRET = 'change-me-to-a-long-random-string';
 export const MIN_AUTH_SECRET_LENGTH = 32;
@@ -192,7 +192,7 @@ function secretChecks(ctx: Ctx): SetupCheck[] {
     title: 'SETUP_CODE_HASH',
     status: 'ok',
     detail: codeSet
-      ? 'Set: the first admin needs the code from `yarn gitorange install`.'
+      ? 'Set: the first admin needs the code from `yarn cloudforge install`.'
       : 'Not set: the first account created becomes the site admin.',
     fix: [],
   });
@@ -216,7 +216,7 @@ const BINDINGS: BindingSpec[] = [
     without:
       'Nothing works: users, repositories, and pull requests live in D1.',
     snippet: `"d1_databases": [
-  { "binding": "DB", "database_name": "gitorange-db", "database_id": "<id from wrangler d1 create>", "migrations_dir": "migrations" }
+  { "binding": "DB", "database_name": "cloudforge-db", "database_id": "<id from wrangler d1 create>", "migrations_dir": "migrations" }
 ]`,
   },
   {
@@ -224,7 +224,7 @@ const BINDINGS: BindingSpec[] = [
     required: true,
     without:
       'No git storage: repositories cannot be created, browsed, cloned, or pushed.',
-    snippet: `"artifacts": [{ "binding": "ARTIFACTS", "namespace": "gitorange" }]`,
+    snippet: `"artifacts": [{ "binding": "ARTIFACTS", "namespace": "cloudforge" }]`,
   },
   {
     name: 'ASSETS',
@@ -243,7 +243,7 @@ const BINDINGS: BindingSpec[] = [
     without:
       'Git LFS cannot store files, and deleting a repository cannot clean up its LFS objects.',
     snippet: `"r2_buckets": [
-  { "binding": "LFS", "bucket_name": "gitorange-lfs" },
+  { "binding": "LFS", "bucket_name": "cloudforge-lfs" },
   …
 ]`,
   },
@@ -259,7 +259,7 @@ const BINDINGS: BindingSpec[] = [
     required: false,
     without: 'Actions is off: pushes never queue workflow runs.',
     snippet: `"workflows": [
-  { "name": "gitorange-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
+  { "name": "cloudforge-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
   …
 ]`,
   },
@@ -285,7 +285,7 @@ const BINDINGS: BindingSpec[] = [
     required: false,
     without: 'Actions step logs cannot be stored or shown.',
     snippet: `"r2_buckets": [
-  { "binding": "ACTIONS_LOGS", "bucket_name": "gitorange-actions-logs" },
+  { "binding": "ACTIONS_LOGS", "bucket_name": "cloudforge-actions-logs" },
   …
 ]`,
   },
@@ -295,7 +295,7 @@ const BINDINGS: BindingSpec[] = [
     without:
       'Actions jobs run without a cache (actions/cache, setup-node cache:).',
     snippet: `"r2_buckets": [
-  { "binding": "ACTIONS_CACHE", "bucket_name": "gitorange-actions-cache" },
+  { "binding": "ACTIONS_CACHE", "bucket_name": "cloudforge-actions-cache" },
   …
 ]`,
   },
@@ -305,7 +305,7 @@ const BINDINGS: BindingSpec[] = [
     without:
       'No AI conflict resolution and no agent reviews: conflicts must be resolved locally and a person approves every pull request.',
     snippet: `"workflows": [
-  { "name": "gitorange-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" },
+  { "name": "cloudforge-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" },
   …
 ]`,
   },
@@ -701,8 +701,8 @@ function variableChecks(ctx: Ctx): SetupCheck[] {
     status: name ? 'ok' : 'warning',
     detail: name
       ? `"${name}".`
-      : 'Not set; the instance is called "GitOrange" in titles, emails, and the MCP server id.',
-    fix: name ? [] : varFix(ctx, '"APP_NAME": "GitOrange"'),
+      : 'Not set; the instance is called "CloudForge" in titles, emails, and the MCP server id.',
+    fix: name ? [] : varFix(ctx, '"APP_NAME": "CloudForge"'),
   });
 
   // Where pre-signed URLs point; only matters once the R2 token is set.
@@ -894,7 +894,7 @@ async function gatewayChecks(ctx: Ctx): Promise<SetupCheck[]> {
 
 /** Resource vars that scope Cloudflare analytics to this deployment, and what each one measures. */
 const USAGE_VARS: [string, string, string][] = [
-  ['WORKER_NAME', 'Worker requests and CPU', 'gitorange'],
+  ['WORKER_NAME', 'Worker requests and CPU', 'cloudforge'],
   [
     'D1_DATABASE_ID',
     'D1 rows read and written, storage',
@@ -903,18 +903,18 @@ const USAGE_VARS: [string, string, string][] = [
   [
     'ACTIONS_LOGS_BUCKET_NAME',
     'R2 usage of the Actions logs bucket',
-    'gitorange-actions-logs',
+    'cloudforge-actions-logs',
   ],
-  ['ARTIFACTS_NAMESPACE', 'Artifacts operations', 'gitorange'],
+  ['ARTIFACTS_NAMESPACE', 'Artifacts operations', 'cloudforge'],
   [
     'ACTIONS_WORKFLOW_NAME',
     'Workflows usage of Actions runs',
-    'gitorange-actions-run',
+    'cloudforge-actions-run',
   ],
   [
     'MERGE_RESOLUTION_WORKFLOW_NAME',
     'Workflows usage of AI resolution and review',
-    'gitorange-merge-resolution',
+    'cloudforge-merge-resolution',
   ],
 ];
 
@@ -946,7 +946,7 @@ async function usageChecks(ctx: Ctx): Promise<SetupCheck[]> {
           title: 'CF_ANALYTICS_TOKEN',
           status: 'warning',
           detail:
-            "Not set. Usage & cost shows only GitOrange's own records (Actions runners, AI tokens, emails), not Cloudflare's analytics.",
+            "Not set. Usage & cost shows only CloudForge's own records (Actions runners, AI tokens, emails), not Cloudflare's analytics.",
           fix: [
             {
               text: 'Create an account API token with only Account Analytics: Read, scoped to this account.',
@@ -1008,7 +1008,8 @@ async function usageChecks(ctx: Ctx): Promise<SetupCheck[]> {
             {
               text: `Open Durable Objects in the dashboard and select ${badIds
                 .map(
-                  ([, c]) => `${ctx.local ? 'gitorange-dev' : 'gitorange'}_${c}`
+                  ([, c]) =>
+                    `${ctx.local ? 'cloudforge-dev' : 'cloudforge'}_${c}`
                 )
                 .join(
                   ', '

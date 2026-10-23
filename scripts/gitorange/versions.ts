@@ -76,7 +76,7 @@ export async function compareRunning(
       {
         headers: {
           Accept: 'application/vnd.github+json',
-          'User-Agent': 'gitorange-cli',
+          'User-Agent': 'cloudforge-cli',
         },
         signal: AbortSignal.timeout(5000),
       }
@@ -108,10 +108,13 @@ export async function latestOnNpm(
   fetchImpl: typeof fetch
 ): Promise<string | null> {
   try {
-    const res = await fetchImpl('https://registry.npmjs.org/gitorange', {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(3000),
-    });
+    const res = await fetchImpl(
+      'https://registry.npmjs.org/@cybernova2333%2fcloudforge',
+      {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(3000),
+      }
+    );
     if (!res.ok) return null;
     const body = (await res.json()) as {
       'dist-tags'?: { latest?: unknown };

@@ -58,7 +58,7 @@ const ENDS_MONEY =
 
 // ── Pull requests that are already merged ────────────────────────────────────
 // Landed one after another through the merge API, each a fast-forward of main. `approver` approves, `merger` presses
-// merge; `auto` marks it as merged by GitOrange on its own (set afterwards: the API always records a person).
+// merge; `auto` marks it as merged by CloudForge on its own (set afterwards: the API always records a person).
 
 export const MERGED = [
   {
@@ -894,7 +894,7 @@ export async function currentToken(
               decision: {
                 kind: 'approve',
                 by: 'admin',
-                via: 'GitOrange AI',
+                via: 'CloudForge AI',
                 at: { d: 1, h: 15, m: 20 },
                 reason:
                   'The setting falls back to 900 seconds, so production keeps working without a value.',

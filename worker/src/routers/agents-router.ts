@@ -136,7 +136,7 @@ const builtinRoute = createRoute({
   tags: ['Agents'],
   summary: 'Clef and Fixer',
   description:
-    'The two agents GitOrange has built in, with their last seven days: what Clef routed and how long a decision took, ' +
+    'The two agents CloudForge has built in, with their last seven days: what Clef routed and how long a decision took, ' +
     'and what Fixer attempted, combined itself and saw merged anyway. Only repositories the caller can see count.',
   responses: {
     ...json200Response(z.array(builtinAgentSchema), 'Clef, then Fixer'),

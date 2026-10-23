@@ -193,7 +193,7 @@ export function Rail({
           aria-label={t('{name} home', { name: appName })}
         >
           <img src="/logo.png" width={26} height={26} alt="" />
-          <span className="brand-wordmark">GitOrange</span>
+          <span className="brand-wordmark">CloudForge</span>
         </Link>
         <div className="snav-ws" data-menu-root="org">
           <button

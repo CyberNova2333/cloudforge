@@ -247,7 +247,7 @@ describe('nextStep', () => {
     );
   });
 
-  it('explains a clash Fixer could not combine, and a branch GitOrange never rebases', () => {
+  it('explains a clash Fixer could not combine, and a branch CloudForge never rebases', () => {
     const clash = nextStep(
       input({
         rebase: rebase({ status: 'conflict', commit: 'abc1234def' }),
@@ -276,7 +276,7 @@ describe('nextStep', () => {
       ctx()
     );
     expect(blocked.headline).toBe(
-      'GitOrange doesn’t rebase this branch, and it is behind main.'
+      'CloudForge doesn’t rebase this branch, and it is behind main.'
     );
     expect(blocked.detail).toBe('Not rebased: release/* is protected');
   });
@@ -284,7 +284,7 @@ describe('nextStep', () => {
   it('says Fixer is working while it resolves', () => {
     const s = nextStep(
       input({ rebase: rebase({ status: 'resolving' }) }),
-      ctx({ blockers: ['GitOrange is fixing a clash', 'Lands after #9'] })
+      ctx({ blockers: ['CloudForge is fixing a clash', 'Lands after #9'] })
     );
     expect(s).toMatchObject({
       tone: 'info',
@@ -302,7 +302,7 @@ describe('nextStep', () => {
 
   it('reads a ready pull request by its auto-merge', () => {
     expect(nextStep(input({ autoMerge: 'ready' }), ctx()).headline).toBe(
-      'Ready. GitOrange is merging it now.'
+      'Ready. CloudForge is merging it now.'
     );
     expect(nextStep(input({ autoMerge: 'disabled' }), ctx()).headline).toBe(
       'Ready to merge. Auto-merge is off, so it waits for someone to merge it.'

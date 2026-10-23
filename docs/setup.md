@@ -1,6 +1,6 @@
 # Setup
 
-Deploy GitOrange to your own Cloudflare account with one command, `npx gitorange install`. It takes about 15 minutes, most of it waiting on DNS if your sending domain isn't on Email Sending yet. The same inputs always give the same resource names, the same `wrangler.jsonc`, and the same plan. The [`/gitorange-onboarding`](../.claude/skills/gitorange-onboarding/SKILL.md) Claude Code skill walks you through it. To set everything up by hand instead, see [Manual setup](#manual-setup).
+Deploy CloudForge to your own Cloudflare account with one command, `npx @cybernova2333/cloudforge install`. It takes about 15 minutes, most of it waiting on DNS if your sending domain isn't on Email Sending yet. The same inputs always give the same resource names, the same `wrangler.jsonc`, and the same plan. The [`/cloudforge-onboarding`](../.claude/skills/cloudforge-onboarding/SKILL.md) Claude Code skill walks you through it. To set everything up by hand instead, see [Manual setup](#manual-setup).
 
 ## Prerequisites
 
@@ -15,26 +15,26 @@ Deploy GitOrange to your own Cloudflare account with one command, `npx gitorange
 
 ```bash
 npx wrangler login
-npx gitorange install
+npx @cybernova2333/cloudforge install
 ```
 
-No clone is needed: the package carries a built release and its own pinned wrangler. If `npx` serves an old version right after a release, add `--prefer-online`. State is recorded under `~/.gitorange/<name>/` (override the directory with `GITORANGE_HOME`). Upgrades, adopting an installation made earlier, and `status` are in [Updating](updating.md).
+No clone is needed: the package carries a built release and its own pinned wrangler. If `npx` serves an old version right after a release, add `--prefer-online`. State is recorded under `~/.cloudforge/<name>/` (override the directory with `CLOUDFORGE_HOME`). Upgrades, adopting an installation made earlier, and `status` are in [Updating](updating.md).
 
-Running a fork, or prefer a clone? The same installer runs from a checkout, and every command below works as `yarn gitorange <command>` (progress is then recorded in `.gitorange/<id>.json` in the checkout):
+Running a fork, or prefer a clone? The same installer runs from a checkout, and every command below works as `yarn cloudforge <command>` (progress is then recorded in `.cloudforge/<id>.json` in the checkout):
 
 ```bash
-git clone https://github.com/choyiny/gitorange.git
-cd gitorange
+git clone https://cnb.cool/CyberNova2333/cloudforge.git
+cd cloudforge
 yarn install
 yarn wrangler login
-yarn gitorange install
+yarn cloudforge install
 ```
 
 The installer asks for an installation name, the Cloudflare account (when your login sees several), where to serve (a custom hostname on a zone in the account, or `<name>.<subdomain>.workers.dev`), and the invitation sender. Each answer can be a flag instead:
 
 | Flag                     | Meaning                                                                      |
 | ------------------------ | ---------------------------------------------------------------------------- |
-| `--name <name>`          | Installation name (default `gitorange`); names the worker and resources      |
+| `--name <name>`          | Installation name (default `cloudforge`); names the worker and resources     |
 | `--account <id\|name>`   | Cloudflare account; needed when not in a terminal and the login sees several |
 | `--hostname <host>`      | Serve on a custom hostname in one of the account's zones                     |
 | `--workers-dev`          | Serve on `<name>.<subdomain>.workers.dev` instead                            |
@@ -46,15 +46,15 @@ The installer asks for an installation name, the Cloudflare account (when your l
 | `--new-setup-code`       | With `--resume`, before the first admin exists: replace the setup code       |
 | `--yes`                  | Apply without asking (required when not in a terminal)                       |
 
-Environment: `CLOUDFLARE_API_TOKEN` (otherwise wrangler's login is used), and the optional credentials `GITORANGE_R2_ACCESS_KEY_ID` and `GITORANGE_R2_SECRET_ACCESS_KEY` (set both or neither) and `GITORANGE_CF_ANALYTICS_TOKEN`. In a terminal, the installer instead prints a prefilled token link for each and asks for the value in a masked prompt; leave one empty to skip it.
+Environment: `CLOUDFLARE_API_TOKEN` (otherwise wrangler's login is used), and the optional credentials `CLOUDFORGE_R2_ACCESS_KEY_ID` and `CLOUDFORGE_R2_SECRET_ACCESS_KEY` (set both or neither) and `CLOUDFORGE_CF_ANALYTICS_TOKEN`. In a terminal, the installer instead prints a prefilled token link for each and asks for the value in a masked prompt; leave one empty to skip it.
 
-The installer first runs read-only checks (Artifacts access, R2, the workers.dev subdomain or the zone and hostname, the Email Sending domain, Docker; for a custom hostname also its existing DNS records and Workers routes, which the deploy would otherwise replace without asking) and stops with the fix for each problem before changing anything. It then prints the **plan**: every resource it will create or update, ending in a digest. `npx gitorange install --plan` stops there and prints the exact command that applies the plan you reviewed (`--expect-plan <digest> --yes`); the apply refuses if the plan has changed since. It creates only what is missing, never touches a resource it did not create (an existing one is reported as "exists but not created by this installation"), and records progress in `.gitorange/<id>.json`.
+The installer first runs read-only checks (Artifacts access, R2, the workers.dev subdomain or the zone and hostname, the Email Sending domain, Docker; for a custom hostname also its existing DNS records and Workers routes, which the deploy would otherwise replace without asking) and stops with the fix for each problem before changing anything. It then prints the **plan**: every resource it will create or update, ending in a digest. `npx @cybernova2333/cloudforge install --plan` stops there and prints the exact command that applies the plan you reviewed (`--expect-plan <digest> --yes`); the apply refuses if the plan has changed since. It creates only what is missing, never touches a resource it did not create (an existing one is reported as "exists but not created by this installation"), and records progress in `.cloudforge/<id>.json`.
 
-It creates the D1 database and three R2 buckets (the cache bucket with a 7-day lifecycle rule), generates `wrangler.jsonc` from `wrangler.jsonc.example` (it refuses to overwrite a hand-written one, and tells you how to move it aside), applies the migrations, deploys with the secrets (`BETTER_AUTH_SECRET`, the R2 keys, the analytics token, and the setup code's hash), reads the Durable Object namespace IDs and deploys once more, then checks `/.well-known/gitorange` for this installation and version.
+It creates the D1 database and three R2 buckets (the cache bucket with a 7-day lifecycle rule), generates `wrangler.jsonc` from `wrangler.jsonc.example` (it refuses to overwrite a hand-written one, and tells you how to move it aside), applies the migrations, deploys with the secrets (`BETTER_AUTH_SECRET`, the R2 keys, the analytics token, and the setup code's hash), reads the Durable Object namespace IDs and deploys once more, then checks `/.well-known/cloudforge` for this installation and version.
 
-At the end it prints a **setup code** once. Open `<BASE_URL>/setup` and enter it to create the first admin; nobody else can claim the instance in the meantime. Lost it before creating the admin? `npx gitorange install --resume --name <name> --new-setup-code` issues a new one and the old one stops working (in a terminal, `--resume` alone asks first). Run the apply in your own terminal: when an assistant such as the onboarding skill guides you, it runs `--plan` and `npx gitorange status` itself, and you tell it whether the apply succeeded without pasting the setup code.
+At the end it prints a **setup code** once. Open `<BASE_URL>/setup` and enter it to create the first admin; nobody else can claim the instance in the meantime. Lost it before creating the admin? `npx @cybernova2333/cloudforge install --resume --name <name> --new-setup-code` issues a new one and the old one stops working (in a terminal, `--resume` alone asks first). Run the apply in your own terminal: when an assistant such as the onboarding skill guides you, it runs `--plan` and `npx @cybernova2333/cloudforge status` itself, and you tell it whether the apply succeeded without pasting the setup code.
 
-If a run stops, it prints the step that failed and the command to continue: `npx gitorange install --resume --name <name>` skips what is done. `--resume` on a finished installation adds credentials you skipped. `npx gitorange status` shows the recorded installation and asks the deployed worker whether it matches.
+If a run stops, it prints the step that failed and the command to continue: `npx @cybernova2333/cloudforge install --resume --name <name>` skips what is done. `--resume` on a finished installation adds credentials you skipped. `npx @cybernova2333/cloudforge status` shows the recorded installation and asks the deployed worker whether it matches.
 
 ### Token permissions
 
@@ -75,13 +75,13 @@ The optional analytics token the installer asks for is separate: **Account → A
 
 ## Manual setup
 
-`yarn gitorange install` replaces this section; use it if you can't run the installer, or to see what it does. Its output is an ordinary `wrangler.jsonc`, so a hand-written one works the same (the installer will refuse to overwrite it).
+`yarn cloudforge install` replaces this section; use it if you can't run the installer, or to see what it does. Its output is an ordinary `wrangler.jsonc`, so a hand-written one works the same (the installer will refuse to overwrite it).
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/choyiny/gitorange.git
-cd gitorange
+git clone https://cnb.cool/CyberNova2333/cloudforge.git
+cd cloudforge
 yarn install
 ```
 
@@ -95,16 +95,16 @@ yarn wrangler whoami   # note your account ID
 ### 3. Create the D1 database and the R2 buckets
 
 ```bash
-yarn wrangler d1 create gitorange-db
-yarn wrangler r2 bucket create gitorange-lfs
-yarn wrangler r2 bucket create gitorange-actions-logs
-yarn wrangler r2 bucket create gitorange-actions-cache
-yarn wrangler r2 bucket lifecycle add gitorange-actions-cache expire-7d --prefix actions-cache/ --expire-days 7 -y
+yarn wrangler d1 create cloudforge-db
+yarn wrangler r2 bucket create cloudforge-lfs
+yarn wrangler r2 bucket create cloudforge-actions-logs
+yarn wrangler r2 bucket create cloudforge-actions-cache
+yarn wrangler r2 bucket lifecycle add cloudforge-actions-cache expire-7d --prefix actions-cache/ --expire-days 7 -y
 ```
 
-Copy the `database_id` it prints. `gitorange-actions-logs` holds Actions step logs, and `gitorange-actions-cache` holds the Actions cache (its lifecycle rule expires entries under `actions-cache/` after 7 days). You don't need to create anything in Artifacts: the namespace is created automatically with the first repository.
+Copy the `database_id` it prints. `cloudforge-actions-logs` holds Actions step logs, and `cloudforge-actions-cache` holds the Actions cache (its lifecycle rule expires entries under `actions-cache/` after 7 days). You don't need to create anything in Artifacts: the namespace is created automatically with the first repository.
 
-Git LFS clients upload and download directly to R2 with pre-signed URLs, which need an R2 API token. In the dashboard, open **R2 → Manage API tokens → Create API token**, choose **Object Read & Write**, scope it to the `gitorange-lfs` and `gitorange-actions-cache` buckets (the Actions cache uses pre-signed URLs too), and keep the **Access Key ID** and **Secret Access Key** for step 6.
+Git LFS clients upload and download directly to R2 with pre-signed URLs, which need an R2 API token. In the dashboard, open **R2 → Manage API tokens → Create API token**, choose **Object Read & Write**, scope it to the `cloudforge-lfs` and `cloudforge-actions-cache` buckets (the Actions cache uses pre-signed URLs too), and keep the **Access Key ID** and **Secret Access Key** for step 6.
 
 ### 4. Configure `wrangler.jsonc`
 
@@ -151,11 +151,11 @@ Optionally, for **Site admin → Usage & cost**: create an account API token (**
 yarn wrangler secret put CF_ANALYTICS_TOKEN     # paste the token
 ```
 
-Without it, the page shows only what GitOrange records itself (Actions runner time, Workers AI calls, emails). With it, a daily cron (02:30 UTC) pulls this deployment's Cloudflare analytics, filtered to its own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace. See [Configuration](configuration.md#usage--cost).
+Without it, the page shows only what CloudForge records itself (Actions runner time, Workers AI calls, emails). With it, a daily cron (02:30 UTC) pulls this deployment's Cloudflare analytics, filtered to its own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace. See [Configuration](configuration.md#usage--cost).
 
 ## 7. Create the admin account
 
-Open your `BASE_URL`. The first visit shows **Welcome to GitOrange**; the account you create there becomes the site admin, and setup closes permanently after that. Do this before sharing the URL.
+Open your `BASE_URL`. The first visit shows **Welcome to CloudForge**; the account you create there becomes the site admin, and setup closes permanently after that. Do this before sharing the URL.
 
 Then:
 
@@ -176,12 +176,12 @@ Commits link to a member's profile when their author email matches the member's 
 ## Actions and reviews
 
 - **Actions:** workflow files in `.github/workflows/` (GitHub Actions syntax) run on pushes and pull requests, each job in its own container. See the repository's **Actions** tab.
-- **Reviews and auto-merge:** add reviewer agents with **Agents → New reviewer → Add the recommended crew** (or start from GitOrange's own agents at [github.com/gitorangeapp](https://github.com/gitorangeapp): create an agent with the same handle, then push that repository's `AGENT.md`, `avatar.png`, and, for work on GitOrange itself, `knowledge/` into `<BASE_URL>/<handle>/<handle>.git`) and invite them in a repository's **Settings → Agents**: each new commit is reviewed by the agents it concerns, and a pull request that passes CI and its agents' reviews merges on its own; findings for a person wait on the **Approvals** page. Without agents, a person approves and merges. `.orangeignore` keeps generated files out of reviews. See [Reviewer agents](auto-merge.md).
+- **Reviews and auto-merge:** add reviewer agents with **Agents → New reviewer → Add the recommended crew** (or start from the upstream GitOrange project's published agents at [github.com/gitorangeapp](https://github.com/gitorangeapp): create an agent with the same handle, then push that repository's `AGENT.md`, `avatar.png`, and, if you want its upstream-specific knowledge, `knowledge/` into `<BASE_URL>/<handle>/<handle>.git`) and invite them in a repository's **Settings → Agents**: each new commit is reviewed by the agents it concerns, and a pull request that passes CI and its agents' reviews merges on its own; findings for a person wait on the **Approvals** page. Without agents, a person approves and merges. `.orangeignore` keeps generated files out of reviews. See [Reviewer agents](auto-merge.md).
 - **AI conflict resolution** needs no setup: conflicting pull requests are resolved automatically.
 
 ## Connecting AI tools (MCP)
 
-Nothing to configure. Each member opens **avatar → MCP server** for their client's setup steps, e.g. `claude mcp add --transport http gitorange https://git.example.com/mcp`, then signs in and approves the app in the browser. MCP clients need to reach your instance over HTTPS.
+Nothing to configure. Each member opens **avatar → MCP server** for their client's setup steps, e.g. `claude mcp add --transport http cloudforge https://git.example.com/mcp`, then signs in and approves the app in the browser. MCP clients need to reach your instance over HTTPS.
 
 ## Using Git LFS
 
@@ -197,7 +197,7 @@ git push                        # uses the same token as git
 
 ## Updating
 
-For an installation made with `npx gitorange install`, run `npx gitorange@latest upgrade` (see [Updating](updating.md)). From a checkout:
+For an installation made with `npx @cybernova2333/cloudforge install`, run `npx @cybernova2333/cloudforge@latest upgrade` (see [Updating](updating.md)). From a checkout:
 
 ```bash
 git pull

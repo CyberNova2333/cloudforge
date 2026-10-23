@@ -21,7 +21,7 @@ interface Outcome {
 }
 
 const TOKEN_FIX =
-  'Create an API token with the permissions listed in https://github.com/choyiny/gitorange/blob/main/docs/setup.md and log in again.';
+  'Create an API token with the permissions listed in https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md and log in again.';
 
 class TokenProblem extends Error {}
 
@@ -93,7 +93,7 @@ export function routeCovers(pattern: string, host: string): boolean {
 }
 
 export const DOCKER_NOT_INSTALLED =
-  'Docker is not installed. GitOrange runs Actions jobs in containers, and deploying builds the runner image with Docker. Install Docker Desktop (https://docs.docker.com/get-docker/), start it, then run the same command again.';
+  'Docker is not installed. CloudForge runs Actions jobs in containers, and deploying builds the runner image with Docker. Install Docker Desktop (https://docs.docker.com/get-docker/), start it, then run the same command again.';
 export const DOCKER_NOT_RUNNING =
   'Docker is installed but not running. Start Docker Desktop (or the Docker daemon), then run the same command again.';
 

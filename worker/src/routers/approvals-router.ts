@@ -138,7 +138,7 @@ const findingSchema = z
     state: z.enum(['open', 'approved', 'dismissed', 'changes_requested']),
     decidedBy: personRefSchema.nullable(),
     decidedAt: z.number().nullable(),
-    /** A moderator app's name, or "GitOrange AI"; null from the web, or while open. */
+    /** A moderator app's name, or "CloudForge AI"; null from the web, or while open. */
     decidedVia: z.string().nullable(),
     reason: z.string().nullable(),
     /** The note sent with a request for changes. */
@@ -170,7 +170,7 @@ const findingSchema = z
         repository: z.string().nullable(),
       })
       .nullable(),
-    /** You let GitOrange AI decide this agent's findings on your pull requests. */
+    /** You let CloudForge AI decide this agent's findings on your pull requests. */
     delegated: z.boolean(),
     /** What you can do with it now: decide (push rights, open), undo your decision, delegate it, assign it. */
     can: z.object({

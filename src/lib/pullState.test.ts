@@ -165,7 +165,7 @@ describe('pull state text', () => {
         branch: 'setup-checks',
         why: 'x',
       })
-    ).toBe('GitOrange is rebasing it onto #28 (setup-checks)');
+    ).toBe('CloudForge is rebasing it onto #28 (setup-checks)');
     expect(
       reasonText({
         kind: 'rebase_conflict',

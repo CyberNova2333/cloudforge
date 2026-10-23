@@ -7,7 +7,7 @@ import { githubContext } from '../actions/trigger';
 import { parseWorkflow, type JobDef } from '../actions/workflow-file';
 
 /**
- * GitOrange's own CI (.github/workflows/ci.yml) runs the tests split by module. These checks keep
+ * CloudForge's own CI (.github/workflows/ci.yml) runs the tests split by module. These checks keep
  * that split honest: every test file runs in exactly one place, and the gate's wiring is right.
  */
 
@@ -34,7 +34,7 @@ const job = (key: string) => {
   return j;
 };
 const gate = job('gate');
-const gateStep = gate.steps.find((s) => s.uses === 'gitorange/relevance@v1')!;
+const gateStep = gate.steps.find((s) => s.uses === 'cloudforge/relevance@v1')!;
 const modules = parseRelevanceInputs(gateStep.with).modules.map((m) => m.name);
 const testJobs = wf.jobs.filter((j) => j.key.startsWith('test-'));
 /** Each module has exactly one job, test-<module>. */
@@ -54,8 +54,8 @@ const moduleIf = (m: string) =>
   `always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-${m} == 'true')`;
 
 describe('CI workflow (.github/workflows/ci.yml)', () => {
-  it('parses and plans with GitOrange Actions', () => {
-    const github = githubContext('octocat/gitorange', {
+  it('parses and plans with CloudForge Actions', () => {
+    const github = githubContext('octocat/cloudforge', {
       event: 'pull_request',
       ref: 'refs/pull/1/head',
       headSha: 'a'.repeat(40),
@@ -69,10 +69,10 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     ]);
   });
 
-  it('build and the module jobs get standard-4 on GitOrange and ubuntu-latest on GitHub', () => {
+  it('build and the module jobs get standard-4 on CloudForge and ubuntu-latest on GitHub', () => {
     const plan = (server_url: string) =>
       planJobs(wf, {
-        ...githubContext('octocat/gitorange', {
+        ...githubContext('octocat/cloudforge', {
           event: 'push',
           ref: 'refs/heads/main',
           headSha: 'a'.repeat(40),
@@ -91,7 +91,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
       expect(j.runsOn, j.key).toBe('ubuntu-latest');
   });
 
-  it('the package job checks the Node 22.0.0 floor on GitHub only (GitOrange runners use their own Node.js)', () => {
+  it('the package job checks the Node 22.0.0 floor on GitHub only (CloudForge runners use their own Node.js)', () => {
     const pkg = job('package');
     expect(pkg.needs).toEqual([]);
     const floor = pkg.steps.find(
@@ -158,7 +158,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     }
   });
 
-  it('the gate is skipped on GitHub and runs on GitOrange', () => {
+  it('the gate is skipped on GitHub and runs on CloudForge', () => {
     const on = (server_url: string) =>
       evaluateCondition(gate.if, { github: { server_url } });
     expect(on('https://github.com')).toBe(false);
@@ -166,7 +166,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     expect(gate.needs).toEqual([]);
   });
 
-  it("each module's if: runs on GitHub, follows the gate on GitOrange, and never runs after a failed build", () => {
+  it("each module's if: runs on GitHub, follows the gate on CloudForge, and never runs after a failed build", () => {
     for (const j of testJobs) {
       const m = moduleOf(j)!;
       const when = (

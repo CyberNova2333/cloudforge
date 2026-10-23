@@ -96,7 +96,7 @@ async function approve(
 /**
  * #1 `one` adds a.txt; #2 `two` starts at one's head and adds `childChange`, opened against main and stacked on one by
  * discovery. Then `parentLater` (if any) is pushed to one; with `mainFirst`, an unrelated #3 (`three`, adds z.txt)
- * lands on main first, so #1 is rebased by GitOrange before it lands. Then #1 lands. With `holdChild`, #2's rebase runs
+ * lands on main first, so #1 is rebased by CloudForge before it lands. Then #1 lands. With `holdChild`, #2's rebase runs
  * stay queued until #1 has landed, so #2 still holds #1's original commits when it is rebased onto main.
  */
 async function scenario(
@@ -287,7 +287,7 @@ describe('a stacked child after its parent lands', () => {
   });
 
   /**
-   * #3 landed on main first, so GitOrange rebased #1 (new SHAs) before it landed; the child, built on #1's old
+   * #3 landed on main first, so CloudForge rebased #1 (new SHAs) before it landed; the child, built on #1's old
    * commits, is rebased onto main with exactly its own commit on top.
    */
   async function rebasedOntoMain(s: Scenario, parentCommits: string[]) {

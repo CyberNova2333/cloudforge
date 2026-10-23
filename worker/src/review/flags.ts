@@ -50,9 +50,9 @@ export const STALE_HEAD =
   'The pull request has new commits since you looked. Review them, then decide again.';
 
 /**
- * Options the web routes don't pass. `via`: the moderator app's name (or "GitOrange AI"), recorded on the decision.
+ * Options the web routes don't pass. `via`: the moderator app's name (or "CloudForge AI"), recorded on the decision.
  * `kind`: only a flag of this kind (400 otherwise). `expectedHead`: the head commit the decider looked at — refused
- * (409) unless it is the pull request's current head and the flag was raised on it. `ai`: GitOrange AI deciding as
+ * (409) unless it is the pull request's current head and the flag was raised on it. `ai`: CloudForge AI deciding as
  * the user ("Let Claude decide", review/delegate.ts): never a guarded agent's finding (422), only one nobody decided
  * yet (409), recorded once as `finding.delegated` (actor kind `ai`) with the decision and its reason.
  */
@@ -109,9 +109,9 @@ export const agentLabel = (f: {
 export const guardedNeedsReason = (label: string) =>
   `Approving ${label}'s findings needs a reason. It goes in the audit log with your name.`;
 
-/** The refusal for GitOrange AI and a guarded agent's finding (422). */
+/** The refusal for CloudForge AI and a guarded agent's finding (422). */
 export const guardedNotForAi = (label: string) =>
-  `${label}'s findings always come to a person: GitOrange AI never decides them.`;
+  `${label}'s findings always come to a person: CloudForge AI never decides them.`;
 
 /** A trimmed optional text, null when blank; `false` when longer than `max`. */
 function text(
@@ -130,7 +130,7 @@ function text(
  * on one (it is already the agent's change request). Approving a guarded agent's finding (either kind) needs a
  * reason (422). The caller checks the user can merge in the repository, the same check for both.
  * Either way the pull request may now auto-merge (or no longer), so `after` gets that work.
- * `opts` (moderator apps over MCP, GitOrange AI) records the app, restricts the kind, refuses a head the decider
+ * `opts` (moderator apps over MCP, CloudForge AI) records the app, restricts the kind, refuses a head the decider
  * didn't see, and (`ai`) applies the AI's rules. A decision's reason and teach note belong to it: a new decision
  * replaces them, and `undoFlag` clears them.
  */
@@ -209,7 +209,7 @@ export async function decideFlag(
       return { ok: false, status: 409, error: STALE_HEAD };
   }
 
-  // GitOrange AI decides only what nobody has decided; a person's approval may replace a request for changes.
+  // CloudForge AI decides only what nobody has decided; a person's approval may replace a request for changes.
   const open = and(
     eq(prReviewFlags.id, flagId),
     isNull(prReviewFlags.approvedAt),
@@ -280,7 +280,7 @@ export async function decideFlag(
         changesRequestedById: userId,
         changesRequestedAt: new Date(),
         changesRequestedNote: note,
-        // How this decision was made (approved_at stays null): the moderator app, or GitOrange AI.
+        // How this decision was made (approved_at stays null): the moderator app, or CloudForge AI.
         approvedVia: via,
         decisionReason: opts.ai ? opts.ai.reason : null,
         ...taught,
@@ -408,7 +408,7 @@ export type UndoResult =
 
 /**
  * Reopens a decision on a finding (an approval, a dismissal or a request for changes) while the pull request is
- * open: only for the person who made it, or whose GitOrange AI made it as them. Its reason and teach note go with
+ * open: only for the person who made it, or whose CloudForge AI made it as them. Its reason and teach note go with
  * it, so nothing is learned from an undone decision.
  */
 export async function undoFlag(
@@ -443,7 +443,7 @@ export async function undoFlag(
       ok: false,
       status: 403,
       error:
-        'Only the person who decided this finding (or whose GitOrange AI did) can undo it',
+        'Only the person who decided this finding (or whose CloudForge AI did) can undo it',
     };
   const reopened = await db
     .update(prReviewFlags)

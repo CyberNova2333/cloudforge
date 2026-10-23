@@ -17,7 +17,7 @@ export interface AgentConfig {
   bio: string;
   trigger: { ask: string; above: number };
   engine: AgentEngine;
-  /** Its colour across GitOrange, `#rrggbb` (lowercase); absent ⇒ a stable one from the palette (agentColor). */
+  /** Its colour across CloudForge, `#rrggbb` (lowercase); absent ⇒ a stable one from the palette (agentColor). */
   color?: string;
   /** What it covers; the seven named facets are presets (presets.ts). */
   facet?: Facet;

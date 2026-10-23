@@ -79,7 +79,7 @@ const healthRoute = createRoute({
   tags: ['Health'],
   summary: 'Repository health',
   description:
-    'Did anything get worse? Week over week (ISO weeks), from what GitOrange itself knows: each invited agent’s findings, the share of test runs on the default branch that failed, and reverts. Plus decisions waiting for a person and who merged what this week.',
+    'Did anything get worse? Week over week (ISO weeks), from what CloudForge itself knows: each invited agent’s findings, the share of test runs on the default branch that failed, and reverts. Plus decisions waiting for a person and who merged what this week.',
   request: { params: ownerRepoParams },
   responses: {
     ...json200Response(healthReportSchema, 'The health report'),

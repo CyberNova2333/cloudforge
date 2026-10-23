@@ -234,7 +234,7 @@ export function fakeCloudflare(seed: FakeCloudflareSeed = {}): FakeCloudflare {
 }
 
 /**
- * A temp gitorange package under `dir` (package.json, worker/build.json, a wrangler package with a bin).
+ * A temp cloudforge package under `dir` (package.json, worker/build.json, a wrangler package with a bin).
  * "nested": wrangler under <root>/node_modules; "hoisted": beside the package, as npx installs it.
  * Returns the package root.
  */
@@ -248,8 +248,8 @@ export function fakePackage(
 ): string {
   const hoisted = o.wranglerLayout === 'hoisted';
   const root = hoisted
-    ? join(dir, 'node_modules', 'gitorange')
-    : join(dir, 'gitorange');
+    ? join(dir, 'node_modules', 'cloudforge')
+    : join(dir, 'cloudforge');
   const wranglerDir = hoisted
     ? join(dir, 'node_modules', 'wrangler')
     : join(root, 'node_modules', 'wrangler');
@@ -260,9 +260,9 @@ export function fakePackage(
   put(
     join(root, 'package.json'),
     JSON.stringify({
-      name: 'gitorange',
+      name: 'cloudforge',
       version: o.version,
-      gitorangeCommit: o.commit,
+      cloudforgeCommit: o.commit,
     })
   );
   put(

@@ -134,8 +134,8 @@ export const agents: Record<string, string> = {
   Covers: '覆盖范围',
   'A custom area': '自定义领域',
   Guarded: '受保护',
-  'Yes. Its findings are never approved in bulk, by one key or by GitOrange AI, and approving one needs a reason.':
-    '是。它的评审意见永远不会被批量批准、一键批准或由 GitOrange AI 批准，批准其中一条需要填写理由。',
+  'Yes. Its findings are never approved in bulk, by one key or by CloudForge AI, and approving one needs a reason.':
+    '是。它的评审意见永远不会被批量批准、一键批准或由 CloudForge AI 批准，批准其中一条需要填写理由。',
   No: '否',
   Colour: '颜色',
   Instructions: '指令',
@@ -195,8 +195,8 @@ export const agents: Record<string, string> = {
   'Ask a site admin to create it': '请站点管理员创建',
   'No description yet.': '还没有简介。',
   'Not on a repository': '不在任何仓库中',
-  'Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason':
-    '它的评审意见永远不会被批量批准或由 GitOrange AI 批准，批准其中一条需要填写理由',
+  'Its findings are never approved in bulk or by CloudForge AI, and approving one needs a reason':
+    '它的评审意见永远不会被批量批准或由 CloudForge AI 批准，批准其中一条需要填写理由',
   'Each agent is an account with its own profile and its own repository of instructions. Reviewers check every change for one area; built-in agents keep changes moving.':
     '每个 Agent 都是一个账号，有自己的个人资料和自己的指令仓库。评审 Agent 负责检查某一领域的所有更改；内置 Agent 则让更改持续流转。',
 
@@ -279,8 +279,8 @@ export const agents: Record<string, string> = {
   'Works on every repository': '在所有仓库上工作',
   'Numbers cover the last seven days': '数据涵盖过去七天',
   'What it does': '它做什么',
-  'Built into GitOrange. It has no account and no instruction repository; reviewers are the agents you can add and change. See {link}.':
-    '内置于 GitOrange。它没有账号，也没有指令仓库；评审 Agent 是你可以添加和更改的那些 Agent。参见 {link}。',
+  'Built into CloudForge. It has no account and no instruction repository; reviewers are the agents you can add and change. See {link}.':
+    '内置于 CloudForge。它没有账号，也没有指令仓库；评审 Agent 是你可以添加和更改的那些 Agent。参见 {link}。',
   'all agents': '所有 Agent',
   'Last seven days': '过去七天',
   'Counts only repositories you can see.': '只统计你能看到的仓库。',

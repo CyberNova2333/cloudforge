@@ -1,4 +1,4 @@
-export const DEFAULT_APP_NAME = 'GitOrange';
+export const DEFAULT_APP_NAME = 'CloudForge';
 
 /** App name as an MCP server id: "XY Space Git" → "xy-space-git". */
 export function mcpServerName(name: string): string {
@@ -7,6 +7,6 @@ export function mcpServerName(name: string): string {
       .toLowerCase()
       .normalize('NFKD')
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'gitorange'
+      .replace(/^-+|-+$/g, '') || 'cloudforge'
   );
 }

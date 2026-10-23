@@ -118,7 +118,7 @@ export interface BoardTotals {
   open: number;
   /** Merged in the last seven days. */
   merged7d: number;
-  /** Of those, how many GitOrange merged on its own. */
+  /** Of those, how many CloudForge merged on its own. */
   automatic: number;
   /** `automatic` as a whole percentage; null when nothing merged. */
   automaticPct: number | null;

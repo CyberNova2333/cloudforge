@@ -1,7 +1,7 @@
-# gitorange
+# cloudforge
 
-The installer for [GitOrange](https://github.com/choyiny/gitorange), the code host where AI agents ship the code
-and people approve the risk, on Cloudflare Workers. This package carries a built GitOrange release (worker, web app,
+The installer for [CloudForge](https://cnb.cool/CyberNova2333/cloudforge), the code host where AI agents ship the code
+and people approve the risk, on Cloudflare Workers. This package carries a built CloudForge release (worker, web app,
 database migrations and the Actions runner image's Dockerfile) and deploys it to your Cloudflare account with its own
 pinned wrangler. You do not need a clone of the repository.
 
@@ -11,20 +11,20 @@ image.
 ## Install
 
 ```bash
-npx gitorange install
+npx @cybernova2333/cloudforge install
 ```
 
 It asks for what it needs, shows the plan, and applies it when you confirm. Sign in first with
 `npx wrangler login`, or set `CLOUDFLARE_API_TOKEN`. To review the plan without changing anything:
 
 ```bash
-npx gitorange install --plan
+npx @cybernova2333/cloudforge install --plan
 ```
 
 ## Upgrade
 
 ```bash
-npx gitorange@latest upgrade
+npx @cybernova2333/cloudforge@latest upgrade
 ```
 
 Moves an installation to the package's version: applies new migrations, adds new resources and secrets, and
@@ -32,25 +32,25 @@ deploys. It never downgrades.
 
 ## Adopt an existing installation
 
-From a checkout that ran `yarn gitorange install`:
+From a checkout that ran `yarn cloudforge install`:
 
 ```bash
-npx gitorange adopt --from path/to/checkout
+npx @cybernova2333/cloudforge adopt --from path/to/checkout
 ```
 
 Or a worker deployed by hand:
 
 ```bash
-npx gitorange adopt --worker <worker name>
+npx @cybernova2333/cloudforge adopt --worker <worker name>
 ```
 
 ## Status
 
 ```bash
-npx gitorange status
+npx @cybernova2333/cloudforge status
 ```
 
-State lives in `~/.gitorange` (override with `GITORANGE_HOME`). Run `npx gitorange --help` for every option.
+State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `npx @cybernova2333/cloudforge --help` for every option.
 
-Docs: [setup](https://github.com/choyiny/gitorange/blob/main/docs/setup.md) ·
-[updating](https://github.com/choyiny/gitorange/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`COPYING`), over Apache-2.0 upstream work (`LICENSE`).
+Docs: [setup](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md) ·
+[updating](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`COPYING`), over Apache-2.0 upstream work (`LICENSE`).

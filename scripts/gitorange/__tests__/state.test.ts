@@ -27,7 +27,7 @@ import {
 
 let dir: string;
 beforeEach(() => {
-  dir = join(mkdtempSync(join(tmpdir(), 'go-state-')), '.gitorange');
+  dir = join(mkdtempSync(join(tmpdir(), 'go-state-')), '.cloudforge');
 });
 
 function fresh() {
@@ -133,7 +133,7 @@ describe('upgrading and adopted', () => {
     const s = {
       ...recordResource(fresh(), r),
       adoptedAt: '2026-10-21T00:00:00.000Z',
-      movedTo: '/home/x/.gitorange',
+      movedTo: '/home/x/.cloudforge',
       upgradedAt: '2026-10-22T00:00:00.000Z',
       upgradeTarget: '1.2.0',
     };
@@ -185,7 +185,7 @@ describe('lock', () => {
   it('second acquire throws; release removes the file', () => {
     const release = acquireLock(dir, 'id', { pidAlive: () => true });
     expect(() => acquireLock(dir, 'id', { pidAlive: () => true })).toThrow(
-      `Another gitorange run is using this installation (pid ${process.pid} on ${hostname()}).`
+      `Another cloudforge run is using this installation (pid ${process.pid} on ${hostname()}).`
     );
     release();
     expect(existsSync(join(dir, 'id.lock'))).toBe(false);
@@ -205,7 +205,7 @@ describe('lock', () => {
     makeDir();
     writeFileSync(join(dir, 'id.lock'), '');
     expect(() => acquireLock(dir, 'id', { pidAlive: () => false })).toThrow(
-      /Another gitorange run/
+      /Another cloudforge run/
     );
     expect(readFileSync(join(dir, 'id.lock'), 'utf8')).toBe('');
   });

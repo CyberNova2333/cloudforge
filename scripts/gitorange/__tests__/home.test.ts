@@ -11,7 +11,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  gitorangeHome,
+  cloudforgeHome,
   installDir,
   listInstalls,
   pickInstall,
@@ -22,7 +22,7 @@ import { newState, statePath, writeState } from '../state.ts';
 
 let home: string;
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'gitorange-home-'));
+  home = mkdtempSync(join(tmpdir(), 'cloudforge-home-'));
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
@@ -43,10 +43,10 @@ const put = (name: string) => {
   return statePath(dir, id);
 };
 
-describe('gitorangeHome', () => {
-  it('GITORANGE_HOME overrides, else ~/.gitorange', () => {
-    expect(gitorangeHome({ GITORANGE_HOME: '/x/y' })).toBe('/x/y');
-    expect(gitorangeHome({})).toBe(join(homedir(), '.gitorange'));
+describe('cloudforgeHome', () => {
+  it('CLOUDFORGE_HOME overrides, else ~/.cloudforge', () => {
+    expect(cloudforgeHome({ CLOUDFORGE_HOME: '/x/y' })).toBe('/x/y');
+    expect(cloudforgeHome({})).toBe(join(homedir(), '.cloudforge'));
   });
 });
 
@@ -74,7 +74,7 @@ describe('pickInstall', () => {
 
   it('empty home', () => {
     expect(() => pickInstall(home, undefined)).toThrow(
-      `No GitOrange install in ${home}.`
+      `No CloudForge install in ${home}.`
     );
     expect(() => pickInstall(join(home, 'missing'), undefined)).toThrow(
       UsageError

@@ -3,7 +3,7 @@ import { parseStep, type StepDef } from './workflow-file';
 
 /**
  * Actions that aren't built in (executor.ts implements actions/checkout, setup-node, cache, upload-artifact,
- * download-artifact and gitorange/relevance itself): a JavaScript or composite action from GitHub
+ * download-artifact and cloudforge/relevance itself): a JavaScript or composite action from GitHub
  * (`owner/repo[/path]@ref`), or one in the repository itself (`./path`). The worker reads its action.yml; the
  * runner downloads its code and runs it, the way GitHub's runner does. Docker actions can't run: the job
  * container has no Docker.
@@ -15,7 +15,7 @@ export const BUILTIN_ACTIONS = new Set([
   'actions/cache',
   'actions/upload-artifact',
   'actions/download-artifact',
-  'gitorange/relevance',
+  'cloudforge/relevance',
 ]);
 
 export type ActionRef =
@@ -38,7 +38,7 @@ export function parseUses(uses: string): ActionRef | null {
   const u = uses.trim();
   if (u.startsWith('docker://'))
     throw new ActionError(
-      `\`uses: ${u}\`: Docker images can't run on GitOrange runners (the job container has no Docker).`
+      `\`uses: ${u}\`: Docker images can't run on CloudForge runners (the job container has no Docker).`
     );
   if (u.startsWith('./')) {
     const parts = u
@@ -165,7 +165,7 @@ export function parseActionYaml(text: string, label: string): ActionMeta {
   }
   if (using === 'docker')
     throw new ActionError(
-      `${label} is a Docker action: it can't run on GitOrange runners (the job container has no Docker). Use a JavaScript or composite action, or a \`run:\` step.`
+      `${label} is a Docker action: it can't run on CloudForge runners (the job container has no Docker). Use a JavaScript or composite action, or a \`run:\` step.`
     );
   throw new ActionError(`${label}: runs.using "${using}" is not supported.`);
 }
@@ -181,7 +181,7 @@ export async function fetchGithubActionYaml(
     let res: Response;
     try {
       res = await fetchFn(url, {
-        headers: { 'User-Agent': 'GitOrange-Actions' },
+        headers: { 'User-Agent': 'CloudForge-Actions' },
       });
     } catch (e) {
       throw new ActionError(
@@ -200,7 +200,7 @@ export async function fetchGithubActionYaml(
 }
 
 /** Where the runner keeps a downloaded GitHub action (one copy per job, reused by its post step). */
-export const ACTIONS_DIR = '/opt/gitorange/actions';
+export const ACTIONS_DIR = '/opt/cloudforge/actions';
 /** Toolchains the setup-* actions install (RUNNER_TOOL_CACHE). */
 export const TOOL_CACHE = '/opt/hostedtoolcache';
 
@@ -223,11 +223,11 @@ export function fetchScript(r: ActionRef, workspace: string): string {
   const root = `${ACTIONS_DIR}/${r.owner}/${r.repo}/${r.ref.replace(/\//g, '_')}`;
   const url = `https://codeload.github.com/${r.owner}/${r.repo}/tar.gz/${r.ref}`;
   return [
-    `if [ ! -f ${quoteSh(`${root}/.gitorange-ready`)} ]; then`,
+    `if [ ! -f ${quoteSh(`${root}/.cloudforge-ready`)} ]; then`,
     `  echo ${quoteSh(`Download action repository '${r.owner}/${r.repo}@${r.ref}'`)}`,
     `  mkdir -p ${quoteSh(root)}`,
     `  curl -fsSL --retry 3 ${quoteSh(url)} | tar -xz --strip-components=1 -C ${quoteSh(root)}`,
-    `  touch ${quoteSh(`${root}/.gitorange-ready`)}`,
+    `  touch ${quoteSh(`${root}/.cloudforge-ready`)}`,
     `fi`,
   ].join('\n');
 }

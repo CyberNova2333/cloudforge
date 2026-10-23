@@ -89,7 +89,7 @@ function TimelineComment({
 }
 
 /**
- * The conversation: the description, comments, GitOrange's events and each requested agent's review (the head
+ * The conversation: the description, comments, CloudForge's events and each requested agent's review (the head
  * commit's, and earlier commits' greyed) where they happened, how it ended, then the comment box with Close or
  * Reopen.
  */

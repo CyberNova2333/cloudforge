@@ -152,7 +152,7 @@ app.doc('/api/doc', {
   openapi: '3.0.0',
   info: {
     version: '1.0.0',
-    title: 'GitOrange',
+    title: 'CloudForge',
     description: 'Single-tenant git hosting on Cloudflare Artifacts',
   },
 });

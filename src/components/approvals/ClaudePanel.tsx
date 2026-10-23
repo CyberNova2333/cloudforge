@@ -40,7 +40,7 @@ const ordered = (agents: Delegations['agents']) => [
 ];
 
 /**
- * The aside on Approvals: which agents' findings Claude (GitOrange AI) answers for you on your pull requests, and
+ * The aside on Approvals: which agents' findings Claude (CloudForge AI) answers for you on your pull requests, and
  * what it answered today, each with Undo while the pull request is open.
  */
 export function ClaudePanel({ myName }: { myName: string }) {
