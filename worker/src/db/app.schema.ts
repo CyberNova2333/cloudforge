@@ -253,6 +253,8 @@ export const pullRequests = sqliteTable(
     state: text('state', { enum: ['open', 'closed', 'merged'] })
       .notNull()
       .default('open'),
+    // State transitions need a generation even when close/reopen happen within one timestamp tick.
+    stateRevision: integer('state_revision').notNull().default(0),
     mergeCommitSha: text('merge_commit_sha'),
     // How many commits a rebase landing added to the target (merge_commit_sha is the landed head). NULL: landed before
     // rebase merging, as one squash commit.
@@ -329,6 +331,34 @@ export const landingIntents = sqliteTable(
   ]
 );
 export type LandingIntent = typeof landingIntents.$inferSelect;
+
+/** One close generation per PR; reopening removes it, and closing again uses a fresh identity. */
+export const pullCloseIntents = sqliteTable(
+  'pull_close_intents',
+  {
+    id: text('id').primaryKey(),
+    pullRequestId: text('pull_request_id')
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    headRef: text('head_ref').notNull(),
+    target: text('target').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    attemptedAt: integer('attempted_at', { mode: 'timestamp_ms' }),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+    completed: text('completed', { mode: 'json' })
+      .$type<Record<string, boolean>>()
+      .notNull()
+      .default({}),
+  },
+  (t) => [
+    uniqueIndex('pull_close_intents_pull_uq').on(t.pullRequestId),
+    index('pull_close_intents_pending_idx').on(t.finishedAt, t.attemptedAt),
+  ]
+);
+export type PullCloseIntent = typeof pullCloseIntents.$inferSelect;
 
 // ── Releases ─────────────────────────────────────────────────────────────────
 // A release is a tag on a commit of the default branch with a semantic version; the pull requests it ships are

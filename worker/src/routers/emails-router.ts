@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 import { invitations, userEmails, type UserEmail } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
@@ -62,16 +62,84 @@ const labelSchema = z
   .nullish()
   .transform((s) => s || null);
 
-/** Issues a fresh verification link for `row` and emails it. Returns whether it was sent. */
-async function sendVerification(
+/** A verification generation: reissuing or consuming a link invalidates old snapshots. */
+function pendingEmailSnapshot(row: UserEmail) {
+  return and(
+    eq(userEmails.id, row.id),
+    eq(userEmails.userId, row.userId),
+    eq(userEmails.email, row.email),
+    isNull(userEmails.verifiedAt),
+    row.verificationTokenHash === null
+      ? isNull(userEmails.verificationTokenHash)
+      : eq(userEmails.verificationTokenHash, row.verificationTokenHash),
+    row.verificationExpiresAt === null
+      ? isNull(userEmails.verificationExpiresAt)
+      : eq(userEmails.verificationExpiresAt, row.verificationExpiresAt)
+  );
+}
+
+/** Claims a free address, or atomically replaces the expired alternate observed by the caller. */
+export async function claimAlternateEmail(
+  db: DrizzleDB,
+  row: UserEmail,
+  existing: UserEmail | undefined,
+  now: Date
+): Promise<boolean> {
+  try {
+    if (existing)
+      await db.batch([
+        db
+          .delete(userEmails)
+          .where(
+            and(
+              pendingEmailSnapshot(existing),
+              or(
+                isNull(userEmails.verificationExpiresAt),
+                lte(userEmails.verificationExpiresAt, now)
+              )
+            )
+          ),
+        db.insert(userEmails).values(row),
+      ]);
+    else await db.insert(userEmails).values(row);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Consumes the verification link observed by the caller. */
+export async function verifyAlternateEmail(
+  db: DrizzleDB,
+  row: UserEmail,
+  now = new Date()
+): Promise<UserEmail | undefined> {
+  if (!row.verificationTokenHash || !row.verificationExpiresAt)
+    return undefined;
+  const [saved] = await db
+    .update(userEmails)
+    .set({
+      verifiedAt: now,
+      verificationTokenHash: null,
+      verificationExpiresAt: null,
+    })
+    .where(
+      and(pendingEmailSnapshot(row), gt(userEmails.verificationExpiresAt, now))
+    )
+    .returning();
+  return saved;
+}
+
+/** Issues a fresh link; null means the pending claim changed before the update. */
+export async function sendVerification(
   c: { env: CloudflareBindings; req: { url: string } },
   db: DrizzleDB,
   row: UserEmail,
   username: string
-): Promise<boolean> {
+): Promise<boolean | null> {
   const token = randomToken('gve_', 24);
   const now = new Date();
-  await db
+  const [updated] = await db
     .update(userEmails)
     .set({
       verificationTokenHash: await hashToken(token),
@@ -80,7 +148,9 @@ async function sendVerification(
       ),
       verificationSentAt: now,
     })
-    .where(eq(userEmails.id, row.id));
+    .where(pendingEmailSnapshot(row))
+    .returning({ id: userEmails.id });
+  if (!updated) return null;
   const origin = (c.env.BASE_URL || new URL(c.req.url).origin).replace(
     /\/$/,
     ''
@@ -226,15 +296,7 @@ emailsRouter.openapi(addRoute, async (c) => {
     verificationSentAt: null,
     createdAt: now,
   };
-  try {
-    // Replacing another member's expired, unverified claim and inserting ours happen together.
-    if (existing)
-      await db.batch([
-        db.delete(userEmails).where(eq(userEmails.id, existing.id)),
-        db.insert(userEmails).values(row),
-      ]);
-    else await db.insert(userEmails).values(row);
-  } catch {
+  if (!(await claimAlternateEmail(db, row, existing, now))) {
     // Lost a race for the same address.
     return c.json({ error: 'That email belongs to another member' }, 409);
   }
@@ -244,6 +306,8 @@ emailsRouter.openapi(addRoute, async (c) => {
     row,
     user.username ?? user.name
   );
+  if (emailed === null)
+    return c.json({ error: 'That email claim changed. Try again.' }, 409);
   const saved = await db
     .select()
     .from(userEmails)
@@ -346,6 +410,8 @@ emailsRouter.openapi(resendRoute, async (c) => {
     row,
     user.username ?? user.name
   );
+  if (emailed === null)
+    return c.json({ error: 'That email claim changed. Try again.' }, 409);
   const saved = (await ownRow(db, row.id, user.id)) ?? row;
   return c.json({ email: serialize(saved), emailed }, 200);
 });
@@ -391,11 +457,11 @@ emailsRouter.openapi(verifyRoute, async (c) => {
     );
   if (await emailClaimedByOther(db, row.email, user.id))
     return c.json({ error: 'That email belongs to another member' }, 409);
-  const verified = {
-    verifiedAt: new Date(),
-    verificationTokenHash: null,
-    verificationExpiresAt: null,
-  };
-  await db.update(userEmails).set(verified).where(eq(userEmails.id, row.id));
-  return c.json(serialize({ ...row, ...verified }), 200);
+  const saved = await verifyAlternateEmail(db, row);
+  if (!saved)
+    return c.json(
+      { error: 'This verification link changed. Request a new link.' },
+      409
+    );
+  return c.json(serialize(saved), 200);
 });

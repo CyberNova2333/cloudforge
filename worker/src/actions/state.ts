@@ -1,7 +1,23 @@
 import { decryptSecret, encryptSecret } from './secrets';
 
 /** Durable step state can contain inputs, generated credentials and command-file values. */
-export type SealedState = { sealed: string } | { key: string };
+export type SealedState =
+  | { sealed: string }
+  | { key: string }
+  | { unavailable: true; preparation?: true };
+
+/** Persist a small, non-secret failure marker if saving an executed command's result fails.
+ * Returning it (instead of throwing inside step.do) survives Workflow replay without rerunning side effects.
+ */
+export async function persistState(
+  save: () => Promise<SealedState>
+): Promise<SealedState> {
+  try {
+    return await save();
+  } catch {
+    return { unavailable: true };
+  }
+}
 
 /** A completed command's saved result is unavailable; rerunning the command is unsafe. */
 export class StateHydrationError extends Error {
@@ -51,6 +67,12 @@ export async function openState<T>(
   if (!state || typeof state !== 'object')
     throw new StateHydrationError(
       'Actions step state is invalid; re-run this workflow.'
+    );
+  if ('unavailable' in state)
+    throw new StateHydrationError(
+      state.preparation
+        ? 'Actions step preparation failed; completed commands were not retried. Re-run this workflow only after checking their effects.'
+        : 'Actions step state or log could not be saved; completed commands were not retried. Re-run this workflow only after checking their effects.'
     );
   let sealed: string;
   if ('sealed' in state) sealed = state.sealed;

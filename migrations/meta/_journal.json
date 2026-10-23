@@ -267,6 +267,20 @@
       "when": 1792732320593,
       "tag": "0037_yummy_phil_sheldon",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1792746647156,
+      "tag": "0038_medical_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1792748436262,
+      "tag": "0039_nebulous_zeigeist",
+      "breakpoints": true
     }
   ]
 }

@@ -34,8 +34,8 @@ If `npx` offers an older version right after a release, its registry cache is st
 
 A deploy restarts any running Actions jobs (each restarts from the beginning, up to 3 attempts), so deploying when no CI is running avoids that.
 
-The audit hardening update adds migrations `0036` and `0037` for recoverable landings and stored Actions event
-context. Apply them before deploying the Worker. As a conservative upgrade procedure, finish or cancel existing
+The audit hardening update adds migrations `0036` through `0039` for recoverable landings, PR close follow-ups, stored Actions event
+context, and a PR state revision that rejects stale close/reopen requests. Apply them before deploying the Worker. As a conservative upgrade procedure, finish or cancel existing
 Actions runs first: this update does not retroactively encrypt old durable results, and the new decoder cannot
 read their plaintext format. Existing-instance version handling across deployment has not been verified for
 this update. Start a fresh run if one cannot resume.

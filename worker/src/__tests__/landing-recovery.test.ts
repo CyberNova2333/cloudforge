@@ -157,9 +157,12 @@ async function earlierLanding() {
 
 it('keeps the first recording timestamps when the same landing is recorded again', async () => {
   const f = await earlierLanding();
+  const revision = (await f.read())!.stateRevision;
+  expect(revision).toBe(f.pr.stateRevision + 1);
   expect(await recordLanding(f.db, f.pr, f.intent)).toBe(true);
   expect(await recordLanding(f.db, f.pr, f.intent)).toBe(true);
   const pr = (await f.read())!;
+  expect(pr.stateRevision).toBe(revision);
   expect(pr.mergedAt).toEqual(f.first);
   expect(pr.closedAt).toEqual(f.first);
   expect(pr.updatedAt).toEqual(f.first);

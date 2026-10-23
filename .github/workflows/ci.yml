@@ -182,6 +182,7 @@ jobs:
           worker/src/__tests__/approvals.test.ts
           worker/src/__tests__/owner-questions.test.ts
           worker/src/__tests__/delegate.test.ts
+          worker/src/__tests__/delegation-d1-boundaries.test.ts
           worker/src/__tests__/pull-states.test.ts
           worker/src/__tests__/rebase-runs.test.ts
           worker/src/__tests__/rebase-resolution.test.ts
@@ -234,6 +235,7 @@ jobs:
           worker/src/__tests__/actions-artifacts.test.ts
           worker/src/__tests__/actions-secrets.test.ts
           worker/src/__tests__/actions-security.test.ts
+          worker/src/__tests__/actions-d1-limits.test.ts
           worker/src/__tests__/cron.test.ts
           worker/src/__tests__/git-http.test.ts
           worker/src/__tests__/git-objects.test.ts
@@ -278,6 +280,7 @@ jobs:
           worker/src/__tests__/admin-setup.test.ts
           worker/src/__tests__/settings.test.ts
           worker/src/__tests__/commit-emails.test.ts
+          worker/src/__tests__/email-concurrency.test.ts
           worker/src/__tests__/smoke.test.ts
           worker/src/__tests__/live.test.ts
           worker/src/__tests__/live-open.test.ts

@@ -1,8 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { and, eq, isNotNull, isNull, or } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prEdges, pullRequests, type PullRequest } from '../db/app.schema';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { landTargetOf } from '../lib/land-target';
 import { ensureRebase } from '../merge/rebase';
 import { resolutionConfigured } from '../merge/resolution';
 import { findRepoById, gitFor } from '../lib/repos';
@@ -60,135 +60,6 @@ export async function startReconcile(
   }
 }
 
-/**
- * A PR closed or landed: the PRs stacked on its branch go back to its land target now (metadata only), the
- * ordering edges that involved it are dropped, a landing ends dismissals of its pairs, and a reconcile run
- * restacks what's left. Its pair rows are kept
- * (ignored while it's closed), so a reopen restores them. Never throws.
- */
-export async function onPullClosed(
-  env: CloudflareBindings,
-  db: DrizzleDB,
-  pr: PullRequest,
-  how: 'closed' | 'landed'
-): Promise<void> {
-  try {
-    const target = landTargetOf(pr);
-    const children = await db
-      .select()
-      .from(pullRequests)
-      .where(
-        and(
-          eq(pullRequests.repositoryId, pr.repositoryId),
-          eq(pullRequests.state, 'open'),
-          eq(pullRequests.baseRef, pr.headRef),
-          landTargetIs(target)
-        )
-      )
-      .all();
-    let moved = 0;
-    const movedChildren: PullRequest[] = [];
-    for (const c of children) {
-      // Compare-and-swap: a racing reconcile or close moves it once.
-      const did = await unstackWithEvent(db, c, target, {
-        // One per version of the child's row: deterministic, so a repeat records it once.
-        id: `unstacked:${c.id}:${pr.id}:${c.updatedAt.getTime()}`,
-        data: {
-          pr: pr.number,
-          why:
-            how === 'landed'
-              ? `#${pr.number} landed.`
-              : `#${pr.number} was closed without landing.`,
-        },
-      });
-      if (!did) continue;
-      moved++;
-      movedChildren.push({ ...c, baseRef: target, landTarget: target });
-    }
-    // A dismissal lasts until either side lands: the landed PR's pairs count again. A must-account-for it is the
-    // prerequisite of also forgets the dependent's head (as Retry does), so the next run re-checks that head
-    // rather than skipping a pair it already saw.
-    if (how === 'landed') {
-      const dismissedMust = and(
-        eq(prEdges.slot, 'pair'),
-        eq(prEdges.kind, 'must_account_for'),
-        isNotNull(prEdges.dismissedAt),
-        isNull(prEdges.accountedForAt)
-      );
-      await db
-        .update(prEdges)
-        .set({ dismissedAt: null, dismissedById: null, bHead: '' })
-        .where(
-          and(
-            dismissedMust,
-            eq(prEdges.prerequisite, 'a'),
-            eq(prEdges.prAId, pr.id)
-          )
-        );
-      await db
-        .update(prEdges)
-        .set({ dismissedAt: null, dismissedById: null, aHead: '' })
-        .where(
-          and(
-            dismissedMust,
-            eq(prEdges.prerequisite, 'b'),
-            eq(prEdges.prBId, pr.id)
-          )
-        );
-      await db
-        .update(prEdges)
-        .set({ dismissedAt: null, dismissedById: null })
-        .where(
-          and(
-            eq(prEdges.slot, 'pair'),
-            isNotNull(prEdges.dismissedAt),
-            or(eq(prEdges.prAId, pr.id), eq(prEdges.prBId, pr.id))
-          )
-        );
-    }
-    await db
-      .delete(prEdges)
-      .where(
-        and(
-          eq(prEdges.slot, 'order'),
-          or(
-            eq(prEdges.prAId, pr.id),
-            eq(prEdges.prBId, pr.id),
-            eq(prEdges.forPrId, pr.id)
-          )
-        )
-      );
-    // Old and new base share the land target: one scoped settle covers both.
-    if (moved) await settleStates(env, db, pr.repositoryId, { branch: target });
-    // Children now on the land target rebase onto it; so may an open PR sharing its head into another base (it
-    // wasn't rebased while this one was open: rebaseBlocked).
-    const sharing = await db
-      .select()
-      .from(pullRequests)
-      .where(
-        and(
-          eq(pullRequests.repositoryId, pr.repositoryId),
-          eq(pullRequests.state, 'open'),
-          eq(pullRequests.headRef, pr.headRef)
-        )
-      )
-      .all();
-    const toRebase = [
-      ...movedChildren,
-      ...sharing.filter((p) => p.id !== pr.id),
-    ];
-    if (toRebase.length) {
-      const found = await findRepoById(db, pr.repositoryId);
-      if (found)
-        for (const c of toRebase)
-          await ensureRebase(env, db, gitFor(env, found.repo), c);
-    }
-    await startReconcile(env, pr.repositoryId, target);
-  } catch (e) {
-    console.error('[stack] unwinding failed', pr.id, e);
-  }
-}
-
 /** Dismisses every edge between `pr` and #`other` (a maintainer's decision; survives new heads). */
 export async function dismissEdge(
   env: CloudflareBindings,
@@ -208,10 +79,6 @@ export async function dismissEdge(
     )
     .get();
   if (!o) return 'not_found';
-  const between = or(
-    and(eq(prEdges.prAId, pr.id), eq(prEdges.prBId, o.id)),
-    and(eq(prEdges.prAId, o.id), eq(prEdges.prBId, pr.id))
-  );
   const now = Date.now();
   const d1 = d1Of(db);
   const eventId = `dismissed:${pr.id}:${o.id}:${now}`;

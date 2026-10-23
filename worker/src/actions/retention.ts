@@ -11,6 +11,7 @@ import {
 import { stopStaleReviews } from '../review/head';
 import { recoverLessons } from '../learn/recover';
 import { recoverLandings } from '../merge/landing-recovery';
+import { recoverPullCloses } from '../pulls/close-recovery';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
@@ -123,6 +124,13 @@ export async function runActionsRetention(
   db: DrizzleDB,
   now = new Date()
 ): Promise<RetentionStatus> {
+  // Durable PR recovery must run even when unrelated R2 log cleanup fails.
+  await recoverLandings(env, db).catch((e: unknown) => {
+    console.error('[merge] could not recover landings', e);
+  });
+  await recoverPullCloses(env, db).catch((e: unknown) => {
+    console.error('[pulls] could not recover closed pulls', e);
+  });
   const days = await getSetting(db, env, 'actions.retention_days');
   let deleted = 0;
   let deletedAgent = 0;
@@ -177,9 +185,6 @@ export async function runActionsRetention(
   const lessons = await recoverLessons(env, db, now).catch((e: unknown) => {
     console.error('[learn] could not recover lessons', e);
     return null;
-  });
-  await recoverLandings(env, db).catch((e: unknown) => {
-    console.error('[merge] could not recover landings', e);
   });
   const status: RetentionStatus = {
     at: now.toISOString(),

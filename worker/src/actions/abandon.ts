@@ -1,6 +1,8 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { workflowJobs, workflowRuns, workflowSteps } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
+import { inJsonArray } from '../lib/sql-set';
 
 /** Marks a run and everything still open in it as finished. */
 export async function finishAbandoned(
@@ -50,7 +52,7 @@ export async function finishAbandoned(
             })
             .where(
               and(
-                inArray(workflowSteps.jobId, jobIds),
+                inJsonArray(workflowSteps.jobId, jobIds),
                 inArray(workflowSteps.status, ['queued', 'in_progress'])
               )
             ),

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import type { StepRequest } from '../actions/job-runner';
 import { artifactNameError } from '../actions/artifacts';
@@ -135,7 +136,17 @@ jobs:
     // Everything: one directory per artifact.
     expect(script(all)).toContain("-d '/workspace/dist'");
     expect(script(all)).toContain("-d '/workspace/logs'");
-    expect(all.masks).toHaveLength(2);
+    // Earlier signed URLs stay masked even when a later step renews the signature.
+    expect([...new Set(all.masks)].sort()).toEqual(
+      [
+        ...new Set([
+          one.env.ARTIFACT_URL_0,
+          merged.env.ARTIFACT_URL_0,
+          all.env.ARTIFACT_URL_0,
+          all.env.ARTIFACT_URL_1,
+        ]),
+      ].sort()
+    );
     expect(await stepLog(s, test.id, 5)).toContain(
       "Artifact 'missing' was not found in this run. It has: dist, logs."
     );

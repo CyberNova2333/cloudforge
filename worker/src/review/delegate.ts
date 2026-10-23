@@ -7,16 +7,7 @@
  * person is always allowed, and is what happens when there is no model, it fails, or its answer can't be used.
  * Every decision can be undone while the pull request is open (`undoFlag`).
  */
-import {
-  and,
-  asc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  notInArray,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, not, sql } from 'drizzle-orm';
 import { noteDecision } from '../agent-runs/context';
 import { agentColor } from '../agents/presets';
 import {
@@ -40,6 +31,7 @@ import {
   permissionsForMany,
 } from '../lib/repos';
 import { getSetting } from '../lib/settings';
+import { inJsonArray } from '../lib/sql-set';
 import { chunks } from '../stack/view';
 import { recordAiUsage, usageFromResponse } from '../usage/record';
 import type { SessionUser } from '../variables';
@@ -688,7 +680,9 @@ export async function setDelegations(
         })
         .from(agents)
         .innerJoin(users, eq(users.id, agents.userId))
-        .where(and(inArray(users.username, wanted), isNull(agents.deletedAt)))
+        .where(
+          and(inJsonArray(users.username, wanted), isNull(agents.deletedAt))
+        )
         .all()
     : [];
   const missing = wanted.filter((h) => !found.some((a) => a.handle === h));
@@ -707,7 +701,9 @@ export async function setDelegations(
     db
       .delete(aiDelegations)
       .where(
-        ids.length ? and(mine, notInArray(aiDelegations.agentId, ids)) : mine
+        ids.length
+          ? and(mine, not(inJsonArray(aiDelegations.agentId, ids)))
+          : mine
       ),
     ...ids.map((agentId) =>
       db

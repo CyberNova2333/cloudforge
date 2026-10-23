@@ -8,7 +8,7 @@ import {
   type StepResult,
 } from '../actions/job-runner';
 import { expandMatrix } from '../actions/plan';
-import { openState, sealState } from '../actions/state';
+import { openState, persistState, sealState } from '../actions/state';
 import { saveVariable } from '../actions/secrets';
 import { onRefsUpdated } from '../actions/trigger';
 import { mask, workflowCommands } from '../actions/commands';
@@ -27,6 +27,17 @@ it('honors short masks and masks overlapping values without exposing the longer 
     '::add-mask::xy\n::add-mask::abcd\n::add-mask::abcdef\nxy abcdef'
   );
   expect(mask(parsed.text, parsed.masks)).toBe('*** ***');
+});
+
+it('redacts the union of crossing and self-overlapping secret matches', () => {
+  expect(mask('abcdef', ['abcd', 'cdef'])).toBe('***');
+  expect(mask('abcdef', ['cdef', 'abcd'])).toBe('***');
+  expect(mask('ababa', ['aba'])).toBe('***');
+  expect(mask('x and *', ['x', '*'])).toBe('*** and ***');
+});
+
+it('redacts a full-size log with a densely self-overlapping secret', () => {
+  expect(mask('a'.repeat(4 * 1024 * 1024), ['a'.repeat(1024)])).toBe('***');
 });
 
 function failStateReads(
@@ -59,6 +70,164 @@ function failStateReads(
 }
 
 describe('Actions durable secret state', () => {
+  it('does not replay completed commands when the next step cannot update D1', async () => {
+    const s = await setup();
+    await pushFiles(s, 'main', {
+      '.github/workflows/ci.yml': `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - run: deploy-once
+      - run: after-deploy
+        continue-on-error: true
+`,
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    await s.t.env.DB.prepare(
+      `CREATE TRIGGER fail_next_action_start BEFORE UPDATE ON workflow_steps
+      WHEN NEW.number = 3 AND NEW.status = 'in_progress'
+      BEGIN SELECT RAISE(ABORT, 'injected step update outage'); END;`
+    ).run();
+    const h = harness(s.t);
+    try {
+      expect(await h.run(run.id)).toBe('failure');
+      expect(h.requests.map(script)).toEqual(['deploy-once']);
+      expect(h.boots).toHaveLength(1);
+      expect(h.stepNames.some((n) => n.endsWith(':restart'))).toBe(false);
+    } finally {
+      await s.t.env.DB.exec('DROP TRIGGER fail_next_action_start');
+    }
+  });
+  it.each(['state', 'log', 'persistent logs'])(
+    'never repeats a completed command after an R2 %s write fails',
+    async (kind) => {
+      const s = await setup();
+      await pushFiles(s, 'main', {
+        '.github/workflows/ci.yml': `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - run: deploy-once
+        continue-on-error: true
+      - run: after-deploy
+        if: always()
+`,
+      });
+      const [run] = (await runs(s.t, s.admin)).runs;
+      const original = s.t.env.ACTIONS_LOGS;
+      let armed = false;
+      let failures = 0;
+      s.t.env.ACTIONS_LOGS = new Proxy(original, {
+        get(target, property) {
+          if (property === 'put')
+            return async (key: string, ...args: unknown[]) => {
+              if (
+                armed &&
+                (failures === 0 || kind === 'persistent logs') &&
+                (kind === 'state'
+                  ? key.includes('/state/')
+                  : kind === 'persistent logs'
+                    ? key.endsWith('.log')
+                    : key.endsWith('/2.log'))
+              ) {
+                failures++;
+                throw new Error('injected R2 write outage');
+              }
+              return (target.put as (...a: unknown[]) => unknown)(key, ...args);
+            };
+          const value = Reflect.get(target, property, target);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+      const h = harness(s.t, () => {
+        armed = true;
+        return { outputs: { large: 'x'.repeat(600 * 1024) } };
+      });
+      try {
+        const result = await h.run(run.id);
+        expect(failures).toBeGreaterThan(0);
+        expect(h.requests.map(script)).toEqual(['deploy-once']);
+        expect(result).toBe('failure');
+        expect(h.boots).toHaveLength(1);
+        expect(h.stepNames.some((n) => n.endsWith(':restart'))).toBe(false);
+        const detail = await runDetail(s.t, s.admin, run.runNumber);
+        expect(detail.run.conclusion).toBe('failure');
+        expect(detail.jobs[0].conclusion).toBe('failure');
+        expect(detail.jobs[0].status).toBe('completed');
+      } finally {
+        s.t.env.ACTIONS_LOGS = original;
+      }
+    }
+  );
+
+  it('persists a replayable failure marker without exception text or secret-bearing state', async () => {
+    const s = await setup();
+    const saved = await persistState(async () => {
+      throw new Error('secret-bearing-failure');
+    });
+    const replayed = JSON.parse(JSON.stringify(saved));
+    expect(replayed).toEqual({ unavailable: true });
+    await expect(
+      openState(s.t.env, 'repo', 'run', 'step', replayed)
+    ).rejects.toThrow('could not be saved');
+    await expect(
+      openState(
+        s.t.env,
+        'repo',
+        'run',
+        'step',
+        JSON.parse(JSON.stringify({ unavailable: true, preparation: true }))
+      )
+    ).rejects.toThrow('preparation failed');
+  });
+
+  it('stops later cleanup commands when a post result cannot be saved', async () => {
+    const s = await setup();
+    await pushFiles(s, 'main', {
+      '.github/workflows/ci.yml': `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/first
+      - uses: ./.github/actions/second
+`,
+      '.github/actions/first/action.yml':
+        'runs:\n  using: node24\n  main: first.js\n  post: cleanup-first.js\n',
+      '.github/actions/second/action.yml':
+        'runs:\n  using: node24\n  main: second.js\n  post: cleanup-second.js\n',
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    const original = s.t.env.ACTIONS_LOGS;
+    s.t.env.ACTIONS_LOGS = new Proxy(original, {
+      get(target, property) {
+        if (property === 'put')
+          return async (key: string, ...args: unknown[]) => {
+            if (decodeURIComponent(key).includes(':post:'))
+              throw new Error('injected post write failure');
+            return (target.put as (...a: unknown[]) => unknown)(key, ...args);
+          };
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const h = harness(s.t, () => ({ masks: ['x'.repeat(600 * 1024)] }));
+    try {
+      expect(await h.run(run.id)).toBe('failure');
+      expect(h.requests).toHaveLength(3);
+      expect(script(h.requests[2])).toContain('cleanup-second.js');
+      expect(
+        h.requests.some((r) => script(r).includes('cleanup-first.js'))
+      ).toBe(false);
+      expect(h.stepNames.some((n) => n.endsWith(':restart'))).toBe(false);
+    } finally {
+      s.t.env.ACTIONS_LOGS = original;
+    }
+  });
   it.each([false, true])(
     'retries only R2 reads and never repeats a completed command (persistent outage: %s)',
     async (persistent) => {
@@ -341,6 +510,70 @@ jobs:
     expect(JSON.stringify([...persisted.values()])).not.toContain(generated);
   });
 
+  it('retains request credentials as encrypted masks across replay and withholds matching job outputs', async () => {
+    const s = await setup();
+    await pushFiles(s, 'main', {
+      '.github/workflows/ci.yml': `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      token: \${{ steps.checkout.outputs.token }}
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+      - run: echo "$SAVED_TOKEN"
+`,
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    const persisted = new Map<string, unknown>();
+    const step = {
+      do: async (name: string, a: unknown, b?: unknown) => {
+        if (persisted.has(name)) return structuredClone(persisted.get(name));
+        const value = await ((b ?? a) as () => Promise<unknown>)();
+        persisted.set(name, JSON.parse(JSON.stringify(value ?? null)));
+        return value;
+      },
+    } as StepRunner;
+    let token = '';
+    const requests: StepRequest[] = [];
+    const runner = {
+      boot: async () => ({ ms: 0 }),
+      destroy: async () => {},
+      runStep: async (req: StepRequest): Promise<StepResult> => {
+        requests.push(req);
+        if (req.env.CLOUDFORGE_TOKEN) token = req.env.CLOUDFORGE_TOKEN;
+        return {
+          exitCode: 0,
+          timedOut: false,
+          log: token,
+          outputs: { token },
+          envAdds: { SAVED_TOKEN: token },
+          pathAdds: [],
+        };
+      },
+    };
+    const db = drizzle(s.t.env.DB, { schema });
+    const runIt = () =>
+      executeRun({ env: s.t.env, db, step, runner: () => runner }, run.id);
+    expect(await runIt()).toBe('success');
+    expect(requests[1].masks).toContain(token);
+    expect(JSON.stringify([...persisted.values()])).not.toContain(token);
+    const complete = [...persisted.entries()].find(([name]) =>
+      name.endsWith(':complete')
+    )!;
+    const repo = (await db.select().from(schema.repositories).get())!;
+    expect(
+      await openState(s.t.env, repo.id, run.id, complete[0], complete[1] as any)
+    ).toMatchObject({ outputs: { token: '' } });
+    for (const name of persisted.keys())
+      if (/:step:3(?::done)?$|:complete$/.test(name)) persisted.delete(name);
+    requests.length = 0;
+    expect(await runIt()).toBe('success');
+    expect(requests).toHaveLength(1);
+    expect(requests[0].masks).toContain(token);
+  });
+
   it('binds encrypted state to its run and step and works without configured Actions secrets', async () => {
     const s = await setup();
     const env = { ...s.t.env, ACTIONS_SECRETS_KEY: '' };
@@ -394,6 +627,56 @@ jobs:
 });
 
 describe('JobRunner masks and process lifetime', () => {
+  it('masks crossing secrets in live and saved runner logs', async () => {
+    let release!: () => void;
+    const container = {
+      running: true,
+      exec: async (argv: string[]) => {
+        if (argv[0] !== '/usr/bin/timeout')
+          return {
+            exitCode: Promise.resolve(0),
+            output: async () => ({
+              stdout: new TextEncoder().encode('\0\0\0'),
+            }),
+          };
+        return {
+          exitCode: new Promise<number>((resolve) => {
+            release = () => resolve(0);
+          }),
+          stdout: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  '::add-mask::abcd\n::add-mask::cdef\nabcdef\n'
+                )
+              );
+              controller.close();
+            },
+          }),
+        };
+      },
+    };
+    const runner = Object.assign(Object.create(JobRunner.prototype), {
+      ctx: { container },
+      masks: [],
+      registeredMasks: [],
+    }) as JobRunner;
+    const pending = runner.runStep({
+      number: 2,
+      argv: ['bash', '-c', 'test'],
+      cwd: '/',
+      env: {},
+      timeoutMs: 1000,
+      masks: [],
+    });
+    while (!release) await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const live = await runner.live(2);
+    release();
+    const saved = await pending;
+    expect(live?.trim()).toBe('***');
+    expect(saved.log.trim()).toBe('***');
+  });
   it('fails when stdout reading fails after the process exited successfully', async () => {
     const container = {
       running: true,
