@@ -1,0 +1,1 @@
+node scripts/githooks/commit-msg.mjs "$1"
