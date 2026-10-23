@@ -1,5 +1,16 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, desc, eq, gt, isNotNull, isNull, or } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  isNotNull,
+  isNull,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { invitations, userEmails } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import { sendInviteEmail } from '../lib/email';
@@ -170,7 +181,7 @@ async function findValidInvite(db: AppEnv['Variables']['db'], token: string) {
       )
     )
     .get();
-  if (!invite || invite.expiresAt < new Date()) return null;
+  if (!invite || invite.expiresAt <= new Date()) return null;
   return invite;
 }
 
@@ -241,6 +252,25 @@ invitesRouter.openapi(acceptRoute, async (c) => {
       { error: `Username ${body.username} is not available.` },
       400
     );
+  // Claim once, after validation and before account creation. A revoked, expired,
+  // or concurrently consumed invitation must not authorize a new account.
+  const claimedAt = new Date();
+  const [claimed] = await db
+    .update(invitations)
+    .set({ acceptedAt: claimedAt })
+    .where(
+      and(
+        eq(invitations.id, invite.id),
+        eq(invitations.tokenHash, invite.tokenHash),
+        eq(invitations.email, invite.email),
+        eq(invitations.role, invite.role),
+        isNull(invitations.acceptedAt),
+        gt(invitations.expiresAt, claimedAt)
+      )
+    )
+    .returning({ id: invitations.id });
+  if (!claimed)
+    return c.json({ error: 'This invitation is invalid or has expired' }, 400);
   try {
     await c.get('auth').api.createUser({
       body: {
@@ -255,14 +285,28 @@ invitesRouter.openapi(acceptRoute, async (c) => {
       },
     });
   } catch (e) {
+    // Retry is safe only when no account was created. Do not resurrect a revoked
+    // invitation or release a partially successful creation after an ambiguous error.
+    await db
+      .update(invitations)
+      .set({ acceptedAt: null })
+      .where(
+        and(
+          eq(invitations.id, invite.id),
+          eq(invitations.tokenHash, invite.tokenHash),
+          eq(invitations.acceptedAt, claimedAt),
+          notExists(
+            db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(sql`lower(${users.email})`, invite.email.toLowerCase()))
+          )
+        )
+      );
     return c.json(
       { error: e instanceof Error ? e.message : 'Could not create account' },
       400
     );
   }
-  await db
-    .update(invitations)
-    .set({ acceptedAt: new Date() })
-    .where(eq(invitations.id, invite.id));
   return c.json({ email: invite.email }, 200);
 });

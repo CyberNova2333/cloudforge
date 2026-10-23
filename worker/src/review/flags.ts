@@ -1,11 +1,16 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, exists, isNull, or } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
 import type { DrizzleDB } from '../db/middleware';
 import {
   agents,
+  aiDelegations,
   prClassifications,
   prReviewFlags,
+  pullRequests,
+  repositories,
+  repositoryAgents,
+  repositoryCollaborators,
   type PullRequest,
   type Repository,
 } from '../db/app.schema';
@@ -61,7 +66,7 @@ export type FlagDecisionOpts = {
   via?: string | null;
   kind?: FlagKind;
   expectedHead?: { sha: string; git: GitService };
-  ai?: { reason: string };
+  ai?: { reason: string; requireDelegation?: boolean };
 };
 
 export type FlagDecisionResult =
@@ -214,7 +219,70 @@ export async function decideFlag(
   const open = and(
     eq(prReviewFlags.id, flagId),
     isNull(prReviewFlags.approvedAt),
-    opts.ai ? isNull(prReviewFlags.changesRequestedAt) : undefined
+    opts.ai ? isNull(prReviewFlags.changesRequestedAt) : undefined,
+    opts.ai ? eq(prReviewFlags.kind, 'needs_person') : undefined,
+    // A model call can outlive a ban, permission change or closed PR. Check
+    // current authority in the write itself, including automatic delegation.
+    opts.ai
+      ? exists(
+          db
+            .select({ id: pullRequests.id })
+            .from(pullRequests)
+            .innerJoin(
+              repositories,
+              eq(repositories.id, pullRequests.repositoryId)
+            )
+            .innerJoin(users, eq(users.id, userId))
+            .innerJoin(agents, eq(agents.userId, prReviewFlags.agentId))
+            .innerJoin(
+              repositoryAgents,
+              and(
+                eq(repositoryAgents.repositoryId, repositories.id),
+                eq(repositoryAgents.agentId, agents.userId)
+              )
+            )
+            .where(
+              and(
+                eq(pullRequests.id, pr.id),
+                eq(pullRequests.state, 'open'),
+                or(isNull(users.banned), eq(users.banned, false)),
+                isNull(agents.deletedAt),
+                eq(agents.guarded, false),
+                or(
+                  eq(users.role, 'admin'),
+                  eq(repositories.ownerId, userId),
+                  exists(
+                    db
+                      .select({ id: repositoryCollaborators.userId })
+                      .from(repositoryCollaborators)
+                      .where(
+                        and(
+                          eq(
+                            repositoryCollaborators.repositoryId,
+                            repositories.id
+                          ),
+                          eq(repositoryCollaborators.userId, userId)
+                        )
+                      )
+                  )
+                ),
+                opts.ai.requireDelegation
+                  ? exists(
+                      db
+                        .select({ id: aiDelegations.agentId })
+                        .from(aiDelegations)
+                        .where(
+                          and(
+                            eq(aiDelegations.userId, userId),
+                            eq(aiDelegations.agentId, agents.userId)
+                          )
+                        )
+                    )
+                  : undefined
+              )
+            )
+        )
+      : undefined
   );
   const via = opts.via ?? null;
   const taught = { teachNote: teach, teachById: teach ? userId : null };
@@ -249,7 +317,8 @@ export async function decideFlag(
       return {
         ok: false,
         status: 409,
-        error: 'Someone already decided this finding',
+        error:
+          'This finding or its authorization changed. Refresh and try again.',
       };
     // The first approval stands, so a note sent with a second one would be lost: refuse it instead.
     if (!decided && teach)
@@ -293,7 +362,8 @@ export async function decideFlag(
         ? {
             ok: false,
             status: 409,
-            error: 'Someone already decided this finding',
+            error:
+              'This finding or its authorization changed. Refresh and try again.',
           }
         : { ok: false, status: 400, error: 'This flag is already approved' };
     decided = true;

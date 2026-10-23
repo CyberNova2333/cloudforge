@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { settleStates } from '../pulls/settle';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, exists, inArray, isNull, ne } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import { autoMergeForCommit } from '../review/auto-merge';
 import {
@@ -198,12 +198,28 @@ async function executionState(
 function maskingRunner(
   base: JobRunnerApi,
   masks: string[],
-  runId: string
+  runId: string,
+  db: Db
 ): JobRunnerApi {
+  const assertActive = async () => {
+    const run = await db
+      .select({ status: workflowRuns.status })
+      .from(workflowRuns)
+      .where(eq(workflowRuns.id, runId))
+      .get();
+    if (!run || run.status === 'completed')
+      throw new Error('The run already completed.');
+  };
   return {
-    boot: (instance, maxMs) => base.boot(instance, maxMs),
+    boot: async (instance, maxMs) => {
+      await assertActive();
+      return base.boot(instance, maxMs);
+    },
     destroy: () => base.destroy(),
     runStep: async (req) => {
+      // Composite subcommands and preparation can await between the outer step
+      // guard and this dispatch. Cancellation is not a runner interruption.
+      await assertActive();
       // Built-in checkout/cache/artifact credentials are as sensitive as
       // add-mask values, including if command files retain them for replay.
       rememberMasks(runId, masks, req.masks);
@@ -358,7 +374,9 @@ export async function executeRun(
     await db
       .update(workflowRuns)
       .set({ status: 'in_progress', startedAt: new Date() })
-      .where(eq(workflowRuns.id, runId));
+      .where(
+        and(eq(workflowRuns.id, runId), ne(workflowRuns.status, 'completed'))
+      );
     return true;
   });
 
@@ -494,11 +512,13 @@ async function skipJob(deps: ExecutorDeps, jobId: string, name: string) {
     await deps.db
       .update(workflowJobs)
       .set({ status: 'completed', conclusion: 'skipped', completedAt: now })
-      .where(eq(workflowJobs.id, jobId));
+      .where(and(eq(workflowJobs.id, jobId), activeRunForJob(deps.db, jobId)));
     await deps.db
       .update(workflowSteps)
       .set({ status: 'completed', conclusion: 'skipped', completedAt: now })
-      .where(eq(workflowSteps.jobId, jobId));
+      .where(
+        and(eq(workflowSteps.jobId, jobId), activeRunForJob(deps.db, jobId))
+      );
     return true;
   });
 }
@@ -567,18 +587,41 @@ async function waitForSlot(
   }
 }
 
+/** Cancellation is terminal even if Workflow termination or container shutdown fails. */
+function activeRunForJob(db: Db, jobId: string) {
+  return exists(
+    db
+      .select({ id: workflowJobs.id })
+      .from(workflowJobs)
+      .innerJoin(workflowRuns, eq(workflowRuns.id, workflowJobs.runId))
+      .where(
+        and(eq(workflowJobs.id, jobId), ne(workflowRuns.status, 'completed'))
+      )
+  );
+}
+
 async function setStep(
   db: Db,
   jobId: string,
   number: number,
   patch: Partial<typeof workflowSteps.$inferInsert>
 ) {
-  await db
+  const identity = and(
+    eq(workflowSteps.jobId, jobId),
+    eq(workflowSteps.number, number)
+  );
+  const changed = await db
     .update(workflowSteps)
     .set(patch)
-    .where(
-      and(eq(workflowSteps.jobId, jobId), eq(workflowSteps.number, number))
-    );
+    .where(and(identity, activeRunForJob(db, jobId)))
+    .returning({ number: workflowSteps.number });
+  // A late diagnostic is still useful; it must not rewrite the terminal status.
+  if (!changed.length && patch.logR2Key)
+    await db
+      .update(workflowSteps)
+      .set({ logR2Key: patch.logR2Key })
+      .where(and(identity, isNull(workflowSteps.logR2Key)));
+  return changed.length > 0;
 }
 
 async function runJob(
@@ -645,7 +688,7 @@ async function runJob(
     return { key: def.key, result: 'skipped', outputs: {} };
   }
 
-  const runner = maskingRunner(deps.runner(job.id), masks, ctx.runId);
+  const runner = maskingRunner(deps.runner(job.id), masks, ctx.runId, db);
   const posts = postStepIndexes(def.steps);
   const lastStep = def.steps.length + 2 + posts.length;
 
@@ -707,7 +750,9 @@ async function runJob(
             completedAt: null,
             logR2Key: null,
           })
-          .where(eq(workflowSteps.jobId, job.id));
+          .where(
+            and(eq(workflowSteps.jobId, job.id), activeRunForJob(db, job.id))
+          );
         return 'restart' as const;
       }
     );
@@ -770,10 +815,13 @@ async function runJob(
         { ...NO_RETRY, timeout: `${POST_STEP_MINUTES} minutes` },
         async () => {
           const now = new Date();
-          await setStep(db, job.id, number, {
-            status: 'in_progress',
-            startedAt: now,
-          });
+          if (
+            !(await setStep(db, job.id, number, {
+              status: 'in_progress',
+              startedAt: now,
+            }))
+          )
+            return { unavailable: true, preparation: true } as const;
           let log: string;
           let ran = true;
           if (jobStatus !== 'success') {
@@ -924,7 +972,7 @@ async function runJob(
           conclusion: jobStatus === 'failure' ? 'failure' : 'success',
           completedAt: now,
         })
-        .where(eq(workflowJobs.id, job.id));
+        .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
       return sealState(env, ctx.repoId, ctx.runId, `${name}:complete`, {
         key: def.key,
         result,
@@ -955,7 +1003,7 @@ async function runJob(
           conclusion: 'failure',
           completedAt: new Date(),
         })
-        .where(eq(workflowJobs.id, job.id));
+        .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
       await putLog(
         env,
         ctx,
@@ -1048,8 +1096,14 @@ async function runAttempt(
         await db
           .update(workflowJobs)
           .set({ status: 'in_progress', startedAt: now })
-          .where(eq(workflowJobs.id, job.id));
-        await setStep(db, job.id, 1, { status: 'in_progress', startedAt: now });
+          .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
+        if (
+          !(await setStep(db, job.id, 1, {
+            status: 'in_progress',
+            startedAt: now,
+          }))
+        )
+          return { ok: false, error: 'The run already completed.' };
         let log: string;
         let ok = true;
         let error: string | undefined;
@@ -1189,10 +1243,13 @@ async function runAttempt(
         },
         async () =>
           executionState(async () => {
-            await setStep(db, job.id, number, {
-              status: 'in_progress',
-              startedAt: new Date(),
-            });
+            if (
+              !(await setStep(db, job.id, number, {
+                status: 'in_progress',
+                startedAt: new Date(),
+              }))
+            )
+              return { unavailable: true, preparation: true } as const;
             let exitCode = 1;
             let log = '';
             let out: {
@@ -2252,10 +2309,13 @@ async function runActionPost(
       `${name}:post:${number}`,
       { ...NO_RETRY, timeout: `${POST_STEP_MINUTES} minutes` },
       async () => {
-        await setStep(db, jobId, number, {
-          status: 'in_progress',
-          startedAt: new Date(),
-        });
+        if (
+          !(await setStep(db, jobId, number, {
+            status: 'in_progress',
+            startedAt: new Date(),
+          }))
+        )
+          return { unavailable: true, preparation: true } as const;
         let log: string;
         let conclusion: Conclusion = 'skipped';
         let run = false;
