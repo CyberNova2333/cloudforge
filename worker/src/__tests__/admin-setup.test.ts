@@ -154,6 +154,7 @@ describe('Site admin → Setup', () => {
     for (const id of [
       'secret-better-auth',
       'secret-r2',
+      'secret-actions',
       'binding-DB',
       'binding-ARTIFACTS',
       'binding-AI',

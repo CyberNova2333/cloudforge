@@ -598,6 +598,23 @@ export type WorkflowJob = {
   completedAt: string | null;
   steps: WorkflowStep[];
 };
+/** Which list: `${{ secrets.X }}` or `${{ vars.X }}`. */
+export type ActionsVariableKind = 'secrets' | 'variables';
+/** A saved secret or variable. A secret's value is never sent back (null). */
+export type ActionsVariable = {
+  name: string;
+  value: string | null;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: User | null;
+};
+export type ActionsVariableList = {
+  /** The server has ACTIONS_SECRETS_KEY: secrets can be saved and are read in jobs. */
+  configured: boolean;
+  items: ActionsVariable[];
+  /** On a repository: the instance-wide ones it doesn't override. */
+  inherited: { name: string; value: string | null }[];
+};
 /** A build artifact of a run (actions/upload-artifact). */
 export type WorkflowArtifact = {
   name: string;
@@ -1356,6 +1373,43 @@ export const api = {
     }),
   namespace: (slug: string) =>
     apiFetch<Namespace>(`/api/namespaces/${encodeURIComponent(slug)}`),
+  repoActionsVariables: (o: string, n: string, kind: ActionsVariableKind) =>
+    apiFetch<ActionsVariableList>(`${r(o, n)}/actions/${kind}`),
+  saveRepoActionsVariable: (
+    o: string,
+    n: string,
+    kind: ActionsVariableKind,
+    name: string,
+    value: string
+  ) =>
+    apiFetch<{ name: string; created: boolean }>(
+      `${r(o, n)}/actions/${kind}/${encodeURIComponent(name)}`,
+      { method: 'PUT', json: { value } }
+    ),
+  deleteRepoActionsVariable: (
+    o: string,
+    n: string,
+    kind: ActionsVariableKind,
+    name: string
+  ) =>
+    apiFetch(`${r(o, n)}/actions/${kind}/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+  adminActionsVariables: (kind: ActionsVariableKind) =>
+    apiFetch<ActionsVariableList>(`/api/admin/actions/${kind}`),
+  saveAdminActionsVariable: (
+    kind: ActionsVariableKind,
+    name: string,
+    value: string
+  ) =>
+    apiFetch<{ name: string; created: boolean }>(
+      `/api/admin/actions/${kind}/${encodeURIComponent(name)}`,
+      { method: 'PUT', json: { value } }
+    ),
+  deleteAdminActionsVariable: (kind: ActionsVariableKind, name: string) =>
+    apiFetch(`/api/admin/actions/${kind}/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
   team: () => apiFetch<{ team: Team | null }>('/api/team'),
   saveTeam: (body: { name: string; slug: string }) =>
     apiFetch<{ team: Team }>('/api/team', { method: 'PUT', json: body }),
@@ -1841,6 +1895,10 @@ export const qk = {
   mcpConnections: ['mcp', 'connections'] as const,
   namespace: (u: string) => ['namespace', u] as const,
   team: ['team'] as const,
+  repoActionsVariables: (o: string, n: string, kind: ActionsVariableKind) =>
+    ['repo', o, n, 'actions-variables', kind] as const,
+  adminActionsVariables: (kind: ActionsVariableKind) =>
+    ['admin', 'actions-variables', kind] as const,
   repo: (o: string, n: string) => ['repo', o, n] as const,
   contents: (o: string, n: string, refPath: string) =>
     ['repo', o, n, 'contents', refPath] as const,

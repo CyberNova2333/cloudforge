@@ -7,6 +7,7 @@ import {
   GlobeIcon,
   HistoryIcon,
   KeyIcon,
+  LockIcon,
   MailIcon,
   PeopleIcon,
   PlugIcon,
@@ -77,6 +78,13 @@ const ADMIN: NavItem<AdminSection>[] = [
     icon: <SlidersIcon />,
     to: '/admin',
     hash: '#settings',
+  },
+  {
+    id: 'actions',
+    label: t('Actions secrets and variables'),
+    icon: <LockIcon />,
+    to: '/admin',
+    hash: '#actions',
   },
   {
     id: 'agents',

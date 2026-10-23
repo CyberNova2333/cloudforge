@@ -69,9 +69,13 @@ const SECRET_NAMES = new Set([
   'R2_ACCESS_KEY_ID',
   'R2_SECRET_ACCESS_KEY',
   'CF_ANALYTICS_TOKEN',
+  'ACTIONS_SECRETS_KEY',
 ]);
-/** The one secret the first upgrade generates when the worker lacks it (generatedSecrets). */
-const GENERATED_SECRET = 'BETTER_AUTH_SECRET';
+/** The secrets the first upgrade generates when the worker lacks them (generatedSecrets). */
+const GENERATED_SECRETS = new Set([
+  'BETTER_AUTH_SECRET',
+  'ACTIONS_SECRETS_KEY',
+]);
 /** Vars the first upgrade is expected to change. */
 const EXPECTED_TO_CHANGE = new Set([
   'CLOUDFORGE_VERSION',
@@ -121,7 +125,7 @@ export function varChanges(
   )) {
     if (SECRET_NAMES.has(name)) {
       stops.push(
-        name === GENERATED_SECRET
+        GENERATED_SECRETS.has(name)
           ? `  ${name}  (value not shown) -> removed; the upgrade would generate a ${name} secret in its place`
           : `  ${name}  (value not shown) -> removed; set it as a secret instead`
       );

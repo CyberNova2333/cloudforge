@@ -926,6 +926,10 @@ export const auditActions = [
   'release.updated',
   'pull.version_bump',
   'artifact.deleted',
+  'secret.saved',
+  'secret.deleted',
+  'variable.saved',
+  'variable.deleted',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
 /** person: a member. agent: a reviewer agent. ai: CloudForge AI deciding for `actor_id`. system: CloudForge itself. */
@@ -1071,6 +1075,38 @@ export const workflowSteps = sqliteTable(
   },
   (t) => [uniqueIndex('workflow_steps_job_number_uq').on(t.jobId, t.number)]
 );
+
+// Actions secrets and variables (`${{ secrets.X }}`, `${{ vars.X }}`), one table for both. A row with no
+// repository is instance-wide (managed by site admins, available to every repository; a repository's own row of
+// the same kind and name wins). A secret's value is AES-GCM ciphertext (worker/src/actions/secrets.ts, key from
+// ACTIONS_SECRETS_KEY) and never leaves the worker except into a job; a variable's value is plain text.
+export const actionsVariables = sqliteTable(
+  'actions_variables',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id').references(() => repositories.id, {
+      onDelete: 'cascade',
+    }),
+    kind: text('kind', { enum: ['secret', 'variable'] }).notNull(),
+    // Upper case: names are case-insensitive, as on GitHub.
+    name: text('name').notNull(),
+    value: text('value').notNull(),
+    updatedById: text('updated_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('actions_variables_repo_uq')
+      .on(t.repositoryId, t.kind, t.name)
+      .where(sql`repository_id IS NOT NULL`),
+    uniqueIndex('actions_variables_instance_uq')
+      .on(t.kind, t.name)
+      .where(sql`repository_id IS NULL`),
+  ]
+);
+export type ActionsVariable = typeof actionsVariables.$inferSelect;
 
 // ── usage & cost ─────────────────────────────────────────────────────────────
 

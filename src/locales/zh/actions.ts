@@ -216,8 +216,8 @@ export const actions: Record<string, string> = {
   'Build and test every push and pull request. Add a workflow file like this one at {path}; it uses the same syntax as GitHub Actions. Jobs run on Linux with Node.js, git and common build tools preinstalled.':
     '在每次推送和每个拉取请求上构建并测试。在 {path} 添加一个这样的工作流文件；它使用与 GitHub Actions 相同的语法。作业在 Linux 上运行，预装 Node.js、git 和常用构建工具。',
   'Copy workflow': '复制工作流',
-  'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.':
-    '目前支持：{run} 步骤、{checkout}、{setup}、{cache}、{artifacts}、JavaScript 与组合式 Action（来自 GitHub 或 {local}）、{needs}、{if}、带 include/exclude 的矩阵构建、表达式和步骤输出。需要更大的机器时使用 {runsOn}（最高 {max}）。',
+  'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions, step outputs, and {secrets} and {vars} (Settings → Secrets and variables). Use {runsOn} (up to {max}) for a bigger machine.':
+    '目前支持：{run} 步骤、{checkout}、{setup}、{cache}、{artifacts}、JavaScript 与组合式 Action（来自 GitHub 或 {local}）、{needs}、{if}、带 include/exclude 的矩阵构建、表达式、步骤输出，以及 {secrets} 和 {vars}（设置 → 密钥与变量）。需要更大的机器时使用 {runsOn}（最高 {max}）。',
   'All workflows': '所有工作流',
   '{n} workflow run': '{n} 次工作流运行',
   '{n} workflow runs': '{n} 次工作流运行',
@@ -226,6 +226,34 @@ export const actions: Record<string, string> = {
   Previous: '上一页',
   Next: '下一页',
   'Page {page} of {pages}': '第 {page} 页，共 {pages} 页',
+
+  // src/components/ActionsVariables.tsx, src/pages/RepoSettings.tsx, src/pages/Admin.tsx
+  'Actions secrets and variables': 'Actions 密钥与变量',
+  'Secrets and variables': '密钥与变量',
+  "For this repository's Actions workflows. Collaborators' workflows can use them; only repository admins see and change this list.":
+    '供本仓库的 Actions 工作流使用。协作者的工作流也能使用它们；只有仓库管理员能查看和修改这个列表。',
+  "Available to every repository's workflows. A repository's own secret or variable of the same name wins.":
+    '所有仓库的工作流都能使用。仓库自己有同名的密钥或变量时，以仓库的为准。',
+  'Encrypted, and never shown again once saved. Workflows read them as {expr}; job logs show their values as ***.':
+    '加密保存，保存后不再显示。工作流中用 {expr} 读取；作业日志里显示为 ***。',
+  'Plain text, readable here and in job logs. Workflows read them as {expr}.':
+    '明文保存，这里和作业日志中都能看到。工作流中用 {expr} 读取。',
+  "Secrets aren't set up on this server: a site admin needs to set the ACTIONS_SECRETS_KEY secret (Site admin → Setup checks).":
+    '此服务器尚未启用密钥：需要站点管理员配置 ACTIONS_SECRETS_KEY（站点管理 → 设置检查）。',
+  'No secrets yet.': '还没有密钥。',
+  'No variables yet.': '还没有变量。',
+  'Updated {when} by {who}': '{who} 更新于 {when}',
+  Update: '更新',
+  'Delete secret': '删除密钥',
+  'Delete variable': '删除变量',
+  'Also available, from the instance (site admins manage these; one of this repository with the same name wins):':
+    '另外还可以使用实例级的（由站点管理员管理；本仓库有同名的时以本仓库为准）：',
+  NAME: '名称，例如 NPM_TOKEN',
+  Value: '值',
+  'Value (never shown again once saved)': '值（保存后不再显示）',
+  'Update {name}': '更新 {name}',
+  'Add secret': '添加密钥',
+  'Add variable': '添加变量',
 
   // src/pages/RunView.tsx
   'Loading log…': '正在加载日志…',

@@ -172,7 +172,7 @@ function WorkflowRuns({
         </div>
         <p className="small muted">
           {tx(
-            'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.',
+            'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions, step outputs, and {secrets} and {vars} (Settings → Secrets and variables). Use {runsOn} (up to {max}) for a bigger machine.',
             {
               run: <code>run</code>,
               checkout: <code>actions/checkout</code>,
@@ -180,6 +180,8 @@ function WorkflowRuns({
               cache: <code>actions/cache</code>,
               artifacts: <code>actions/upload-artifact</code>,
               local: <code>./path</code>,
+              secrets: <code>secrets</code>,
+              vars: <code>vars</code>,
               needs: <code>needs</code>,
               if: <code>if</code>,
               runsOn: <code>runs-on: cloudforge-standard-2</code>,

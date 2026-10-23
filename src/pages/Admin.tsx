@@ -2,7 +2,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MailIcon, OrganizationIcon, PeopleIcon } from '@primer/octicons-react';
+import {
+  LockIcon,
+  MailIcon,
+  OrganizationIcon,
+  PeopleIcon,
+} from '@primer/octicons-react';
 import { api, qk } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
@@ -19,6 +24,7 @@ import { LoadError, Notice } from '@/components/Notice';
 import { AdminFrame, RowsSkeleton } from '@/components/SetFrame';
 import { AdminSetup } from '@/components/AdminSetup';
 import { AdminSettings } from '@/components/AdminSettings';
+import { ActionsVariables } from '@/components/ActionsVariables';
 
 export default function Admin() {
   const qc = useQueryClient();
@@ -489,6 +495,22 @@ export default function Admin() {
 
         <AdminSetup />
         <AdminSettings />
+        <div id="actions">
+          <Section
+            title={
+              <>
+                <LockIcon size={16} /> {t('Actions secrets and variables')}
+              </>
+            }
+          >
+            <p className="muted small">
+              {t(
+                "Available to every repository's workflows. A repository's own secret or variable of the same name wins."
+              )}
+            </p>
+            <ActionsVariables scope={null} />
+          </Section>
+        </div>
       </AdminFrame>
     </>
   );

@@ -168,6 +168,24 @@ export const errors: Record<string, string> = {
   // ── Actions ───────────────────────────────────────────────────────────────
   'You do not have permission to cancel runs': '你没有取消运行的权限',
   'You do not have permission to delete artifacts': '你没有删除构建产物的权限',
+  'Only repository admins manage Actions secrets and variables':
+    '只有仓库管理员能管理 Actions 密钥与变量',
+  "Secrets aren't set up on this server: it needs the ACTIONS_SECRETS_KEY secret.":
+    '此服务器尚未启用密钥：需要配置 ACTIONS_SECRETS_KEY。',
+  'A name is required.': '必须填写名称。',
+  'Names are at most 100 characters.': '名称最多 100 个字符。',
+  'Names may contain only letters, digits and underscores, and may not start with a digit.':
+    '名称只能包含字母、数字和下划线，且不能以数字开头。',
+  'Names may not start with GITHUB_ or CLOUDFORGE_: those are reserved for the runner.':
+    '名称不能以 GITHUB_ 或 CLOUDFORGE_ 开头：这些前缀保留给运行器使用。',
+  'A value is required.': '必须填写值。',
+  'Values are at most 48 KB.': '值最多 48 KB。',
+  'Set. Repositories and site admins can save Actions secrets; jobs read them as secrets.<name>.':
+    '已设置。仓库和站点管理员可以保存 Actions 密钥，作业中通过 secrets.<名称> 读取。',
+  "Missing. Actions secrets can't be saved, and every secrets.<name> is empty in jobs. Variables and everything else work.":
+    '未设置。无法保存 Actions 密钥，作业中所有 secrets.<名称> 都为空。变量和其他功能不受影响。',
+  'Keep it: changing it later makes every saved secret unreadable until it is saved again.':
+    '请妥善保留：以后更换它会导致已保存的密钥全部无法读取，需要重新保存。',
   'You do not have permission to re-run runs': '你没有重新运行工作流的权限',
   'This run has already finished': '此运行已经结束',
   'Actions is not set up on this server': '此服务器未配置 Actions',
@@ -667,6 +685,22 @@ export const zhPatterns: [RegExp, string][] = [
   [
     /^(.+) no longer reviews this repository: decide this finding yourself$/,
     '$1 已不再评审此仓库：请自行决定这条评审意见',
+  ],
+  [
+    /^This repository already has (\d+) secrets, the most it can have\.$/,
+    '本仓库已有 $1 个密钥，已达上限。',
+  ],
+  [
+    /^This repository already has (\d+) variables, the most it can have\.$/,
+    '本仓库已有 $1 个变量，已达上限。',
+  ],
+  [
+    /^This instance already has (\d+) secrets, the most it can have\.$/,
+    '本实例已有 $1 个密钥，已达上限。',
+  ],
+  [
+    /^This instance already has (\d+) variables, the most it can have\.$/,
+    '本实例已有 $1 个变量，已达上限。',
   ],
   [
     /^(.+)'s findings always come to a person: CloudForge AI never decides them\.$/,

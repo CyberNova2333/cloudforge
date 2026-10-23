@@ -87,6 +87,18 @@ the axes' cross product, minus the combinations an `exclude` entry matches (obje
 `include` entry merged into every combination whose original values it doesn't change, or added as its own job.
 Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported.
 
+**Secrets and variables** ([`secrets.ts`](../worker/src/actions/secrets.ts)): `${{ secrets.X }}` and `${{ vars.X }}`
+come from one D1 table, `actions_variables`: a repository's own rows (managed by its admins, Settings → Secrets and
+variables) and instance-wide ones (repository null, managed by site admins, Site admin → Actions secrets and
+variables); a repository's row of the same kind and name wins. Names are upper-cased, GitHub's rules, never
+`GITHUB_`/`CLOUDFORGE_`; values up to 48 KB. A secret is stored as AES-256-GCM ciphertext under a key derived (HKDF)
+from the `ACTIONS_SECRETS_KEY` Worker secret, with the row's scope and name as associated data; no route returns it.
+A job reads and decrypts them when it starts, outside any durable Workflow step (step results are persisted), and
+every log of the run masks them, each line of a multi-line one too, both in the runner and when the Worker stores a
+log. A job output that would carry a secret to another job is withheld (as on GitHub). Without the key, or for a
+secret saved under another key, `secrets.X` is empty and "Set up job" says why. Saves and deletes are audited
+(`secret.*`, `variable.*`; names only). There is no `GITHUB_TOKEN` yet.
+
 **Artifacts** ([`artifacts.ts`](../worker/src/actions/artifacts.ts)) are zips in the `ACTIONS_CACHE` bucket at
 `actions-artifacts/<repository id>/<run id>/<name>/<job id>-<step>.zip`; R2's listing is the index (no table).
 `upload-artifact` zips on the runner (python3: globs, `!` excludes, hidden files only with `include-hidden-files`, paths

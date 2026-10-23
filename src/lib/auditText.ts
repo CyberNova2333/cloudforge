@@ -56,6 +56,10 @@ export const AUDIT_ACTIONS = [
   'release.updated',
   'pull.version_bump',
   'artifact.deleted',
+  'secret.saved',
+  'secret.deleted',
+  'variable.saved',
+  'variable.deleted',
 ] as const;
 
 type Data = Record<string, unknown>;
@@ -347,6 +351,32 @@ export function auditParts(
         ...tail('in'),
         via()
       );
+    case 'secret.saved':
+    case 'secret.deleted':
+    case 'variable.saved':
+    case 'variable.deleted': {
+      const secret = e.action.startsWith('secret.');
+      const deleted = e.action.endsWith('.deleted');
+      const created = d.created === true;
+      const verb = deleted
+        ? secret
+          ? t(' deleted the Actions secret ')
+          : t(' deleted the Actions variable ')
+        : created
+          ? secret
+            ? t(' added the Actions secret ')
+            : t(' added the Actions variable ')
+          : secret
+            ? t(' updated the Actions secret ')
+            : t(' updated the Actions variable ');
+      return say(
+        verb,
+        e.target,
+        d.scope === 'instance' ? t(' for every repository') : false,
+        ...(d.scope === 'instance' ? [] : tail('in')),
+        via()
+      );
+    }
     case 'artifact.deleted':
       return say(
         t(' deleted the artifact '),
@@ -789,6 +819,10 @@ export function auditCategory(action: string): AuditCategory {
     case 'repository.created':
     case 'repository.deleted':
     case 'artifact.deleted':
+    case 'secret.saved':
+    case 'secret.deleted':
+    case 'variable.saved':
+    case 'variable.deleted':
       return 'settings';
     default:
       return 'activity';

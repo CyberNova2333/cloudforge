@@ -45,9 +45,11 @@ const TYPED = [
   'R2_SECRET_ACCESS_KEY',
   'CF_ANALYTICS_TOKEN',
 ];
-/** What a worker installed with every credential has, except the generated auth secret. */
+/** What a worker installed with every credential has, except the secrets the installer generates. */
 const ALL_BUT_AUTH = [...TYPED, 'SETUP_CODE_HASH'];
-const ALL_SECRETS = [...ALL_BUT_AUTH, 'BETTER_AUTH_SECRET'];
+/** The generated secrets (generatedSecrets), in the order it adds them. */
+const GENERATED = ['BETTER_AUTH_SECRET', 'ACTIONS_SECRETS_KEY'];
+const ALL_SECRETS = [...ALL_BUT_AUTH, ...GENERATED];
 const DO_IDS = {
   JOB_RUNNER_NAMESPACE_ID: 'ns-job',
   MERGE_RESOLVER_NAMESPACE_ID: 'ns-merge',
@@ -326,7 +328,7 @@ describe('planUpgrade', () => {
     expect(p.create.map((a) => [a.kind, a.name])).toEqual([
       ['r2', 'acme-actions-cache'],
     ]);
-    expect(p.secrets).toEqual(['BETTER_AUTH_SECRET']);
+    expect(p.secrets).toEqual(GENERATED);
     expect(p.missing).toEqual([]);
     expect(p.configChanged).toBe(true);
     expect(p.digest).toMatch(/^[0-9a-f]{12}$/);
@@ -334,7 +336,9 @@ describe('planUpgrade', () => {
     expect(lines[0]).toBe('Upgrade acme: 1.2.0 → 1.3.0');
     expect(lines).toContain('Migrations: 0001_more.sql');
     expect(lines).toContain('Create: r2 acme-actions-cache');
-    expect(lines).toContain('New secrets: BETTER_AUTH_SECRET');
+    expect(lines).toContain(
+      'New secrets: BETTER_AUTH_SECRET, ACTIONS_SECRETS_KEY'
+    );
     expect(lines).toContain('Config: changes');
     expect(lines.some((l) => l.startsWith('Missing'))).toBe(false);
     expect(lines.at(-1)).toBe(LAST);
@@ -563,13 +567,11 @@ describe('upgrade', () => {
     const h = harness();
     await run(h);
     expect(h.deploys).toHaveLength(1);
-    expect(Object.keys(h.deploys[0]!.secrets ?? {})).toEqual([
-      'BETTER_AUTH_SECRET',
-    ]);
+    expect(Object.keys(h.deploys[0]!.secrets ?? {})).toEqual(GENERATED);
   });
 
   it('upgrade never adds SETUP_CODE_HASH', async () => {
-    const h = harness({ secrets: [...TYPED, 'BETTER_AUTH_SECRET'] });
+    const h = harness({ secrets: [...TYPED, ...GENERATED] });
     const p = await planUpgrade(h.ctx, h.state);
     expect(p.secrets).toEqual([]);
     expect(formatUpgradePlan(p)).not.toContain('SETUP_CODE_HASH');
@@ -587,7 +589,7 @@ describe('upgrade', () => {
 
   it('missing R2 keys do not block --yes', async () => {
     const h = harness({
-      secrets: ['BETTER_AUTH_SECRET', 'CF_ANALYTICS_TOKEN'],
+      secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN'],
     });
     const p = await planUpgrade(h.ctx, h.state);
     expect(formatUpgradePlan(p).split('\n')).toContain(
@@ -605,7 +607,7 @@ describe('upgrade', () => {
   });
 
   it('typed credentials go out with the deploy; the digest ignores them', async () => {
-    const h = harness({ secrets: ['BETTER_AUTH_SECRET'] });
+    const h = harness({ secrets: GENERATED });
     const p = await planUpgrade(h.ctx, h.state);
     const asked: string[][] = [];
     const s = await run(h, {
@@ -628,7 +630,7 @@ describe('upgrade', () => {
 
   it('rejected R2 keys are skipped, not a stop', async () => {
     const h = harness({
-      secrets: ['BETTER_AUTH_SECRET', 'CF_ANALYTICS_TOKEN'],
+      secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN'],
       r2Check: 403,
     });
     const s = await run(h, {
@@ -844,6 +846,7 @@ describe('upgrade', () => {
     expect(asked).toEqual([['analytics-token']]);
     expect(again.deploys).toHaveLength(1);
     expect(Object.keys(again.deploys[0]!.secrets ?? {}).sort()).toEqual([
+      'ACTIONS_SECRETS_KEY',
       'BETTER_AUTH_SECRET',
       'CF_ANALYTICS_TOKEN',
     ]);
@@ -860,7 +863,7 @@ describe('upgrade', () => {
     'a lone %s is reported, never paired with a typed half',
     async (present, absent) => {
       const h = harness({
-        secrets: ['BETTER_AUTH_SECRET', 'CF_ANALYTICS_TOKEN', present],
+        secrets: [...GENERATED, 'CF_ANALYTICS_TOKEN', present],
       });
       const p = await planUpgrade(h.ctx, h.state);
       const fix = `Delete it (${h.ctx.source.wranglerCommand(`secret delete ${present} --name acme`)}), then run the upgrade again to add a matching pair.`;

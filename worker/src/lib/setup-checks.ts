@@ -186,6 +186,32 @@ function secretChecks(ctx: Ctx): SetupCheck[] {
           fix: [],
         }
   );
+  out.push(
+    env.ACTIONS_SECRETS_KEY
+      ? {
+          id: 'secret-actions',
+          category: 'Secrets',
+          title: 'ACTIONS_SECRETS_KEY',
+          status: 'ok',
+          detail:
+            'Set. Repositories and site admins can save Actions secrets; jobs read them as secrets.<name>.',
+          fix: [],
+        }
+      : {
+          id: 'secret-actions',
+          category: 'Secrets',
+          title: 'ACTIONS_SECRETS_KEY',
+          status: 'warning',
+          detail:
+            "Missing. Actions secrets can't be saved, and every secrets.<name> is empty in jobs. Variables and everything else work.",
+          fix: [
+            ...secretFix(ctx, 'ACTIONS_SECRETS_KEY', 'openssl rand -hex 32'),
+            {
+              text: 'Keep it: changing it later makes every saved secret unreadable until it is saved again.',
+            },
+          ],
+        }
+  );
   const codeSet = setupCodeRequired(env);
   out.push({
     id: 'secret-setup-code',
