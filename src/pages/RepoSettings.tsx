@@ -2,11 +2,17 @@
 import { useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DependabotIcon, GearIcon, PeopleIcon } from '@primer/octicons-react';
+import {
+  DependabotIcon,
+  GearIcon,
+  LockIcon,
+  PeopleIcon,
+} from '@primer/octicons-react';
 import { api, qk, type RepoDetail, type Visibility } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
 import { t, tx } from '@/lib/i18n';
 import { Avatar } from '@/components/Avatar';
+import { ActionsVariables } from '@/components/ActionsVariables';
 import { NotFound } from './NotFound';
 
 /** One pattern per line or comma-separated: `release/*`, `develop`, `hotfix/**`. */
@@ -170,6 +176,13 @@ export default function RepoSettings() {
           style={{ gap: 8 }}
         >
           <DependabotIcon /> {t('Agents')}
+        </a>
+        <a
+          href="#secrets"
+          className="menu-item d-flex flex-items-center"
+          style={{ gap: 8 }}
+        >
+          <LockIcon /> {t('Secrets and variables')}
         </a>
       </nav>
       <div className="flex-1">
@@ -375,6 +388,16 @@ export default function RepoSettings() {
             {t('Invite agent')}
           </button>
         </form>
+
+        <div className="Subhead mt-6" id="secrets">
+          <h2 className="Subhead-heading">{t('Secrets and variables')}</h2>
+          <div className="Subhead-description">
+            {t(
+              "For this repository's Actions workflows. Collaborators' workflows can use them; only repository admins see and change this list."
+            )}
+          </div>
+        </div>
+        <ActionsVariables scope={{ o, n: repo.name }} />
 
         <div className="Subhead mt-6" id="visibility">
           <h2 className="Subhead-heading">{t('Visibility')}</h2>

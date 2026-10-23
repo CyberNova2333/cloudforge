@@ -18,11 +18,12 @@ export function settingsSection(pathname: string): SettingsSection | null {
 }
 
 export type AdminSection =
-  'people' | 'setup' | 'settings' | 'usage' | 'audit' | 'agents';
+  'people' | 'setup' | 'settings' | 'actions' | 'usage' | 'audit' | 'agents';
 
 /**
- * Which Site admin entry is current. `/admin` holds three sections (people and team, setup checks, instance
- * settings); `#setup` and `#settings` pick the second and third, anything else is the first.
+ * Which Site admin entry is current. `/admin` holds four sections (people and team, setup checks, instance
+ * settings, Actions secrets and variables); `#setup`, `#settings` and `#actions` pick the last three, anything else
+ * is the first.
  */
 export function adminSection(
   pathname: string,
@@ -33,7 +34,9 @@ export function adminSection(
       ? 'setup'
       : hash === '#settings'
         ? 'settings'
-        : 'people';
+        : hash === '#actions'
+          ? 'actions'
+          : 'people';
   if (pathname === '/admin/usage') return 'usage';
   if (pathname === '/admin/audit') return 'audit';
   if (pathname === '/admin/agents') return 'agents';

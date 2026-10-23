@@ -242,6 +242,44 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud restored the reviewer Security',
     ],
     [
+      'secret.saved (new, in a repository)',
+      {
+        action: 'secret.saved',
+        target: 'NPM_TOKEN',
+        data: { scope: 'repository', created: true },
+      },
+      'mahmoud added the Actions secret NPM_TOKEN in choyiny/gitorange',
+    ],
+    [
+      'variable.saved (instance-wide)',
+      {
+        action: 'variable.saved',
+        repo: null,
+        target: 'REGION',
+        data: { scope: 'instance', created: false },
+      },
+      'mahmoud updated the Actions variable REGION for every repository',
+    ],
+    [
+      'secret.deleted',
+      {
+        action: 'secret.deleted',
+        target: 'NPM_TOKEN',
+        data: { scope: 'repository' },
+      },
+      'mahmoud deleted the Actions secret NPM_TOKEN in choyiny/gitorange',
+    ],
+    [
+      'variable.deleted (instance-wide)',
+      {
+        action: 'variable.deleted',
+        repo: null,
+        target: 'REGION',
+        data: { scope: 'instance' },
+      },
+      'mahmoud deleted the Actions variable REGION for every repository',
+    ],
+    [
       'artifact.deleted',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in choyiny/gitorange',
@@ -577,6 +615,10 @@ describe('every audit action reads as one sentence', () => {
         'agent.deleted',
         'agent.restored',
         'artifact.deleted',
+        'secret.saved',
+        'secret.deleted',
+        'variable.saved',
+        'variable.deleted',
         'branch.deleted',
         'branches.cleaned',
         'merging.paused',

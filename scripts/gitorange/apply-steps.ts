@@ -90,6 +90,9 @@ export function generatedSecrets(have: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   if (!have.includes('BETTER_AUTH_SECRET'))
     out.BETTER_AUTH_SECRET = generateAuthSecret();
+  // Encrypts Actions secrets (worker/src/actions/secrets.ts); a worker from before them gets one on upgrade.
+  if (!have.includes('ACTIONS_SECRETS_KEY'))
+    out.ACTIONS_SECRETS_KEY = generateAuthSecret();
   return out;
 }
 

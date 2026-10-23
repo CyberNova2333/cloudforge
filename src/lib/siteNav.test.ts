@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { adminSection, settingsSection } from './siteNav';
 
@@ -20,6 +21,7 @@ describe('adminSection', () => {
     expect(adminSection('/admin', '')).toBe('people');
     expect(adminSection('/admin', '#invite')).toBe('people');
     expect(adminSection('/admin', '#setup')).toBe('setup');
+    expect(adminSection('/admin', '#actions')).toBe('actions');
     expect(adminSection('/admin', '#settings')).toBe('settings');
   });
   it('gives each other page its own entry', () => {

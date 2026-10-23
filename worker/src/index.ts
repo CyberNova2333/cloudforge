@@ -14,6 +14,10 @@ import { handleGitRequest, isGitRequest } from './git-http';
 import { handleLfsRequest, isLfsRequest } from './lfs-http';
 import { invitesRouter } from './routers/invites-router';
 import { actionsRouter } from './routers/actions-router';
+import {
+  actionsVariablesRouter,
+  adminActionsVariablesRouter,
+} from './routers/actions-variables-router';
 import { agentRunsRouter } from './routers/agent-runs-router';
 import { pullsRouter } from './routers/pulls-router';
 import { reposRouter } from './routers/repos-router';
@@ -101,6 +105,7 @@ app.use('/api/admin/*', requireAuth);
 app.route('/api/admin', adminRouter);
 app.route('/api/admin/agents', adminAgentsRouter);
 app.route('/api/admin/audit', adminAuditRouter);
+app.route('/api/admin/actions', adminActionsVariablesRouter);
 app.use('/api/agents', requireAuth);
 app.use('/api/agents/*', requireAuth);
 app.route('/api/agents', agentsRouter);
@@ -114,6 +119,7 @@ app.get('/api/live', liveSocket);
 app.route('/api/repos', reposRouter);
 app.route('/api/repos', pullsRouter);
 app.route('/api/repos', actionsRouter);
+app.route('/api/repos', actionsVariablesRouter);
 app.route('/api/repos', agentRunsRouter);
 app.route('/api/repos', insightsRouter);
 app.route('/api/repos', repoAgentsRouter);

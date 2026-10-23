@@ -1170,7 +1170,12 @@ describe('upgrade', () => {
 
   it('missing R2 keys do not block --yes, and say how to add them', async () => {
     const h = upgradeHarness({
-      secrets: ['BETTER_AUTH_SECRET', 'SETUP_CODE_HASH', 'CF_ANALYTICS_TOKEN'],
+      secrets: [
+        'BETTER_AUTH_SECRET',
+        'ACTIONS_SECRETS_KEY',
+        'SETUP_CODE_HASH',
+        'CF_ANALYTICS_TOKEN',
+      ],
     });
     expect(await main(['upgrade', '--yes'], h.deps)).toBe(0);
     expect(h.asked).toEqual([]);
@@ -1188,7 +1193,7 @@ describe('upgrade', () => {
   it('in a terminal, missing typed credentials are asked for (masked) and deployed', async () => {
     const h = upgradeHarness({
       tty: true,
-      secrets: ['BETTER_AUTH_SECRET', 'SETUP_CODE_HASH'],
+      secrets: ['BETTER_AUTH_SECRET', 'ACTIONS_SECRETS_KEY', 'SETUP_CODE_HASH'],
       prompts: ['kid', 'ksecret', 'tok'],
     });
     expect(await main(['upgrade'], h.deps)).toBe(0);
@@ -1213,7 +1218,7 @@ describe('upgrade', () => {
   it('in a terminal with --yes, nothing is asked', async () => {
     const h = upgradeHarness({
       tty: true,
-      secrets: ['BETTER_AUTH_SECRET', 'SETUP_CODE_HASH'],
+      secrets: ['BETTER_AUTH_SECRET', 'ACTIONS_SECRETS_KEY', 'SETUP_CODE_HASH'],
       prompts: ['kid', 'ksecret', 'tok'],
     });
     expect(await main(['upgrade', '--yes'], h.deps)).toBe(0);

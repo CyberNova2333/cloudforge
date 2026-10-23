@@ -58,6 +58,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   GitHub (`action.yml` fetched by the Worker, code downloaded by the runner) or `./path`; every GitHub action gets a Post
   slot (`hasPostStep`), skipped when it has none. Artifacts (`actions/artifacts.ts`): zips in `ACTIONS_CACHE` under
   `actions-artifacts/<repo>/<run>/`, no table, deleted with the run. Matrix include/exclude: `plan.ts` `expandMatrix`.
+  Secrets and variables (`actions/secrets.ts`, D1 `actions_variables`, repository or instance-wide): secrets are
+  AES-GCM under `ACTIONS_SECRETS_KEY`, decrypted only in `runJob` outside durable steps (never return them from a
+  step), masked by `maskingRunner` and `putLog`; routes in `routers/actions-variables-router.ts`.
 - MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. better-auth's `@better-auth/oauth-provider`
   (+ `jwt()`) is the OAuth 2.1 authorization server; `/mcp` verifies JWT access tokens (audience `<origin>/mcp`) locally
   and requires the user's consent row, so disconnecting an app is immediate. Discovery routes live at the origin root.

@@ -7,3 +7,6 @@ R2_SECRET_ACCESS_KEY=
 CF_ANALYTICS_TOKEN=
 # First-run setup: SHA-256 hash of the one-time setup code printed by `yarn cloudforge install`. Empty = no code needed.
 SETUP_CODE_HASH=
+# Actions secrets: encrypts the secrets repositories and site admins save (openssl rand -hex 32). Changing it
+# makes every saved secret unreadable (they must be saved again). Empty = Actions secrets are off.
+ACTIONS_SECRETS_KEY=

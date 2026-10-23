@@ -413,6 +413,7 @@ describe('install', () => {
     expect(h.deploys).toHaveLength(2);
     expect(h.deploys[0].args).toContain('--secrets-file');
     expect(Object.keys(h.deploys[0].secrets!).sort()).toEqual([
+      'ACTIONS_SECRETS_KEY',
       'BETTER_AUTH_SECRET',
       'SETUP_CODE_HASH',
     ]);
@@ -572,7 +573,10 @@ describe('install', () => {
       },
     });
     await install(h.ctx, { state: freshState(), ...noOptional });
-    expect(Object.keys(h.deploys[0].secrets!)).toEqual(['SETUP_CODE_HASH']);
+    expect(Object.keys(h.deploys[0].secrets!)).toEqual([
+      'ACTIONS_SECRETS_KEY',
+      'SETUP_CODE_HASH',
+    ]);
     const list = h.runner.calls.find((c) => c.args.includes('secret'));
     expect(list?.args).toEqual([
       '-s',

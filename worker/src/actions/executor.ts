@@ -40,6 +40,8 @@ import {
   type Value,
 } from './expressions';
 import { WORKSPACE, type JobRunnerApi, type StepRequest } from './job-runner';
+import { mask } from './commands';
+import { jobValues, secretMasks } from './secrets';
 import { globToRegExp, instanceTypeFor, postStepIndexes } from './plan';
 import {
   artifactNameError,
@@ -141,6 +143,22 @@ export function logKey(
   step: number
 ) {
   return `actions/${repoId}/${runId}/${jobId}/${step}.log`;
+}
+
+/**
+ * Each running run's secrets as its logs mask them. Filled by runJob outside durable steps (a step's result is
+ * persisted; secrets never are), read by putLog, dropped when the run's jobs are done.
+ */
+const runMasks = new Map<string, string[]>();
+
+/** The job's runner, with every step's log also masking the run's secrets. */
+function maskingRunner(base: JobRunnerApi, masks: string[]): JobRunnerApi {
+  if (!masks.length) return base;
+  return {
+    boot: (instance, maxMs) => base.boot(instance, maxMs),
+    destroy: () => base.destroy(),
+    runStep: (req) => base.runStep({ ...req, masks: [...masks, ...req.masks] }),
+  };
 }
 
 /** Loaded in a durable step, so replays reuse it. */
@@ -319,6 +337,7 @@ export async function executeRun(
       outcomes.set(r.key, [...(outcomes.get(r.key) ?? []), r]);
     }
   }
+  runMasks.delete(runId);
 
   const all = [...outcomes.values()].flat().map((o) => o.result);
   const conclusion: Conclusion = all.includes('failure')
@@ -505,6 +524,17 @@ async function runJob(
     status: needsStatus,
     anySkipped,
   } = needsContext(def, outcomes);
+  // Secrets and variables, read again on every replay and never returned from a durable step.
+  const values = await jobValues(env, db, ctx.repoId);
+  const masks = secretMasks(values.secrets);
+  if (masks.length)
+    runMasks.set(
+      ctx.runId,
+      [...new Set([...(runMasks.get(ctx.runId) ?? []), ...masks])].sort(
+        (a, b) => b.length - a.length
+      )
+    );
+  const valuesNote = values.notes.map((n) => `Warning: ${n}\n`).join('');
   const exprCtx = (
     extra: Record<string, Value> = {}
   ): Record<string, Value> => ({
@@ -520,8 +550,8 @@ async function runJob(
       tool_cache: '/opt/hostedtoolcache',
     },
     inputs: {},
-    secrets: {},
-    vars: {},
+    secrets: values.secrets,
+    vars: values.vars,
     env: {},
     ...extra,
   });
@@ -541,7 +571,7 @@ async function runJob(
     return { key: def.key, result: 'skipped', outputs: {} };
   }
 
-  const runner = deps.runner(job.id);
+  const runner = maskingRunner(deps.runner(job.id), masks);
   const posts = postStepIndexes(def.steps);
   const lastStep = def.steps.length + 2 + posts.length;
 
@@ -564,7 +594,7 @@ async function runJob(
       runner,
       exprCtx,
       prefix,
-      restartNote,
+      `${restartNote ?? ''}${valuesNote}` || null,
       attempt === MAX_JOB_ATTEMPTS ? attempt : null
     );
     if (!attemptState.interrupted) break;
@@ -723,11 +753,17 @@ async function runJob(
     await runnersStopped(db, [job.id]);
     await releaseSlot(env, job.id);
     const outputs: Record<string, string> = {};
+    const withheld: string[] = [];
     for (const [k, v] of Object.entries(def.outputs)) {
       try {
         outputs[k] = interpolate(v, exprCtx({ steps }));
       } catch {
         outputs[k] = '';
+      }
+      // As on GitHub: an output that may carry a secret doesn't reach other jobs.
+      if (masks.some((m) => m.length >= 4 && outputs[k].includes(m))) {
+        outputs[k] = '';
+        withheld.push(k);
       }
     }
     const jobContinue =
@@ -742,7 +778,13 @@ async function runJob(
       ctx,
       job.id,
       lastStep,
-      'Cleaning up: the runner was stopped and its disk discarded.'
+      [
+        ...withheld.map(
+          (k) =>
+            `Warning: skipped the job output ${k}: it may contain a secret.`
+        ),
+        'Cleaning up: the runner was stopped and its disk discarded.',
+      ].join('\n')
     );
     await setStep(db, job.id, lastStep, {
       status: 'completed',
@@ -1137,7 +1179,7 @@ async function putLog(
 ) {
   await env.ACTIONS_LOGS.put(
     logKey(ctx.repoId, ctx.runId, jobId, number),
-    text,
+    mask(text, runMasks.get(ctx.runId) ?? []),
     {
       httpMetadata: { contentType: 'text/plain; charset=utf-8' },
     }
