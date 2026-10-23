@@ -6,6 +6,11 @@ main:
     - name: ci
       docker:
         image: node:22
+        # Cached on the build node, copy-on-write (concurrent builds each get their own copy): on the same node the
+        # install only reconciles node_modules with the lockfile. Another node starts empty.
+        volumes:
+          - /usr/local/share/.cache/yarn
+          - ./node_modules
       stages:
         - name: install
           script: yarn install --frozen-lockfile
@@ -18,7 +23,8 @@ main:
         - name: build
           script: yarn build
         - name: test
-          script: yarn test
+          # Six workers on the runner's 8 cores, each a workerd with its own storage (worker/vitest.config.ts).
+          script: TEST_WORKERS=6 yarn test
   pull_request: *ci
 
 # Every other branch, on push.

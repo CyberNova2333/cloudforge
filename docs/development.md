@@ -27,16 +27,16 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 
 ## Scripts
 
-| Script                              | What it does                                                                         |
-| ----------------------------------- | ------------------------------------------------------------------------------------ |
-| `yarn dev`                          | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)     |
-| `yarn seed:demo`                    | Fills a running local instance with demo data (see below)                            |
-| `yarn test`                         | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake      |
-| `yarn typecheck`                    | Type-checks the SPA and the Worker                                                   |
-| `yarn format` / `yarn format:check` | Prettier                                                                             |
-| `yarn db:generate`                  | Generate a migration after changing the Drizzle schema (never hand-write migrations) |
-| `yarn auth:update`                  | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config      |
-| `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`               |
+| Script                              | What it does                                                                                                                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn dev`                          | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)                                                                                             |
+| `yarn seed:demo`                    | Fills a running local instance with demo data (see below)                                                                                                                    |
+| `yarn test`                         | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake; test files spread over parallel workers (`TEST_WORKERS`, default half the cores, at most 8) |
+| `yarn typecheck`                    | Type-checks the SPA and the Worker                                                                                                                                           |
+| `yarn format` / `yarn format:check` | Prettier                                                                                                                                                                     |
+| `yarn db:generate`                  | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                         |
+| `yarn auth:update`                  | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config                                                                                              |
+| `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
 
 ## Layout
 
@@ -93,11 +93,11 @@ and the script waits for it to settle.
 
 ## CI
 
-On [CNB](https://cnb.cool/CyberNova2333/cloudforge), [`.cnb.yml`](../.cnb.yml) runs format, typecheck, build and every test in one pipeline on each push and pull request. GitHub and CloudForge instances read the workflows below instead.
+On [CNB](https://cnb.cool/CyberNova2333/cloudforge), [`.cnb.yml`](../.cnb.yml) runs format, typecheck, build and every test in one pipeline on each push and pull request: the tests on six workers of the runner's 8 cores (`TEST_WORKERS=6`), with `node_modules` and the yarn cache kept on the build node (copy-on-write volumes). GitHub and CloudForge instances read the workflows below instead.
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) builds and typechecks once (`build`), then runs the tests in one job per module (`test-stacking`; `test-review`, which also covers merging and agent runs; `test-actions`, which also covers the git endpoint and LFS; `test-core`, which also covers MCP and the client-side libraries), in parallel, from the build's cache. Modules are few and balanced by runtime, because each job pays to restore the build and start vitest. On CloudForge, `build` and the test jobs run on `cloudforge-standard-4` (`runs-on` is an expression that picks `ubuntu-latest` on GitHub). On CloudForge a `gate` job asks [`cloudforge/relevance@v1`](ci-relevance.md) which modules a change can affect and skips the rest; on GitHub the gate is skipped and every module runs.
 
-Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (CloudForge Actions and GitHub both set it), 5 s locally. That margin is about ten times a laptop's speed, so seed fixtures in bulk (one `db.batch`, as `releases.test.ts` does with `landedMany`): a loop of a hundred separate D1 writes takes minutes on CI and times the test out.
+Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (CloudForge Actions, GitHub and CNB all set it) or more than one worker runs, 5 s on a single local worker; on CI only failing tests print their console output, so CNB's 100 KB stage log keeps the failures and the summary. That margin is about ten times a laptop's speed, so seed fixtures in bulk (one `db.batch`, as `releases.test.ts` does with `landedMany`): a loop of a hundred separate D1 writes takes minutes on CI and times the test out.
 
 ## Dev server memory watchdog
 
