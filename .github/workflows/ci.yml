@@ -1,5 +1,5 @@
 # Verification only — this workflow never deploys. Humans deploy.
-# Formatting is checked in format.yml, security in codeql.yml.
+# Formatting is checked in format.yml. On CNB, .cnb.yml runs the same checks in one pipeline.
 #
 # build installs, builds, and typechecks once, and caches node_modules and dist/ by commit for the
 # test jobs. On CloudForge, gate asks cloudforge/relevance@v1 (docs/ci-relevance.md) which modules a

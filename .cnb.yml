@@ -1,0 +1,26 @@
+# CloudForge CI on CNB (https://cnb.cool/CyberNova2333/cloudforge): format, typecheck, build and every test, the checks
+# .github/workflows/ci.yml and format.yml run on GitHub and on a CloudForge instance (which read those files instead).
+# Syntax: https://docs.cnb.cool/zh/build/grammar.html
+main:
+  push: &ci
+    - name: ci
+      docker:
+        image: node:22
+      stages:
+        - name: install
+          script: yarn install --frozen-lockfile
+        - name: config
+          script: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
+        - name: format
+          script: yarn format:check
+        - name: typecheck
+          script: yarn typecheck
+        - name: build
+          script: yarn build
+        - name: test
+          script: yarn test
+  pull_request: *ci
+
+# Every other branch, on push.
+$:
+  push: *ci

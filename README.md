@@ -13,8 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/choyiny/gitorange/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/choyiny/gitorange/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://github.com/choyiny/gitorange/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/choyiny/gitorange/actions/workflows/codeql.yml/badge.svg" /></a>
+  <a href="https://cnb.cool/CyberNova2333/cloudforge/-/build/logs"><img alt="CI on CNB" src="https://img.shields.io/badge/CI-CNB-2563eb" /></a>
   <a href="COPYING"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
   <a href="https://developers.cloudflare.com/artifacts/"><img alt="Cloudflare Artifacts" src="https://img.shields.io/badge/git%20storage-Cloudflare%20Artifacts-F38020?logo=cloudflare&logoColor=white" /></a>
