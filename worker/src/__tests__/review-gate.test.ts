@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   approvalOverrides,
@@ -653,9 +654,10 @@ describe('approving', () => {
 });
 
 describe('the commit that lands', () => {
-  it('lands the commit the gate checked, even if the branch moves after the check', async () => {
+  it('refuses landing when the branch moves after the reviewed head was checked', async () => {
     const { t, admin, repo } = await appRepo();
     const { head } = await openPull(t, admin, repo, CHANGE);
+    const base = repo.refs.get('refs/heads/main');
     // A person approved this commit: the gate passes for it, and only for it.
     await call(t, '/api/repos/octocat/app/pulls/1/approval', {
       cookie: admin,
@@ -696,8 +698,10 @@ describe('the commit that lands', () => {
       by: user,
       after: () => {},
     });
-    expect(result).toMatchObject({ ok: true, sha: head, headSha: head });
-    expect(repo.refs.get('refs/heads/main')).toBe(head); // not the late commit
+    expect(result).toMatchObject({ ok: false, status: 409 });
+    expect(repo.refs.get('refs/heads/main')).toBe(base);
+    expect(repo.refs.get('refs/heads/feature')).not.toBe(head);
+    expect((await prRow(t))!.state).toBe('open');
   });
 
   it('refuses a plain merge of a head the person did not see', async () => {

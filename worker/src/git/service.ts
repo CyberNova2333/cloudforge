@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { structuredPatch } from 'diff';
 import { mergeDiff3 } from 'node-diff3';
 import { decoder } from './bytes';
@@ -164,8 +165,15 @@ export class GitService {
   async blob(sha: string): Promise<Uint8Array | null> {
     const staged = this.staged.get(sha);
     if (staged?.type === 'blob') return staged.data;
-    const b = await (await this.client.repo()).readBlob(sha);
+    const b = await this.readBlob(sha);
     return b ? new Uint8Array(await b.arrayBuffer()) : null;
+  }
+
+  /** Inspect size before buffering, or stream a blob without copying its entire contents. */
+  async readBlob(sha: string): Promise<Blob | null> {
+    const staged = this.staged.get(sha);
+    if (staged?.type === 'blob') return new Blob([new Uint8Array(staged.data)]);
+    return (await this.client.repo()).readBlob(sha);
   }
 
   async log(ref: string, limit = 30, offset = 0): Promise<Commit[]> {
@@ -349,15 +357,20 @@ export class GitService {
         out.push({ ...base, tooLarge: true });
         continue;
       }
-      const [oldBytes, newBytes] = await Promise.all([
-        ch.oldHash ? this.blob(ch.oldHash) : null,
-        ch.newHash ? this.blob(ch.newHash) : null,
+      const [oldBlob, newBlob] = await Promise.all([
+        ch.oldHash ? this.readBlob(ch.oldHash) : null,
+        ch.newHash ? this.readBlob(ch.newHash) : null,
       ]);
-      const size = (oldBytes?.length ?? 0) + (newBytes?.length ?? 0);
+      const size = (oldBlob?.size ?? 0) + (newBlob?.size ?? 0);
       if (size > MAX_DIFF_BYTES) {
         out.push({ ...base, tooLarge: true });
         continue;
       }
+      const [oldBytes, newBytes] = await Promise.all(
+        [oldBlob, newBlob].map(async (blob) =>
+          blob ? new Uint8Array(await blob.arrayBuffer()) : null
+        )
+      );
       if (isBinary(oldBytes) || isBinary(newBytes)) {
         out.push({ ...base, binary: true });
         continue;

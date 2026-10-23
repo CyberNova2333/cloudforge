@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { repositories, type Repository } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import {
-  REPO_NAME_RE,
+  isValidRepoName,
   getTeam,
   gitFor,
   normalizeRepoName,
@@ -58,12 +58,7 @@ export async function createRepository(
   input: CreateRepositoryInput
 ): Promise<CreateRepositoryResult> {
   const name = normalizeRepoName(input.name);
-  if (
-    !REPO_NAME_RE.test(name) ||
-    name === '.' ||
-    name === '..' ||
-    name.endsWith('.git')
-  ) {
+  if (!isValidRepoName(name)) {
     return { ok: false, status: 400, error: 'Repository name is invalid' };
   }
   const owner = input.owner ?? 'user';

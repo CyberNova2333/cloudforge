@@ -51,12 +51,14 @@ The repository UI uses the Artifacts binding directly: `readTree`, `readCommit`,
 
 ## Pull requests and merging
 
-Artifacts has no merge API and the binding cannot write objects, so CloudForge writes git itself:
+Merging is rebase + fast-forward. Artifacts has no merge API and the binding cannot write objects, so CloudForge writes git itself:
 
-1. Find the merge base by walking commit parents through the binding.
-2. Three-way merge at the tree level: take whichever side changed a path; a file changed differently on both sides is a conflict (resolve locally and push).
-3. Encode the new trees and the merge commit as git objects, pack them into a packfile ([`worker/src/git/pack.ts`](../worker/src/git/pack.ts)), and push over `git-receive-pack`. The ref update is compare-and-swap, so a concurrent push to the base branch fails the merge instead of being overwritten.
-4. Only after the push succeeds is the pull request marked merged in D1.
+1. Rebase the PR's commits onto the target when needed, using three-way tree merges (`git/rebase.ts`). Conflicts stop the rebase or go through the configured resolver. Review, checks, stack dependencies (including cycles), and the repository's merge pause gate landing.
+2. Compute the landed commit list before changing the target, and save a `landing_intents` row in D1. First push a receipt at `refs/pull/<n>/landings/<intent id>` and pin the PR head; then recheck the PR and fast-forward only the target ref with compare-and-swap. A concurrent target push cannot be overwritten. This does not depend on atomic updates across multiple Git refs.
+3. Record the merged PR, event, audit entry, and landing checkpoint in one D1 batch. Follow-up work (stack reconciliation, branch cleanup, Actions, agent config, and lessons) has separate completion checkpoints and stable Workflow identifiers.
+4. A retry or daily retention cron resumes an interrupted landing (`merge/landing-recovery.ts`). Recovery requires both its saved receipt and the landed head to be reachable from the target, so an unrelated already-contained PR is not automatically marked merged.
+
+Git and D1 do not share a transaction. A force-push that removes the landed commit before recovery removes the evidence needed for automatic recovery; an identical manual push after a prepared receipt is indistinguishable from the intended landing. Preserve the target history while resolving an interrupted landing.
 
 On merge or close, the head commit is pinned at `refs/pull/<n>/head`, so a pull request's diff stays viewable after its branch is deleted.
 
@@ -76,7 +78,7 @@ runner does ([`remote.ts`](../worker/src/actions/remote.ts)): `owner/repo[/path]
 once per job into `/opt/cloudforge/actions`), or `./path` in the repository (read at the run's commit; the step needs a
 checkout first). A JavaScript action's `pre`/`main` run with the image's Node.js, with `INPUT_*`, `GITHUB_ACTION_PATH`,
 `GITHUB_EVENT_PATH` and `RUNNER_TOOL_CACHE`; what it saves to `$GITHUB_STATE` reaches its `post` entry point as
-`STATE_*`. Planning never fetches an action, so every GitHub action gets a "Post" step slot (trigger and executor share
+`STATE_*`. Planning never fetches an action, so every GitHub or local action gets a "Post" step slot (trigger and executor share
 `hasPostStep`), skipped at run time when the action has no `post` or its `post-if` is false. A composite action's steps
 run one by one within the step (nested up to 5 deep) with its `inputs`, `env`/`GITHUB_ENV`/`GITHUB_PATH` carried
 between them, and its `outputs` evaluated at the end. Docker actions (`using: docker`, `docker://`) can't run: the job
@@ -85,7 +87,9 @@ container has no Docker.
 **Matrix.** `strategy.matrix` follows GitHub's expansion ([`plan.ts`](../worker/src/actions/plan.ts) `expandMatrix`):
 the axes' cross product, minus the combinations an `exclude` entry matches (objects match field by field), then each
 `include` entry merged into every combination whose original values it doesn't change, or added as its own job.
-Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported.
+Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported. A workflow may expand
+to at most 20 jobs. Expansion rejects oversized products before allocating them; a matrix with exclusions may
+inspect at most 1,024 combinations, and at most 20 include entries.
 
 **Secrets and variables** ([`secrets.ts`](../worker/src/actions/secrets.ts)): `${{ secrets.X }}` and `${{ vars.X }}`
 come from one D1 table, `actions_variables`: a repository's own rows (managed by its admins, Settings → Secrets and
@@ -98,6 +102,17 @@ every log of the run masks them, each line of a multi-line one too, both in the 
 log. A job output that would carry a secret to another job is withheld (as on GitHub). Without the key, or for a
 secret saved under another key, `secrets.X` is empty and "Set up job" says why. Saves and deletes are audited
 (`secret.*`, `variable.*`; names only). There is no `GITHUB_TOKEN` yet.
+
+Durable results containing step outputs, command-file environment, post-action state, or registered masks are
+encrypted too (`state.ts`). AES-GCM binds each value to its repository, run, and step, with a separate key derivation
+from `ACTIONS_SECRETS_KEY` (or `BETTER_AUTH_SECRET` when no Actions key is configured). Ciphertext over 512 KiB
+is stored under the run's R2 log prefix; the Workflow result holds only its key, below Workflows' 1 MiB result limit.
+Run retention deletes these objects with the logs. `add-mask` registrations survive later steps and Workflow replay;
+the runner processes commands before truncating logs and withholds incomplete lines from live output. Each exec
+uses `/usr/bin/timeout` to terminate its process group, escalating to SIGKILL after five seconds.
+
+Pull-request runs store the event's base/head refs, number, and title with the run. Execution and reruns use this
+snapshot, so `github.base_ref` and `github.head_ref` remain available after the PR changes.
 
 **Artifacts** ([`artifacts.ts`](../worker/src/actions/artifacts.ts)) are zips in the `ACTIONS_CACHE` bucket at
 `actions-artifacts/<repository id>/<run id>/<name>/<job id>-<step>.zip`; R2's listing is the index (no table).

@@ -10,6 +10,7 @@ import {
 } from '../agent-runs/record';
 import { stopStaleReviews } from '../review/head';
 import { recoverLessons } from '../learn/recover';
+import { recoverLandings } from '../merge/landing-recovery';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
@@ -176,6 +177,9 @@ export async function runActionsRetention(
   const lessons = await recoverLessons(env, db, now).catch((e: unknown) => {
     console.error('[learn] could not recover lessons', e);
     return null;
+  });
+  await recoverLandings(env, db).catch((e: unknown) => {
+    console.error('[merge] could not recover landings', e);
   });
   const status: RetentionStatus = {
     at: now.toISOString(),

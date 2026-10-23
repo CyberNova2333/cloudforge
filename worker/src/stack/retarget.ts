@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prEdges, pullRequests, type PullRequest } from '../db/app.schema';
@@ -5,8 +6,42 @@ import { landTargetIs, landTargetOf } from '../lib/land-target';
 import { ensureRebase } from '../merge/rebase';
 import { resolutionConfigured } from '../merge/resolution';
 import { findRepoById, gitFor } from '../lib/repos';
-import { d1Of, recordEvent } from '../pulls/events';
+import { d1Of } from '../pulls/events';
 import { settleStates } from '../pulls/settle';
+
+/** The metadata CAS and its timeline entry either both commit or both roll back. */
+async function unstackWithEvent(
+  db: DrizzleDB,
+  pr: PullRequest,
+  target: string,
+  event: { id: string; data: { pr: number; why: string }; actorId?: string }
+): Promise<boolean> {
+  const d1 = d1Of(db);
+  const now = Date.now();
+  const [update] = await d1.batch([
+    d1
+      .prepare(
+        `UPDATE pull_requests SET base_ref = ?, land_target = ?, updated_at = ?
+      WHERE id = ? AND base_ref = ? AND state = 'open'`
+      )
+      .bind(target, target, Math.floor(now / 1000), pr.id, pr.baseRef),
+    d1
+      .prepare(
+        `INSERT INTO pr_events (id, repository_id, pull_request_id, kind, state, data, actor_id, computed_at, created_at)
+      SELECT ?, ?, ?, 'unstacked', NULL, ?, ?, ?, ? WHERE changes() > 0 ON CONFLICT (id) DO NOTHING`
+      )
+      .bind(
+        event.id,
+        pr.repositoryId,
+        pr.id,
+        JSON.stringify(event.data),
+        event.actorId ?? null,
+        now,
+        now
+      ),
+  ]);
+  return (update.meta.changes ?? 0) > 0;
+}
 
 /** Starts a reconcile run for a land target (no-op without the Workflow binding). Never throws. */
 export async function startReconcile(
@@ -55,26 +90,9 @@ export async function onPullClosed(
     const movedChildren: PullRequest[] = [];
     for (const c of children) {
       // Compare-and-swap: a racing reconcile or close moves it once.
-      const res = await db
-        .update(pullRequests)
-        .set({ baseRef: target, landTarget: target, updatedAt: new Date() })
-        .where(
-          and(
-            eq(pullRequests.id, c.id),
-            eq(pullRequests.baseRef, pr.headRef),
-            eq(pullRequests.state, 'open')
-          )
-        )
-        .returning({ id: pullRequests.id });
-      if (!res.length) continue;
-      moved++;
-      movedChildren.push({ ...c, baseRef: target, landTarget: target });
-      await recordEvent(db, {
+      const did = await unstackWithEvent(db, c, target, {
         // One per version of the child's row: deterministic, so a repeat records it once.
         id: `unstacked:${c.id}:${pr.id}:${c.updatedAt.getTime()}`,
-        repositoryId: pr.repositoryId,
-        pullRequestId: c.id,
-        kind: 'unstacked',
         data: {
           pr: pr.number,
           why:
@@ -83,6 +101,9 @@ export async function onPullClosed(
               : `#${pr.number} was closed without landing.`,
         },
       });
+      if (!did) continue;
+      moved++;
+      movedChildren.push({ ...c, baseRef: target, landTarget: target });
     }
     // A dismissal lasts until either side lands: the landed PR's pairs count again. A must-account-for it is the
     // prerequisite of also forgets the dependent's head (as Retry does), so the next run re-checks that head
@@ -231,27 +252,13 @@ export async function dismissEdge(
   const target = landTargetOf(pr);
   if (pr.baseRef === o.headRef && pr.baseRef !== target) {
     // Compare-and-swap, like a reconcile's retarget: a racing reconcile moves it once.
-    const moved = await db
-      .update(pullRequests)
-      .set({ baseRef: target, landTarget: target, updatedAt: new Date() })
-      .where(
-        and(
-          eq(pullRequests.id, pr.id),
-          eq(pullRequests.baseRef, o.headRef),
-          eq(pullRequests.state, 'open')
-        )
-      )
-      .returning({ id: pullRequests.id });
-    if (moved.length) {
+    const moved = await unstackWithEvent(db, pr, target, {
+      id: `unstacked:${pr.id}:${o.id}:${now}`,
+      data: { pr: other, why: 'A maintainer unstacked it.' },
+      actorId,
+    });
+    if (moved) {
       did = true;
-      await recordEvent(db, {
-        id: `unstacked:${pr.id}:${o.id}:${now}`,
-        repositoryId: pr.repositoryId,
-        pullRequestId: pr.id,
-        kind: 'unstacked',
-        data: { pr: other, why: 'A maintainer unstacked it.' },
-        actorId,
-      });
       await settleStates(env, db, pr.repositoryId, { branch: target });
       // Now on the land target: it rebases onto it.
       const found = await findRepoById(db, pr.repositoryId);

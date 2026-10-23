@@ -18,7 +18,7 @@ import { decoder } from '../git/bytes';
 import { GitPushError } from '../git/remote';
 import type { GitService } from '../git/service';
 import {
-  REPO_NAME_RE,
+  isValidRepoName,
   getTeam,
   gitFor,
   loadRepo,
@@ -306,7 +306,7 @@ reposRouter.openapi(updateRepoRoute, async (c) => {
   const patch: Partial<Repository> = { updatedAt: new Date() };
   if (body.name !== undefined && body.name !== repo.name) {
     const name = normalizeRepoName(body.name);
-    if (!REPO_NAME_RE.test(name))
+    if (!isValidRepoName(name))
       return c.json({ error: 'Repository name is invalid' }, 400);
     if (await nameTaken(db, repo, name))
       return c.json({ error: 'Name already exists in this namespace' }, 409);
@@ -698,15 +698,19 @@ reposRouter.openapi(contentsRoute, async (c) => {
     );
     let readme = null;
     if (readmeEntry) {
-      const bytes = await git.blob(readmeEntry.hash);
-      if (bytes && bytes.length < MAX_FILE_VIEW)
-        readme = { path: readmeEntry.path, text: decoder.decode(bytes) };
+      const blob = await git.readBlob(readmeEntry.hash);
+      if (blob && blob.size < MAX_FILE_VIEW)
+        readme = { path: readmeEntry.path, text: await blob.text() };
     }
     return c.json({ ...base, kind: 'tree' as const, entries, readme }, 200);
   }
-  const bytes = (await git.blob(entry.entry.hash)) ?? new Uint8Array();
+  const blob = await git.readBlob(entry.entry.hash);
+  const tooLarge = (blob?.size ?? 0) > MAX_FILE_VIEW;
+  const bytes =
+    blob && !tooLarge
+      ? new Uint8Array(await blob.arrayBuffer())
+      : new Uint8Array();
   const binary = bytes.subarray(0, 8000).includes(0);
-  const tooLarge = bytes.length > MAX_FILE_VIEW;
   const pointer =
     !binary && bytes.length <= 1024
       ? parseLfsPointer(decoder.decode(bytes))
@@ -733,7 +737,7 @@ reposRouter.openapi(contentsRoute, async (c) => {
       kind: 'blob' as const,
       file: {
         path,
-        size: bytes.length,
+        size: blob?.size ?? 0,
         binary,
         tooLarge,
         text: binary || tooLarge ? null : decoder.decode(bytes),

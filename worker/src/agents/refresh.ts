@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { agents, repositories } from '../db/app.schema';
 import { users } from '../db/auth.schema';
@@ -22,13 +23,15 @@ import { guardedOf } from './presets';
 export async function refreshAgentConfig(
   env: CloudflareBindings,
   db: DrizzleDB,
-  repositoryId: string
+  repositoryId: string,
+  strict = false
 ): Promise<void> {
   try {
     if ((await refreshOnce(env, db, repositoryId)) === 'lost')
       await refreshOnce(env, db, repositoryId);
   } catch (e) {
     console.error('[agents] config refresh failed', repositoryId, e);
+    if (strict) throw e;
   }
 }
 

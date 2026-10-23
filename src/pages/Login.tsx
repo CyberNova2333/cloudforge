@@ -8,14 +8,13 @@ import { PendingButton } from '@/components/ui/PendingButton';
 import { AuthLoading, AuthShell, FlashError } from './AuthShell';
 import { Notice } from '@/components/Notice';
 import { t, tServer } from '@/lib/i18n';
+import { safeReturnTo } from '@/lib/returnTo';
 
 export default function Login() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [params] = useSearchParams();
-  const returnTo = params.get('return_to')?.startsWith('/')
-    ? params.get('return_to')!
-    : '/';
+  const returnTo = safeReturnTo(params.get('return_to'));
   const status = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
   const appName = status.data?.appName || 'CloudForge';
   const { data: session, isPending } = useSession();

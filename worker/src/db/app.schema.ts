@@ -292,6 +292,44 @@ export const pullRequests = sqliteTable(
   ]
 );
 
+/** A merge's durable intent and small retryable tail. Git keeps the matching receipt ref. */
+export const landingIntents = sqliteTable(
+  'landing_intents',
+  {
+    id: text('id').primaryKey(),
+    pullRequestId: text('pull_request_id')
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    target: text('target').notNull(),
+    baseSha: text('base_sha').notNull(),
+    headSha: text('head_sha').notNull(),
+    landHeadSha: text('land_head_sha').notNull(),
+    pullRefBefore: text('pull_ref_before').notNull(),
+    landedCommits: integer('landed_commits').notNull(),
+    actorId: text('actor_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    automatic: integer('automatic', { mode: 'boolean' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    recordedAt: integer('recorded_at', { mode: 'timestamp' }),
+    finishedAt: integer('finished_at', { mode: 'timestamp' }),
+    attemptedAt: integer('attempted_at', { mode: 'timestamp' }),
+    // JSON object updated one key at a time: concurrent retries cannot overwrite another task's progress.
+    completed: text('completed', { mode: 'json' })
+      .$type<Record<string, boolean>>()
+      .notNull()
+      .default({}),
+  },
+  (t) => [
+    index('landing_intents_pull_idx').on(t.pullRequestId),
+    index('landing_intents_pending_idx').on(t.finishedAt, t.attemptedAt),
+  ]
+);
+export type LandingIntent = typeof landingIntents.$inferSelect;
+
 // ── Releases ─────────────────────────────────────────────────────────────────
 // A release is a tag on a commit of the default branch with a semantic version; the pull requests it ships are
 // release_pulls rows, and a pull request is in at most one release.
@@ -1001,6 +1039,15 @@ export const workflowRuns = sqliteTable(
     workflowPath: text('workflow_path').notNull(),
     name: text('name').notNull(),
     event: text('event', { enum: ['push', 'pull_request'] }).notNull(),
+    // Trigger-time PR identity: execution and reruns must not read a later PR state.
+    eventData: text('event_data', { mode: 'json' }).$type<{
+      baseRef?: string;
+      headRef?: string;
+      number?: number;
+      title?: string;
+    }>(),
+    // Stable external delivery identity, for replaying a landed push exactly once.
+    triggerKey: text('trigger_key'),
     ref: text('ref').notNull(),
     headSha: text('head_sha').notNull(),
     // Commit subject (push) or pull request title.
@@ -1018,6 +1065,10 @@ export const workflowRuns = sqliteTable(
   },
   (t) => [
     uniqueIndex('workflow_runs_repo_number_uq').on(t.repositoryId, t.runNumber),
+    uniqueIndex('workflow_runs_repo_trigger_uq').on(
+      t.repositoryId,
+      t.triggerKey
+    ),
     // Checks for a commit, in run order (with only (repository_id, head_sha), SQLite picks the
     // run-number index for that ORDER BY and walks every run of the repository).
     index('workflow_runs_repo_sha_number_idx').on(

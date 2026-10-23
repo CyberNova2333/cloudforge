@@ -4,6 +4,7 @@ node_modules
 migrations
 worker/worker-configuration.d.ts
 .wrangler
+.tools
 .claude/hooks
 .superpowers
 .claude/worktrees

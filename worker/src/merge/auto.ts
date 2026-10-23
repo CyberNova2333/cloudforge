@@ -1,4 +1,5 @@
-import { and, eq, or } from 'drizzle-orm';
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+import { and, asc, eq, gt, or } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import {
   pullRequests,
@@ -14,6 +15,7 @@ import { ensureStacking } from '../stack/discover';
 import { resolutionConfigured, SETTLE_MS, type StepRunner } from './resolution';
 import { ensureRebase } from './rebase';
 import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { startLandingWorkflow } from './followups';
 
 export type SweepParams = { repositoryId: string; branches: string[] };
 
@@ -24,13 +26,20 @@ export type SweepParams = { repositoryId: string; branches: string[] };
 export async function startSweep(
   env: CloudflareBindings,
   repo: Repository,
-  updates: RefUpdate[]
+  updates: RefUpdate[],
+  eventId?: string
 ): Promise<void> {
   if (!resolutionConfigured(env)) return;
   const branches = updates
     .filter((u) => u.ref.startsWith('refs/heads/'))
     .map((u) => u.ref.slice('refs/heads/'.length));
   if (!branches.length) return;
+  if (eventId) {
+    await startLandingWorkflow(env, `sweep-${eventId}`, {
+      sweep: { repositoryId: repo.id, branches },
+    });
+    return;
+  }
   try {
     await env.MERGE_RESOLUTION.create({
       id: `sweep-${crypto.randomUUID()}`,
@@ -43,31 +52,30 @@ export async function startSweep(
 }
 
 const SWEEP_CHUNK = 20;
+const SWEEP_PAGE = 100;
 
 /** The PRs a sweep checks, as plain data for a durable step. */
-async function sweepTargets(db: DrizzleDB, params: SweepParams) {
+async function sweepTargets(db: DrizzleDB, params: SweepParams, after: number) {
   // Three ORed terms and parameters per branch; D1 caps both a statement's parameters and its expression depth at 100.
-  const byId = new Map<string, PullRequest>();
-  for (let i = 0; i < params.branches.length; i += SWEEP_CHUNK) {
-    const part = params.branches.slice(i, i + SWEEP_CHUNK);
-    for (const pr of await db
-      .select()
-      .from(pullRequests)
-      .where(
-        and(
-          eq(pullRequests.repositoryId, params.repositoryId),
-          eq(pullRequests.state, 'open'),
-          or(
-            ...part.map((b) => landTargetIs(b)),
-            ...part.map((b) => eq(pullRequests.baseRef, b)),
-            ...part.map((b) => eq(pullRequests.headRef, b))
-          )
+  const part = params.branches;
+  return db
+    .select({ id: pullRequests.id, number: pullRequests.number })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.repositoryId, params.repositoryId),
+        eq(pullRequests.state, 'open'),
+        gt(pullRequests.number, after),
+        or(
+          ...part.map((b) => landTargetIs(b)),
+          ...part.map((b) => eq(pullRequests.baseRef, b)),
+          ...part.map((b) => eq(pullRequests.headRef, b))
         )
       )
-      .all())
-      byId.set(pr.id, pr);
-  }
-  return [...byId.values()].sort((a, b) => a.number - b.number);
+    )
+    .orderBy(asc(pullRequests.number))
+    .limit(SWEEP_PAGE)
+    .all();
 }
 
 /**
@@ -88,7 +96,24 @@ export async function executeSweep(
     return found?.repo ?? null;
   });
   if (!repo) return;
-  const prs = await step.do('targets', () => sweepTargets(db, params));
+  // Durable results contain only bounded pages of identities, never bodies or an unbounded repository snapshot.
+  const byId = new Map<string, number>();
+  for (let i = 0; i < params.branches.length; i += SWEEP_CHUNK) {
+    let after = 0;
+    for (let page = 0; ; page++) {
+      const targets = await step.do(`targets:${i}:${page}`, () =>
+        sweepTargets(
+          db,
+          { ...params, branches: params.branches.slice(i, i + SWEEP_CHUNK) },
+          after
+        )
+      );
+      for (const target of targets) byId.set(target.id, target.number);
+      if (targets.length < SWEEP_PAGE) break;
+      after = targets[targets.length - 1].number;
+    }
+  }
+  const ids = [...byId].sort((a, b) => a[1] - b[1]).map(([id]) => id);
   const tips = async (git: GitService, pr: PullRequest) => {
     const [base, head] = await Promise.all([
       git.resolve(landTargetOf(pr)),
@@ -96,9 +121,15 @@ export async function executeSweep(
     ]);
     return base && head ? { base, head } : null;
   };
-  for (const pr of prs) {
-    await step.do(`pr:${pr.id}`, async () => {
+  for (const id of ids) {
+    await step.do(`pr:${id}`, async () => {
       try {
+        const pr = await db
+          .select()
+          .from(pullRequests)
+          .where(eq(pullRequests.id, id))
+          .get();
+        if (!pr || pr.state !== 'open') return false;
         const git = gitFor(env, repo as Repository);
         const shas = await tips(git, pr as PullRequest);
         if (!shas) return false;
@@ -120,14 +151,14 @@ export async function executeSweep(
         }
         return ok;
       } catch (e) {
-        console.error('[review] sweep failed', pr.id, e);
+        console.error('[review] sweep failed', id, e);
         return false;
       }
     });
   }
-  if (!prs.length) return;
+  if (!ids.length) return;
   await step.sleep('settle', SETTLE_MS);
-  for (const { id } of prs) {
+  for (const id of ids) {
     await step.do(`rebase:${id}`, async () => {
       try {
         // The PR and its tips as they are after the delay.

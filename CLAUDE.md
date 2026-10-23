@@ -30,7 +30,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   always internal. Owner/creator, site admins, and collaborators push and merge. Usernames and the team slug share the URL
   namespace (`worker/src/lib/namespaces.ts`).
 - Commit attribution (`worker/src/lib/commit-authors.ts`): every API commit's author/committer carries `user` — the member
-  whose account email or _verified_ alternate (`user_emails`, Settings → Emails, verified by an emailed link) it is.
+  whose verified account email or verified alternate (`user_emails`, Settings → Emails, verified by an emailed link) it is.
   Lookups are batched per response (`attributeCommits`), never per commit.
 - Reviewer agents (`worker/src/agents/`): an agent is a `users` row (email `<id>@agents.invalid`, no credential)
   plus an `agents` row; refused at `session.create.before`, the PAT lookup in `git-http.ts`, and `getMcpSession`.
@@ -55,12 +55,14 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   the runner via pre-signed URLs (never through the Worker), scoped per ref (read own ref then default branch, write own
   ref), saved by "Post" steps. `setup-node` uses the image's Node.js and its `cache:` caches `node_modules` keyed by
   lockfile. `ubuntu-latest` → `standard-2`. Other `uses:` (`actions/remote.ts`): JavaScript and composite actions from
-  GitHub (`action.yml` fetched by the Worker, code downloaded by the runner) or `./path`; every GitHub action gets a Post
+  GitHub (`action.yml` fetched by the Worker, code downloaded by the runner) or `./path`; every GitHub or local action gets a Post
   slot (`hasPostStep`), skipped when it has none. Artifacts (`actions/artifacts.ts`): zips in `ACTIONS_CACHE` under
   `actions-artifacts/<repo>/<run>/`, no table, deleted with the run. Matrix include/exclude: `plan.ts` `expandMatrix`.
   Secrets and variables (`actions/secrets.ts`, D1 `actions_variables`, repository or instance-wide): secrets are
-  AES-GCM under `ACTIONS_SECRETS_KEY`, decrypted only in `runJob` outside durable steps (never return them from a
-  step), masked by `maskingRunner` and `putLog`; routes in `routers/actions-variables-router.ts`.
+  AES-GCM under `ACTIONS_SECRETS_KEY`, decrypted only in `runJob` outside durable steps, masked by `maskingRunner`
+  and `putLog`; routes in `routers/actions-variables-router.ts`. Secret-bearing durable results use `actions/state.ts`
+  encryption bound to repository/run/step; large ciphertext spills to the run's R2 retention prefix. Dynamic masks
+  persist across steps and replay. Pull-request context is snapshotted in `workflow_runs.event_data` for reruns.
 - MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. better-auth's `@better-auth/oauth-provider`
   (+ `jwt()`) is the OAuth 2.1 authorization server; `/mcp` verifies JWT access tokens (audience `<origin>/mcp`) locally
   and requires the user's consent row, so disconnecting an app is immediate. Discovery routes live at the origin root.
@@ -76,7 +78,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   when the target moved, and refuses (409 `reason: 'paused'`) while `repositories.merging_paused_at` is set
   (`mergingPause`, read from D1 each time); after a landing it deletes the head branch when
   `repositories.delete_merged_branches` (default on; `deleteMergedBranch` keeps default, protected and in-use
-  branches). Tests: `executeRebase` via `runRebases`/`fakeResolver` (`__tests__/helpers/rebase.ts`).
+  branches). Landing writes a D1 intent and Git receipt before the target CAS; `merge/landing-recovery.ts` retries
+  the D1 record and checkpointed follow-ups when the receipt and target ancestry prove the landing. Daily retention
+  also runs recovery. Tests: `executeRebase` via `runRebases`/`fakeResolver` (`__tests__/helpers/rebase.ts`).
 - Reviews (`worker/src/review/`): reviewer agents invited per repository (`repository_agents`). Per head commit
   (`pr_classifications`, id `<pr id>-<head sha>`): GLM one-liner per file → one Clef call over every agent's
   `trigger.ask` (`pr_reviewers`, requested iff p ≥ above; unsure = requested) → each requested agent reviews

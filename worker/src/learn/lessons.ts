@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import {
   and,
   asc,
@@ -86,7 +87,8 @@ export async function lessonFindingsByAgent(
 export async function queueLessons(
   env: CloudflareBindings,
   db: DrizzleDB,
-  pr: Pick<PullRequest, 'id' | 'repositoryId'>
+  pr: Pick<PullRequest, 'id' | 'repositoryId'>,
+  strict = false
 ): Promise<string[]> {
   try {
     const queued: string[] = [];
@@ -121,6 +123,7 @@ export async function queueLessons(
     return queued;
   } catch (e) {
     console.error('[learn] could not queue lessons', pr.id, e);
+    if (strict) throw e;
     return [];
   }
 }

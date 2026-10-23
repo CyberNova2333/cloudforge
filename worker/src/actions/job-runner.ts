@@ -25,6 +25,8 @@ export interface StepResult {
   outputs: Record<string, string>;
   envAdds: Record<string, string>;
   pathAdds: string[];
+  /** Job-wide masks, including dynamically registered values. Executor persists these only encrypted. */
+  masks?: string[];
   /** What the step saved to $GITHUB_STATE: its post step gets each as STATE_<name>. Absent from older runners. */
   state?: Record<string, string>;
   /** Set when the container stopped under the step (e.g. a deploy), as opposed to the step failing. */
@@ -62,6 +64,8 @@ export class JobRunner
 {
   private liveStep: { number: number; text: string; masks: string[] } | null =
     null;
+  private masks: string[] = [];
+  private registeredMasks: string[] = [];
 
   private get container() {
     const c = this.ctx.container;
@@ -132,42 +136,100 @@ export class JobRunner
       await this.container.exec(['mkdir', '-p', req.cwd])
     ).exitCode;
 
-    const live = { number: req.number, text: '', masks: req.masks };
+    this.masks = [...new Set([...this.masks, ...req.masks])];
+    const live = { number: req.number, text: '', masks: this.masks };
     this.liveStep = live;
-    const abort = new AbortController();
+    let pending = '';
+    let droppingLine = false;
+    const append = (line: string) => {
+      const shown = workflowCommands(line);
+      for (const value of shown.masks)
+        for (const m of [value, ...value.split(/\r?\n/)])
+          if (m) {
+            if (!this.masks.includes(m)) this.masks.push(m);
+            if (!this.registeredMasks.includes(m)) this.registeredMasks.push(m);
+          }
+      // Parse commands before truncating. Mask before truncating as well, so a
+      // value crossing the retained log boundary cannot leak a suffix.
+      live.text += mask(shown.text, this.masks);
+      if (live.text.length > MAX_LOG_BYTES * 1.25)
+        live.text = capped(live.text);
+    };
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      abort.abort();
-    }, req.timeoutMs);
     let exitCode = 1;
     let interrupted: string | undefined;
     try {
-      const proc = await this.container.exec(req.argv, {
-        cwd: req.cwd,
-        env: { ...req.env, ...files },
-        stderr: 'combined',
-        signal: abort.signal,
-      });
+      // Cloudflare exec signals only its direct process. GNU timeout signals
+      // the command's process group and escalates to SIGKILL after five seconds.
+      const proc = await this.container.exec(
+        [
+          '/usr/bin/timeout',
+          '--kill-after=5s',
+          `${Math.max(1, req.timeoutMs) / 1000}s`,
+          ...req.argv,
+        ],
+        {
+          cwd: req.cwd,
+          env: { ...req.env, ...files },
+          stderr: 'combined',
+        }
+      );
       if (proc.stdout) {
         const reader = proc.stdout
           .pipeThrough(new TextDecoderStream())
           .getReader();
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          live.text += value;
-          if (live.text.length > MAX_LOG_BYTES * 1.25)
-            live.text = capped(live.text);
-        }
+        const drain = (async () => {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            pending += value;
+            const newline = pending.lastIndexOf('\n');
+            if (newline >= 0) {
+              const complete = pending.slice(0, newline + 1);
+              append(
+                droppingLine
+                  ? complete.slice(complete.indexOf('\n') + 1)
+                  : complete
+              );
+              droppingLine = false;
+              pending = pending.slice(newline + 1);
+            }
+            // Keep incomplete output out of live logs; a mask/secret may span
+            // transport chunks. Bound exceptionally long, newline-free output.
+            if (pending.length > MAX_LOG_BYTES) {
+              pending = '';
+              droppingLine = true;
+              append('[log truncated: an oversized line was omitted]\n');
+            }
+          }
+        })().catch((error: unknown) => ({ error }));
+        exitCode = await proc.exitCode;
+        timedOut = exitCode === 124 || exitCode === 137;
+        // A completed command may have launched a daemon holding stdout open.
+        // Drain its buffered output, then close our reader rather than waiting
+        // indefinitely on that daemon. No signal is sent to an exited process.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          drain,
+          new Promise<void>((r) => {
+            timer = setTimeout(r, 100);
+          }),
+        ]);
+        if (timer) clearTimeout(timer);
+        await reader.cancel().catch(() => {});
+        const drained = await drain;
+        if (drained) throw drained.error;
+      } else {
+        exitCode = await proc.exitCode;
+        timedOut = exitCode === 124 || exitCode === 137;
       }
-      exitCode = await proc.exitCode;
+      if (!droppingLine) append(pending);
     } catch (e) {
+      // A successful process exit cannot make a failed output read a successful step.
+      exitCode = 1;
       const message = e instanceof Error ? e.message : String(e);
       if (!timedOut) live.text += `\n${message}\n`;
       if (!timedOut && !this.ctx.container?.running) interrupted = message;
-    } finally {
-      clearTimeout(timer);
     }
     // A non-zero exit is the step's own failure unless the container itself went away.
     if (
@@ -210,11 +272,11 @@ export class JobRunner
       // Container is gone (e.g. timed out).
     }
     this.liveStep = null;
-    const shown = workflowCommands(capped(live.text));
     return {
       exitCode,
       timedOut,
-      log: mask(shown.text, [...req.masks, ...shown.masks]),
+      log: mask(capped(live.text), this.masks),
+      masks: [...this.registeredMasks],
       outputs,
       envAdds,
       pathAdds,
@@ -227,12 +289,13 @@ export class JobRunner
   async live(stepNumber: number): Promise<string | null> {
     const s = this.liveStep;
     if (!s || s.number !== stepNumber) return null;
-    const shown = workflowCommands(capped(s.text));
-    return mask(shown.text, [...s.masks, ...shown.masks]);
+    return mask(capped(s.text), s.masks);
   }
 
   async destroy(): Promise<void> {
     this.liveStep = null;
+    this.masks = [];
+    this.registeredMasks = [];
     await this.ctx.storage.deleteAlarm();
     if (this.ctx.container?.running) await this.container.destroy();
   }

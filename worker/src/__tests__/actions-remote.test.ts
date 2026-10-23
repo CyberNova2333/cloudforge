@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearActionMetaCache } from '../actions/executor';
 import { parseActionYaml, parseUses } from '../actions/remote';
@@ -233,12 +234,13 @@ runs:
     expect(h.requests[2].env.GREETED).toBe('yes');
     expect(scripts.some((x) => x.includes('echo never'))).toBe(false);
     expect(scripts[3]).toContain('said hello Ada!');
-    // A local action gets no Post step.
+    // Local actions reserve a Post slot too; composites without a post skip it.
     expect(steps.map((x) => x.name)).toEqual([
       'Set up job',
       'Run actions/checkout@v4',
       'Run ./.github/actions/greet',
       'Run echo "said ${{ steps.greet.outputs.greeting }}"',
+      'Post Run ./.github/actions/greet',
       'Complete job',
     ]);
   });

@@ -1,6 +1,8 @@
-import { eq, inArray } from 'drizzle-orm';
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+import { eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { users } from '../db/auth.schema';
+import { inJsonArray } from './sql-set';
 
 export type PublicUser = {
   id: string;
@@ -32,7 +34,7 @@ export async function usersById(
   const rows = await db
     .select()
     .from(users)
-    .where(inArray(users.id, unique))
+    .where(inJsonArray(users.id, unique))
     .all();
   return new Map(rows.map((u) => [u.id, toPublicUser(u)]));
 }

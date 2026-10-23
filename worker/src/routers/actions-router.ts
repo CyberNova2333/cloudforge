@@ -25,6 +25,7 @@ import { dropRun, queuePositions } from '../actions/queue';
 import { finishAbandoned } from '../actions/abandon';
 import { deleteArtifact, listRunArtifacts } from '../actions/artifacts';
 import { recordAudit } from '../lib/audit';
+import { inJsonArray } from '../lib/sql-set';
 
 export const actionsRouter = new OpenAPIHono<RepoEnv>({
   defaultHook: validationHook,
@@ -600,7 +601,7 @@ async function commitChecks(
           .where(
             and(
               eq(workflowRuns.repositoryId, repositoryId),
-              inArray(workflowRuns.headSha, shas)
+              inJsonArray(workflowRuns.headSha, shas)
             )
           )
           .all()

@@ -405,6 +405,7 @@ jobs:
       'success',
       'failure',
       'skipped',
+      'skipped', // Local action Post slot: its main step failed before loading metadata.
       'success',
     ]);
     const log = await call(
