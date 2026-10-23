@@ -210,10 +210,14 @@ export function harness(
     },
     waitForEvent: async (name: string, o: { type: string }) => {
       stepNames.push(name);
+      // A lost event is the Workflow's recheck timeout running out. One short pause stands for it: polling
+      // a hundred times for an event that never comes cost each wait over a second on slow timers.
+      if (opts.loseEvents) {
+        await new Promise((r) => setTimeout(r, 25));
+        throw new Error(`${name}: timed out`);
+      }
       for (let i = 0; i < 100; i++) {
-        const k = opts.loseEvents
-          ? -1
-          : events.findIndex((e) => e.type === o.type);
+        const k = events.findIndex((e) => e.type === o.type);
         if (k >= 0) return { payload: events.splice(k, 1)[0].payload };
         await new Promise((r) => setTimeout(r, 5));
       }
