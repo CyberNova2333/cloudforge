@@ -48,6 +48,40 @@ async function landed(
     .run();
 }
 
+/** `count` more landed pull requests after pull request `after`, in one write. */
+async function landedMany(s: CrewRepo, count: number, after = 0) {
+  const admin = await s.t.env.DB.prepare(
+    "SELECT id FROM users WHERE username = 'octocat'"
+  ).first<{ id: string }>();
+  const insert = s.t.env.DB.prepare(
+    `INSERT INTO pull_requests (id, repository_id, number, title, author_id, base_ref, land_target, head_ref, state, merge_commit_sha, landed_commits, merged_at, closed_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'main', 'main', ?, 'merged', NULL, NULL, ?, ?, ?, ?)`
+  );
+  await s.t.env.DB.batch(
+    Array.from({ length: count }, (_, i) => {
+      const n = after + i + 1;
+      const at = 1_760_000_000 + n * 60;
+      return insert.bind(
+        `${s.repoId}-m${n}`,
+        s.repoId,
+        n,
+        `Change ${n}`,
+        admin!.id,
+        `topic-${n}`,
+        at,
+        at,
+        at - 3600,
+        at
+      );
+    })
+  );
+  await s.t.env.DB.prepare(
+    'UPDATE repositories SET next_pr_number = MAX(next_pr_number, ?) WHERE id = ?'
+  )
+    .bind(after + count + 1, s.repoId)
+    .run();
+}
+
 async function pending(s: CrewRepo) {
   return unreleased(s.db, await repoRow(s), ORIGIN, NAME);
 }
@@ -501,9 +535,11 @@ describe('cutting a release', () => {
     ]);
   });
 
+  // The pulls land in one write: one INSERT per pull request here takes about 2 s on a laptop but minutes on a CI
+  // container, and D1 writes are what the chunking is about, not how many statements it took to get there.
   it('a first release over many landed pull requests records them all', async () => {
     const s = await crewRepo();
-    for (let n = 1; n <= 120; n++) await landed(s, n, null);
+    await landedMany(s, 120);
     const r = await cut(s, { version: 'v0.1.0' });
     if (!r.ok) throw new Error(r.message);
     const recorded = await s.t.env.DB.prepare(
@@ -512,7 +548,7 @@ describe('cutting a release', () => {
     expect(recorded!.n).toBe(120);
     expect((await pending(s)).pulls).toEqual([]);
     // Later releases list theirs, many as they are.
-    for (let n = 121; n <= 180; n++) await landed(s, n, null);
+    await landedMany(s, 60, 120);
     const next = await cut(s);
     if (!next.ok) throw new Error(next.message);
     expect(next.release.pulls).toHaveLength(60);
