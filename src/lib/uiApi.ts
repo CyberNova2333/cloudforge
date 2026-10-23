@@ -597,6 +597,16 @@ export type WorkflowJob = {
   completedAt: string | null;
   steps: WorkflowStep[];
 };
+/** A build artifact of a run (actions/upload-artifact). */
+export type WorkflowArtifact = {
+  name: string;
+  id: string;
+  /** Zipped size in bytes. */
+  size: number;
+  createdAt: string;
+  /** The job that uploaded it. */
+  jobId: string;
+};
 /** AI processing recorded as a run (Actions tab → Agent). */
 export type AgentRunKind =
   | 'review'
@@ -1605,6 +1615,18 @@ export const api = {
   },
   cancelRun: (o: string, n: string, num: number) =>
     apiFetch(`${r(o, n)}/actions/runs/${num}/cancel`, { method: 'POST' }),
+  runArtifacts: (o: string, n: string, num: number) =>
+    apiFetch<{ artifacts: WorkflowArtifact[] }>(
+      `${r(o, n)}/actions/runs/${num}/artifacts`
+    ),
+  /** Where the browser downloads an artifact's zip (a plain link: the session cookie authenticates it). */
+  artifactZipUrl: (o: string, n: string, num: number, name: string) =>
+    `${r(o, n)}/actions/runs/${num}/artifacts/${encodeURIComponent(name)}/zip`,
+  deleteArtifact: (o: string, n: string, num: number, name: string) =>
+    apiFetch(
+      `${r(o, n)}/actions/runs/${num}/artifacts/${encodeURIComponent(name)}`,
+      { method: 'DELETE' }
+    ),
   rerun: (o: string, n: string, num: number) =>
     apiFetch<{ runNumber: number }>(`${r(o, n)}/actions/runs/${num}/rerun`, {
       method: 'POST',
@@ -1854,6 +1876,8 @@ export const qk = {
     ['repo', o, n, 'run', num] as const,
   stepLog: (o: string, n: string, num: number, jobId: string, step: number) =>
     ['repo', o, n, 'run', num, 'log', jobId, step] as const,
+  runArtifacts: (o: string, n: string, num: number) =>
+    ['repo', o, n, 'run', num, 'artifacts'] as const,
   agentRuns: (o: string, n: string, kind: string, cursor: string) =>
     ['repo', o, n, 'agent-runs', kind, cursor] as const,
   pullAgentRun: (o: string, n: string, num: number, kind: string) =>

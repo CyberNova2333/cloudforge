@@ -194,6 +194,10 @@ describe('Actions retention', () => {
         `actions/${repoId}/${id}/${id}-job/1.log`,
         'log'
       );
+      await t.env.ACTIONS_CACHE.put(
+        `actions-artifacts/${repoId}/${id}/dist/${id}-job-2.zip`,
+        'zip'
+      );
     }
     return { t, admin, repoId, now: new Date(now * 1000) };
   }
@@ -224,6 +228,13 @@ describe('Actions retention', () => {
       prefix: `actions/${repoId}/`,
     });
     expect(logs.objects.map((o) => o.key.split('/')[2]).sort()).toEqual([
+      'recent',
+      'running',
+    ]);
+    const artifacts = await t.env.ACTIONS_CACHE.list({
+      prefix: `actions-artifacts/${repoId}/`,
+    });
+    expect(artifacts.objects.map((o) => o.key.split('/')[2]).sort()).toEqual([
       'recent',
       'running',
     ]);

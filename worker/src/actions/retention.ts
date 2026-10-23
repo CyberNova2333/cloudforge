@@ -9,6 +9,7 @@ import {
 } from '../agent-runs/record';
 import { stopStaleReviews } from '../review/head';
 import { recoverLessons } from '../learn/recover';
+import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
 const BATCH = 100;
@@ -145,11 +146,13 @@ export async function runActionsRetention(
         .all();
       if (!batch.length) break;
       // Logs first: if the row deletion fails, the next run finds the rows again.
-      for (const r of batch)
+      for (const r of batch) {
         await deletePrefix(
           env.ACTIONS_LOGS,
           `actions/${r.repositoryId}/${r.id}/`
         );
+        await deleteRunArtifacts(env, r.repositoryId, r.id);
+      }
       await db.delete(workflowRuns).where(
         inArray(
           workflowRuns.id,

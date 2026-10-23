@@ -10,6 +10,7 @@ import {
   cacheUrl,
   enforceCacheLimit,
   findCacheEntry,
+  keySegment,
   nodeModulesKey,
   restoreScript,
   RUNNER_NODE_MAJOR,
@@ -38,7 +39,29 @@ import {
   type Value,
 } from './expressions';
 import { WORKSPACE, type JobRunnerApi, type StepRequest } from './job-runner';
-import { instanceTypeFor, postStepIndexes } from './plan';
+import { globToRegExp, instanceTypeFor, postStepIndexes } from './plan';
+import {
+  artifactNameError,
+  artifactObjectKey,
+  artifactObjects,
+  downloadScript,
+  listRunArtifacts,
+  uploadScript,
+} from './artifacts';
+import {
+  ActionError,
+  actionDir,
+  fetchGithubActionYaml,
+  fetchScript,
+  inputVar,
+  nodeScript,
+  parseActionYaml,
+  parseUses,
+  refLabel,
+  TOOL_CACHE,
+  type ActionMeta,
+  type ActionRef,
+} from './remote';
 import { runnerStarted, runnersStopped } from '../usage/record';
 import { getSetting } from '../lib/settings';
 import {
@@ -52,6 +75,8 @@ import {
 
 /** Each post step (cache save) may take this long. */
 const POST_STEP_MINUTES = 30;
+const ARTIFACTS_UNAVAILABLE =
+  "Artifacts aren't set up on this server: they need the Actions cache bucket and R2 API keys (see docs/configuration.md).";
 import { githubContext, readWorkflowFiles } from './trigger';
 import {
   decideRelevance,
@@ -590,11 +615,28 @@ async function runJob(
       '',
     ].join('\n');
   }
-  const { steps, caches, jobStatus, setupError } = attemptState;
+  const { steps, caches, actionPosts, setupError } = attemptState;
+  let { jobStatus } = attemptState;
 
-  // ── Post steps: save caches (GitHub runs them in reverse, on success only) ──
+  // ── Post steps, in reverse: a JavaScript action's post entry point, or saving a cache (on success only) ──
   for (const [k, i] of posts.entries()) {
     const number = def.steps.length + 2 + k;
+    const usesAction = def.steps[i].uses?.split('@')[0];
+    if (usesAction !== 'actions/cache' && usesAction !== 'actions/setup-node') {
+      const failed = await runActionPost(
+        deps,
+        ctx,
+        job.id,
+        name,
+        number,
+        runner,
+        actionPosts.get(i),
+        jobStatus,
+        exprCtx({ steps })
+      );
+      if (failed) jobStatus = 'failure';
+      continue;
+    }
     const state = caches.get(i);
     await step
       .do(
@@ -732,6 +774,8 @@ interface AttemptState {
   steps: Record<string, Value>;
   /** What each caching step restored, for its post step. */
   caches: Map<number, CacheState>;
+  /** Each JavaScript action's post entry point, with what its main step saved to $GITHUB_STATE. */
+  actionPosts: Map<number, ActionPost>;
   /** Why Set up job failed, when the runner never started. */
   setupError?: string;
   /** The step whose runner went away, when this attempt should be restarted. */
@@ -759,6 +803,7 @@ async function runAttempt(
   const jobTimeoutMs = def.timeoutMinutes * 60_000;
   const deadline = Date.now() + jobTimeoutMs;
   const caches = new Map<number, CacheState>();
+  const actionPosts = new Map<number, ActionPost>();
   // ── Set up job ──
   // The slot's reclaim deadline counts from the container's start, not the grant. Its own step,
   // so a failed mark is retried without booting twice, and a final failure never fails the job.
@@ -945,11 +990,13 @@ async function runAttempt(
             pathAdds: [],
           };
           let cache: CacheState | null = null;
+          let post: ActionPost | null = null;
           if (prepError || !prepared) {
             log = `Error: ${prepError}`;
           } else {
             const cmd = await buildCommand(env, ctx, wf, def, s, prepared, {
               number,
+              jobId: job.id,
               envAdds,
               pathAdds,
               remainingMs: deadline - Date.now(),
@@ -957,9 +1004,36 @@ async function runAttempt(
               relevance: deps.relevance ?? defaultRelevance(env),
             });
             if ('error' in cmd) log = `Error: ${cmd.error}`;
-            else {
+            else if ('composite' in cmd) {
+              const r = await runComposite(
+                env,
+                ctx,
+                wf,
+                def,
+                prepared,
+                {
+                  number,
+                  jobId: job.id,
+                  envAdds,
+                  pathAdds,
+                  remainingMs: deadline - Date.now(),
+                  db,
+                  relevance: deps.relevance ?? defaultRelevance(env),
+                },
+                runner,
+                cmd.composite
+              );
+              exitCode = r.exitCode;
+              log = r.log;
+              out = {
+                outputs: r.outputs,
+                envAdds: r.envAdds,
+                pathAdds: r.pathAdds,
+              };
+            } else {
               cache = cmd.cache ?? null;
               const r = await runner.runStep(cmd.request);
+              if (cmd.post) post = { ...cmd.post, state: r.state ?? {} };
               if (r.interrupted) throw new Error(r.interrupted);
               exitCode = r.exitCode;
               log = (cmd.preamble ? cmd.preamble + '\n' : '') + r.log;
@@ -974,7 +1048,7 @@ async function runAttempt(
           }
           const outcome: Conclusion = exitCode === 0 ? 'success' : 'failure';
           await putLog(env, ctx, job.id, number, log);
-          return { outcome, ...out, cache };
+          return { outcome, ...out, cache, post };
         }
       )
       .catch((e: unknown) => ({
@@ -983,6 +1057,7 @@ async function runAttempt(
         envAdds: {},
         pathAdds: [],
         cache: null,
+        post: null,
         crash: e instanceof Error ? e.message : String(e),
       }));
     if ('crash' in result && final === null)
@@ -990,6 +1065,7 @@ async function runAttempt(
         jobStatus,
         steps,
         caches,
+        actionPosts,
         interrupted: {
           number,
           name: stepDisplayName(s),
@@ -999,6 +1075,7 @@ async function runAttempt(
     if ('crash' in result) runnerGone = result.crash;
     if (result.cache && result.outcome === 'success')
       caches.set(i, result.cache);
+    if (result.post) actionPosts.set(i, result.post);
 
     const continueOnError =
       typeof s.continueOnError === 'string'
@@ -1038,7 +1115,7 @@ async function runAttempt(
     pathAdds = [...result.pathAdds, ...pathAdds];
     if (conclusion === 'failure') jobStatus = 'failure';
   }
-  return { jobStatus, steps, caches, setupError: setup.error };
+  return { jobStatus, steps, caches, actionPosts, setupError: setup.error };
 }
 
 function safeTruthy(expr: string, ctx: Record<string, Value>) {
@@ -1090,6 +1167,8 @@ async function buildCommand(
   prepared: { env: Record<string, string>; ctx: Record<string, Value> },
   state: {
     number: number;
+    /** The job's workflow_jobs id (artifact keys). */
+    jobId: string;
     envAdds: Record<string, string>;
     pathAdds: string[];
     remainingMs: number;
@@ -1097,7 +1176,13 @@ async function buildCommand(
     relevance: RelevanceModelFor;
   }
 ): Promise<
-  | { request: StepRequest; preamble?: string; cache?: CacheState }
+  | {
+      request: StepRequest;
+      preamble?: string;
+      cache?: CacheState;
+      post?: ActionPost;
+    }
+  | { composite: CompositeCall }
   | { error: string }
 > {
   const timeoutMs = Math.max(
@@ -1296,6 +1381,143 @@ async function buildCommand(
       };
     }
 
+    if (action === 'actions/upload-artifact') {
+      if (!cacheConfigured(env)) return { error: ARTIFACTS_UNAVAILABLE };
+      const name = withArgs.name?.trim() || 'artifact';
+      const bad = artifactNameError(name);
+      if (bad) return { error: bad };
+      const paths = (withArgs.path ?? '')
+        .split('\n')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      if (!paths.length)
+        return { error: 'actions/upload-artifact needs `path`.' };
+      const ifNoFiles = withArgs['if-no-files-found']?.trim() || 'warn';
+      if (!['warn', 'error', 'ignore'].includes(ifNoFiles))
+        return {
+          error: `if-no-files-found must be warn, error or ignore, not '${ifNoFiles}'.`,
+        };
+      const level = withArgs['compression-level']?.trim() || '6';
+      if (!/^[0-9]$/.test(level))
+        return { error: 'compression-level must be a number from 0 to 9.' };
+      const objectKey = artifactObjectKey(
+        ctx.repoId,
+        ctx.runId,
+        name,
+        state.jobId,
+        state.number
+      );
+      // This step's own earlier upload (a restarted job) is simply replaced; another step's needs overwrite.
+      const others = (
+        await artifactObjects(env, ctx.repoId, ctx.runId, name)
+      ).filter((k) => k !== objectKey);
+      if (others.length) {
+        if (withArgs.overwrite?.trim() !== 'true')
+          return {
+            error: `An artifact named '${name}' was already uploaded in this run. Use another name, or set \`overwrite: true\` to replace it.`,
+          };
+        await env.ACTIONS_CACHE.delete(others);
+      }
+      const url = await cacheUrl(env, objectKey, 'PUT');
+      return {
+        request: {
+          number: state.number,
+          argv: [
+            ...SHELLS.bash,
+            uploadScript({
+              id: keySegment(name),
+              url: `${ctx.serverUrl}/api/repos/${ctx.repoFullName}/actions/runs/${ctx.runNumber}/artifacts/${encodeURIComponent(name)}/zip`,
+              retentionDays: withArgs['retention-days']?.trim(),
+            }),
+          ],
+          cwd: WORKSPACE,
+          env: {
+            ...stepEnv,
+            ARTIFACT_URL: url,
+            ARTIFACT_NAME: name,
+            ARTIFACT_PATHS: paths.join('\n'),
+            ARTIFACT_IF_NO_FILES: ifNoFiles,
+            ARTIFACT_LEVEL: level,
+            ARTIFACT_HIDDEN: String(
+              withArgs['include-hidden-files']?.trim() === 'true'
+            ),
+          },
+          timeoutMs,
+          masks: [url],
+        },
+      };
+    }
+
+    if (action === 'actions/download-artifact') {
+      if (!cacheConfigured(env)) return { error: ARTIFACTS_UNAVAILABLE };
+      const runIdArg = withArgs['run-id']?.trim();
+      const repoArg = withArgs.repository?.trim();
+      if (
+        (runIdArg && runIdArg !== ctx.runId) ||
+        (repoArg && repoArg !== ctx.repoFullName)
+      )
+        return {
+          error:
+            'actions/download-artifact can only download artifacts uploaded earlier in this run.',
+        };
+      const all = await listRunArtifacts(env, ctx.repoId, ctx.runId);
+      const pathArg = withArgs.path?.trim();
+      const dest = (
+        (pathArg && absolutePaths([pathArg], WORKSPACE)[0]) ||
+        WORKSPACE
+      ).replace(/(.)\/+$/, '$1');
+      const name = withArgs.name?.trim();
+      let picked: { a: (typeof all)[number]; dir: string }[];
+      if (name) {
+        const a = all.find((x) => x.name === name);
+        if (!a)
+          return {
+            error: `Artifact '${name}' was not found in this run. ${
+              all.length
+                ? `It has: ${all.map((x) => x.name).join(', ')}.`
+                : 'It has no artifacts yet (upload-artifact in a job this one `needs`).'
+            }`,
+          };
+        picked = [{ a, dir: dest }];
+      } else {
+        const ids = (withArgs['artifact-ids'] ?? '')
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        const pattern = withArgs.pattern?.trim();
+        const re = pattern ? globToRegExp(pattern) : null;
+        const merge = withArgs['merge-multiple']?.trim() === 'true';
+        picked = all
+          .filter(
+            (a) =>
+              (!ids.length || ids.includes(a.id)) && (!re || re.test(a.name))
+          )
+          .map((a) => ({ a, dir: merge ? dest : `${dest}/${a.name}` }));
+      }
+      const urls = await Promise.all(
+        picked.map((p) => cacheUrl(env, p.a.objectKey, 'GET'))
+      );
+      return {
+        request: {
+          number: state.number,
+          argv: [
+            ...SHELLS.bash,
+            downloadScript(
+              picked.map((p) => ({ name: p.a.name, dir: p.dir })),
+              dest
+            ),
+          ],
+          cwd: WORKSPACE,
+          env: {
+            ...stepEnv,
+            ...Object.fromEntries(urls.map((u, i) => [`ARTIFACT_URL_${i}`, u])),
+          },
+          timeoutMs,
+          masks: urls,
+        },
+      };
+    }
+
     if (action === RELEVANCE_ACTION) {
       if (uses !== `${RELEVANCE_ACTION}@${RELEVANCE_VERSION}`)
         return { error: `Use ${RELEVANCE_ACTION}@${RELEVANCE_VERSION}.` };
@@ -1329,8 +1551,73 @@ async function buildCommand(
       };
     }
 
+    // Not built in: a JavaScript or composite action from GitHub or the repository (remote.ts).
+    let remote: ActionRef | null;
+    try {
+      remote = parseUses(uses);
+    } catch (e) {
+      if (e instanceof ActionError) return { error: e.message };
+      throw e;
+    }
+    if (!remote)
+      return { error: `\`uses: ${uses}\` needs a version, like ${action}@v1.` };
+    let meta: ActionMeta;
+    try {
+      meta = await actionMeta(env, ctx, remote);
+    } catch (e) {
+      if (e instanceof ActionError) return { error: e.message };
+      throw e;
+    }
+    const inputs = actionInputs(meta, withArgs, prepared.ctx);
+    if (meta.using === 'composite')
+      return { composite: { ref: remote, meta, inputs } };
+    const actionEnv: Record<string, string> = {
+      ...stepEnv,
+      ...Object.fromEntries(
+        Object.entries(inputs).map(([k, v]) => [inputVar(k), v])
+      ),
+      GITHUB_ACTION:
+        s.id ?? `__${refLabel(remote).replace(/[^A-Za-z0-9]+/g, '_')}`,
+      GITHUB_ACTION_PATH: actionDir(remote, WORKSPACE),
+      GITHUB_ACTION_REPOSITORY:
+        remote.kind === 'github'
+          ? `${remote.owner}/${remote.repo}`
+          : ctx.repoFullName,
+      GITHUB_ACTION_REF: remote.kind === 'github' ? remote.ref : '',
+      RUNNER_TOOL_CACHE: TOOL_CACHE,
+      GITHUB_EVENT_PATH: EVENT_PATH,
+      GITORANGE_EVENT: JSON.stringify(g.event ?? {}),
+    };
+    const writeEvent = `printf '%s' "$GITORANGE_EVENT" > "$GITHUB_EVENT_PATH"`;
+    const entries = [...(meta.pre ? [meta.pre] : []), meta.main];
+    const r = remote;
     return {
-      error: `GitOrange Actions doesn't run \`uses: ${uses}\` yet. Supported actions: actions/checkout, actions/setup-node, actions/cache, and ${RELEVANCE_ACTION}@${RELEVANCE_VERSION}. Use a \`run:\` step instead.`,
+      request: {
+        number: state.number,
+        argv: [
+          ...SHELLS.bash,
+          [writeEvent, ...entries.map((e) => nodeScript(r, WORKSPACE, e))].join(
+            '\n'
+          ),
+        ],
+        cwd: WORKSPACE,
+        env: actionEnv,
+        timeoutMs,
+        masks: [],
+      },
+      ...(meta.post && {
+        post: {
+          argv: [
+            ...SHELLS.bash,
+            [writeEvent, nodeScript(r, WORKSPACE, meta.post)].join('\n'),
+          ],
+          cwd: WORKSPACE,
+          env: actionEnv,
+          postIf: meta.postIf,
+          label: refLabel(r),
+          state: {},
+        },
+      }),
     };
   } catch (e) {
     if (e instanceof ExpressionError) return { error: e.message };
@@ -1402,4 +1689,382 @@ async function prepareRestore(
     url,
     state,
   };
+}
+
+// ── Actions that aren't built in (remote.ts) ─────────────────────────────────
+
+/** A JavaScript action's post entry point, prepared with its main step; `state` is what main saved. */
+export interface ActionPost {
+  argv: string[];
+  cwd: string;
+  env: Record<string, string>;
+  postIf: string;
+  label: string;
+  state: Record<string, string>;
+}
+
+/** A composite action to run as one step. */
+interface CompositeCall {
+  ref: ActionRef;
+  meta: Extract<ActionMeta, { using: 'composite' }>;
+  inputs: Record<string, string>;
+}
+
+/** Where a JavaScript action finds the event payload ($GITHUB_EVENT_PATH). */
+const EVENT_PATH = '/tmp/gitorange-event.json';
+
+/** action.yml of an action, read once per isolate for a while (a tag like @v4 can move, so not forever). */
+const metaCache = new Map<string, { at: number; meta: Promise<ActionMeta> }>();
+const META_TTL_MS = 10 * 60_000;
+
+/** Forgets the action.yml files read so far (tests). */
+export function clearActionMetaCache() {
+  metaCache.clear();
+}
+
+async function actionMeta(
+  env: CloudflareBindings,
+  ctx: RunContext,
+  r: ActionRef
+): Promise<ActionMeta> {
+  const key =
+    r.kind === 'github'
+      ? refLabel(r)
+      : `${ctx.artifactsName}:${ctx.headSha}:./${r.path}`;
+  const hit = metaCache.get(key);
+  if (hit && Date.now() - hit.at < META_TTL_MS) return hit.meta;
+  const meta = (async () =>
+    parseActionYaml(
+      r.kind === 'github'
+        ? await fetchGithubActionYaml(r)
+        : await localActionYaml(env, ctx, r.path),
+      refLabel(r)
+    ))();
+  metaCache.set(key, { at: Date.now(), meta });
+  meta.catch(() => metaCache.delete(key));
+  return meta;
+}
+
+/** A local action's action.yml, at the commit the run is for. */
+async function localActionYaml(
+  env: CloudflareBindings,
+  ctx: RunContext,
+  path: string
+): Promise<string> {
+  const git = gitForRun(env, ctx);
+  for (const file of ['action.yml', 'action.yaml']) {
+    const e = await git.entryAt(ctx.headSha, `${path}/${file}`);
+    if (e?.type !== 'blob') continue;
+    const bytes = await git.blob(e.entry.hash);
+    if (bytes) return new TextDecoder().decode(bytes);
+  }
+  throw new ActionError(
+    `./${path} has no action.yml at ${ctx.headSha.slice(0, 7)}.`
+  );
+}
+
+/** Every input the action declares (`with:` value, else its default, else ''), plus any extra `with:` keys. */
+function actionInputs(
+  meta: ActionMeta,
+  withArgs: Record<string, string>,
+  ctx: Record<string, Value>
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, inp] of Object.entries(meta.inputs)) {
+    if (k in withArgs) out[k] = withArgs[k];
+    else if (inp.default !== undefined) {
+      try {
+        out[k] = interpolate(inp.default, ctx);
+      } catch {
+        out[k] = '';
+      }
+    } else out[k] = '';
+  }
+  for (const [k, v] of Object.entries(withArgs)) if (!(k in out)) out[k] = v;
+  return out;
+}
+
+const MAX_COMPOSITE_DEPTH = 5;
+
+/**
+ * Runs a composite action's steps in order as the one step that uses it. Each step's `if`, `env` and
+ * expressions see the action's `inputs`, its own earlier `steps`, and `github.action_path`; what they add to
+ * $GITHUB_ENV / $GITHUB_PATH reaches the steps after them and the rest of the job. The action's outputs are
+ * evaluated from its steps at the end. Nested actions (JavaScript or composite) run the same way; a nested
+ * JavaScript action's post phase, and a nested cache's save, are not run (noted in the log).
+ */
+async function runComposite(
+  env: CloudflareBindings,
+  ctx: RunContext,
+  wf: WorkflowDef,
+  def: JobDef,
+  prepared: { env: Record<string, string>; ctx: Record<string, Value> },
+  state: Parameters<typeof buildCommand>[6],
+  runner: JobRunnerApi,
+  call: CompositeCall,
+  depth = 0
+): Promise<{
+  exitCode: number;
+  log: string;
+  outputs: Record<string, string>;
+  envAdds: Record<string, string>;
+  pathAdds: string[];
+}> {
+  const logs: string[] = [];
+  let envAdds: Record<string, string> = {};
+  let pathAdds: string[] = [];
+  const done = (exitCode: number, outputs: Record<string, string> = {}) => ({
+    exitCode,
+    log: logs.join('\n'),
+    outputs,
+    envAdds,
+    pathAdds,
+  });
+  if (depth >= MAX_COMPOSITE_DEPTH) {
+    logs.push(
+      `Error: composite actions are nested more than ${MAX_COMPOSITE_DEPTH} levels deep.`
+    );
+    return done(1);
+  }
+  const started = Date.now();
+  const dir = actionDir(call.ref, WORKSPACE);
+  // Its files first: steps often run scripts from github.action_path.
+  if (call.ref.kind === 'github') {
+    const r = await runner.runStep({
+      number: state.number,
+      argv: [...SHELLS.bash, `set -e\n${fetchScript(call.ref, WORKSPACE)}`],
+      cwd: '/',
+      env: { PATH: DEFAULT_PATH, HOME: '/root' },
+      timeoutMs: Math.max(60_000, Math.min(state.remainingMs, 10 * 60_000)),
+      masks: [],
+    });
+    if (r.interrupted) throw new Error(r.interrupted);
+    if (r.log.trim()) logs.push(r.log);
+    if (r.exitCode !== 0) {
+      logs.push(`Error: could not download ${refLabel(call.ref)}.`);
+      return done(r.exitCode);
+    }
+  }
+  const steps: Record<string, Value> = {};
+  let status: JobStatus = 'success';
+  const outer = prepared.ctx;
+  const github = {
+    ...(outer.github as Record<string, Value>),
+    action_path: dir,
+  };
+  for (const sub of call.meta.steps) {
+    const base = {
+      ...outer,
+      github,
+      inputs: call.inputs,
+      steps,
+      job: { status },
+    };
+    let subEnv: Record<string, string> = { ...prepared.env, ...envAdds };
+    let run: boolean;
+    let error: string | null = null;
+    try {
+      for (const [k, v] of Object.entries(sub.env))
+        subEnv = { ...subEnv, [k]: interpolate(v, { ...base, env: subEnv }) };
+      run = evaluateCondition(sub.if, { ...base, env: subEnv }, { status });
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+      run = status === 'success';
+    }
+    if (!run) {
+      if (sub.id)
+        steps[sub.id] = {
+          outcome: 'skipped',
+          conclusion: 'skipped',
+          outputs: {},
+        };
+      continue;
+    }
+    const subCtx = { ...base, env: subEnv };
+    let label = stepDisplayName(sub);
+    try {
+      label = interpolate(label, subCtx);
+    } catch {
+      // Shown as written.
+    }
+    logs.push(`▸ ${label}`);
+    let exitCode = 1;
+    let outputs: Record<string, string> = {};
+    if (error) logs.push(`Error: ${error}`);
+    else {
+      const cmd = await buildCommand(
+        env,
+        ctx,
+        wf,
+        def,
+        // A composite's run steps name their shell; bash when they don't. Its env is folded in above.
+        {
+          ...sub,
+          env: {},
+          shell: sub.run !== undefined ? (sub.shell ?? 'bash') : sub.shell,
+        },
+        { env: { ...subEnv, GITHUB_ACTION_PATH: dir }, ctx: subCtx },
+        {
+          ...state,
+          envAdds: { ...state.envAdds, ...envAdds },
+          pathAdds: [...pathAdds, ...state.pathAdds],
+          remainingMs: state.remainingMs - (Date.now() - started),
+        }
+      );
+      if ('error' in cmd) logs.push(`Error: ${cmd.error}`);
+      else if ('composite' in cmd) {
+        const r = await runComposite(
+          env,
+          ctx,
+          wf,
+          def,
+          { env: subEnv, ctx: subCtx },
+          {
+            ...state,
+            envAdds: { ...state.envAdds, ...envAdds },
+            pathAdds: [...pathAdds, ...state.pathAdds],
+            remainingMs: state.remainingMs - (Date.now() - started),
+          },
+          runner,
+          cmd.composite,
+          depth + 1
+        );
+        exitCode = r.exitCode;
+        outputs = r.outputs;
+        logs.push(r.log);
+        envAdds = { ...envAdds, ...r.envAdds };
+        pathAdds = [...r.pathAdds, ...pathAdds];
+      } else {
+        const r = await runner.runStep(cmd.request);
+        if (r.interrupted) throw new Error(r.interrupted);
+        exitCode = r.exitCode;
+        outputs = r.outputs;
+        logs.push((cmd.preamble ? `${cmd.preamble}\n` : '') + r.log);
+        if (exitCode !== 0)
+          logs.push(`Error: Process completed with exit code ${exitCode}.`);
+        if (cmd.post)
+          logs.push(
+            `Note: the post phase of ${cmd.post.label} is not run inside a composite action.`
+          );
+        if (cmd.cache)
+          logs.push(
+            'Note: a cache inside a composite action is restored but not saved.'
+          );
+        envAdds = { ...envAdds, ...r.envAdds };
+        pathAdds = [...r.pathAdds, ...pathAdds];
+      }
+    }
+    const outcome: Conclusion = exitCode === 0 ? 'success' : 'failure';
+    const coe =
+      typeof sub.continueOnError === 'string'
+        ? safeTruthy(sub.continueOnError, subCtx)
+        : sub.continueOnError;
+    const conclusion: Conclusion =
+      outcome === 'failure' && coe ? 'success' : outcome;
+    if (sub.id) steps[sub.id] = { outcome, conclusion, outputs };
+    if (conclusion === 'failure') status = 'failure';
+  }
+  const outputs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(call.meta.outputs)) {
+    try {
+      outputs[k] = interpolate(v, {
+        ...outer,
+        github,
+        inputs: call.inputs,
+        steps,
+      });
+    } catch {
+      outputs[k] = '';
+    }
+  }
+  return done(status === 'success' ? 0 : 1, outputs);
+}
+
+/**
+ * A JavaScript action's Post step: its post entry point, with what main saved to $GITHUB_STATE as STATE_*, when
+ * `post-if` holds (always() by default). Skipped when the action has no post entry point or its main step didn't
+ * run. Returns whether it failed (which fails the job, as on GitHub).
+ */
+async function runActionPost(
+  deps: ExecutorDeps,
+  ctx: RunContext,
+  jobId: string,
+  name: string,
+  number: number,
+  runner: JobRunnerApi,
+  post: ActionPost | undefined,
+  jobStatus: JobStatus,
+  exprCtx: Record<string, Value>
+): Promise<boolean> {
+  const { db, step, env } = deps;
+  return step
+    .do(
+      `${name}:post:${number}`,
+      { ...NO_RETRY, timeout: `${POST_STEP_MINUTES} minutes` },
+      async () => {
+        await setStep(db, jobId, number, {
+          status: 'in_progress',
+          startedAt: new Date(),
+        });
+        let log: string;
+        let conclusion: Conclusion = 'skipped';
+        let run = false;
+        if (!post) log = 'Nothing to run: this action has no post step.';
+        else {
+          try {
+            run = evaluateCondition(post.postIf, exprCtx, {
+              status: jobStatus,
+            });
+            log = run ? '' : `Skipped: post-if (${post.postIf}) is false.`;
+          } catch (e) {
+            log = `Error: post-if: ${e instanceof Error ? e.message : String(e)}`;
+          }
+        }
+        if (post && run) {
+          const r = await runner.runStep({
+            number,
+            argv: post.argv,
+            cwd: post.cwd,
+            env: {
+              ...post.env,
+              ...Object.fromEntries(
+                Object.entries(post.state).map(([k, v]) => [`STATE_${k}`, v])
+              ),
+            },
+            timeoutMs: POST_STEP_MINUTES * 60_000,
+            masks: [],
+          });
+          log = `Post job cleanup for ${post.label}\n${r.log}`;
+          conclusion = r.exitCode === 0 ? 'success' : 'failure';
+          if (r.exitCode !== 0)
+            log += `\nError: Process completed with exit code ${r.exitCode}.`;
+        }
+        await putLog(env, ctx, jobId, number, log);
+        await setStep(db, jobId, number, {
+          status: 'completed',
+          conclusion,
+          completedAt: new Date(),
+          logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
+        });
+        return conclusion === 'failure';
+      }
+    )
+    .catch(() =>
+      step.do(`${name}:post:${number}:interrupted`, async () => {
+        await putLog(
+          env,
+          ctx,
+          jobId,
+          number,
+          'Warning: the runner was interrupted during the post step.'
+        );
+        await setStep(db, jobId, number, {
+          status: 'completed',
+          conclusion: 'skipped',
+          completedAt: new Date(),
+          logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
+        });
+        return false;
+      })
+    );
 }

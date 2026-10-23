@@ -35,3 +35,52 @@ export function mask(text: string, secrets: string[]): string {
     if (s && s.length >= 4) out = out.split(s).join('***');
   return out;
 }
+
+/** Undoes GitHub's escaping of workflow command values (`%25` `%0D` `%0A`). */
+const unescapeCommand = (v: string) =>
+  v.replace(/%0D/gi, '\r').replace(/%0A/gi, '\n').replace(/%25/g, '%');
+
+/**
+ * Applies the workflow commands an action prints (`::name args::value`, as written by @actions/core) to a step's
+ * log: `add-mask` values are collected and hidden, `group`/`endgroup` become headings, `debug` lines are dropped,
+ * `error`/`warning`/`notice` become labelled lines. Everything else is left as printed.
+ */
+export function workflowCommands(text: string): {
+  text: string;
+  masks: string[];
+} {
+  const masks: string[] = [];
+  const out: string[] = [];
+  for (const line of text.split('\n')) {
+    const m = /^::([a-z-]+)(?: [^:]*)?::(.*)$/.exec(line.replace(/\r$/, ''));
+    if (!m) {
+      out.push(line);
+      continue;
+    }
+    const [, name, raw] = m;
+    const value = unescapeCommand(raw);
+    switch (name) {
+      case 'add-mask':
+        if (value) masks.push(value);
+        break;
+      case 'group':
+        out.push(`▸ ${value}`);
+        break;
+      case 'endgroup':
+      case 'debug':
+        break;
+      case 'error':
+        out.push(`Error: ${value}`);
+        break;
+      case 'warning':
+        out.push(`Warning: ${value}`);
+        break;
+      case 'notice':
+        out.push(`Notice: ${value}`);
+        break;
+      default:
+        out.push(line);
+    }
+  }
+  return { text: out.join('\n'), masks };
+}

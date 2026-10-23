@@ -9,8 +9,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  DownloadIcon,
   HomeIcon,
+  PackageIcon,
   SyncIcon,
+  TrashIcon,
   XIcon,
 } from '@primer/octicons-react';
 import {
@@ -22,8 +25,8 @@ import {
   type WorkflowStep,
 } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
-import { duration, shortSha, timeAgo } from '@/lib/format';
-import { t, tx } from '@/lib/i18n';
+import { duration, formatBytes, shortSha, timeAgo } from '@/lib/format';
+import { t, tn, tx } from '@/lib/i18n';
 import {
   confirmingCancel,
   focusStep,
@@ -299,6 +302,119 @@ function Summary({
   );
 }
 
+/** The run's build artifacts (actions/upload-artifact): download links, and delete for people who can push. */
+function RunArtifacts({
+  repo,
+  run,
+  jobs,
+}: {
+  repo: RepoDetail;
+  run: WorkflowRun;
+  jobs: WorkflowJob[];
+}) {
+  const o = repo.owner.username;
+  const qc = useQueryClient();
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const q = useQuery({
+    queryKey: qk.runArtifacts(o, repo.name, run.runNumber),
+    queryFn: () => api.runArtifacts(o, repo.name, run.runNumber),
+    refetchInterval: run.status === 'completed' ? false : 5000,
+  });
+  const remove = useMutation({
+    mutationFn: (name: string) =>
+      api.deleteArtifact(o, repo.name, run.runNumber, name),
+    onSuccess: () => {
+      setConfirming(null);
+      return qc.invalidateQueries({
+        queryKey: qk.runArtifacts(o, repo.name, run.runNumber),
+      });
+    },
+  });
+  const artifacts = q.data?.artifacts ?? [];
+  if (!artifacts.length) return null;
+  const jobName = (id: string) => jobs.find((j) => j.id === id)?.name;
+  return (
+    <Section
+      title={t('Artifacts')}
+      actions={
+        <span className="muted small">
+          {tn(
+            artifacts.length,
+            '{n} artifact, produced during runtime',
+            '{n} artifacts, produced during runtime'
+          )}
+        </span>
+      }
+    >
+      {remove.error && (
+        <div className="act-error" role="alert">
+          {errorMessage(remove.error)}
+        </div>
+      )}
+      <ul className="act-artifacts panel">
+        {artifacts.map((a) => (
+          <li key={a.name}>
+            <PackageIcon size={16} className="muted" />
+            <a
+              className="act-artifact-name"
+              href={api.artifactZipUrl(o, repo.name, run.runNumber, a.name)}
+              download={`${a.name}.zip`}
+              title={t('Download {name}', { name: a.name })}
+            >
+              {a.name}
+            </a>
+            <span className="muted small">
+              {jobName(a.jobId) &&
+                t('from {job}', { job: jobName(a.jobId) ?? '' })}
+            </span>
+            <span className="muted small act-artifact-size">
+              {formatBytes(a.size)}
+            </span>
+            <a
+              className="btn small quiet"
+              href={api.artifactZipUrl(o, repo.name, run.runNumber, a.name)}
+              download={`${a.name}.zip`}
+              aria-label={t('Download {name}', { name: a.name })}
+            >
+              <DownloadIcon size={14} />
+            </a>
+            {repo.permissions.write &&
+              (confirming === a.name ? (
+                <>
+                  <PendingButton
+                    className="small danger"
+                    pending={remove.isPending}
+                    pendingLabel={t('Deleting…')}
+                    onClick={() => remove.mutate(a.name)}
+                  >
+                    {t('Confirm delete')}
+                  </PendingButton>
+                  <button
+                    type="button"
+                    className="btn small quiet"
+                    disabled={remove.isPending}
+                    onClick={() => setConfirming(null)}
+                  >
+                    {t('Keep it')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn small quiet"
+                  aria-label={t('Delete {name}', { name: a.name })}
+                  onClick={() => setConfirming(a.name)}
+                >
+                  <TrashIcon size={14} />
+                </button>
+              ))}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 /**
  * A run. Keyed by run number: re-running navigates to the next number with the same route, and the "Confirm
  * cancel" step (and any action error) of the run you left must not carry over to the new one.
@@ -490,7 +606,10 @@ function RunPage() {
               </Link>
             </div>
           ) : (
-            <Summary run={run} jobs={jobs} base={base} now={now} />
+            <>
+              <Summary run={run} jobs={jobs} base={base} now={now} />
+              <RunArtifacts repo={repo} run={run} jobs={jobs} />
+            </>
           )}
         </div>
       </div>

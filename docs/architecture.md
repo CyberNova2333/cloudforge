@@ -65,7 +65,35 @@ GitOrange Actions runs `.github/workflows/*.yml` files with GitHub Actions synta
 1. **Trigger.** The git endpoint snapshots the refs before a push and diffs them after it lands; an in-app merge reports its own ref update; opening a pull request triggers `pull_request`. For each moved branch or tag, [`trigger.ts`](../worker/src/actions/trigger.ts) reads the workflow files at the new commit, applies the `on:` filters (branches, tags, paths), and writes a queued run with its jobs (matrix expanded) and steps to D1 **before** starting a Cloudflare Workflow (`ACTIONS_RUN`) named after the run id. An invalid workflow file becomes a failed run with the parse error.
 2. **Execute.** The `ActionsRun` Workflow ([`executor.ts`](../worker/src/actions/executor.ts)) runs jobs in waves by `needs`, in parallel within a wave. Every status change and every job step is a durable Workflow step, so a run survives restarts. Expressions, `if:` conditions, `env` layering, step outputs, and `GITHUB_ENV`/`GITHUB_PATH` are evaluated in the Worker.
 3. **Run.** Each job gets a `JobRunner` Durable Object ([`job-runner.ts`](../worker/src/actions/job-runner.ts)) that starts its own container (scheduling policy `durable_object`, image `runner`, instance size from `runs-on`) and runs each step with `exec`. `actions/checkout` fetches the commit with a short-lived read-only Artifacts token, passed through an environment variable and masked in the log. The object keeps only the running step's output in memory for live logs, plus an alarm that destroys the container if its run disappears. Before its container starts, each job asks the `ActionsQueue` Durable Object ([`queue.ts`](../worker/src/actions/queue.ts)) for a slot: at most `actions.max_concurrent_jobs` (Site admin → Settings, default 10) jobs run at once across the instance, granted first come, first served. A waiting job holds no container: its Workflow waits for a grant event and asks again after 5, 10, 20, then every 30 minutes in case one was lost, and the run page shows "Queued (N ahead)" (also for a restarted job waiting again). If the queue can't be reached, the job runs without a slot rather than failing. A job gives its slot back when it finishes or its runner is interrupted (the restart queues again); cancelling a run drops its jobs from the queue; and an alarm reclaims slots whose job is gone or finished, whose run is finished or whose Workflow errored, was terminated, or completed (an errored or terminated run is marked finished), or that were held 15 minutes past the job's deadline (from its container's start: `timeout-minutes` plus 30 minutes per cache save; a granted job that hasn't started gets 30 minutes to notice).
-4. **Logs.** Each finished step's log goes to R2 (`actions/<repository id>/...`); while a step runs, the logs endpoint reads it from the job's `JobRunner`. Deleting a repository deletes its logs.
+4. **Logs.** Each finished step's log goes to R2 (`actions/<repository id>/...`); while a step runs, the logs endpoint reads it from the job's `JobRunner`. Deleting a repository deletes its logs. Workflow commands an action prints (`::add-mask::`, `::group::`, `::error::`, …) are applied to the log: masked values become `***`, groups become headings, debug lines are dropped.
+
+**Actions.** `actions/checkout`, `setup-node`, `cache`, `upload-artifact`, `download-artifact` and `gitorange/relevance`
+are built in (the Worker writes their shell). Anything else is a JavaScript or composite action, read the way GitHub's
+runner does ([`remote.ts`](../worker/src/actions/remote.ts)): `owner/repo[/path]@ref` from GitHub (the Worker fetches
+`action.yml` from raw.githubusercontent.com, cached 10 minutes; the runner downloads the code from codeload.github.com
+once per job into `/opt/gitorange/actions`), or `./path` in the repository (read at the run's commit; the step needs a
+checkout first). A JavaScript action's `pre`/`main` run with the image's Node.js, with `INPUT_*`, `GITHUB_ACTION_PATH`,
+`GITHUB_EVENT_PATH` and `RUNNER_TOOL_CACHE`; what it saves to `$GITHUB_STATE` reaches its `post` entry point as
+`STATE_*`. Planning never fetches an action, so every GitHub action gets a "Post" step slot (trigger and executor share
+`hasPostStep`), skipped at run time when the action has no `post` or its `post-if` is false. A composite action's steps
+run one by one within the step (nested up to 5 deep) with its `inputs`, `env`/`GITHUB_ENV`/`GITHUB_PATH` carried
+between them, and its `outputs` evaluated at the end. Docker actions (`using: docker`, `docker://`) can't run: the job
+container has no Docker.
+
+**Matrix.** `strategy.matrix` follows GitHub's expansion ([`plan.ts`](../worker/src/actions/plan.ts) `expandMatrix`):
+the axes' cross product, minus the combinations an `exclude` entry matches (objects match field by field), then each
+`include` entry merged into every combination whose original values it doesn't change, or added as its own job.
+Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported.
+
+**Artifacts** ([`artifacts.ts`](../worker/src/actions/artifacts.ts)) are zips in the `ACTIONS_CACHE` bucket at
+`actions-artifacts/<repository id>/<run id>/<name>/<job id>-<step>.zip`; R2's listing is the index (no table).
+`upload-artifact` zips on the runner (python3: globs, `!` excludes, hidden files only with `include-hidden-files`, paths
+relative to the search paths' common root) and PUTs through a pre-signed URL; another step reusing a name in the run
+needs `overwrite: true` (a restarted job replaces its own). `download-artifact` takes this run's artifacts (by `name`,
+`pattern`, `artifact-ids`, `merge-multiple`). The run page lists them (`GET …/actions/runs/{n}/artifacts`), downloads
+stream through the Worker (`…/artifacts/{name}/zip`), and people with push access can delete one (audited as
+`artifact.deleted`). They go with their run (the Actions retention) and with the repository; `retention-days` is not
+used.
 
 Cancelling terminates the Workflow and destroys the job containers. A run whose Workflow crashed is marked failed the next time someone views it.
 

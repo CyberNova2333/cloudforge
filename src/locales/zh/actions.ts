@@ -216,8 +216,8 @@ export const actions: Record<string, string> = {
   'Build and test every push and pull request. Add a workflow file like this one at {path}; it uses the same syntax as GitHub Actions. Jobs run on Linux with Node.js, git and common build tools preinstalled.':
     '在每次推送和每个拉取请求上构建并测试。在 {path} 添加一个这样的工作流文件；它使用与 GitHub Actions 相同的语法。作业在 Linux 上运行，预装 Node.js、git 和常用构建工具。',
   'Copy workflow': '复制工作流',
-  'Supported today: {run} steps, {checkout}, {setup}, {needs}, {if}, matrix builds, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.':
-    '目前支持：{run} 步骤、{checkout}、{setup}、{needs}、{if}、矩阵构建、表达式和步骤输出。需要更大的机器时使用 {runsOn}（最高 {max}）。',
+  'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.':
+    '目前支持：{run} 步骤、{checkout}、{setup}、{cache}、{artifacts}、JavaScript 与组合式 Action（来自 GitHub 或 {local}）、{needs}、{if}、带 include/exclude 的矩阵构建、表达式和步骤输出。需要更大的机器时使用 {runsOn}（最高 {max}）。',
   'All workflows': '所有工作流',
   '{n} workflow run': '{n} 次工作流运行',
   '{n} workflow runs': '{n} 次工作流运行',
@@ -258,6 +258,14 @@ export const actions: Record<string, string> = {
   'Cancelling…': '正在取消…',
   'Confirm cancel': '确认取消',
   'Keep running': '继续运行',
+  Artifacts: '构建产物',
+  '{n} artifact, produced during runtime': '运行期间产生了 {n} 个产物',
+  '{n} artifacts, produced during runtime': '运行期间产生了 {n} 个产物',
+  'Download {name}': '下载 {name}',
+  'from {job}': '来自 {job}',
+  'Delete {name}': '删除 {name}',
+  'Confirm delete': '确认删除',
+  'Keep it': '保留',
   'Cancel workflow': '取消工作流',
   Jobs: '作业',
   Summary: '摘要',

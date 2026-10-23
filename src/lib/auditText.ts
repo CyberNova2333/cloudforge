@@ -54,6 +54,7 @@ export const AUDIT_ACTIONS = [
   'release.created',
   'release.updated',
   'pull.version_bump',
+  'artifact.deleted',
 ] as const;
 
 type Data = Record<string, unknown>;
@@ -342,6 +343,14 @@ export function auditParts(
         t(' deleted branch '),
         e.target,
         d.merged === true && t(' after it merged'),
+        ...tail('in'),
+        via()
+      );
+    case 'artifact.deleted':
+      return say(
+        t(' deleted the artifact '),
+        e.target,
+        typeof d.run === 'number' && t(' of run #{n}', { n: d.run }),
         ...tail('in'),
         via()
       );
@@ -778,6 +787,7 @@ export function auditCategory(action: string): AuditCategory {
     case 'instance.settings':
     case 'repository.created':
     case 'repository.deleted':
+    case 'artifact.deleted':
       return 'settings';
     default:
       return 'activity';

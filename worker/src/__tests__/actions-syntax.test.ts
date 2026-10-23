@@ -5,8 +5,9 @@ import {
   interpolate,
   type Value,
 } from '../actions/expressions';
-import { mask, parseKeyValueFile } from '../actions/commands';
+import { mask, parseKeyValueFile, workflowCommands } from '../actions/commands';
 import {
+  expandMatrix,
   instanceTypeFor,
   matchesPatterns,
   planJobs,
@@ -154,7 +155,11 @@ jobs:
     expect(wf.on.pullRequest).toEqual({});
     expect(wf.env).toEqual({ NODE_ENV: 'test' });
     expect(wf.jobs.map((j) => j.key)).toEqual(['test', 'deploy']);
-    expect(wf.jobs[0].matrix).toEqual({ node: [20, 22] });
+    expect(wf.jobs[0].matrix).toEqual({
+      axes: { node: [20, 22] },
+      include: [],
+      exclude: [],
+    });
     expect(wf.jobs[1].needs).toEqual(['test']);
   });
 
@@ -298,6 +303,128 @@ describe('runner command files', () => {
   it('masks secrets in logs', () => {
     expect(mask('token art_secret123 done', ['art_secret123'])).toBe(
       'token *** done'
+    );
+  });
+});
+
+describe('matrix include and exclude', () => {
+  const matrixOf = (yaml: string) => {
+    const wf = parseWorkflow(
+      `on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n${yaml
+        .split('\n')
+        .map((l) => `        ${l}`)
+        .join('\n')}\n    steps:\n      - run: x`
+    );
+    return wf;
+  };
+
+  it('follows GitHub’s documented include example', () => {
+    const wf = matrixOf(`fruit: [apple, pear]
+animal: [cat, dog]
+include:
+  - color: green
+  - color: pink
+    animal: cat
+  - fruit: apple
+    shape: circle
+  - fruit: banana
+  - fruit: banana
+    animal: cat`);
+    expect(expandMatrix(wf.jobs[0].matrix!)).toEqual([
+      { fruit: 'apple', animal: 'cat', color: 'pink', shape: 'circle' },
+      { fruit: 'apple', animal: 'dog', color: 'green', shape: 'circle' },
+      { fruit: 'pear', animal: 'cat', color: 'pink' },
+      { fruit: 'pear', animal: 'dog', color: 'green' },
+      { fruit: 'banana' },
+      { fruit: 'banana', animal: 'cat' },
+    ]);
+    expect(planJobs(wf, {}).map((j) => j.name)).toEqual([
+      't (apple, cat, pink, circle)',
+      't (apple, dog, green, circle)',
+      't (pear, cat, pink)',
+      't (pear, dog, green)',
+      't (banana)',
+      't (banana, cat)',
+    ]);
+  });
+
+  it('removes excluded combinations before adding includes, matching objects partially', () => {
+    const wf = matrixOf(`os: [ubuntu-22.04, ubuntu-24.04]
+node:
+  - { version: 20, lts: true }
+  - { version: 22, lts: true }
+exclude:
+  - os: ubuntu-22.04
+    node: { version: 22 }
+include:
+  - os: ubuntu-22.04
+    node: { version: 22, lts: true }
+    experimental: true`);
+    expect(expandMatrix(wf.jobs[0].matrix!)).toEqual([
+      { os: 'ubuntu-22.04', node: { version: 20, lts: true } },
+      { os: 'ubuntu-24.04', node: { version: 20, lts: true } },
+      { os: 'ubuntu-24.04', node: { version: 22, lts: true } },
+      {
+        os: 'ubuntu-22.04',
+        node: { version: 22, lts: true },
+        experimental: true,
+      },
+    ]);
+    expect(planJobs(wf, {})[0].name).toBe(
+      't (ubuntu-22.04, {"version":20,"lts":true})'
+    );
+  });
+
+  it('runs one job per include entry when the matrix has no lists', () => {
+    const wf = matrixOf(`include:
+  - target: web
+  - target: worker
+    size: standard-2`);
+    expect(planJobs(wf, {}).map((j) => j.matrix)).toEqual([
+      { target: 'web' },
+      { target: 'worker', size: 'standard-2' },
+    ]);
+  });
+
+  it.each([
+    ['x: [1]\nexclude:\n  - os: linux', /'os' is not one of the matrix's keys/],
+    ['x: [1]\nexclude: [ x ]', /must be a non-empty mapping/],
+    ['x: []', /must be a non-empty list/],
+    ['x: [1, ~]', /must have a value/],
+    ['include: \${{ fromJSON(needs.a.outputs.m) }}', /not supported yet/],
+  ])('rejects bad matrices (%#)', (yaml, msg) => {
+    expect(() => matrixOf(yaml)).toThrow(msg);
+  });
+
+  it('refuses a matrix that exclude empties', () => {
+    const wf = matrixOf('x: [1]\nexclude:\n  - x: 1');
+    expect(() => planJobs(wf, {})).toThrow(/exclude leaves no jobs/);
+  });
+});
+
+describe('workflow commands in logs', () => {
+  it('masks add-mask values, keeps groups as headings and drops debug lines', () => {
+    const out = workflowCommands(
+      [
+        '::add-mask::hunter22',
+        '::group::Install',
+        'npm ci',
+        '::endgroup::',
+        '::debug::noise',
+        '::warning file=a.ts,line=1::Deprecated%0Asecond line',
+        'password is hunter22',
+        '::set-output name=x::y',
+      ].join('\n')
+    );
+    expect(out.masks).toEqual(['hunter22']);
+    expect(mask(out.text, out.masks)).toBe(
+      [
+        '▸ Install',
+        'npm ci',
+        'Warning: Deprecated\nsecond line',
+        'password is ***',
+        '::set-output name=x::y',
+      ].join('\n')
     );
   });
 });

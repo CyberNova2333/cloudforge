@@ -22,6 +22,8 @@ import { ownerRepoParams, publicUserSchema } from './schemas';
 import { runnersStopped } from '../usage/record';
 import { dropRun, queuePositions } from '../actions/queue';
 import { finishAbandoned } from '../actions/abandon';
+import { deleteArtifact, listRunArtifacts } from '../actions/artifacts';
+import { recordAudit } from '../lib/audit';
 
 export const actionsRouter = new OpenAPIHono<RepoEnv>({
   defaultHook: validationHook,
@@ -362,6 +364,119 @@ actionsRouter.openapi(logsRoute, async (c) => {
     ? await c.env.ACTIONS_LOGS.get(row.step.logR2Key)
     : null;
   return c.text(obj ? await obj.text() : '', 200, headers);
+});
+
+// ── artifacts ────────────────────────────────────────────────────────────────
+
+const artifactSchema = z
+  .object({
+    name: z.string(),
+    id: z.string(),
+    /** Zipped size in bytes. */
+    size: z.number(),
+    createdAt: z.string(),
+    /** The job that uploaded it. */
+    jobId: z.string(),
+  })
+  .openapi('WorkflowArtifact');
+
+const artifactsRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/actions/runs/{number}/artifacts',
+  tags: ['Actions'],
+  request: { params: runParams },
+  responses: {
+    ...json200Response(
+      z.object({ artifacts: z.array(artifactSchema) }),
+      "The run's artifacts (actions/upload-artifact), by name"
+    ),
+    ...json404Response,
+  },
+});
+actionsRouter.openapi(artifactsRoute, async (c) => {
+  const run = await getRun(c, c.req.valid('param').number);
+  if (!run) return c.json({ error: 'Not Found' }, 404);
+  const artifacts = await listRunArtifacts(c.env, run.repositoryId, run.id);
+  return c.json(
+    {
+      artifacts: artifacts.map((a) => ({
+        name: a.name,
+        id: a.id,
+        size: a.size,
+        createdAt: a.createdAt.toISOString(),
+        jobId: a.jobId,
+      })),
+    },
+    200
+  );
+});
+
+const artifactParams = runParams.extend({ name: z.string().min(1) });
+
+const artifactZipRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/actions/runs/{number}/artifacts/{name}/zip',
+  tags: ['Actions'],
+  request: { params: artifactParams },
+  responses: {
+    200: {
+      content: { 'application/zip': { schema: z.string() } },
+      description: 'The artifact as a zip file',
+    },
+    ...json404Response,
+  },
+});
+actionsRouter.openapi(artifactZipRoute, async (c) => {
+  const { number, name } = c.req.valid('param');
+  const run = await getRun(c, number);
+  if (!run) return c.json({ error: 'Not Found' }, 404);
+  const a = (await listRunArtifacts(c.env, run.repositoryId, run.id)).find(
+    (x) => x.name === name
+  );
+  const obj = a ? await c.env.ACTIONS_CACHE.get(a.objectKey) : null;
+  if (!obj) return c.json({ error: 'Not Found' }, 404);
+  const file = `${name.replace(/[^\w.-]+/g, '_')}.zip`;
+  return c.body(obj.body, 200, {
+    'Content-Type': 'application/zip',
+    'Content-Length': String(obj.size),
+    'Content-Disposition': `attachment; filename="${file}"; filename*=UTF-8''${encodeURIComponent(`${name}.zip`)}`,
+    'Cache-Control': 'private, no-store',
+  });
+});
+
+const deleteArtifactRoute = createRoute({
+  method: 'delete',
+  path: '/{owner}/{repo}/actions/runs/{number}/artifacts/{name}',
+  tags: ['Actions'],
+  request: { params: artifactParams },
+  responses: {
+    ...json200Response(z.object({ ok: z.literal(true) }), 'Deleted'),
+    ...json403Response,
+    ...json404Response,
+  },
+});
+actionsRouter.openapi(deleteArtifactRoute, async (c) => {
+  if (!c.get('perms').write)
+    return c.json(
+      { error: 'You do not have permission to delete artifacts' },
+      403
+    );
+  const { number, name } = c.req.valid('param');
+  const run = await getRun(c, number);
+  if (!run) return c.json({ error: 'Not Found' }, 404);
+  const a = (await listRunArtifacts(c.env, run.repositoryId, run.id)).find(
+    (x) => x.name === name
+  );
+  if (!a) return c.json({ error: 'Not Found' }, 404);
+  await deleteArtifact(c.env, a);
+  await recordAudit(c.get('db'), {
+    repositoryId: run.repositoryId,
+    actorId: c.get('user')!.id,
+    action: 'artifact.deleted',
+    target: name,
+    data: { run: run.runNumber, size: a.size },
+  });
+  return c.json({ ok: true as const }, 200);
 });
 
 // ── cancel / re-run ──────────────────────────────────────────────────────────
