@@ -14,15 +14,19 @@ it('pages sweep identities below the durable-result limit and visits every PR on
   await settle(t);
   const db = drizzle(t.env.DB, { schema });
   const first = (await db.select().from(pullRequests).get())!;
-  const body = '大'.repeat(20_000);
-  for (let i = 2; i <= 105; i++)
-    await db.insert(pullRequests).values({
-      ...first,
-      id: crypto.randomUUID(),
-      number: i,
-      body,
-      headRef: `missing-${i}`,
-    });
+  // 10.5 KB each: a page of 100 full rows would pass Workflows' 1 MiB durable-result limit. Every step of the
+  // sweep reads whole rows, so bigger bodies only slow it down (they made this test time out on a busy runner).
+  const body = '大'.repeat(3_500);
+  // One batch, not 104 round trips (docs/development.md: seed fixtures in bulk).
+  const rows = Array.from({ length: 104 }, (_, k) => ({
+    ...first,
+    id: crypto.randomUUID(),
+    number: k + 2,
+    body,
+    headRef: `missing-${k + 2}`,
+  }));
+  const [head, ...rest] = rows.map((r) => db.insert(pullRequests).values(r));
+  await db.batch([head, ...rest]);
   const results: { name: string; bytes: number; value: unknown }[] = [];
   const step = {
     do: async (name: string, a: unknown, b?: unknown) => {

@@ -44,11 +44,14 @@ export default defineConfig({
     maxWorkers: workers,
     isolate: false,
     // CI containers (CloudForge Actions standard-2, GitHub runners, CNB; all set CI=true) run these
-    // tests about ten times slower than a laptop, and parallel workers slow each test too, so the
-    // heavier stacking tests pass 5 s only on a laptop running one worker.
+    // tests about ten times slower than a laptop, so the heavier stacking tests pass 5 s only on a
+    // laptop running one worker: 30 s on CI or with parallel workers. Parallel workers on a CI
+    // container slow some files much more (CNB, 6 workers: most tests 2x, a few up to 14x), so 60 s there.
     // Ten times is a budget, not a licence: a test that seeds hundreds of rows one write at a time
     // takes minutes there, so seed fixtures in one `db.batch` (see releases.test.ts's landedMany).
-    ...(process.env.CI || workers > 1 ? { testTimeout: 30_000 } : {}),
+    ...(process.env.CI || workers > 1
+      ? { testTimeout: process.env.CI && workers > 1 ? 60_000 : 30_000 }
+      : {}),
     // On CI, console output only for failing tests: CNB keeps 100 KB of a stage's log, and every
     // request's log line would push the failures and the summary out of it.
     ...(process.env.CI ? { silent: 'passed-only' as const } : {}),
