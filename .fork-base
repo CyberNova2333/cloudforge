@@ -1,0 +1,3 @@
+upstream=https://github.com/choyiny/gitorange
+base_commit=b3d5b089135761be50f88ed1fd85c175a913ab9f
+forked_at=2026-10-22

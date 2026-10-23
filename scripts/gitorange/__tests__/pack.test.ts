@@ -14,7 +14,7 @@ describe('npmManifest', () => {
       version: '1.0.0',
       description:
         'Install, upgrade and adopt a GitOrange deployment on Cloudflare.',
-      license: 'Apache-2.0',
+      license: 'AGPL-3.0-only',
       type: 'module',
       bin: { gitorange: 'bin/gitorange.js' },
       engines: { node: '>=22.0.0' },
@@ -22,7 +22,7 @@ describe('npmManifest', () => {
       gitorangeCommit: 'abc',
       repository: {
         type: 'git',
-        url: 'git+https://github.com/choyiny/gitorange.git',
+        url: 'git+https://github.com/CyberNova2333/cloudforge.git',
       },
       files: [
         'bin',
@@ -33,6 +33,7 @@ describe('npmManifest', () => {
         'wrangler.jsonc.example',
         'README.md',
         'LICENSE',
+        'COPYING',
       ],
     });
   });
