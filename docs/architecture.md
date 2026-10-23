@@ -397,6 +397,9 @@ Site admins and a repository's owner (or, for a team repository, its creator) ca
 ## Authentication
 
 [better-auth](https://www.better-auth.com/) with email/password, the `username` plugin (sign in with username or email), and the `admin` plugin (roles). Public sign-up is disabled by default; site admins can enable it with domain and email-verification settings. First-run setup and invitations also create users. Rate limits are stored in D1, so they hold across Worker isolates.
+Outside `/api/auth/*`, each request's signed-in user is read straight from `sessions` (`auth/session.ts`) rather than
+through better-auth's `getSession`; it must match better-auth's cookie: the `__Secure-` name over an `https://`
+BASE_URL (read first, then the plain name), the HMAC signature (verified in constant time), expiry and sliding refresh.
 
 Invitation redemption atomically consumes an unexpired, unused invitation before creating the account. Revocation
 or consumption that wins this write prevents stale requests from creating users. If creation fails, the invitation
