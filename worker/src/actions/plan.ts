@@ -5,10 +5,11 @@ import {
   stepDisplayName,
   type BranchFilter,
   type JobDef,
-  type Scalar,
+  type MatrixDef,
   type WorkflowDef,
   type StepDef,
 } from './workflow-file';
+import { parseUses } from './remote';
 
 // ── filters ──────────────────────────────────────────────────────────────────
 
@@ -140,19 +141,67 @@ export interface PlannedJob {
   name: string;
   runsOn: string;
   needs: string[];
-  matrix: Record<string, Scalar> | null;
+  matrix: Record<string, Value> | null;
   steps: PlannedStep[];
 }
 
-/** Cartesian product of the matrix axes, in declaration order. */
-export function expandMatrix(
-  m: Record<string, Scalar[]>
-): Record<string, Scalar>[] {
-  let combos: Record<string, Scalar>[] = [{}];
-  for (const [k, vals] of Object.entries(m))
-    combos = combos.flatMap((c) => vals.map((v) => ({ ...c, [k]: v })));
-  return combos;
+/** Matrix values compare like GitHub's: by content, so objects and lists match field by field. */
+const sameValue = (a: Value, b: Value) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/** A combination an `exclude` entry names: every key it gives matches (objects partially, as on GitHub). */
+function excludes(entry: Value, value: Value): boolean {
+  if (
+    entry &&
+    value &&
+    typeof entry === 'object' &&
+    typeof value === 'object' &&
+    !Array.isArray(entry) &&
+    !Array.isArray(value)
+  )
+    return Object.entries(entry).every(
+      ([k, v]) => k in value && excludes(v, value[k])
+    );
+  return sameValue(entry, value);
 }
+
+/**
+ * GitHub's matrix expansion: the cross product of the axes (in declaration order), minus the combinations an
+ * `exclude` entry matches; then each `include` entry is merged into every combination whose original axis values
+ * it doesn't contradict (values an earlier include added may be overwritten), or, when it fits none, added as a
+ * job of its own.
+ */
+export function expandMatrix(m: MatrixDef): Record<string, Value>[] {
+  const keys = Object.keys(m.axes);
+  let combos: Record<string, Value>[] = keys.length ? [{}] : [];
+  for (const k of keys)
+    combos = combos.flatMap((c) => m.axes[k].map((v) => ({ ...c, [k]: v })));
+  combos = combos.filter(
+    (c) =>
+      !m.exclude.some((e) =>
+        Object.entries(e).every(([k, v]) => excludes(v, c[k]))
+      )
+  );
+  const extra: Record<string, Value>[] = [];
+  for (const inc of m.include) {
+    let fitted = false;
+    for (const c of combos)
+      if (
+        Object.entries(inc).every(
+          ([k, v]) => !keys.includes(k) || sameValue(c[k], v)
+        )
+      ) {
+        Object.assign(c, inc);
+        fitted = true;
+      }
+    if (!fitted) extra.push({ ...inc });
+  }
+  return [...combos, ...extra];
+}
+
+/** How a matrix value reads in a job's name: `test (20, ubuntu-latest)`. */
+const matrixLabel = (v: Value) =>
+  v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v);
 
 function safeInterpolate(text: string, ctx: Record<string, Value>): string {
   try {
@@ -170,6 +219,10 @@ export function planJobs(
   const out: PlannedJob[] = [];
   for (const job of wf.jobs) {
     const combos = job.matrix ? expandMatrix(job.matrix) : [null];
+    if (!combos.length)
+      throw new WorkflowFileError(
+        `jobs.${job.key}.strategy.matrix: exclude leaves no jobs to run`
+      );
     if (combos.length > MAX_MATRIX_JOBS)
       throw new WorkflowFileError(
         `jobs.${job.key}.strategy.matrix expands to ${combos.length} jobs; the limit is ${MAX_MATRIX_JOBS}`
@@ -181,7 +234,7 @@ export function planJobs(
 
 function planJob(
   job: JobDef,
-  combo: Record<string, Scalar> | null,
+  combo: Record<string, Value> | null,
   github: Record<string, Value>
 ): PlannedJob {
   const ctx: Record<string, Value> = {
@@ -193,7 +246,7 @@ function planJob(
   const base = job.name ? safeInterpolate(job.name, ctx) : job.key;
   const name =
     combo && !(job.name && job.name.includes('${{'))
-      ? `${base} (${Object.values(combo).map(String).join(', ')})`
+      ? `${base} (${Object.values(combo).map(matrixLabel).join(', ')})`
       : base;
   // `runs-on` may be an expression (github and matrix contexts, as on GitHub); the evaluated
   // labels are stored, so the executor sizes the runner from them.
@@ -229,13 +282,25 @@ function planJob(
   };
 }
 
-/** Whether a step has a "Post" phase (cache save). */
+/**
+ * Whether a step has a "Post" phase: cache save, or a GitHub action's own post entry point. Whether a GitHub
+ * action has one is only known from its action.yml, which planning never fetches, so every GitHub action gets
+ * the slot and the executor skips it when there is nothing to run. Local actions (`./…`, mostly composite) don't.
+ * The trigger and the executor both call this, so the planned steps always match the ones run.
+ */
 export function hasPostStep(s: StepDef): boolean {
   const action = s.uses?.split('@')[0];
-  return (
+  if (
     action === 'actions/cache' ||
     (action === 'actions/setup-node' && Boolean(s.with.cache?.trim()))
-  );
+  )
+    return true;
+  if (!s.uses) return false;
+  try {
+    return parseUses(s.uses)?.kind === 'github';
+  } catch {
+    return false;
+  }
 }
 
 /** Indexes of steps with a post phase, in run order (last first). */

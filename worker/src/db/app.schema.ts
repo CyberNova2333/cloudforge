@@ -924,6 +924,7 @@ export const auditActions = [
   'release.created',
   'release.updated',
   'pull.version_bump',
+  'artifact.deleted',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
 /** person: a member. agent: a reviewer agent. ai: GitOrange AI deciding for `actor_id`. system: GitOrange itself. */

@@ -171,11 +171,14 @@ function WorkflowRuns({
         </div>
         <p className="small muted">
           {tx(
-            'Supported today: {run} steps, {checkout}, {setup}, {needs}, {if}, matrix builds, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.',
+            'Supported today: {run} steps, {checkout}, {setup}, {cache}, {artifacts}, JavaScript and composite actions (from GitHub or {local}), {needs}, {if}, matrix builds with include/exclude, expressions and step outputs. Use {runsOn} (up to {max}) for a bigger machine.',
             {
               run: <code>run</code>,
               checkout: <code>actions/checkout</code>,
               setup: <code>actions/setup-node</code>,
+              cache: <code>actions/cache</code>,
+              artifacts: <code>actions/upload-artifact</code>,
+              local: <code>./path</code>,
               needs: <code>needs</code>,
               if: <code>if</code>,
               runsOn: <code>runs-on: gitorange-standard-2</code>,

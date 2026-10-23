@@ -1,5 +1,10 @@
 import { DurableObject } from 'cloudflare:workers';
-import { mask, parseKeyValueFile, parsePathFile } from './commands';
+import {
+  mask,
+  parseKeyValueFile,
+  parsePathFile,
+  workflowCommands,
+} from './commands';
 import type { InstanceType } from './plan';
 
 export interface StepRequest {
@@ -19,6 +24,8 @@ export interface StepResult {
   outputs: Record<string, string>;
   envAdds: Record<string, string>;
   pathAdds: string[];
+  /** What the step saved to $GITHUB_STATE: its post step gets each as STATE_<name>. Absent from older runners. */
+  state?: Record<string, string>;
   /** Set when the container stopped under the step (e.g. a deploy), as opposed to the step failing. */
   interrupted?: string;
 }
@@ -107,9 +114,18 @@ export class JobRunner
       GITHUB_OUTPUT: `${STATE_DIR}/output_${req.number}`,
       GITHUB_PATH: `${STATE_DIR}/path_${req.number}`,
       GITHUB_STEP_SUMMARY: `${STATE_DIR}/summary_${req.number}`,
+      GITHUB_STATE: `${STATE_DIR}/state_${req.number}`,
     };
+    // Emptied, not just created: a composite action's steps share the step's number, and each must only see
+    // (and report) what it wrote itself.
     await (
-      await this.container.exec(['touch', ...Object.values(files)])
+      await this.container.exec([
+        'sh',
+        '-c',
+        'for f in "$@"; do : > "$f"; done',
+        'sh',
+        ...Object.values(files),
+      ])
     ).exitCode;
     await (
       await this.container.exec(['mkdir', '-p', req.cwd])
@@ -169,34 +185,39 @@ export class JobRunner
     let envAdds: Record<string, string> = {};
     let outputs: Record<string, string> = {};
     let pathAdds: string[] = [];
+    let state: Record<string, string> = {};
     try {
       const p = await this.container.exec([
         'sh',
         '-c',
-        `cat "$1"; printf '\\0'; cat "$2"; printf '\\0'; cat "$3"`,
+        `cat "$1"; printf '\\0'; cat "$2"; printf '\\0'; cat "$3"; printf '\\0'; cat "$4"`,
         'sh',
         files.GITHUB_ENV,
         files.GITHUB_OUTPUT,
         files.GITHUB_PATH,
+        files.GITHUB_STATE,
       ]);
       const out = await p.output();
-      const [env = '', output = '', path = ''] = new TextDecoder()
+      const [env = '', output = '', path = '', saved = ''] = new TextDecoder()
         .decode(out.stdout)
         .split('\0');
       envAdds = parseKeyValueFile(env);
       outputs = parseKeyValueFile(output);
       pathAdds = parsePathFile(path);
+      state = parseKeyValueFile(saved);
     } catch {
       // Container is gone (e.g. timed out).
     }
     this.liveStep = null;
+    const shown = workflowCommands(capped(live.text));
     return {
       exitCode,
       timedOut,
-      log: mask(capped(live.text), req.masks),
+      log: mask(shown.text, [...req.masks, ...shown.masks]),
       outputs,
       envAdds,
       pathAdds,
+      state,
       ...(interrupted ? { interrupted } : {}),
     };
   }
@@ -205,7 +226,8 @@ export class JobRunner
   async live(stepNumber: number): Promise<string | null> {
     const s = this.liveStep;
     if (!s || s.number !== stepNumber) return null;
-    return mask(capped(s.text), s.masks);
+    const shown = workflowCommands(capped(s.text));
+    return mask(shown.text, [...s.masks, ...shown.masks]);
   }
 
   async destroy(): Promise<void> {

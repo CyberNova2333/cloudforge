@@ -388,9 +388,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/upload-artifact@v4
+      - uses: docker://alpine:3
         continue-on-error: true
-      - uses: some/action@v1
+      - uses: ./.github/actions/missing
       - run: echo after
 `,
     });
@@ -411,7 +411,9 @@ jobs:
       `/api/repos/octocat/app/actions/runs/1/jobs/${jobs[0].id}/steps/3/logs`,
       { cookie: s.admin }
     );
-    expect(await log.text()).toContain("doesn't run `uses: some/action@v1`");
+    expect(await log.text()).toContain(
+      './.github/actions/missing has no action.yml'
+    );
   });
 });
 

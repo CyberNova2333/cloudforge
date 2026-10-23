@@ -167,6 +167,7 @@ export const errors: Record<string, string> = {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   'You do not have permission to cancel runs': '你没有取消运行的权限',
+  'You do not have permission to delete artifacts': '你没有删除构建产物的权限',
   'You do not have permission to re-run runs': '你没有重新运行工作流的权限',
   'This run has already finished': '此运行已经结束',
   'Actions is not set up on this server': '此服务器未配置 Actions',

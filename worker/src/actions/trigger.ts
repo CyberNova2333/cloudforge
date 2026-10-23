@@ -1,4 +1,5 @@
 import { deleteRepositoryCache } from './cache';
+import { deleteRepositoryArtifacts } from './artifacts';
 import { and, eq, sql } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type { schema } from '../db/schema';
@@ -440,4 +441,5 @@ export async function deleteRepositoryLogs(
     } while (cursor);
   }
   await deleteRepositoryCache(env, repositoryId);
+  await deleteRepositoryArtifacts(env, repositoryId);
 }

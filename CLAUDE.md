@@ -52,7 +52,10 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   back on complete, restart, and cancel. The cache (`actions/cache.ts`): zstd tarballs in R2 `ACTIONS_CACHE`, moved by
   the runner via pre-signed URLs (never through the Worker), scoped per ref (read own ref then default branch, write own
   ref), saved by "Post" steps. `setup-node` uses the image's Node.js and its `cache:` caches `node_modules` keyed by
-  lockfile. `ubuntu-latest` → `standard-2`.
+  lockfile. `ubuntu-latest` → `standard-2`. Other `uses:` (`actions/remote.ts`): JavaScript and composite actions from
+  GitHub (`action.yml` fetched by the Worker, code downloaded by the runner) or `./path`; every GitHub action gets a Post
+  slot (`hasPostStep`), skipped when it has none. Artifacts (`actions/artifacts.ts`): zips in `ACTIONS_CACHE` under
+  `actions-artifacts/<repo>/<run>/`, no table, deleted with the run. Matrix include/exclude: `plan.ts` `expandMatrix`.
 - MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. better-auth's `@better-auth/oauth-provider`
   (+ `jwt()`) is the OAuth 2.1 authorization server; `/mcp` verifies JWT access tokens (audience `<origin>/mcp`) locally
   and requires the user's consent row, so disconnecting an app is immediate. Discovery routes live at the origin root.

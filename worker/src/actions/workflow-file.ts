@@ -1,4 +1,5 @@
 import { parse as parseYaml } from 'yaml';
+import type { Value } from './expressions';
 
 /**
  * Supported subset of GitHub Actions workflow syntax. Strict about structure; ignores
@@ -44,11 +45,18 @@ export interface JobDef {
   env: Record<string, string>;
   workingDirectory?: string;
   shell?: string;
-  matrix?: Record<string, Scalar[]>;
+  matrix?: MatrixDef;
   outputs: Record<string, string>;
   steps: StepDef[];
   timeoutMinutes: number;
   continueOnError: boolean | string;
+}
+
+/** `strategy.matrix`: the axes (crossed in declaration order), then `exclude`, then `include`, as on GitHub. */
+export interface MatrixDef {
+  axes: Record<string, Value[]>;
+  include: Record<string, Value>[];
+  exclude: Record<string, Value>[];
 }
 
 export interface WorkflowDef {
@@ -173,25 +181,60 @@ function runsOn(v: unknown, where: string): string {
   fail(`${where} is required`);
 }
 
-function matrix(
-  v: unknown,
-  where: string
-): Record<string, Scalar[]> | undefined {
+/** A matrix value: anything YAML can hold except null (objects and lists are allowed, as on GitHub). */
+function matrixValue(v: unknown, where: string): Value {
+  if (v === null || v === undefined) fail(`${where} must have a value`);
+  if (['string', 'number', 'boolean'].includes(typeof v)) return v as Scalar;
+  if (Array.isArray(v))
+    return v.map((x, i) => matrixValue(x, `${where}[${i}]`));
+  if (isObj(v))
+    return Object.fromEntries(
+      Object.entries(v).map(([k, x]) => [k, matrixValue(x, `${where}.${k}`)])
+    );
+  fail(`${where}: unsupported value`);
+}
+
+function matrixEntries(v: unknown, where: string): Record<string, Value>[] {
+  if (v === undefined || v === null) return [];
+  if (typeof v === 'string')
+    fail(`${where}: matrix expressions are not supported yet`);
+  if (!Array.isArray(v)) fail(`${where} must be a list of mappings`);
+  return v.map((e, i) => {
+    if (!isObj(e) || !Object.keys(e).length)
+      fail(`${where}[${i}] must be a non-empty mapping`);
+    return matrixValue(e, `${where}[${i}]`) as Record<string, Value>;
+  });
+}
+
+function matrix(v: unknown, where: string): MatrixDef | undefined {
   if (v === undefined || v === null) return undefined;
   if (typeof v === 'string')
     fail(`${where}: matrix expressions are not supported yet`);
   if (!isObj(v)) fail(`${where} must be a mapping`);
-  if (v.include !== undefined || v.exclude !== undefined)
-    fail(`${where}: matrix include/exclude is not supported yet`);
-  const out: Record<string, Scalar[]> = {};
+  const axes: Record<string, Value[]> = {};
   for (const [k, vals] of Object.entries(v)) {
+    if (k === 'include' || k === 'exclude') continue;
+    if (typeof vals === 'string' && vals.includes('${{'))
+      fail(`${where}.${k}: matrix expressions are not supported yet`);
     if (!Array.isArray(vals) || !vals.length)
       fail(`${where}.${k} must be a non-empty list`);
-    if (vals.some((x) => !['string', 'number', 'boolean'].includes(typeof x)))
-      fail(`${where}.${k}: only strings, numbers, and booleans are supported`);
-    out[k] = vals as Scalar[];
+    axes[k] = vals.map((x, i) => matrixValue(x, `${where}.${k}[${i}]`));
   }
-  return out;
+  const include = matrixEntries(v.include, `${where}.include`);
+  const exclude = matrixEntries(v.exclude, `${where}.exclude`);
+  if (!Object.keys(axes).length && !include.length)
+    fail(`${where} needs at least one list of values or an include entry`);
+  exclude.forEach((e, i) => {
+    for (const k of Object.keys(e))
+      if (!(k in axes))
+        fail(`${where}.exclude[${i}]: '${k}' is not one of the matrix's keys`);
+  });
+  return { axes, include, exclude };
+}
+
+/** One step of a workflow job, or of a composite action's `runs.steps` (remote.ts). */
+export function parseStep(v: unknown, where: string): StepDef {
+  return step(v, where);
 }
 
 function step(v: unknown, where: string): StepDef {

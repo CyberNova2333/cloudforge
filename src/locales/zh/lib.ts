@@ -82,6 +82,8 @@ export const lib: Record<string, string> = {
   ' deleted the reviewer ': ' 删除了评审 Agent ',
   ' restored the reviewer ': ' 恢复了评审 Agent ',
   ' deleted branch ': ' 删除了分支 ',
+  ' deleted the artifact ': ' 删除了构建产物 ',
+  ' of run #{n}': '（运行 #{n}）',
   ' after ': '，在 ',
   merged: ' 合并后',
   ' after it merged': '，合并之后',

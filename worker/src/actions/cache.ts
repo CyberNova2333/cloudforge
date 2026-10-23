@@ -46,7 +46,7 @@ export function keySegment(text: string): string {
   return out;
 }
 
-function fromKeySegment(segment: string): string {
+export function fromKeySegment(segment: string): string {
   const bytes: number[] = [];
   for (let i = 0; i < segment.length; i++)
     if (segment[i] === '~') {
