@@ -1,4 +1,4 @@
-/* Commits and a single commit. Ported from docs/design/crew/repo.css (Commits). Tokens only. The commit list is
+/* Commits and a single commit. Ported from the upstream design prototype's repo.css (Commits). Tokens only. The commit list is
    also used by pull requests, so its rules do not depend on a page class. */
 
 .commit-days {

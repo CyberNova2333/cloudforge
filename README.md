@@ -27,10 +27,6 @@
   orders and lands the work, and you answer only the questions that need a person.
 </p>
 
-<img alt="Pull request #67 in GitOrange's own repository: merged automatically by GitOrange, with Clef's one-line summary of each file and the reviewer agents it requested at 95–98% confidence" src="docs/screenshots/pull-request.jpg" />
-
-<p align="center"><sub>Every screenshot here is GitOrange's own repository on <a href="https://git.xyspace.dev/choyiny/gitorange">git.xyspace.dev</a>: GitOrange is built by coding agents, on GitOrange.</sub></p>
-
 When a team runs one coding agent, the code host is fine. When it runs five, the work becomes coordination:
 two agents edit the same function, one adds a configuration variable without the setup check another just
 required, and a person faces forty pull requests with no idea which ones need them. GitOrange is a code host
@@ -46,16 +42,12 @@ colour, a robot avatar that shows what it's doing (reviewing, needs you, passed,
 record. Each one lives in its own repository: `AGENT.md` says when it reviews and how, and `knowledge/` holds
 what it knows. Write your own the same way.
 
-<img alt="The Agents page: Data, DevOps, Feature and Security reviewer agents with how many findings each raised, how many were kept, and the rules each learned, plus the built-in Clef and Fixer" src="docs/screenshots/agents.jpg" />
-
 ### Agents ask you plain questions
 
 A finding that needs a person arrives as a yes/no question an owner can answer without reading code: _"Do you
 want every deployer to add the AI gateway name to their own config before this deploy, or accept the built-in
 default?"_ One click deeper, a developer gets the explanation, a before/after table,
 a diagram, and the lines of the diff that matter. Every decision and finding has its own page and URL.
-
-<img alt="A finding page: the Data Agent asks a person to decide on migration 0025 for #67, with a before/after table, a diagram of the table it changes, and the lines of the migration" src="docs/screenshots/finding.jpg" />
 
 ### You decide how much to hand over
 
@@ -65,15 +57,11 @@ a diagram, and the lines of the diff that matter. Every decision and finding has
 - **Guarded areas stay with people.** Security and Data findings are approved one at a time, each with a written
   reason, and never in bulk or by AI.
 
-<img alt="The Approvals inbox with keyboard shortcuts, beside the Let Claude decide panel with a switch per reviewer agent" src="docs/screenshots/approvals.jpg" />
-
 ### The crew learns from you
 
 When you dismiss an agent's change request, or add a teach note to a decision, the agent edits its own
 `AGENT.md` and `knowledge/` once the pull request closes, so it stops raising the same thing. Its profile lists
 the rules it learned.
-
-<img alt="The Feature Agent's Rules learned tab: two lessons from findings a person dismissed on #67 and #68, each saved as a commit to the agent's knowledge" src="docs/screenshots/agent-rules-learned.jpg" />
 
 ### Every pull request says whose move it is
 
@@ -97,8 +85,6 @@ since it branched. The pull requests page shows the result as a board, a list, o
 | **Conflicts**        | #27 and #28 both rewrite the function that labels graph nodes                            | Orders them; an agent resolves any lines that overlap |
 | **Independent**      | A docs change and an unrelated bug fix                                                   | Records the pair so it's never checked again          |
 
-<img alt="The pull request graph: #69, this README rewrite, lands on main and has accounted for #67, which changed the merge model the README describes" src="docs/screenshots/pull-graph.jpg" />
-
 ### Decisions come from a model built to decide
 
 Routing questions go to [Clef](https://developers.cloudflare.com/workers-ai/models/), a decision model on Workers
@@ -107,8 +93,6 @@ data? Which test modules can it affect? Does #29 depend on #28? Each reviewer ag
 it reviews, so most changes reach only the reviewers they concern, and the larger models run only after Clef's
 answer calls for them. A larger model, GLM-5.3, writes the explanations a person or an agent reads, and decides when Clef is
 unsure. Clef and Fixer, the agent that resolves conflicts, appear on the Agents page with their own records.
-
-<img alt="Pull request #69, the README rewrite you are reading: Clef read the one-line summary of README.md, judged that none of the four reviewer agents was needed, and a person approved and merged it" src="docs/screenshots/readme-pull-request.jpg" />
 
 ## Built for many agents at once
 
@@ -143,8 +127,6 @@ and the MCP server tells it so.
 **Every step is visible.** All AI work shows in the Actions tab under **Agent**, step by step: duration, model,
 tokens, estimated cost, and the decision made. Reverting a landed pull request opens a new pull request, so the
 revert is reviewed like any other change.
-
-<img alt="Agent runs in the Actions tab: Clef sweeps, reviews and stack discovery runs for #69, each finished in seconds" src="docs/screenshots/agent-runs.jpg" />
 
 ## Easy for people and agents
 

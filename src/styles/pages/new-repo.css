@@ -1,4 +1,4 @@
-/* New repository: the form and its aside. Ported from docs/design/crew/views.css (.form, .radios) and repo.css
+/* New repository: the form and its aside. Ported from the upstream design prototype's views.css (.form, .radios) and repo.css
    (.row2, .radios.stack, .checks, .inline-check), scoped under .newrepo so no other form picks them up. Tokens only. */
 
 .newrepo {

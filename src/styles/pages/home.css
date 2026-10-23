@@ -1,5 +1,5 @@
 /* Home: the owner's answer first (a decision card, since last week, health per repository, activity) and the
-   aside (repositories, your crew). Ported from docs/design/crew/views.css (.ask, .strip-link, .glance, .proj, .home-repo),
+   aside (repositories, your crew). Ported from the upstream design prototype's views.css (.ask, .strip-link, .glance, .proj, .home-repo),
    renamed with a home- prefix so no other page picks them up. Tokens only. */
 
 /* ---------- The statement ---------- */

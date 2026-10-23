@@ -564,7 +564,7 @@ describe('every audit action reads as one sentence', () => {
   });
 
   it('is told about every action the spec lists', () => {
-    // docs/superpowers/specs/2026-10-08-crew-redesign-design.md → audit_events actions.
+    // Every audit_events action (auditActions in worker/src/db/app.schema.ts).
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
         'settings.changed',

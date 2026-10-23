@@ -1,4 +1,4 @@
-/* A pull request and a coding session. Ported from docs/design/crew/views.css (Pull request page, Session) and
+/* A pull request and a coding session. Ported from the upstream design prototype's views.css (Pull request page, Session) and
    designed in the same language where the mockup had nothing (the conversation, findings, checks). Tokens only.
    The diff rules at the end are shared: DiffView also draws the commit page and the new pull request page. */
 

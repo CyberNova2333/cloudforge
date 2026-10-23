@@ -1,5 +1,5 @@
 /* The Repositories board: stats tiles, a toolbar, and one row per repository (what needs you, what is in flight,
-   what merged, who reviews it). Ported from docs/design/crew/repo.css (.board-toolbar, .board-pills, .board-row, .flight-bar). Tokens only. */
+   what merged, who reviews it). Ported from the upstream design prototype's repo.css (.board-toolbar, .board-pills, .board-row, .flight-bar). Tokens only. */
 
 .stat.link {
   color: inherit;

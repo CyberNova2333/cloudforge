@@ -1,5 +1,5 @@
 /* The code browser: repository home, directories, files, README, and the setup steps of an empty repository.
-   Ported from docs/design/crew/repo.css (Code). Tokens only. */
+   Ported from the upstream design prototype's repo.css (Code). Tokens only. */
 
 .code-page {
   display: grid;

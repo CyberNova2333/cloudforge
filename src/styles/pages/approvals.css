@@ -1,4 +1,4 @@
-/* Approvals (/approvals) and one finding (/approvals/:flagId). Ported from docs/design/crew/approvals.css and the
+/* Approvals (/approvals) and one finding (/approvals/:flagId). Ported from the upstream design prototype's approvals.css and the
    decision view in views.css. Dense rows with hairline separators; every class is prefixed ap-; tokens only. */
 
 .ap {

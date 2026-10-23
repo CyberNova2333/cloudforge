@@ -1,7 +1,7 @@
 /* Design tokens. Every component reads these; Primer reads them through primer-bridge.css.
    <html data-skin="hq|dev" data-theme="light|dark"> (no data-theme = follow the system), set by the boot script in
    index.html and ThemeProvider. The chrome colourway sits on the shell: .app[data-chrome]. Orange belongs to the
-   GitOrange mark only. Ported from docs/design/crew/app.css and dev.css. */
+   GitOrange mark only. Ported from the upstream design prototype's app.css and dev.css. */
 
 /* ---------- HQ skin, light (HQ's cool neutral scale, XY Space indigo) ---------- */
 :root {
