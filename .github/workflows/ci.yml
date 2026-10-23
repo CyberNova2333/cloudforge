@@ -274,6 +274,7 @@ jobs:
           yarn test
           worker/src/__tests__/repos-pulls.test.ts
           worker/src/__tests__/auth-boundaries.test.ts
+          worker/src/__tests__/session-cookie.test.ts
           worker/src/__tests__/d1-set-boundaries.test.ts
           worker/src/__tests__/protected-branches.test.ts
           worker/src/__tests__/setup-code.test.ts
