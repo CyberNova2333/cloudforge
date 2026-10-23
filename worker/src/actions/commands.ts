@@ -22,6 +22,25 @@ export function parseKeyValueFile(text: string): Record<string, string> {
   return out;
 }
 
+/** A line of a multi-line value is masked on its own only from this length, and only with a letter or digit. */
+const MIN_LINE_MASK = 4;
+
+/**
+ * What one secret or add-mask value hides: the value itself, however short, and each line of a multi-line value
+ * that could be secret on its own. A line like `{` or `}` (a JSON key file) would otherwise hide every brace in the log.
+ */
+export function maskValues(value: string): string[] {
+  if (!value) return [];
+  const out = [value];
+  if (value.includes('\n'))
+    for (const raw of value.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (line.length >= MIN_LINE_MASK && /[A-Za-z0-9]/.test(line))
+        out.push(line);
+    }
+  return out;
+}
+
 export function parsePathFile(text: string): string[] {
   return text
     .split('\n')

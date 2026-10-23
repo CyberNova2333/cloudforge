@@ -828,7 +828,8 @@ describe('JobRunner masks and process lifetime', () => {
       ]);
       expect(options.signal).toBeUndefined();
       return {
-        exitCode: Promise.resolve(124),
+        // GNU timeout's own exit, once the deadline has passed.
+        exitCode: new Promise<number>((r) => setTimeout(() => r(124), 300)),
         stdout: new ReadableStream({
           cancel() {
             cancelled = true;
@@ -852,6 +853,61 @@ describe('JobRunner masks and process lifetime', () => {
     expect(cancelled).toBe(true);
     expect(result).toMatchObject({ timedOut: true, exitCode: 1 });
     expect(result.interrupted).toBeUndefined();
+  });
+
+  /** A runner over a fake container whose step prints `stdout` and exits with `code`. */
+  const fakeRunner = (stdout: string, code: number) => {
+    const exec = vi.fn(async (argv: string[]) =>
+      argv[0] !== '/usr/bin/timeout'
+        ? {
+            exitCode: Promise.resolve(0),
+            output: async () => ({
+              stdout: new TextEncoder().encode('\0\0\0'),
+            }),
+          }
+        : {
+            exitCode: Promise.resolve(code),
+            stdout: new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(stdout));
+                controller.close();
+              },
+            }),
+          }
+    );
+    return Object.assign(Object.create(JobRunner.prototype), {
+      ctx: { container: { running: true, exec } },
+      masks: [],
+      registeredMasks: [],
+    }) as JobRunner;
+  };
+  const step = {
+    number: 2,
+    argv: ['bash', '-c', 'node build.js'],
+    cwd: '/',
+    env: {},
+    timeoutMs: 60_000,
+    masks: [],
+  };
+
+  it('reports an early exit 137 (the OOM killer) or 124 as the step failing, not as a timeout', async () => {
+    for (const code of [137, 124]) {
+      const result = await fakeRunner('Killed\n', code).runStep(step);
+      expect(result).toMatchObject({ timedOut: false, exitCode: code });
+      expect(result.log).not.toContain('exceeded its timeout');
+      expect(result.interrupted).toBeUndefined();
+    }
+  });
+
+  it('masks a multi-line add-mask value without hiding its braces everywhere', async () => {
+    const result = await fakeRunner(
+      '::add-mask::{%0A  "token": "s3cr3t-value"%0A}\n{"ok":true} "token": "s3cr3t-value"\n',
+      0
+    ).runStep(step);
+    expect(result.log.trim()).toBe('{"ok":true} ***');
+    expect(result.masks).toContain('"token": "s3cr3t-value"');
+    expect(result.masks).not.toContain('{');
+    expect(result.masks).not.toContain('}');
   });
 });
 

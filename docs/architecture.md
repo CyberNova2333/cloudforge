@@ -56,7 +56,7 @@ Merging is rebase + fast-forward. Artifacts has no merge API and the binding can
 1. Rebase the PR's commits onto the target when needed, using three-way tree merges (`git/rebase.ts`). Conflicts stop the rebase or go through the configured resolver. Review, checks, stack dependencies (including cycles), and the repository's merge pause gate landing.
 2. Compute the landed commit list before changing the target, and save a `landing_intents` row in D1. First push a receipt at `refs/pull/<n>/landings/<intent id>` and pin the PR head; then recheck the PR and fast-forward only the target ref with compare-and-swap. A concurrent target push cannot be overwritten. This does not depend on atomic updates across multiple Git refs.
 3. Record the merged PR, event, audit entry, and landing checkpoint in one D1 batch. Follow-up work (stack reconciliation, branch cleanup, Actions, agent config, and lessons) has separate completion checkpoints and stable Workflow identifiers.
-4. A retry or daily retention cron resumes an interrupted landing (`merge/landing-recovery.ts`). Recovery requires both its saved receipt and the landed head to be reachable from the target, so an unrelated already-contained PR is not automatically marked merged.
+4. A retry or daily retention cron resumes an interrupted landing (`merge/landing-recovery.ts`). Recovery requires both its saved receipt and the landed head to be reachable from the target, so an unrelated already-contained PR is not automatically marked merged. An attempt whose target has moved off its base without its result (`landingStatus` `stale`) can never take its compare-and-swap: the refused push, a later merge or recovery closes it, so neither later merges nor recovery re-check it.
 
 Git and D1 do not share a transaction. A force-push that removes the landed commit before recovery removes the evidence needed for automatic recovery; an identical manual push after a prepared receipt is indistinguishable from the intended landing. Preserve the target history while resolving an interrupted landing.
 
@@ -98,8 +98,9 @@ variables); a repository's row of the same kind and name wins. Names are upper-c
 `GITHUB_`/`CLOUDFORGE_`; values up to 48 KB. A secret is stored as AES-256-GCM ciphertext under a key derived (HKDF)
 from the `ACTIONS_SECRETS_KEY` Worker secret, with the row's scope and name as associated data; no route returns it.
 A job reads and decrypts them when it starts, outside any durable Workflow step (step results are persisted), and
-every log of the run masks them, each line of a multi-line one too, both in the runner and when the Worker stores a
-log. A job output that would carry a secret to another job is withheld (as on GitHub). Without the key, or for a
+every log of the run masks them, however short, and each line of a multi-line one that could be secret alone (at
+least 4 characters with a letter or digit, so never a lone `{` or `}`), both in the runner and when the Worker stores a
+log. `add-mask` values follow the same rule. A job output that would carry a secret to another job is withheld (as on GitHub). Without the key, or for a
 secret saved under another key, `secrets.X` is empty and "Set up job" says why. Saves and deletes are audited
 (`secret.*`, `variable.*`; names only). There is no `GITHUB_TOKEN` yet.
 
@@ -110,7 +111,9 @@ is stored under the run's R2 log prefix; the Workflow result holds only its key,
 Run retention deletes these objects with the logs. `add-mask` registrations and short-lived checkout/cache/artifact
 credentials survive later steps and Workflow replay as encrypted masks. Overlapping secret matches are masked together;
 the runner processes commands before truncating logs and withholds incomplete lines from live output. Each exec
-uses `/usr/bin/timeout` to terminate its process group, escalating to SIGKILL after five seconds.
+uses `/usr/bin/timeout` to terminate its process group, escalating to SIGKILL after five seconds. A step counts as
+timed out only when it exits 124 or 137 at or past its deadline; an earlier 137 (the OOM killer) or 124 is the
+command's own failure.
 
 Exceptions are masked before log truncation too. A running step retains its mask registrations while container
 destruction is pending, so its final output and error text stay masked and can pass the registrations back to the executor.

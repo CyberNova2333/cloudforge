@@ -81,7 +81,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `repositories.delete_merged_branches` (default on; `deleteMergedBranch` keeps default, protected and in-use
   branches). Landing writes a D1 intent and Git receipt before the target CAS; `merge/landing-recovery.ts` retries
   the D1 record and checkpointed follow-ups when the receipt and target ancestry prove the landing. Daily retention
-  also runs recovery. Tests: `executeRebase` via `runRebases`/`fakeResolver` (`__tests__/helpers/rebase.ts`).
+  also runs recovery; an attempt whose target moved off its base without it (`landingStatus` `stale`) is closed. Tests: `executeRebase` via `runRebases`/`fakeResolver` (`__tests__/helpers/rebase.ts`).
   Ordinary closes use `pulls/close-recovery.ts`: PR state and a `pull_close_intents` outbox commit together;
   child retargets and events are atomic, follow-ups have stable dispatch identities, and daily retention retries failures.
   Reopening invalidates the old close generation. `state_revision` advances on real transitions (including merge)

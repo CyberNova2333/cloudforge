@@ -2,6 +2,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import {
   mask,
+  maskValues,
   parseKeyValueFile,
   parsePathFile,
   workflowCommands,
@@ -149,11 +150,10 @@ export class JobRunner
     const append = (line: string) => {
       const shown = workflowCommands(line);
       for (const value of shown.masks)
-        for (const m of [value, ...value.split(/\r?\n/)])
-          if (m) {
-            if (!masks.includes(m)) masks.push(m);
-            if (!registeredMasks.includes(m)) registeredMasks.push(m);
-          }
+        for (const m of maskValues(value)) {
+          if (!masks.includes(m)) masks.push(m);
+          if (!registeredMasks.includes(m)) registeredMasks.push(m);
+        }
       // Parse commands before truncating. Mask before truncating as well, so a
       // value crossing the retained log boundary cannot leak a suffix.
       live.text += mask(shown.text, masks);
@@ -163,6 +163,11 @@ export class JobRunner
     let timedOut = false;
     let exitCode = 1;
     let interrupted: string | undefined;
+    const started = Date.now();
+    // GNU timeout exits 124, or 137 once --kill-after sends SIGKILL. A command can exit with either itself, and the
+    // OOM killer's SIGKILL is 137 too: only an exit at or past the deadline is the timeout.
+    const ranOut = (code: number) =>
+      (code === 124 || code === 137) && Date.now() - started >= req.timeoutMs;
     try {
       // Cloudflare exec signals only its direct process. GNU timeout signals
       // the command's process group and escalates to SIGKILL after five seconds.
@@ -209,7 +214,7 @@ export class JobRunner
           }
         })().catch((error: unknown) => ({ error }));
         exitCode = await proc.exitCode;
-        timedOut = exitCode === 124 || exitCode === 137;
+        timedOut = ranOut(exitCode);
         // A completed command may have launched a daemon holding stdout open.
         // Drain its buffered output, then close our reader rather than waiting
         // indefinitely on that daemon. No signal is sent to an exited process.
@@ -226,7 +231,7 @@ export class JobRunner
         if (drained) throw drained.error;
       } else {
         exitCode = await proc.exitCode;
-        timedOut = exitCode === 124 || exitCode === 137;
+        timedOut = ranOut(exitCode);
       }
       if (!droppingLine) append(pending);
     } catch (e) {
