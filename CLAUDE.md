@@ -237,6 +237,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 - Always write Vitest tests for new backend functionality, under `worker/src/__tests__/`. They run in
   workerd against real D1 via `@cloudflare/vitest-pool-workers`. Never mock `env.DB`; inject the Artifacts
   fake from `worker/src/__tests__/helpers/` instead.
+- Seed test data in bulk, not one write per row: CI gives a test 30 s and D1 writes are ~10× slower there,
+  so a loop of a hundred inserts times out (`releases.test.ts` has the pattern, `landedMany`).
 
 ## Definition of Done
 

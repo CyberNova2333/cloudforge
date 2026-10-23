@@ -33,6 +33,8 @@ export default defineConfig({
     setupFiles: ['./worker/test/setup.ts'],
     // CI containers (CloudForge Actions standard-2, GitHub runners; both set CI=true) run these
     // tests about ten times slower than a laptop, so the heavier stacking tests pass 5 s there.
+    // Ten times is a budget, not a licence: a test that seeds hundreds of rows one write at a time
+    // takes minutes there, so seed fixtures in one `db.batch` (see releases.test.ts's landedMany).
     ...(process.env.CI ? { testTimeout: 30_000 } : {}),
   },
 });
