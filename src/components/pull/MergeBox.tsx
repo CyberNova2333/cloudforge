@@ -356,7 +356,7 @@ export function OpenBox({
           <p className="muted small">
             {behind
               ? tx(
-                  'GitOrange rebases this branch onto {onto} first. If the rebased commits need checks, it lands once they pass.',
+                  'CloudForge rebases this branch onto {onto} first. If the rebased commits need checks, it lands once they pass.',
                   { onto: <code>{d.rebase!.onto}</code> }
                 )
               : tx(
@@ -498,7 +498,7 @@ export function MergedBox({
                   ),
                 })
               : pr.mergedAutomatically
-                ? t('automatically, by GitOrange')
+                ? t('automatically, by CloudForge')
                 : null}
             {pr.mergeCommitSha && (
               <>

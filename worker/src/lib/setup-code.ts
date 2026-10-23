@@ -1,5 +1,5 @@
 /**
- * The one-time setup code. `yarn gitorange install` sets `SETUP_CODE_HASH` (the hash of a code it
+ * The one-time setup code. `yarn cloudforge install` sets `SETUP_CODE_HASH` (the hash of a code it
  * prints) as a secret; while it is set, the first admin can only be created with the code.
  * The Node CLI computes the same hash: strip dashes and whitespace, upper-case, SHA-256, lowercase hex.
  */

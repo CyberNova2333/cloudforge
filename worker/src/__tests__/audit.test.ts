@@ -472,7 +472,7 @@ describe('mutations write the audit log', () => {
         },
         repo: 'app',
       },
-      // The repository deletes merged branches (the default): GitOrange removes the head branch itself.
+      // The repository deletes merged branches (the default): CloudForge removes the head branch itself.
       {
         action: 'branch.deleted',
         actor_kind: 'system',
@@ -484,7 +484,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('GitOrange landing a pull request on its own', async () => {
+  it('CloudForge landing a pull request on its own', async () => {
     const { t, admin, repo } = await appRepo();
     const { head } = await openPull(t, admin, repo, {
       'src/app.ts': 'export const a = 2;\n',

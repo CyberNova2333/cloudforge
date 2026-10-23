@@ -369,7 +369,7 @@ describe('GET /api/repos/{o}/{r}/health', () => {
       lastWeek: 0,
       weeks: [0, 0, 0, 0, 0, 1, 0, 2],
       trend: 'worse',
-      status: '2 merged this week, 1 clash fixed by GitOrange',
+      status: '2 merged this week, 1 clash fixed by CloudForge',
       detail: '2 reverts this week, 2 more than last week',
       open: 0,
     });

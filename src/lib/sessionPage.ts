@@ -48,9 +48,9 @@ export interface SessionEvent {
   kind: 'opened' | 'merged' | 'closed';
   number: number;
   title: string;
-  /** Who merged it (a username); null when GitOrange merged it, and for the other kinds. */
+  /** Who merged it (a username); null when CloudForge merged it, and for the other kinds. */
   actor: string | null;
-  /** GitOrange merged it on its own. */
+  /** CloudForge merged it on its own. */
   automatic: boolean;
 }
 

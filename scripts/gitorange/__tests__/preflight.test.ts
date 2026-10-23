@@ -31,7 +31,7 @@ const input = {
   hostname: null,
   workersDev: true,
   fromEmail: 'noreply@mail.example.com',
-  workerName: 'gitorange',
+  workerName: 'cloudforge',
   source: checkoutSource('/repo'),
 };
 
@@ -43,7 +43,7 @@ describe('preflight', () => {
       input
     );
     expect(r.failures).toEqual([]);
-    expect(r.baseUrl).toBe('https://gitorange.me.workers.dev');
+    expect(r.baseUrl).toBe('https://cloudforge.me.workers.dev');
     expect(r.zoneId).toBeNull();
   });
 
@@ -87,7 +87,7 @@ describe('preflight', () => {
   it('accepts a hostname already owned by this worker, rejects missing or inactive zones', async () => {
     const own = fakeCloudflare({
       zones: [{ id: 'z1', name: 'example.com', status: 'active' }],
-      workerDomains: [{ hostname: 'git.example.com', service: 'gitorange' }],
+      workerDomains: [{ hostname: 'git.example.com', service: 'cloudforge' }],
     });
     const custom = { ...input, workersDev: false, hostname: 'git.example.com' };
     expect((await preflight(own, okRunner(), custom)).failures).toEqual([]);
@@ -158,11 +158,13 @@ describe('preflight', () => {
     it("passes on this worker's own custom domain and its record (a resume)", async () => {
       const cf = fakeCloudflare({
         zones,
-        workerDomains: [{ hostname: 'git.example.com', service: 'gitorange' }],
+        workerDomains: [{ hostname: 'git.example.com', service: 'cloudforge' }],
         dnsRecords: {
           z1: [{ name: 'git.example.com', type: 'AAAA', content: '100::' }],
         },
-        routes: { z1: [{ pattern: 'git.example.com/*', script: 'gitorange' }] },
+        routes: {
+          z1: [{ pattern: 'git.example.com/*', script: 'cloudforge' }],
+        },
       });
       expect((await preflight(cf, okRunner(), custom)).failures).toEqual([]);
     });

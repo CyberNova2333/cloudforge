@@ -62,7 +62,7 @@ export function reasonText(r: PullReason): string {
           })
         : t('must account for #{pr}', { pr: n(r.pr) });
     case 'rebase_onto':
-      return t('GitOrange is rebasing it onto #{pr} ({branch})', {
+      return t('CloudForge is rebasing it onto #{pr} ({branch})', {
         pr: n(r.pr),
         branch: String(r.branch),
       });

@@ -18,10 +18,10 @@ export function frontMatter(o: {
   // A JSON string is valid YAML, so names with `:` or quotes, and a colour's `#`, survive.
   const s = JSON.stringify;
   const color = o.color
-    ? `# Its colour across GitOrange (in quotes: an unquoted # starts a YAML comment).
+    ? `# Its colour across CloudForge (in quotes: an unquoted # starts a YAML comment).
 color: ${s(o.color)}
 `
-    : `# Optional. color: "#2a78d6" (its colour across GitOrange, in quotes; without it one is picked from its handle).
+    : `# Optional. color: "#2a78d6" (its colour across CloudForge, in quotes; without it one is picked from its handle).
 `;
   const guarded =
     o.guarded === undefined

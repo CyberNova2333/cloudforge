@@ -158,7 +158,7 @@ export async function findingDetail(
           repository: agent.repositoryId ? `${handle}/${handle}` : null,
         }
       : null,
-    /** The viewer lets GitOrange AI decide this agent's findings on their pull requests. */
+    /** The viewer lets CloudForge AI decide this agent's findings on their pull requests. */
     delegated: !!delegation && !guarded,
     can: {
       decide: write,

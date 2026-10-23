@@ -8,7 +8,7 @@ import { landTargetOf } from './land-target';
 import { openPull, pullShas } from './pulls';
 import { gitFor } from './repos';
 
-// Reverting a merged pull request (Decision 8): GitOrange computes the inverse of the commits it landed, on top of
+// Reverting a merged pull request (Decision 8): CloudForge computes the inverse of the commits it landed, on top of
 // the target branch as it is now, pushes that as a new branch and opens a pull request for it. It never pushes to the
 // target: the revert is reviewed and lands like any other change.
 
@@ -79,7 +79,7 @@ export async function revertPull(opts: {
   const range = await landedRange(git, pr);
   if (!range)
     return refuse(
-      'GitOrange can’t find the commits this pull request landed, so it can’t revert it.'
+      'CloudForge can’t find the commits this pull request landed, so it can’t revert it.'
     );
   const target = landTargetOf(pr);
   const refs = await git.client.listRefs().then((ad) => ad.refs);
@@ -92,7 +92,7 @@ export async function revertPull(opts: {
     git.commit(tip),
   ]);
   if (!landed || !parent || !now)
-    return refuse('GitOrange can’t read the commits it would revert.');
+    return refuse('CloudForge can’t read the commits it would revert.');
 
   // Undo the landed range (landed head → its parent) on top of the tip.
   const state = { created: [] as GitObject[], conflicts: [] as string[] };

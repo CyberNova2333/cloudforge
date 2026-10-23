@@ -143,7 +143,7 @@ jobs:
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
-    runs-on: gitorange-standard-2
+    runs-on: cloudforge-standard-2
     steps:
       - run: echo deploying
 `;
@@ -230,7 +230,7 @@ jobs:
         'on: push',
         'jobs:',
         '  a:',
-        "    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'gitorange-standard-4' }}",
+        "    runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}",
         '    steps:',
         '      - run: x',
         '  b:',
@@ -244,7 +244,7 @@ jobs:
     );
     const here = planJobs(wf, { server_url: 'https://git.example.com' });
     expect(here.map((j) => j.runsOn)).toEqual([
-      'gitorange-standard-4',
+      'cloudforge-standard-4',
       'standard-1',
       'standard-3',
     ]);

@@ -72,7 +72,7 @@ const ALL_TRUE = {
   'run-merge-queue': 'true',
 };
 
-describe('gitorange/relevance inputs', () => {
+describe('cloudforge/relevance inputs', () => {
   it('reads modules, skip-below, and always-run-paths', () => {
     expect(
       parseRelevanceInputs({
@@ -118,7 +118,7 @@ describe('gitorange/relevance inputs', () => {
   });
 });
 
-describe('gitorange/relevance decision', () => {
+describe('cloudforge/relevance decision', () => {
   it('runs everything on a push to the default branch, without asking Clef', async () => {
     const { model, calls } = clef(new Error('must not be called'));
     const d = await decideRelevance(
@@ -353,7 +353,7 @@ async function openPr(s: Setup) {
   ).first<{ id: string }>())!.id;
 }
 
-describe('gitorange/relevance reads the change', () => {
+describe('cloudforge/relevance reads the change', () => {
   it("reads a pull request's title and its whole change since it branched", async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': WF });
@@ -630,7 +630,7 @@ describe('gitorange/relevance reads the change', () => {
   });
 });
 
-describe('gitorange/relevance on Workers AI', () => {
+describe('cloudforge/relevance on Workers AI', () => {
   it('asks Clef through AI Gateway and records usage under ci-relevance', async () => {
     const s = await setup();
     const repo = await repoRow(s);
@@ -750,7 +750,7 @@ jobs:
       run-merge-queue: \${{ steps.relevance.outputs.run-merge-queue }}
     steps:
       - id: relevance
-        uses: gitorange/relevance@v1
+        uses: cloudforge/relevance@v1
         with:
           skip-below: 0.2
           modules: |
@@ -804,7 +804,7 @@ const stepLog = async (s: Setup, run: number, jobId: string, step: number) =>
     )
   ).text();
 
-describe('gitorange/relevance in a workflow', () => {
+describe('cloudforge/relevance in a workflow', () => {
   it("gates each module job on the gate's outputs", async () => {
     const s = await setup();
     const run = await gatedPr(s, { 'worker/src/stack/walk.ts': 'one\n' });
@@ -921,8 +921,8 @@ describe('gitorange/relevance in a workflow', () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': GATED.replace(
-        'gitorange/relevance@v1',
-        'gitorange/relevance@v2'
+        'cloudforge/relevance@v1',
+        'cloudforge/relevance@v2'
       ),
     });
     const [push] = (await runs(s.t, s.admin)).runs;
@@ -936,6 +936,6 @@ describe('gitorange/relevance in a workflow', () => {
         jobs.find((j) => j.name === 'gate')!.id,
         2
       )
-    ).toContain('Use gitorange/relevance@v1');
+    ).toContain('Use cloudforge/relevance@v1');
   });
 });

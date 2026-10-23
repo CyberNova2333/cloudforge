@@ -1,7 +1,8 @@
 import { join } from 'node:path';
 import type { Runner } from './runner.ts';
 
-export const NPM_REGISTRY = 'https://registry.npmjs.org/gitorange';
+export const NPM_REGISTRY =
+  'https://registry.npmjs.org/@cybernova2333%2fcloudforge';
 
 /** The version of a plain `vX.Y.Z` tag; anything else is a usage error. */
 export function checkTag(tag: string): string {
@@ -48,12 +49,12 @@ export async function preflight(o: {
   );
   if (ancestor.code !== 0) {
     throw new Error(
-      `Tag ${o.tag} is not on main; publish only releases cut in GitOrange.`
+      `Tag ${o.tag} is not on main; publish only releases cut in CloudForge.`
     );
   }
   const npm = await o.fetchImpl(`${NPM_REGISTRY}/${version}`);
   if (npm.status === 200) {
-    throw new Error(`gitorange@${version} is already on npm.`);
+    throw new Error(`@cybernova2333/cloudforge@${version} is already on npm.`);
   }
   const rev = await git('rev-parse', 'refs/release-publish/tag^{commit}');
   const commit = rev.stdout.trim();
@@ -91,8 +92,9 @@ export function packageSmoke(o: {
   const pkg = join(o.scratch, 'pkg');
   const smoke = join(o.scratch, 'smoke');
   const app = join(o.scratch, 'app');
-  // npm pack names an unscoped package's tarball <name>-<version>.tgz.
-  const tarball = join(pkg, `${o.name}-${o.version}.tgz`);
+  // npm pack names a package's tarball <name>-<version>.tgz, a scoped one <scope>-<name>-<version>.tgz.
+  const file = o.name.replace(/^@/, '').replace('/', '-');
+  const tarball = join(pkg, `${file}-${o.version}.tgz`);
   const wt = o.worktree;
   return {
     tarball,
@@ -125,14 +127,14 @@ export function packageSmoke(o: {
       { cmd: 'npm', args: ['install', tarball], cwd: app },
     ],
     help: {
-      cmd: join(app, 'node_modules', '.bin', 'gitorange'),
+      cmd: join(app, 'node_modules', '.bin', 'cloudforge'),
       args: ['--help'],
       cwd: app,
     },
   };
 }
 
-/** The commands `gitorange --help` must list (as CI checks: a line starting `  <command> `). */
+/** The commands `cloudforge --help` must list (as CI checks: a line starting `  <command> `). */
 export const HELP_COMMANDS = ['install', 'upgrade', 'adopt', 'status'];
 
 export const missingCommands = (help: string): string[] =>

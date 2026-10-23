@@ -74,7 +74,7 @@ export class ArtifactsRepoClient {
   ): Promise<void> {
     const lines: Uint8Array[] = [];
     updates.forEach((u, i) => {
-      const caps = i === 0 ? '\0report-status agent=gitorange/1.0' : '';
+      const caps = i === 0 ? '\0report-status agent=cloudforge/1.0' : '';
       lines.push(pktLine(`${u.old} ${u.new} ${u.ref}${caps}\n`));
     });
     lines.push(FLUSH);

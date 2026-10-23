@@ -20,11 +20,11 @@ import {
 import { recordAiUsage, usageFromResponse } from '../usage/record';
 
 /**
- * `gitorange/relevance@v1`: one Clef call decides whether a change could affect a workflow's tests,
+ * `cloudforge/relevance@v1`: one Clef call decides whether a change could affect a workflow's tests,
  * as a whole and per module, behind safety nets that run everything when in doubt. The decision is
  * made in the Worker; the runner only prints it and writes the outputs.
  */
-export const RELEVANCE_ACTION = 'gitorange/relevance';
+export const RELEVANCE_ACTION = 'cloudforge/relevance';
 export const RELEVANCE_VERSION = 'v1';
 export const DEFAULT_SKIP_BELOW = 0.2;
 /** Changes here run everything (lockfiles always do, via ignoreMatcher). gitignore syntax. */

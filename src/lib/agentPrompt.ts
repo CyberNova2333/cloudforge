@@ -7,7 +7,7 @@ import type { RepoDetail } from './uiApi';
 export function agentPrompt(
   repo: RepoDetail,
   origin = window.location.origin,
-  appName = 'GitOrange'
+  appName = 'CloudForge'
 ): string {
   const web = `${origin}/${repo.fullName}`;
   const tokens = `${origin}/settings/tokens`;
@@ -43,7 +43,7 @@ From then on:
 export function importFromGitHubPrompt(
   repo: RepoDetail,
   origin = window.location.origin,
-  appName = 'GitOrange'
+  appName = 'CloudForge'
 ): string {
   const web = `${origin}/${repo.fullName}`;
   const url = repo.cloneUrl;

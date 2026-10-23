@@ -1,7 +1,7 @@
 import type { Cloudflare } from './cloudflare.ts';
 import type { ResourceNames } from './names.ts';
 
-export const R2_MARKER_KEY = '.gitorange/ownership.json';
+export const R2_MARKER_KEY = '.cloudforge/ownership.json';
 
 const TABLES_SQL =
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_cf\\_%' ESCAPE '\\' " +

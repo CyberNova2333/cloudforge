@@ -3,7 +3,7 @@ import type { Commit, GitService } from '../git/service';
 
 /**
  * A branch's own commits over a target, parents first. Each has a rebase identity: author email, author time and
- * message, which `git rebase` (and GitOrange's rebase runs) keep. Two branches holding the same commits, or rebased
+ * message, which `git rebase` (and CloudForge's rebase runs) keep. Two branches holding the same commits, or rebased
  * copies of them, share identities; a match between different SHAs counts only when the two commits' patch ids agree
  * too (`git/patch-id.ts`). That is how stacking tells a child from its parent without asking a model.
  */

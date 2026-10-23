@@ -93,7 +93,7 @@ export async function recordStates(
 }
 
 /**
- * Records one of GitOrange's own timeline entries (not a state change). Pass a deterministic `id` from inside a
+ * Records one of CloudForge's own timeline entries (not a state change). Pass a deterministic `id` from inside a
  * Workflow step so a retried step records it once.
  */
 export async function recordEvent(

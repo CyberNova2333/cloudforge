@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js v20+ and yarn
-- `yarn wrangler login` on a Cloudflare account on Workers Paid (Artifacts is in open beta there). Artifacts has no local emulator, so `yarn dev` talks to the real service (namespace `gitorange-dev`). D1 is local.
+- `yarn wrangler login` on a Cloudflare account on Workers Paid (Artifacts is in open beta there). Artifacts has no local emulator, so `yarn dev` talks to the real service (namespace `cloudforge-dev`). D1 is local.
 
 ## First run
 
@@ -11,7 +11,7 @@
 yarn install
 cp wrangler.jsonc.example wrangler.jsonc   # set account_id and env.dev values
 cp .dev.vars.example .dev.vars             # set BETTER_AUTH_SECRET (and R2_* for Git LFS)
-yarn wrangler r2 bucket create gitorange-lfs-dev   # only if you'll use Git LFS locally
+yarn wrangler r2 bucket create cloudforge-lfs-dev   # only if you'll use Git LFS locally
 yarn db:migrate:local
 yarn dev                                   # http://localhost:8080
 ```
@@ -53,7 +53,7 @@ API docs are served at `/api/swagger-ui` while running.
 `yarn seed:demo` fills a running local instance with a project to look at: a teammate (`cho`, Cho Yin), an `invoices`
 repository with ten days of history, eight merged pull requests (three with their branches left behind), six open ones
 (one stacked on another, opened by Claude Code, Codex and by hand), the reviewer crew with a finding in each state
-(an owner question, a change request, one assigned to `cho`, one decided by GitOrange AI), and a week of test runs.
+(an owner question, a change request, one assigned to `cho`, one decided by CloudForge AI), and a week of test runs.
 It gives the pages of the redesign something to show, and makes a local demo possible; a page that is still being built
 shows nothing new until it lands, though the API route behind it already answers (the script prints both).
 
@@ -63,14 +63,14 @@ yarn dev                                       # in one terminal; sign in once a
 SEED_ADMIN=<admin username> SEED_PASSWORD=<their password> yarn seed:demo --url http://localhost:8080
 ```
 
-A run takes about ten minutes: opening each pull request starts GitOrange's usual background AI work (stack discovery),
+A run takes about ten minutes: opening each pull request starts CloudForge's usual background AI work (stack discovery),
 and the script waits for it to settle.
 
 - **Run it from the checkout `yarn dev` runs from.** The API cannot write reviews, backdated dates or test runs, so the
   script writes those rows into that checkout's local D1 with `wrangler d1 execute DB --local --env dev`. Before it
   creates anything it checks that this D1 holds the same admin the server at `--url` signed in, and stops if not.
 - **Local only.** It refuses any URL whose host is not `localhost`, `127.0.0.1`, `[::1]`, `*.localhost` or `*.test`.
-- **It uses the real services in the `gitorange-dev` namespace** (Artifacts and Workers AI), as `yarn dev` does: it creates
+- **It uses the real services in the `cloudforge-dev` namespace** (Artifacts and Workers AI), as `yarn dev` does: it creates
   the `invoices` repository and the crew's repositories, pushes the history over git, and opens and lands pull requests
   through the API.
 - **Running it again finds the demo and stops.** `--reset` deletes the `invoices` repository (and its git storage, for
@@ -86,9 +86,9 @@ and the script waits for it to settle.
 
 ## CI
 
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) builds and typechecks once (`build`), then runs the tests in one job per module (`test-stacking`; `test-review`, which also covers merging and agent runs; `test-actions`, which also covers the git endpoint and LFS; `test-core`, which also covers MCP and the client-side libraries), in parallel, from the build's cache. Modules are few and balanced by runtime, because each job pays to restore the build and start vitest. On GitOrange, `build` and the test jobs run on `gitorange-standard-4` (`runs-on` is an expression that picks `ubuntu-latest` on GitHub). On GitOrange a `gate` job asks [`gitorange/relevance@v1`](ci-relevance.md) which modules a change can affect and skips the rest; on GitHub the gate is skipped and every module runs.
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) builds and typechecks once (`build`), then runs the tests in one job per module (`test-stacking`; `test-review`, which also covers merging and agent runs; `test-actions`, which also covers the git endpoint and LFS; `test-core`, which also covers MCP and the client-side libraries), in parallel, from the build's cache. Modules are few and balanced by runtime, because each job pays to restore the build and start vitest. On CloudForge, `build` and the test jobs run on `cloudforge-standard-4` (`runs-on` is an expression that picks `ubuntu-latest` on GitHub). On CloudForge a `gate` job asks [`cloudforge/relevance@v1`](ci-relevance.md) which modules a change can affect and skips the rest; on GitHub the gate is skipped and every module runs.
 
-Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (GitOrange Actions and GitHub both set it), 5 s locally.
+Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (CloudForge Actions and GitHub both set it), 5 s locally.
 
 ## Dev server memory watchdog
 

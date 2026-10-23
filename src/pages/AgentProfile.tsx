@@ -164,7 +164,7 @@ export default function AgentProfile({
               tone="warn"
               icon={<ShieldIcon size={12} />}
               title={t(
-                'Its findings are never approved in bulk or by GitOrange AI, and approving one needs a reason'
+                'Its findings are never approved in bulk or by CloudForge AI, and approving one needs a reason'
               )}
             >
               {t('Guarded')}

@@ -227,7 +227,7 @@ describe('Actions execution', () => {
     expect(script(checkout)).toContain('git -c http.extraHeader');
     expect(checkout.env.TARGET).toBe(sha);
     expect(checkout.env.PUBLIC_URL).toBe('http://test.local/octocat/app.git');
-    expect(checkout.masks).toEqual([checkout.env.GITORANGE_TOKEN]);
+    expect(checkout.masks).toEqual([checkout.env.CLOUDFORGE_TOKEN]);
     expect(h.requests.slice(1).map(script)).toEqual([
       'echo building',
       'npm test',
@@ -811,7 +811,7 @@ jobs:
     expect(script(save)).toContain("'/workspace/node_modules'");
     const url = save.env.CACHE_URL;
     expect(url).toContain(
-      `/gitorange-actions-cache-test/actions-cache/${await repoId(s.t)}/refs~2fheads~2fmain/node-modules-yarn-`
+      `/cloudforge-actions-cache-test/actions-cache/${await repoId(s.t)}/refs~2fheads~2fmain/node-modules-yarn-`
     );
     expect(url).toContain('X-Amz-Signature=');
     expect(save.masks).toEqual([url]);
@@ -819,7 +819,7 @@ jobs:
     // Simulate the upload, then rerun on a new commit with the same lockfile.
     // The URL path is the object key verbatim, so S3 decodes nothing differently.
     const objectKey = new URL(url).pathname.split(
-      '/gitorange-actions-cache-test/'
+      '/cloudforge-actions-cache-test/'
     )[1];
     expect(objectKey).not.toContain('%');
     await s.t.env.ACTIONS_CACHE.put(objectKey, 'tarball');

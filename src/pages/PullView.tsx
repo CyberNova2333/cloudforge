@@ -132,7 +132,7 @@ function ConversationTab({
   queue: { loading: boolean; error: unknown; retry: () => void };
   refresh: () => Promise<unknown>;
 }) {
-  // GitOrange's events, and each requested agent's review, between the comments they happened between.
+  // CloudForge's events, and each requested agent's review, between the comments they happened between.
   const slots = timelineSlots(
     d.comments,
     d.events,

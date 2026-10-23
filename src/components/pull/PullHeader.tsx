@@ -133,7 +133,7 @@ export function PullHeader({
                         {pr.mergedBy.username}
                       </Link>
                     ) : (
-                      'GitOrange'
+                      'CloudForge'
                     ),
                     commits,
                     base: <code className="pr-branch">{pr.baseRef}</code>,

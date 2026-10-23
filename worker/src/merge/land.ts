@@ -240,7 +240,7 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     .where(eq(repositories.id, pr.repositoryId));
   await recordAudit(db, {
     repositoryId: pr.repositoryId,
-    // GitOrange itself when it lands one on its own (auto-merge).
+    // CloudForge itself when it lands one on its own (auto-merge).
     actorId: opts.by?.id ?? null,
     action: 'pull.merged',
     target: `#${pr.number}`,
@@ -399,7 +399,7 @@ async function rebaseForLanding(
           ? stopMessage.tooMany(result.count)
           : `Rebasing onto ${tips.ontoBranch} stops at commit ${result.commit.hash.slice(0, 7)}, which conflicts in ${result.conflicts.join(', ')}. ${
               resolutionConfigured(env)
-                ? 'GitOrange is resolving it; merge again once it has.'
+                ? 'CloudForge is resolving it; merge again once it has.'
                 : 'Rebase it locally and push.'
             }`,
     };

@@ -21,7 +21,7 @@ export const STATE_RANK: Record<PullStateName, number> = {
 export type Reason =
   | { kind: 'check_failed'; run_number: number; check: string | null }
   | { kind: 'changes_requested'; flags: number }
-  /** GitOrange's rebase stopped at `commit` (null: before any) on these files; the agent rebases locally. */
+  /** CloudForge's rebase stopped at `commit` (null: before any) on these files; the agent rebases locally. */
   | {
       kind: 'rebase_conflict';
       commit: string | null;
@@ -111,7 +111,7 @@ export function reasonState(r: Reason): PullStateName | null {
     case 'needs_approval':
       return 'human_review';
     case 'checks_running':
-    // GitOrange rebases it onto its parent.
+    // CloudForge rebases it onto its parent.
     case 'rebase_onto':
     case 'resolution_running':
     case 'stack_checking':

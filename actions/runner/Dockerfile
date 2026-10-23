@@ -1,4 +1,4 @@
-# GitOrange Actions runner image: what `runs-on: ubuntu-latest` jobs get.
+# CloudForge Actions runner image: what `runs-on: ubuntu-latest` jobs get.
 # Debian trixie with Node.js 24 (the base of Cloudflare's managed debian-trixie image), plus git
 # for checkout and the build tools most projects expect. Keep it lean: every MB here is paid
 # once per host on the first job's cold start.

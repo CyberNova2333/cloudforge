@@ -1,6 +1,6 @@
 # Reviewer agents, auto-merge, states and stacking
 
-Every review concern in GitOrange is a **reviewer agent**: an account like a person (`@securityagent`,
+Every review concern in CloudForge is a **reviewer agent**: an account like a person (`@securityagent`,
 `@dataagent`), with a profile and its own repository that says who it is and how it reviews. Repositories invite
 agents in **Settings → Agents**. On every new commit of a pull request, each invited agent decides whether the
 change concerns it; the ones that do review it. No pull request lands without a review from an agent or a person.
@@ -37,7 +37,7 @@ someone pushed to it since, or another open pull request builds on it; a reposit
 person approves and merges.
 
 Landing works the same way from every path: a fast-forward of the target branch to the pull request's head, after
-GitOrange [rebased it](architecture.md#rebasing-and-merging) onto the target (resolving conflicting commits with
+CloudForge [rebased it](architecture.md#rebasing-and-merging) onto the target (resolving conflicting commits with
 AI), so every commit lands with its author and message and history stays linear.
 
 > Checks run on the commit that lands. When the target moved since, landing rebases first and, if the new head
@@ -107,7 +107,7 @@ the header shows how many): agents' findings for a person, grouped by agent, fai
 that need a person's approval, and conflicts AI couldn't resolve. Pages update live as reviews progress. `GET
 /api/approvals?limit=&cursor=` returns one page as `{ items, count, nextCursor }`, where `count` covers every page.
 
-An old `.gitorange/review.yml` does nothing: invite reviewer agents instead.
+An old `.cloudforge/review.yml` does nothing: invite reviewer agents instead.
 
 ## Deciding findings
 
@@ -117,7 +117,7 @@ A finding for a person is decided on the pull request, on the **Approvals** page
 - **Approve** or **Request changes**, optionally with a reason and with something to **teach** the agent: a rule in
   your own words, which the agent learns when the pull request closes (see [How agents learn](#how-agents-learn)). A
   teach note can't be added to a finding that is already approved (`409`): undo the approval first.
-- **Undo** reopens your decision while the pull request is open (only the person who decided, or whose GitOrange AI
+- **Undo** reopens your decision while the pull request is open (only the person who decided, or whose CloudForge AI
   did); its reason and teach note go with it, so nothing is learned from it. Once the pull request merged, revert it
   instead.
 - **Ask someone** hands the finding to another person who can push to the repository (never an agent). Their
@@ -127,12 +127,12 @@ A finding for a person is decided on the pull request, on the **Approvals** page
 
 An agent is **guarded** when its `AGENT.md` says `guarded: true` or its `facet` is `security` or `data`. Its findings
 always come to a person: approving one needs a written reason (`422` without one), which goes in the audit log with
-your name; they are never approved in bulk, and GitOrange AI never decides them. A person's approval of the commit
+your name; they are never approved in bulk, and CloudForge AI never decides them. A person's approval of the commit
 doesn't stand over its open findings for a person, or over people's change requests on them.
 
 ### Let Claude decide
 
-A person can let GitOrange AI answer chosen agents' findings on their own pull requests (Approvals → **Let Claude
+A person can let CloudForge AI answer chosen agents' findings on their own pull requests (Approvals → **Let Claude
 decide**; `GET`/`PUT /api/me/delegations`). After each review of a pull request's commit (or an agent's Retry), it
 decides, as the pull request's author, every finding for a person of those agents that nobody has decided yet, with
 the instance's agent review model (Site admin → AI models): **approve**, **request changes** (its reason is the
@@ -140,7 +140,7 @@ note), or **leave** it for the person. It leaves anything it isn't sure of, or t
 security or cost money, and it leaves everything when there is no model or its answer can't be used. Anyone who can push can
 also hand it one finding at once, decided as them (`POST …/pulls/{n}/review/flags/{id}/delegate`). It never decides a guarded agent's
 finding (`422`; guarded agents can't be delegated), an agent's own change request, or a finding whose agent was
-deleted or removed from the repository (`409`). Every decision shows as "via GitOrange AI", is recorded in the audit
+deleted or removed from the repository (`409`). Every decision shows as "via CloudForge AI", is recorded in the audit
 log with its reason, and can be undone while the pull request is open.
 
 ## Writing an agent
@@ -238,29 +238,29 @@ When several reasons apply, the most urgent state wins: `agent_followup`, then `
 
 Each reason has a `kind` and its own fields:
 
-| Reason                    | State            | Meaning                                                                                                                                  |
-| ------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `check_failed`            | `agent_followup` | An Actions check failed (`run_number`).                                                                                                  |
-| `agent_changes_requested` | `agent_followup` | An agent requested changes (`agent`, and each change's `id`, `title`, `detail`). Push a fix; the new commit is reviewed afresh.          |
-| `changes_requested`       | `agent_followup` | A person requested changes on this many findings.                                                                                        |
-| `rebase_conflict`         | `agent_followup` | GitOrange's rebase stopped at `commit` (null: before any) on these `files` (`error` says why); rebase locally and push, or try it again. |
-| `agent_flagged`           | `human_review`   | An agent's findings wait for a person (`agent`, `flags`).                                                                                |
-| `agent_review_failed`     | `human_review`   | An agent's review failed (`agent`, `error`; `agent` is null when the whole review failed): fix the agent, Retry, or remove it.           |
-| `needs_approval`          | `human_review`   | No agent was requested for this commit: a person approves it.                                                                            |
-| `merging_paused`          | `waiting`        | Someone paused merging on the repository: nothing lands until someone resumes it.                                                        |
-| `cycle`                   | `human_review`   | This pull request is in a stack cycle with the listed pull requests.                                                                     |
-| `checks_running`          | `waiting`        | Required checks are running, or haven't started (`started: false`).                                                                      |
-| `agent_reviewing`         | `waiting`        | An agent (`agent`; null before any is requested) hasn't finished.                                                                        |
-| `resolution_running`      | `waiting`        | AI is resolving a commit's rebase conflict.                                                                                              |
-| `rebase_onto`             | `waiting`        | Stacked on `pr` without its commits yet: GitOrange is rebasing it onto `branch`.                                                         |
-| `stack_checking`          | `waiting`        | Stack discovery is still comparing it with other pull requests.                                                                          |
-| `must_account_for`        | none             | Another pull request changes code this one depends on (`pr`, `landed`, `instructions`).                                                  |
-| `stacked_on`              | none             | This pull request builds on `pr`.                                                                                                        |
-| `waits_on`                | none             | It should land after `pr`.                                                                                                               |
+| Reason                    | State            | Meaning                                                                                                                                   |
+| ------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `check_failed`            | `agent_followup` | An Actions check failed (`run_number`).                                                                                                   |
+| `agent_changes_requested` | `agent_followup` | An agent requested changes (`agent`, and each change's `id`, `title`, `detail`). Push a fix; the new commit is reviewed afresh.           |
+| `changes_requested`       | `agent_followup` | A person requested changes on this many findings.                                                                                         |
+| `rebase_conflict`         | `agent_followup` | CloudForge's rebase stopped at `commit` (null: before any) on these `files` (`error` says why); rebase locally and push, or try it again. |
+| `agent_flagged`           | `human_review`   | An agent's findings wait for a person (`agent`, `flags`).                                                                                 |
+| `agent_review_failed`     | `human_review`   | An agent's review failed (`agent`, `error`; `agent` is null when the whole review failed): fix the agent, Retry, or remove it.            |
+| `needs_approval`          | `human_review`   | No agent was requested for this commit: a person approves it.                                                                             |
+| `merging_paused`          | `waiting`        | Someone paused merging on the repository: nothing lands until someone resumes it.                                                         |
+| `cycle`                   | `human_review`   | This pull request is in a stack cycle with the listed pull requests.                                                                      |
+| `checks_running`          | `waiting`        | Required checks are running, or haven't started (`started: false`).                                                                       |
+| `agent_reviewing`         | `waiting`        | An agent (`agent`; null before any is requested) hasn't finished.                                                                         |
+| `resolution_running`      | `waiting`        | AI is resolving a commit's rebase conflict.                                                                                               |
+| `rebase_onto`             | `waiting`        | Stacked on `pr` without its commits yet: CloudForge is rebasing it onto `branch`.                                                         |
+| `stack_checking`          | `waiting`        | Stack discovery is still comparing it with other pull requests.                                                                           |
+| `must_account_for`        | none             | Another pull request changes code this one depends on (`pr`, `landed`, `instructions`).                                                   |
+| `stacked_on`              | none             | This pull request builds on `pr`.                                                                                                         |
+| `waits_on`                | none             | It should land after `pr`.                                                                                                                |
 
 `must_account_for` is shown for information: it doesn't change the state yet.
 
-Rebase reasons (`rebase_conflict`, `resolution_running`) come from GitOrange's rebase runs, including conflicts AI doesn't take (binary files, a file deleted on one side and changed on the other, generated files). Without the `MERGE_RESOLUTION` Workflow binding no rebase runs in the background: the merge box shows whether landing's rebase would conflict, and there is no rebase reason. Likewise, without AI review configured (the `MERGE_RESOLUTION` Workflow binding), there is no `agent_reviewing` or `stack_checking` reason, since no review or stack check will ever run.
+Rebase reasons (`rebase_conflict`, `resolution_running`) come from CloudForge's rebase runs, including conflicts AI doesn't take (binary files, a file deleted on one side and changed on the other, generated files). Without the `MERGE_RESOLUTION` Workflow binding no rebase runs in the background: the merge box shows whether landing's rebase would conflict, and there is no rebase reason. Likewise, without AI review configured (the `MERGE_RESOLUTION` Workflow binding), there is no `agent_reviewing` or `stack_checking` reason, since no review or stack check will ever run.
 
 Checks count the same way as for landing: a failed or cancelled latest run is `check_failed`, an unfinished one is `checks_running`, and no run at all is not a reason. As on the commit's checks badge, only the latest run of each workflow and event counts (a re-run replaces the run it repeats).
 
@@ -288,7 +288,7 @@ It's always on, whenever AI is configured, with built-in tuning: a pull request 
 
 The models only see what each pull request adds itself: when a branch holds another open pull request whole (a child holds its parent), its one-liners, diffs and conflicts are measured past that pull request's commits. A child is never judged on its parent's changes, and two siblings are never judged on the parent they share.
 
-**No cycles.** Before a pair is saved, GitOrange checks it against the other open pull requests' relationships. If it would close a cycle, a conflict is turned around (a conflict only needs some order), else another conflict on the cycle is turned around, else the models' verdict is left independent with a note saying which cycle it would have closed. A git verdict always stands: the models' relationships on its cycle give way instead.
+**No cycles.** Before a pair is saved, CloudForge checks it against the other open pull requests' relationships. If it would close a cycle, a conflict is turned around (a conflict only needs some order), else another conflict on the cycle is turned around, else the models' verdict is left independent with a note saying which cycle it would have closed. A git verdict always stands: the models' relationships on its cycle give way instead.
 
 A pair is saved only for the commits the run started from, so a push mid-run can't leave a stale answer. A pair that can't be checked shows as "Couldn't check against #N"; the retry button is in that pull request's **Stack** section (the Graph view doesn't show it). A pair still being checked 30 minutes after its run claimed it belongs to a run that died: the next run checks it again, and the retry button resets it.
 
@@ -305,9 +305,9 @@ The **Graph** view on the Pull requests tab draws how open pull requests are sla
 
 After discovery, a `reconcile` run (also started when a pull request closes or lands) settles each target branch's stacks. Like discovery, retargeting and the stack gate apply to every repository; a maintainer who disagrees with a relationship can Unstack or Dismiss it (below).
 
-**Retargeting.** A pull request that builds on another open one is _stacked_ on it: its base becomes the parent's branch, so its diff shows only its own change. Its **land target** stays the branch it will finally land on. A stacked pull request lands on the land target once its parent has. Retargeting only changes pull request metadata (the base shown, the diff, a `stacked` timeline event); GitOrange never pushes to a branch. When the parent closes or lands, its children go back to the land target at once, and the run restacks what is left. A parent is the strongest stackable prerequisite (must account for, then builds on, then an order from linearizing) whose own line already includes the other prerequisites; a pull request with no such prerequisite stays on the land target. If a stacked pull request's head doesn't contain its parent's yet, its state says to rebase onto the parent's branch first (nothing is asked when GitOrange can't tell).
+**Retargeting.** A pull request that builds on another open one is _stacked_ on it: its base becomes the parent's branch, so its diff shows only its own change. Its **land target** stays the branch it will finally land on. A stacked pull request lands on the land target once its parent has. Retargeting only changes pull request metadata (the base shown, the diff, a `stacked` timeline event); CloudForge never pushes to a branch. When the parent closes or lands, its children go back to the land target at once, and the run restacks what is left. A parent is the strongest stackable prerequisite (must account for, then builds on, then an order from linearizing) whose own line already includes the other prerequisites; a pull request with no such prerequisite stays on the land target. If a stacked pull request's head doesn't contain its parent's yet, its state says to rebase onto the parent's branch first (nothing is asked when CloudForge can't tell).
 
-**Linearizing several prerequisites.** A pull request has one parent, so when it builds on or must account for several open pull requests, GitOrange puts them in one line. If #31 builds on #28 and #29, and #28 and #29 are otherwise unrelated, one of them must land first: say #29 lands after #28, and #31 stacks on #29. An existing relationship between the two decides it (a conflict sets which lands first; the ordering edge is still added, since a conflict alone doesn't stack one on the other). Otherwise Clef reads both and says which is easier to build on; if it isn't confident enough (below 0.6) or fails, the one closer to Ready goes first, then the lower number. The choice is saved as an ordering edge (kind `ordered_after`), recorded on the timeline as an `ordered` event, and dropped when any of the three pull requests' heads moves (the two it orders and the one it was added for), or one of them closes or lands. An order that would make a cycle is never added: that pull request waits on its prerequisites instead.
+**Linearizing several prerequisites.** A pull request has one parent, so when it builds on or must account for several open pull requests, CloudForge puts them in one line. If #31 builds on #28 and #29, and #28 and #29 are otherwise unrelated, one of them must land first: say #29 lands after #28, and #31 stacks on #29. An existing relationship between the two decides it (a conflict sets which lands first; the ordering edge is still added, since a conflict alone doesn't stack one on the other). Otherwise Clef reads both and says which is easier to build on; if it isn't confident enough (below 0.6) or fails, the one closer to Ready goes first, then the lower number. The choice is saved as an ordering edge (kind `ordered_after`), recorded on the timeline as an `ordered` event, and dropped when any of the three pull requests' heads moves (the two it orders and the one it was added for), or one of them closes or lands. An order that would make a cycle is never added: that pull request waits on its prerequisites instead.
 
 **Must account for.** A pull request that must change for another gets the reason and instructions for its author on its timeline. It can't merge until it does. When the dependent gets a new commit and the prerequisite hasn't moved, GLM-5.3 re-checks the dependent's new head against the prerequisite (open or landed) and either marks it accounted for (an `accounted_for` timeline event) or repeats what's still missing; if the prerequisite moved too, the pair is decided again from scratch. A landed prerequisite is re-checked even after the dependent rebased onto it. A re-check that fails keeps blocking; the **Stack** section's retry button runs it again. Until then, the merge button and auto-merge both refuse.
 
@@ -325,7 +325,7 @@ Auto-merge treats unaccounted must-account-for as blocked and the other two as w
 
 Both are recorded on the timeline with who did them. A dismissal survives new commits to either pull request, so a dependency stays dismissed, until one of the two lands: then the landed pull request's relationships count again (a must-account-for blocks until a re-check finds it accounted for).
 
-**Reasons in a pull request's state.** `must_account_for` (with the instructions and, when the prerequisite is open, the branch to rebase onto first) calls for the author's move (`agent_followup`), `rebase_onto` waits on GitOrange's rebase; `cycle` calls for a person; `stack_checking` waits; `stacked_on` and `waits_on` only inform. Agents read them in `state.reasons` and in `stack` over MCP.
+**Reasons in a pull request's state.** `must_account_for` (with the instructions and, when the prerequisite is open, the branch to rebase onto first) calls for the author's move (`agent_followup`), `rebase_onto` waits on CloudForge's rebase; `cycle` calls for a person; `stack_checking` waits; `stacked_on` and `waits_on` only inform. Agents read them in `state.reasons` and in `stack` over MCP.
 
 **Cost.** Per PR head change, one Clef call per open PR into the same target and per landed candidate (up to 20 pull requests landed in the last 30 days), skipped for pairs already checked at the same commits, plus one GLM-5.3 call per related or conflicting pair. Retargeting adds one Clef call per pair of unrelated prerequisites to order, and one GLM-5.3 re-check per new commit of a PR that must account for another.
 

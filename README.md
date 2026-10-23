@@ -9,7 +9,7 @@
 > "GitOrange" and its logo remain the upstream project's marks and are not used here as a product mark.
 
 <p align="center">
-  <img src="public/gitorange-logo.svg" alt="GitOrange" width="360" />
+  <img src="public/cloudforge-logo.svg" alt="CloudForge" width="360" />
 </p>
 
 <p align="center">
@@ -20,16 +20,16 @@
   <a href="https://developers.cloudflare.com/artifacts/"><img alt="Cloudflare Artifacts" src="https://img.shields.io/badge/git%20storage-Cloudflare%20Artifacts-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
 
-<h3 align="center">The code host where AI agents ship the code and people approve the risk.</h3>
+<h3 align="center">CloudForge — the code host where AI agents ship the code and people approve the risk.</h3>
 
 <p align="center">
-  Point several coding agents at one repository. A crew of reviewer agents checks every change, GitOrange
+  Point several coding agents at one repository. A crew of reviewer agents checks every change, CloudForge
   orders and lands the work, and you answer only the questions that need a person.
 </p>
 
 When a team runs one coding agent, the code host is fine. When it runs five, the work becomes coordination:
 two agents edit the same function, one adds a configuration variable without the setup check another just
-required, and a person faces forty pull requests with no idea which ones need them. GitOrange is a code host
+required, and a person faces forty pull requests with no idea which ones need them. CloudForge is a code host
 built for that team.
 
 ## What's new here
@@ -51,8 +51,8 @@ a diagram, and the lines of the diff that matter. Every decision and finding has
 
 ### You decide how much to hand over
 
-- **Let Claude decide.** Turn it on per agent and GitOrange AI answers that agent's findings as you, recorded
-  "via GitOrange AI". Every AI decision can be undone while the pull request is open.
+- **Let Claude decide.** Turn it on per agent and CloudForge AI answers that agent's findings as you, recorded
+  "via CloudForge AI". Every AI decision can be undone while the pull request is open.
 - **Ask someone.** Assign a finding to a teammate with push access.
 - **Guarded areas stay with people.** Security and Data findings are approved one at a time, each with a written
   reason, and never in bulk or by AI.
@@ -75,10 +75,10 @@ lands.
 
 ### The host works out how pull requests relate
 
-GitOrange compares every open pull request with the others into the same branch, and with the ones that landed
+CloudForge compares every open pull request with the others into the same branch, and with the ones that landed
 since it branched. The pull requests page shows the result as a board, a list, or a graph:
 
-| Relationship         | Example                                                                                  | What GitOrange does                                   |
+| Relationship         | Example                                                                                  | What CloudForge does                                  |
 | -------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | **Builds on**        | #32 calls a helper that #31 adds                                                         | Stacks #32 on #31; it lands after #31                 |
 | **Must account for** | #28 adds a setup check for every configuration variable; #29 adds a variable without one | Holds #29 until a re-check says it added the check    |
@@ -115,12 +115,12 @@ diff, or, with `engine: pi`, as a [Pi](https://pi.dev) coding agent reading the 
 with read-only tools. No pull request lands without an agent's or a person's review, and an agent can't approve
 its own work around a person.
 
-**Rebasing and conflicts.** GitOrange keeps every open pull request rebased onto its base itself, and landing is
+**Rebasing and conflicts.** CloudForge keeps every open pull request rebased onto its base itself, and landing is
 a fast-forward, so every commit keeps its author, message, and SHA. Files merge line by line, so only truly
 overlapping edits conflict. Each conflicting commit goes to a durable Pi agent in a sandboxed
 [Cloudflare Computer](https://github.com/cloudflare/computer) workspace, told what that commit and the pull
 request are for. A burst of landings ends in one rebase per pull request. Anyone who can merge can try a rebase again from the
-pull request page, or an agent with `gitorange_retry_rebase`. After GitOrange rebases a branch, its agent rebases
+pull request page, or an agent with `gitorange_retry_rebase`. After CloudForge rebases a branch, its agent rebases
 its local commits onto it (`git fetch && git rebase --onto origin/<branch> <old head>`) before pushing again,
 and the MCP server tells it so.
 
@@ -136,14 +136,14 @@ revert is reviewed like any other change.
 - **One inbox.** **Approvals** lists everything waiting on you across repositories, with keyboard shortcuts, and
   the header shows how many.
 - **Connect an agent in a minute.** Point Claude Code, Claude.ai, Cursor, Codex, or any MCP client at
-  `https://your-host/mcp`. It signs in through GitOrange with OAuth, the user approves it on a consent page, and
+  `https://your-host/mcp`. It signs in through CloudForge with OAuth, the user approves it on a consent page, and
   there's no token to paste.
 - **Releases from merged work.** Mark a pull request patch, minor or major; cutting a release tags the default branch
   with the next `vX.Y.Z` and lists what shipped. People and agents (over MCP) can both cut one.
 - **Familiar where it counts.** Repositories, branches, diffs, pull requests, and checks are where your team
   expects them. `git clone`, `git push`, and Git LFS work as usual.
 - **Your CI keeps working.** Existing `.github/workflows` files run unchanged on Cloudflare Containers, and
-  [`gitorange/relevance@v1`](docs/ci-relevance.md) skips the test modules a change can't affect.
+  [`cloudforge/relevance@v1`](docs/ci-relevance.md) skips the test modules a change can't affect.
 - **Search everything.** Press `/` to search repositories, pull requests, agents, people, branches, and files.
 - **Live everywhere.** Pull requests, reviews, Actions runs, the graph, and Approvals update over a WebSocket as
   things happen.
@@ -152,10 +152,10 @@ revert is reviewed like any other change.
 - **A teammate who doesn't use git can still ship.** Every repository has a ready-made prompt (**Code → AI
   agent**) that sets up their own coding agent with branches, LFS, and pull requests. A second prompt imports a
   GitHub repository and keeps it in sync.
-- **Adopt it at your pace.** With no agents invited, GitOrange is a code host with checks, conflict resolution,
+- **Adopt it at your pace.** With no agents invited, CloudForge is a code host with checks, conflict resolution,
   and the graph, where a person approves and merges. Invite an agent and agent reviews and auto-merge turn on.
 
-## How a change moves through GitOrange
+## How a change moves through CloudForge
 
 <p align="center">
   <img src="docs/images/how-it-works.png" width="960" alt="An agent opens a pull request; Clef picks which test modules the change can affect and those run as parallel check jobs on Cloudflare Containers, while GLM-5.3-flash summarizes each changed file; Clef asks which invited reviewer agents the change concerns and each of them reviews it with GLM-5.3, and Clef compares the pull request with other open and recently landed ones to build a stack tree; the pull request's state then sends it back to the agent to fix and push again, to a person on the Approvals page, keeps it waiting while something runs, or lets it land on its own with a rebase-merge.">
@@ -179,20 +179,20 @@ You need a Cloudflare account on the **Workers Paid** plan, a domain onboarded t
 [Node.js](https://nodejs.org/) 22+ and Docker, running (deploying builds the Actions runner image).
 
 ```bash
-npx gitorange install
+npx @cybernova2333/cloudforge install
 ```
 
 The installer creates the database and buckets, writes your configuration, sets secrets, runs migrations, and
 deploys, with no clone. Later:
 
 ```bash
-npx gitorange@latest upgrade                 # move to the newest release (add --prefer-online if npx serves a stale one)
-npx gitorange adopt --from . | --worker <name>   # take over an install made from a checkout or by hand
-npx gitorange status
+npx @cybernova2333/cloudforge@latest upgrade                 # move to the newest release (add --prefer-online if npx serves a stale one)
+npx @cybernova2333/cloudforge adopt --from . | --worker <name>   # take over an install made from a checkout or by hand
+npx @cybernova2333/cloudforge status
 ```
 
-Running a fork? Clone the repository and run `claude`, then `/gitorange-onboarding` in
-[Claude Code](https://claude.com/claude-code), or `yarn gitorange install` yourself. Prefer to do it all by hand?
+Running a fork? Clone the repository and run `claude`, then `/cloudforge-onboarding` in
+[Claude Code](https://claude.com/claude-code), or `yarn cloudforge install` yourself. Prefer to do it all by hand?
 [Setup](docs/setup.md) takes about seven steps. [Updating](docs/updating.md) covers upgrade and adopt.
 
 Your first visit creates the admin account. Create a repository, connect your coding agent from **Settings → MCP
@@ -202,25 +202,25 @@ repository's **Settings → Agents**. Full reference: [Reviewer agents and auto-
 To try it with sample data on your machine, run `yarn dev` and then `yarn seed:demo` (see
 [Local development](docs/development.md)).
 
-GitOrange costs **$5/month** for the Workers Paid plan, plus usage beyond its included amounts. **Site admin →
+CloudForge costs **$5/month** for the Workers Paid plan, plus usage beyond its included amounts. **Site admin →
 Usage & cost** shows your actual numbers, projected to month end.
 
 ---
 
 ## Under the hood
 
-GitOrange is single-tenant and runs entirely in your own Cloudflare account, as one Worker. There are no
+CloudForge is single-tenant and runs entirely in your own Cloudflare account, as one Worker. There are no
 servers, VMs, or runners to operate.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
-  <img alt="Browsers, git clients, and AI agents talk to one GitOrange Cloudflare Worker, which serves the API, the web app, the git endpoint, and the MCP server. The Worker keeps metadata in D1, stores every repository in Cloudflare Artifacts, runs Actions jobs in Cloudflare Containers through Workflows, and keeps logs and LFS objects in R2, all inside your Cloudflare account." src="docs/diagrams/architecture.png">
+  <img alt="Browsers, git clients, and AI agents talk to one CloudForge Cloudflare Worker, which serves the API, the web app, the git endpoint, and the MCP server. The Worker keeps metadata in D1, stores every repository in Cloudflare Artifacts, runs Actions jobs in Cloudflare Containers through Workflows, and keeps logs and LFS objects in R2, all inside your Cloudflare account." src="docs/diagrams/architecture.png">
 </picture>
 
-| Product                                                                                 | What GitOrange uses it for                                                                                           |
+| Product                                                                                 | What CloudForge uses it for                                                                                          |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | [Workers](https://developers.cloudflare.com/workers/)                                   | The API, the web app, the git smart-HTTP endpoint, and the MCP server, on one origin                                 |
-| [Artifacts](https://developers.cloudflare.com/artifacts/)                               | Git storage: one repository per GitOrange repository; merges are pushed as ordinary git objects                      |
+| [Artifacts](https://developers.cloudflare.com/artifacts/)                               | Git storage: one repository per CloudForge repository; merges are pushed as ordinary git objects                     |
 | [Workers AI](https://developers.cloudflare.com/workers-ai/)                             | Clef (decisions), GLM-5.3-flash (summaries), GLM-5.3 (explanations and the conflict agent)                           |
 | [AI Gateway](https://developers.cloudflare.com/ai-gateway/)                             | Every model call, tagged by feature, for logs and cost                                                               |
 | [Agents SDK](https://developers.cloudflare.com/agents/)                                 | The Pi agent harness that resolves conflicts and runs `engine: pi` reviews, durable across restarts                  |
@@ -262,13 +262,13 @@ approve on that user's behalf, recorded "via" the app.
 
 ### GitHub Actions compatibility
 
-Jobs run on `runs-on: ubuntu-latest` (or `gitorange-standard-2` through `gitorange-standard-4` for bigger
+Jobs run on `runs-on: ubuntu-latest` (or `cloudforge-standard-2` through `cloudforge-standard-4` for bigger
 machines) in a Debian container with Node.js 24, git, Python, and build tools. Supported:
 
 - `on: push` and `pull_request`, with `branches`, `tags`, and `paths` filters
 - `run` steps (`bash`, `sh`, `python`, `node` shells), `working-directory`, `defaults.run`
 - `actions/checkout`, `actions/setup-node`, `actions/cache` (in R2; `setup-node`'s `cache:` caches
-  `node_modules`, so a hit makes installs instant), and [`gitorange/relevance@v1`](docs/ci-relevance.md)
+  `node_modules`, so a hit makes installs instant), and [`cloudforge/relevance@v1`](docs/ci-relevance.md)
 - `needs`, `if:` with `success()`/`failure()`/`always()`, `continue-on-error`, `timeout-minutes`
 - Matrix builds, `${{ }}` expressions, `env` at every level
 - Step and job outputs, `GITHUB_ENV`, `GITHUB_OUTPUT`, `GITHUB_PATH`
@@ -298,7 +298,7 @@ D1 and Email Sending usage for a small team stays within the plan.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: see [SECURITY.md](SECURITY.md).
 
-GitOrange is developed with coding agents, on GitOrange. The repository ships a `CLAUDE.md` and Claude Code
+CloudForge is developed with coding agents, on CloudForge. The repository ships a `CLAUDE.md` and Claude Code
 skills and hooks under `.claude/`; they're harmless to ignore if you don't use Claude Code.
 
 ## License
@@ -307,6 +307,6 @@ This fork is distributed under the [GNU General Public License v3.0 or later](CO
 [GitOrange](https://github.com/choyiny/gitorange) at `b3d5b08` (see `.fork-base`), whose original portions remain
 under the [Apache License 2.0](LICENSE); that license and its copyright notice are kept unchanged.
 
-GitOrange is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. If you run a
+CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. If you run a
 fork as a branded product, please rename it and replace the logo so users aren't confused about which project
 they're installing.

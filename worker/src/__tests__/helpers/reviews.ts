@@ -292,7 +292,7 @@ export function fakePi<R extends FakePiRequest = PiStartRequest>(
 }
 
 /**
- * Runs every review Workflow started so far (once each), inline, until none are left. `delegate`: the model GitOrange
+ * Runs every review Workflow started so far (once each), inline, until none are left. `delegate`: the model CloudForge
  * AI decides delegated findings with (undefined: the env's, which tests don't bind).
  */
 export async function runReviews(

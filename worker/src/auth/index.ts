@@ -63,7 +63,7 @@ async function ensureMcpResource(
     .values({
       id: crypto.randomUUID(),
       identifier: mcpResource(baseURL),
-      name: 'GitOrange MCP server',
+      name: 'CloudForge MCP server',
       createdAt: now,
       updatedAt: now,
     })
@@ -315,7 +315,7 @@ function createAuth(env?: CloudflareBindings) {
       },
     },
     advanced: {
-      cookiePrefix: 'gitorange',
+      cookiePrefix: 'cloudforge',
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
       defaultCookieAttributes: {
         sameSite: 'Lax',

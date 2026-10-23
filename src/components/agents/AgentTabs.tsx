@@ -171,7 +171,7 @@ export function ConfigTab({ agent, branch }: { agent: Agent; branch: string }) {
           <dd>
             {agent.guarded
               ? t(
-                  'Yes. Its findings are never approved in bulk, by one key or by GitOrange AI, and approving one needs a reason.'
+                  'Yes. Its findings are never approved in bulk, by one key or by CloudForge AI, and approving one needs a reason.'
                 )
               : t('No')}
           </dd>

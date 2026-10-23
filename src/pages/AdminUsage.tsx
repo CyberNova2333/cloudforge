@@ -31,7 +31,7 @@ const qty = (n: number) =>
 
 const SOURCE_LABEL: Record<UsageLine['source'], string> = {
   cloudflare: 'Cloudflare analytics',
-  gitorange: 'Recorded by GitOrange',
+  cloudforge: 'Recorded by CloudForge',
   estimate: 'Estimate',
 };
 
@@ -53,7 +53,7 @@ function Card({
   );
 }
 
-/** Estimated GitOrange cost per day, one bar per day (hover a bar for its value). */
+/** Estimated CloudForge cost per day, one bar per day (hover a bar for its value). */
 function DailyChart({ report }: { report: UsageReport }) {
   const byDay = new Map(
     report.daily.map((d) => [
@@ -146,7 +146,7 @@ function LinesTable({ lines }: { lines: UsageLine[] }) {
         <thead>
           <tr>
             <th>{t('Metric')}</th>
-            <th className="r">{t('GitOrange usage')}</th>
+            <th className="r">{t('CloudForge usage')}</th>
             <th>{t('Included (whole account)')}</th>
             <th className="r">{t('List price')}</th>
             <th className="r">{t('With allowance')}</th>
@@ -283,7 +283,7 @@ export default function AdminUsage() {
         lede={
           <>
             {t(
-              'What this GitOrange deployment uses on Cloudflare, and what it would cost. Estimates from Cloudflare analytics (filtered to this deployment’s own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace) and from GitOrange’s own records. Not an invoice: Cloudflare’s Billing → Billable Usage page has the exact account total.'
+              'What this CloudForge deployment uses on Cloudflare, and what it would cost. Estimates from Cloudflare analytics (filtered to this deployment’s own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace) and from CloudForge’s own records. Not an invoice: Cloudflare’s Billing → Billable Usage page has the exact account total.'
             )}
             {r?.lastSync?.completedAt && (
               <>
@@ -337,7 +337,7 @@ export default function AdminUsage() {
             {!r.analyticsConfigured && (
               <Notice tone="warn">
                 {tx(
-                  'Cloudflare analytics are not set up, so only what GitOrange records itself (Actions runners, Workers AI calls, emails) is shown. Add the {secret} secret: an account API token with {scope}.',
+                  'Cloudflare analytics are not set up, so only what CloudForge records itself (Actions runners, Workers AI calls, emails) is shown. Add the {secret} secret: an account API token with {scope}.',
                   {
                     secret: <code>CF_ANALYTICS_TOKEN</code>,
                     scope: <b>Account Analytics: Read</b>,
@@ -347,12 +347,12 @@ export default function AdminUsage() {
             )}
             <div className="stats">
               <Card
-                label={t('GitOrange usage at list price')}
+                label={t('CloudForge usage at list price')}
                 value={usd(r.totals.listCost)}
                 detail={t('Every unit priced, no allowances')}
               />
               <Card
-                label={t('If GitOrange had the allowances to itself')}
+                label={t('If CloudForge had the allowances to itself')}
                 value={usd(r.totals.dedicatedCost)}
                 detail={t('Usage above the included amounts')}
               />
@@ -371,7 +371,7 @@ export default function AdminUsage() {
             </div>
             <Notice tone="info">
               {t(
-                'Included allowances and the plan fee belong to the whole Cloudflare account. If anything else runs on it, the allowances are shared and the real bill for GitOrange’s usage is somewhere between the two figures above.'
+                'Included allowances and the plan fee belong to the whole Cloudflare account. If anything else runs on it, the allowances are shared and the real bill for CloudForge’s usage is somewhere between the two figures above.'
               )}
             </Notice>
 
@@ -495,7 +495,7 @@ export default function AdminUsage() {
                   )}
                   <p className="muted">
                     {t(
-                      'For the whole gateway, which other apps or a dev instance may share; not added to GitOrange’s totals. GitOrange’s own AI cost is the Workers AI section above.'
+                      'For the whole gateway, which other apps or a dev instance may share; not added to CloudForge’s totals. CloudForge’s own AI cost is the Workers AI section above.'
                     )}
                   </p>
                 </div>

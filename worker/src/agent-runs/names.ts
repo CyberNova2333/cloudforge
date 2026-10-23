@@ -8,7 +8,7 @@ const FIXED: Record<string, string> = {
   finish: 'Finish',
   'auto-merge': 'Try auto-merge',
   stacking: 'Start stack discovery',
-  delegate: 'Let GitOrange AI decide',
+  delegate: 'Let CloudForge AI decide',
   fail: 'Record failure',
   prepare: 'Prepare conflicted files',
   resolve: 'Resolve conflicts',

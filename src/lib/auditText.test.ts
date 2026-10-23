@@ -38,12 +38,12 @@ describe('the sentences in the brief', () => {
     );
   });
 
-  it("GitOrange AI approved Speed's finding on #74 for cho", () => {
+  it("CloudForge AI approved Speed's finding on #74 for cho", () => {
     expect(
       auditText(
         ev({
           actor: { kind: 'ai', login: 'cho', name: 'Cho' },
-          via: 'GitOrange AI',
+          via: 'CloudForge AI',
           action: 'finding.delegated',
           target: 'Token is logged',
           pull: 74,
@@ -57,7 +57,7 @@ describe('the sentences in the brief', () => {
         }),
         { scope: 'repo' }
       )
-    ).toBe("GitOrange AI approved Speed's finding on #74 for cho");
+    ).toBe("CloudForge AI approved Speed's finding on #74 for cho");
   });
 
   it('System deleted branch stack-tree after #47 merged', () => {
@@ -89,9 +89,9 @@ describe('who did it', () => {
     );
   });
 
-  it('names GitOrange AI, the system and an agent', () => {
+  it('names CloudForge AI, the system and an agent', () => {
     expect(actorName({ kind: 'ai', login: 'cho', name: null })).toBe(
-      'GitOrange AI'
+      'CloudForge AI'
     );
     expect(actorName({ kind: 'system', login: null, name: null })).toBe(
       'System'
@@ -364,7 +364,7 @@ describe('every audit action reads as one sentence', () => {
       'finding.delegated: approve',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
-        via: 'GitOrange AI',
+        via: 'CloudForge AI',
         action: 'finding.delegated',
         pull: 74,
         data: {
@@ -373,13 +373,13 @@ describe('every audit action reads as one sentence', () => {
           decision: 'approve',
         },
       },
-      "GitOrange AI approved Speed's finding on choyiny/gitorange#74 for cho",
+      "CloudForge AI approved Speed's finding on choyiny/gitorange#74 for cho",
     ],
     [
       'finding.delegated: request changes',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
-        via: 'GitOrange AI',
+        via: 'CloudForge AI',
         action: 'finding.delegated',
         pull: 74,
         data: {
@@ -388,18 +388,18 @@ describe('every audit action reads as one sentence', () => {
           decision: 'request_changes',
         },
       },
-      "GitOrange AI asked for changes on Speed's finding on choyiny/gitorange#74 for cho",
+      "CloudForge AI asked for changes on Speed's finding on choyiny/gitorange#74 for cho",
     ],
     [
       'finding.delegated: leave',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
-        via: 'GitOrange AI',
+        via: 'CloudForge AI',
         action: 'finding.delegated',
         pull: 74,
         data: { agent: 'speedagent', decision: 'leave', reason: 'Unsure.' },
       },
-      "GitOrange AI left Speed's finding on choyiny/gitorange#74 for cho to decide",
+      "CloudForge AI left Speed's finding on choyiny/gitorange#74 for cho to decide",
     ],
     [
       'finding.undone: an AI decision',
@@ -409,10 +409,10 @@ describe('every audit action reads as one sentence', () => {
         data: {
           agent: 'speedagent',
           undid: 'approved',
-          via: 'GitOrange AI',
+          via: 'CloudForge AI',
         },
       },
-      "mahmoud undid GitOrange AI's decision on Speed's finding on choyiny/gitorange#74",
+      "mahmoud undid CloudForge AI's decision on Speed's finding on choyiny/gitorange#74",
     ],
     [
       'finding.undone: their own decision',
@@ -887,7 +887,7 @@ describe('the second line', () => {
     ).toBe('“Slow query”. Taught: Never flag test files.');
   });
 
-  it('gives what GitOrange AI thought', () => {
+  it('gives what CloudForge AI thought', () => {
     expect(
       auditDetail(
         ev({

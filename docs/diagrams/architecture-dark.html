@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GitOrange architecture (dark)</title>
+    <title>CloudForge architecture (dark)</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;600&family=Geist+Mono:wght@400;500&display=swap"
       rel="stylesheet"
@@ -29,23 +29,23 @@
       width="960"
       height="616"
       role="img"
-      aria-labelledby="gitorange-architecture-dark-title gitorange-architecture-dark-desc"
+      aria-labelledby="cloudforge-architecture-dark-title cloudforge-architecture-dark-desc"
     >
-      <title id="gitorange-architecture-dark-title">
-        GitOrange architecture
+      <title id="cloudforge-architecture-dark-title">
+        CloudForge architecture
       </title>
-      <desc id="gitorange-architecture-dark-desc">
-        Browsers and git clients talk to a single GitOrange Cloudflare Worker,
+      <desc id="cloudforge-architecture-dark-desc">
+        Browsers and git clients talk to a single CloudForge Cloudflare Worker,
         which serves the API, the web app, and the git endpoint, and stores
         metadata in D1, git repositories in Cloudflare Artifacts, and Git LFS
         files in R2 (which git clients reach directly through signed URLs), and
-        sends invitations through Email Sending. Pushes queue GitOrange Actions
+        sends invitations through Email Sending. Pushes queue CloudForge Actions
         runs as Cloudflare Workflows, which run each job in its own Cloudflare
         Container and write step logs to R2.
       </desc>
       <defs>
         <marker
-          id="gitorange-architecture-dark-arrow"
+          id="cloudforge-architecture-dark-arrow"
           markerWidth="8"
           markerHeight="6"
           refX="7"
@@ -55,7 +55,7 @@
           <polygon points="0 0, 8 3, 0 6" fill="#9198a1" />
         </marker>
         <marker
-          id="gitorange-architecture-dark-arrow-accent"
+          id="cloudforge-architecture-dark-arrow-accent"
           markerWidth="8"
           markerHeight="6"
           refX="7"
@@ -65,7 +65,7 @@
           <polygon points="0 0, 8 3, 0 6" fill="#f6821f" />
         </marker>
         <marker
-          id="gitorange-architecture-dark-arrow-link"
+          id="cloudforge-architecture-dark-arrow-link"
           markerWidth="8"
           markerHeight="6"
           refX="7"
@@ -106,14 +106,14 @@
           fill="none"
           stroke="#4493f8"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow-link)"
+          marker-end="url(#cloudforge-architecture-dark-arrow-link)"
         />
         <path
           d="M192,256 H224 Q232,256 232,248 V224 Q232,216 240,216 H336"
           fill="none"
           stroke="#4493f8"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow-link)"
+          marker-end="url(#cloudforge-architecture-dark-arrow-link)"
         />
         <!-- worker → services (right edge, fanned at y=172 / 200 / 228) -->
         <path
@@ -121,7 +121,7 @@
           fill="none"
           stroke="#9198a1"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <line
           x1="536"
@@ -130,7 +130,7 @@
           y2="200"
           stroke="#f6821f"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow-accent)"
+          marker-end="url(#cloudforge-architecture-dark-arrow-accent)"
         />
         <!-- LFS: git ↔ R2 directly via signed URLs; the worker only signs and verifies -->
         <path
@@ -138,7 +138,7 @@
           fill="none"
           stroke="#4493f8"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow-link)"
+          marker-end="url(#cloudforge-architecture-dark-arrow-link)"
         />
         <line
           x1="436"
@@ -147,7 +147,7 @@
           y2="292"
           stroke="#9198a1"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <path
           d="M536,228 H588 Q596,228 596,236 V292 Q596,300 604,300 H656"
@@ -155,7 +155,7 @@
           stroke="#9198a1"
           stroke-width="1"
           stroke-dasharray="4,3"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <!-- Actions: worker queues a run; the Workflow runs jobs in containers and stores logs in R2 -->
         <path
@@ -163,7 +163,7 @@
           fill="none"
           stroke="#9198a1"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <line
           x1="776"
@@ -172,14 +172,14 @@
           y2="464"
           stroke="#9198a1"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <path
           d="M656,408 H444 Q436,408 436,400 V368"
           fill="none"
           stroke="#9198a1"
           stroke-width="1.2"
-          marker-end="url(#gitorange-architecture-dark-arrow)"
+          marker-end="url(#cloudforge-architecture-dark-arrow)"
         />
         <rect x="588" y="366" width="60" height="12" rx="2" fill="#0d1117" />
         <text
@@ -451,7 +451,7 @@
           font-family="'Mona Sans', -apple-system, 'Segoe UI', sans-serif"
           text-anchor="middle"
         >
-          GitOrange Worker
+          CloudForge Worker
         </text>
         <text
           x="436"

@@ -64,8 +64,8 @@ export const admin: Record<string, string> = {
 
   // src/pages/AdminAudit.tsx
   'Audit log': '审计日志',
-  'Who did what on this instance, newest first: merges, decisions, access, settings and what GitOrange did on its own. Entries are recorded as they happen and can’t be edited.':
-    '谁在这个实例上做了什么，最新的在前：合并、决定、访问、设置，以及 GitOrange 自行执行的操作。记录发生时即写入，无法编辑。',
+  'Who did what on this instance, newest first: merges, decisions, access, settings and what CloudForge did on its own. Entries are recorded as they happen and can’t be edited.':
+    '谁在这个实例上做了什么，最新的在前：合并、决定、访问、设置，以及 CloudForge 自行执行的操作。记录发生时即写入，无法编辑。',
   'Refreshing…': '刷新中…',
   Refresh: '刷新',
   Show: '显示',
@@ -90,37 +90,37 @@ export const admin: Record<string, string> = {
 
   // src/pages/AdminUsage.tsx
   'Usage and cost': '用量与费用',
-  'What this GitOrange deployment uses on Cloudflare, and what it would cost. Estimates from Cloudflare analytics (filtered to this deployment’s own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace) and from GitOrange’s own records. Not an invoice: Cloudflare’s Billing → Billable Usage page has the exact account total.':
-    '这个 GitOrange 部署在 Cloudflare 上的用量，以及对应的费用估算。估算来自 Cloudflare 分析（已过滤到这个部署自己的 Worker、Durable Objects、Workflows、D1 数据库、R2 存储桶和 Artifacts 命名空间）和 GitOrange 自己的记录。这不是账单：Cloudflare 的 Billing → Billable Usage 页面才有账户的准确总额。',
+  'What this CloudForge deployment uses on Cloudflare, and what it would cost. Estimates from Cloudflare analytics (filtered to this deployment’s own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace) and from CloudForge’s own records. Not an invoice: Cloudflare’s Billing → Billable Usage page has the exact account total.':
+    '这个 CloudForge 部署在 Cloudflare 上的用量，以及对应的费用估算。估算来自 Cloudflare 分析（已过滤到这个部署自己的 Worker、Durable Objects、Workflows、D1 数据库、R2 存储桶和 Artifacts 命名空间）和 CloudForge 自己的记录。这不是账单：Cloudflare 的 Billing → Billable Usage 页面才有账户的准确总额。',
   'Cloudflare analytics last synced {when}.':
     'Cloudflare 分析上次同步于 {when}。',
   Month: '月份',
   'Syncing…': '同步中…',
   'Sync now': '立即同步',
   'the usage report': '用量报告',
-  'Cloudflare analytics are not set up, so only what GitOrange records itself (Actions runners, Workers AI calls, emails) is shown. Add the {secret} secret: an account API token with {scope}.':
-    '未设置 Cloudflare 分析，因此只显示 GitOrange 自己记录的内容（Actions 运行器、Workers AI 调用、邮件）。请添加 {secret} 密钥：一个具有 {scope} 权限的账户 API 令牌。',
-  'GitOrange usage at list price': '按标价计算的 GitOrange 用量',
+  'Cloudflare analytics are not set up, so only what CloudForge records itself (Actions runners, Workers AI calls, emails) is shown. Add the {secret} secret: an account API token with {scope}.':
+    '未设置 Cloudflare 分析，因此只显示 CloudForge 自己记录的内容（Actions 运行器、Workers AI 调用、邮件）。请添加 {secret} 密钥：一个具有 {scope} 权限的账户 API 令牌。',
+  'CloudForge usage at list price': '按标价计算的 CloudForge 用量',
   'Every unit priced, no allowances': '所有用量都按标价计算，不扣包含额度',
-  'If GitOrange had the allowances to itself':
-    '如果包含额度全部归 GitOrange 使用',
+  'If CloudForge had the allowances to itself':
+    '如果包含额度全部归 CloudForge 使用',
   'Usage above the included amounts': '超出包含额度的用量',
   'Projected for the month': '本月预计',
   '{amount} with allowances': '扣除包含额度后为 {amount}',
   'Workers Paid plan fee': 'Workers Paid 套餐费',
   'Per account, not counted above': '按账户收取，未计入以上金额',
-  'Included allowances and the plan fee belong to the whole Cloudflare account. If anything else runs on it, the allowances are shared and the real bill for GitOrange’s usage is somewhere between the two figures above.':
-    '包含额度和套餐费属于整个 Cloudflare 账户。如果账户上还运行着其他东西，额度需要共享，GitOrange 用量的实际账单会介于上面两个数字之间。',
+  'Included allowances and the plan fee belong to the whole Cloudflare account. If anything else runs on it, the allowances are shared and the real bill for CloudForge’s usage is somewhere between the two figures above.':
+    '包含额度和套餐费属于整个 Cloudflare 账户。如果账户上还运行着其他东西，额度需要共享，CloudForge 用量的实际账单会介于上面两个数字之间。',
   'Estimated cost per day': '每日预计费用',
   'Highest day: {amount}. Days without a bar have no recorded cost yet.':
     '最高的一天：{amount}。没有柱子的日期还没有记录到费用。',
   'Cloudflare analytics': 'Cloudflare 分析',
-  'Recorded by GitOrange': 'GitOrange 记录',
+  'Recorded by CloudForge': 'CloudForge 记录',
   Estimate: '估算',
   'Not configured': '未配置',
   Unavailable: '不可用',
   Metric: '指标',
-  'GitOrange usage': 'GitOrange 用量',
+  'CloudForge usage': 'CloudForge 用量',
   'Included (whole account)': '包含额度（整个账户）',
   'List price': '标价',
   'With allowance': '扣除包含额度后',
@@ -152,8 +152,8 @@ export const admin: Record<string, string> = {
   '{requests} requests.': '{requests} 次请求。',
   'Not configured.': '未配置。',
   'Unavailable.': '不可用。',
-  'For the whole gateway, which other apps or a dev instance may share; not added to GitOrange’s totals. GitOrange’s own AI cost is the Workers AI section above.':
-    '这是整个网关的数据，其他应用或开发实例可能共享；未计入 GitOrange 的总额。GitOrange 自己的 AI 费用见上方的 Workers AI 部分。',
+  'For the whole gateway, which other apps or a dev instance may share; not added to CloudForge’s totals. CloudForge’s own AI cost is the Workers AI section above.':
+    '这是整个网关的数据，其他应用或开发实例可能共享；未计入 CloudForge 的总额。CloudForge 自己的 AI 费用见上方的 Workers AI 部分。',
   'Not measured': '未计量',
   'Workers Paid list prices, last checked {date}: {sources}.':
     'Workers Paid 标价，最近核对于 {date}：{sources}。',

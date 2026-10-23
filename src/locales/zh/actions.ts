@@ -204,8 +204,8 @@ export const actions: Record<string, string> = {
   'Pull request {pr} by {who}': '由 {who} 发起的拉取请求 {pr}',
   'Commit {sha} pushed by {who}': '{who} 推送了提交 {sha}',
   Actions: 'Actions',
-  'Your workflows run on Cloudflare Containers. Every AI process GitOrange runs, such as reviews, rebases and conflict fixes, is listed under Agent runs.':
-    '你的工作流运行在 Cloudflare Containers 上。GitOrange 运行的每个 AI 流程（例如评审、变基和冲突修复）都列在 Agent 运行下。',
+  'Your workflows run on Cloudflare Containers. Every AI process CloudForge runs, such as reviews, rebases and conflict fixes, is listed under Agent runs.':
+    '你的工作流运行在 Cloudflare Containers 上。CloudForge 运行的每个 AI 流程（例如评审、变基和冲突修复）都列在 Agent 运行下。',
   'Workflow runs': '工作流运行',
   'Agent runs': 'Agent 运行',
   'Workflow runs did not load': '工作流运行未能加载',
@@ -278,8 +278,8 @@ export const actions: Record<string, string> = {
   'Agent runs did not load': 'Agent 运行未能加载',
   'No {kind} runs yet': '还没有{kind}运行',
   'No agent runs yet': '还没有 Agent 运行',
-  "Each time GitOrange's AI works on this repository, the run shows here with its steps, models, tokens and decisions.":
-    '每次 GitOrange 的 AI 在这个仓库上工作，运行都会连同步骤、模型、令牌和决定显示在这里。',
+  "Each time CloudForge's AI works on this repository, the run shows here with its steps, models, tokens and decisions.":
+    '每次 CloudForge 的 AI 在这个仓库上工作，运行都会连同步骤、模型、令牌和决定显示在这里。',
   Newer: '较新',
   Older: '较早',
   'Costs are estimates at Cloudflare list prices. Prompts, diffs and model output are not kept; only metadata and short decisions.':

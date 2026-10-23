@@ -10,7 +10,7 @@ import { PageHead } from '@/components/ui/PageHead';
 
 /**
  * Tags (`/:owner/:repo/tags`): every git tag, newest name first, with the commit it points at and the release it
- * is. Tags pushed with git are listed too; only tags GitOrange cut have a release.
+ * is. Tags pushed with git are listed too; only tags CloudForge cut have a release.
  */
 export default function RepoTags() {
   const repo = useOutletContext<RepoDetail>();
@@ -32,7 +32,7 @@ export default function RepoTags() {
         title={t('Tags')}
         tab="releases"
         lede={t(
-          'Every tag in the repository. A tag pushed with git is listed too, but only a release GitOrange cut counts as a version.'
+          'Every tag in the repository. A tag pushed with git is listed too, but only a release CloudForge cut counts as a version.'
         )}
         actions={
           <Link to={`${base}/releases`} className="btn">

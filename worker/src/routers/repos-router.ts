@@ -276,7 +276,7 @@ const updateRepoRoute = createRoute({
               .optional()
               .openapi({
                 description:
-                  'Branch name patterns GitOrange never rebases: exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace.',
+                  'Branch name patterns CloudForge never rebases: exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace.',
                 example: ['release/*', 'develop'],
               }),
             deleteMergedBranches: z.boolean().optional().openapi({

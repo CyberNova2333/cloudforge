@@ -38,7 +38,7 @@ export interface JobRunnerApi {
 }
 
 export const WORKSPACE = '/workspace';
-const STATE_DIR = '/tmp/_gitorange';
+const STATE_DIR = '/tmp/_cloudforge';
 /** Per-step log cap; the start is dropped so the end (where failures are) survives. */
 const MAX_LOG_BYTES = 4 * 1024 * 1024;
 const BOOT_TIMEOUT_MS = 3 * 60_000;

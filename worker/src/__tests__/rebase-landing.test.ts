@@ -195,7 +195,7 @@ describe('landing by fast-forward', () => {
     const res = await merge();
     expect(res.status).toBe(409);
     expect(await res.text()).toContain(
-      `stops at commit ${f2.slice(0, 7)}, which conflicts in c.txt. GitOrange is resolving it`
+      `stops at commit ${f2.slice(0, 7)}, which conflicts in c.txt. CloudForge is resolving it`
     );
     expect(repo.refs.get('refs/heads/feature')).toBe(f2);
     await settle(t);

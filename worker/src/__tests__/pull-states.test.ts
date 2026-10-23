@@ -571,7 +571,7 @@ describe('pullStates', () => {
       .bind(s.repoId, ids[0].id, ids[1].id, s.head('one'), s.head('two'))
       .run();
     const st = await s.states();
-    // The agent has to account for #1, whatever the checks are doing; GitOrange rebases it onto #1 (waiting).
+    // The agent has to account for #1, whatever the checks are doing; CloudForge rebases it onto #1 (waiting).
     expect(st[2]).toEqual({
       state: 'agent_followup',
       reasons: [

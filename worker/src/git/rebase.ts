@@ -13,11 +13,11 @@ export const MAX_REBASE_COMMITS = 100;
 /** The newest commits that reached the target since the merge base, checked for patch identity. */
 const MAX_UPSTREAM = 500;
 /** The trailer of a commit whose conflicts AI resolved. */
-export const RESOLVED_TRAILER = 'Conflicts-resolved-by: GitOrange AI';
+export const RESOLVED_TRAILER = 'Conflicts-resolved-by: CloudForge AI';
 /** The committer of every rebased commit (its author stays the original one). */
 export const REBASE_COMMITTER = {
-  name: 'GitOrange',
-  email: 'noreply@gitorange',
+  name: 'CloudForge',
+  email: 'noreply@cloudforge',
 };
 
 /** Resolved contents of conflicting commits: original commit sha → path → content (null deletes it). */

@@ -115,7 +115,7 @@ export function blockerText(
       if (!r.started) return 'Waiting for tests to start';
       return r.check ? `The ${r.check} check is running` : 'Tests are running';
     case 'resolution_running':
-      return 'GitOrange is fixing a clash';
+      return 'CloudForge is fixing a clash';
     case 'stack_checking':
       return 'Checking how it relates to other pull requests';
     case 'stacked_on':

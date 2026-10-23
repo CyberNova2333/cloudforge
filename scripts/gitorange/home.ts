@@ -1,13 +1,15 @@
-// Package mode keeps every installation under ~/.gitorange/<slug>/ (state, lock, generated wrangler.jsonc).
+// Package mode keeps every installation under ~/.cloudforge/<slug>/ (state, lock, generated wrangler.jsonc).
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { UsageError } from './status.ts';
 import { listStates, type InstallState } from './state.ts';
 
-/** `GITORANGE_HOME`, else `~/.gitorange`. */
-export function gitorangeHome(env: Record<string, string | undefined>): string {
-  return env.GITORANGE_HOME || join(homedir(), '.gitorange');
+/** `CLOUDFORGE_HOME`, else `~/.cloudforge`. */
+export function cloudforgeHome(
+  env: Record<string, string | undefined>
+): string {
+  return env.CLOUDFORGE_HOME || join(homedir(), '.cloudforge');
 }
 
 export function installDir(home: string, slug: string): string {
@@ -38,11 +40,11 @@ export function pickInstall(
   if (name !== undefined) {
     const hit = all.find((i) => i.slug === name);
     if (!hit)
-      throw new UsageError(`No GitOrange install named ${name} in ${home}.`);
+      throw new UsageError(`No CloudForge install named ${name} in ${home}.`);
     return hit;
   }
   if (all.length === 0)
-    throw new UsageError(`No GitOrange install in ${home}.`);
+    throw new UsageError(`No CloudForge install in ${home}.`);
   if (all.length > 1) throw new UsageError(several(all));
   return all[0]!;
 }
@@ -62,13 +64,13 @@ export function pickResumable(
   if (name !== undefined) {
     const hit = all.find((i) => i.slug === name);
     if (!hit)
-      throw new UsageError(`No GitOrange install named ${name} in ${home}.`);
+      throw new UsageError(`No CloudForge install named ${name} in ${home}.`);
     return hit;
   }
   const unfinished = all.filter((i) => i.state.status !== 'installed');
   const candidates = unfinished.length > 0 ? unfinished : all;
   if (candidates.length === 0)
-    throw new UsageError(`No GitOrange install to resume in ${home}.`);
+    throw new UsageError(`No CloudForge install to resume in ${home}.`);
   if (candidates.length > 1) throw new UsageError(several(candidates));
   return candidates[0]!;
 }

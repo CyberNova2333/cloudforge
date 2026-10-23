@@ -77,7 +77,7 @@ export function licenseBanners(): Plugin {
   };
 
   return {
-    name: 'gitorange:license-banners',
+    name: 'cloudforge:license-banners',
     apply: 'build',
     enforce: 'post',
     applyToEnvironment: (env) => env.name === 'client',

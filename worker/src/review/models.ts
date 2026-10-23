@@ -99,7 +99,7 @@ export type ClefAnswer =
       confidence: number;
     };
 
-/** Clef's answers in the shape GitOrange stores. */
+/** Clef's answers in the shape CloudForge stores. */
 export function toAnswers(
   answers: Record<string, ClefAnswer>
 ): Record<string, ClassifierAnswer> {

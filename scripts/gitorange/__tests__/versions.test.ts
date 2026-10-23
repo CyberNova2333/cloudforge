@@ -46,7 +46,7 @@ describe('compareRunning', () => {
     );
     const h = f.calls[0]!.init!.headers as Record<string, string>;
     expect(h.Accept).toBe('application/vnd.github+json');
-    expect(h['User-Agent']).toBe('gitorange-cli');
+    expect(h['User-Agent']).toBe('cloudforge-cli');
   });
   it('identical', async () =>
     expect(
@@ -115,7 +115,9 @@ describe('latestOnNpm', () => {
   it('reads dist-tags.latest', async () => {
     const f = fakeFetch(200, { 'dist-tags': { latest: '1.4.0' } });
     expect(await latestOnNpm(f.fn)).toBe('1.4.0');
-    expect(f.calls[0]!.url).toBe('https://registry.npmjs.org/gitorange');
+    expect(f.calls[0]!.url).toBe(
+      'https://registry.npmjs.org/@cybernova2333%2fcloudforge'
+    );
   });
   it('offline is null', async () =>
     expect(await latestOnNpm(offline)).toBeNull());

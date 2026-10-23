@@ -228,6 +228,6 @@ describe('a finding’s history', () => {
         ),
         ctx
       )
-    ).toBe('GitOrange: pull.merged.');
+    ).toBe('CloudForge: pull.merged.');
   });
 });

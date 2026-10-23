@@ -96,14 +96,14 @@ jobs:
       'https://codeload.github.com/acme/setup-tool/tar.gz/v1'
     );
     expect(script(main)).toContain(
-      "node '/opt/gitorange/actions/acme/setup-tool/v1/dist/index.js'"
+      "node '/opt/cloudforge/actions/acme/setup-tool/v1/dist/index.js'"
     );
     expect(main.env).toMatchObject({
       INPUT_VERSION: '2.0',
       // Not on github.com: the action's own expression leaves the GitHub token out.
       INPUT_TOKEN: '',
       GITHUB_ACTION: 'tool',
-      GITHUB_ACTION_PATH: '/opt/gitorange/actions/acme/setup-tool/v1',
+      GITHUB_ACTION_PATH: '/opt/cloudforge/actions/acme/setup-tool/v1',
       GITHUB_ACTION_REPOSITORY: 'acme/setup-tool',
       GITHUB_ACTION_REF: 'v1',
       RUNNER_TOOL_CACHE: '/opt/hostedtoolcache',
@@ -270,7 +270,7 @@ jobs:
       'https://codeload.github.com/acme/tools/tar.gz/v3'
     );
     expect(scripts[1]).toContain(
-      '/opt/gitorange/actions/acme/tools/v3/lint/lint.sh'
+      '/opt/cloudforge/actions/acme/tools/v3/lint/lint.sh'
     );
     expect(scripts.some((x) => x.includes('unreachable'))).toBe(false);
     expect(steps[1].conclusion).toBe('failure');

@@ -452,7 +452,7 @@ export function restCloudflare(
 
     workerSettings,
 
-    // The `plain_text` bindings of workerSettings. Only plain_text vars are returned, so GITORANGE_INSTALLATION must
+    // The `plain_text` bindings of workerSettings. Only plain_text vars are returned, so CLOUDFORGE_INSTALLATION must
     // be written as a string var.
     async workerVars(a, script) {
       const r = await workerSettings(a, script);

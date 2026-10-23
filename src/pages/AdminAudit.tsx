@@ -18,7 +18,7 @@ import { AdminFrame, RowsSkeleton } from '@/components/SetFrame';
 type Filter = AuditCategory | 'all';
 
 /**
- * Site admin → Audit log: everything people, reviewer agents, GitOrange AI and GitOrange itself did on this
+ * Site admin → Audit log: everything people, reviewer agents, CloudForge AI and CloudForge itself did on this
  * instance, newest first, one sentence each. Older events load on request (cursor paging).
  */
 export default function AdminAudit() {
@@ -60,7 +60,7 @@ export default function AdminAudit() {
         ]}
         title={t('Audit log')}
         lede={t(
-          'Who did what on this instance, newest first: merges, decisions, access, settings and what GitOrange did on its own. Entries are recorded as they happen and can’t be edited.'
+          'Who did what on this instance, newest first: merges, decisions, access, settings and what CloudForge did on its own. Entries are recorded as they happen and can’t be edited.'
         )}
         actions={
           <PendingButton

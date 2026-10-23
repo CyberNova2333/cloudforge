@@ -123,7 +123,7 @@ export interface ExecutorDeps {
   runner: (jobId: string) => JobRunnerApi;
   /** Wait before restarting an interrupted job, times the attempt that failed. Default 15s. */
   restartDelayMs?: number;
-  /** Clef for `gitorange/relevance`; defaults to Workers AI when the AI binding exists. */
+  /** Clef for `cloudforge/relevance`; defaults to Workers AI when the AI binding exists. */
   relevance?: RelevanceModelFor;
 }
 
@@ -514,7 +514,7 @@ async function runJob(
     runner: {
       os: 'Linux',
       arch: 'X64',
-      name: 'GitOrange',
+      name: 'CloudForge',
       temp: '/tmp',
       tool_cache: '/opt/hostedtoolcache',
     },
@@ -853,7 +853,7 @@ async function runAttempt(
           const { ms } = await runner.boot(size, jobTimeoutMs);
           log = [
             ...(restartNote ? [restartNote] : []),
-            `Runner: GitOrange Actions (${size})`,
+            `Runner: CloudForge Actions (${size})`,
             `Labels: ${job.runsOn}`,
             `Image: Debian (trixie) with Node.js, git, and build tools`,
             `Started in ${(ms / 1000).toFixed(1)}s`,
@@ -1196,7 +1196,7 @@ async function buildCommand(
   const baseEnv: Record<string, string> = {
     CI: 'true',
     GITHUB_ACTIONS: 'true',
-    GITORANGE_ACTIONS: 'true',
+    CLOUDFORGE_ACTIONS: 'true',
     HOME: '/root',
     GITHUB_WORKSPACE: WORKSPACE,
     GITHUB_SHA: ctx.headSha,
@@ -1274,7 +1274,7 @@ async function buildCommand(
         `git init -q . && git config --global --add safe.directory "$DEST"`,
         `git remote add origin "$PUBLIC_URL" 2>/dev/null || git remote set-url origin "$PUBLIC_URL"`,
         `echo "Fetching $GITHUB_REPOSITORY at $TARGET"`,
-        `git -c http.extraHeader="Authorization: Bearer $GITORANGE_TOKEN" fetch -q --no-tags ${depth > 0 ? `--depth ${depth}` : ''} "$REMOTE" ${fetchSpec}`,
+        `git -c http.extraHeader="Authorization: Bearer $CLOUDFORGE_TOKEN" fetch -q --no-tags ${depth > 0 ? `--depth ${depth}` : ''} "$REMOTE" ${fetchSpec}`,
         depth === 0
           ? `git checkout -q --force "$TARGET"`
           : `git checkout -q --force FETCH_HEAD`,
@@ -1290,7 +1290,7 @@ async function buildCommand(
           cwd: '/',
           env: {
             ...stepEnv,
-            GITORANGE_TOKEN: token,
+            CLOUDFORGE_TOKEN: token,
             REMOTE: remote,
             PUBLIC_URL: `${ctx.serverUrl}/${ctx.repoFullName}.git`,
             TARGET: target,
@@ -1310,7 +1310,7 @@ async function buildCommand(
         'echo "Using the preinstalled Node.js $(node -v), npm $(npm -v)"',
         ...(requested
           ? [
-              `case "$(node -v)" in v${requested.replace(/[^0-9.]/g, '').replace(/\.x$/, '')}*) ;; *) echo ${quoteSh(`Note: node-version ${requested} was requested; GitOrange runners provide the preinstalled Node.js instead.`)} ;; esac`,
+              `case "$(node -v)" in v${requested.replace(/[^0-9.]/g, '').replace(/\.x$/, '')}*) ;; *) echo ${quoteSh(`Note: node-version ${requested} was requested; CloudForge runners provide the preinstalled Node.js instead.`)} ;; esac`,
             ]
           : []),
       ];
@@ -1586,9 +1586,9 @@ async function buildCommand(
       GITHUB_ACTION_REF: remote.kind === 'github' ? remote.ref : '',
       RUNNER_TOOL_CACHE: TOOL_CACHE,
       GITHUB_EVENT_PATH: EVENT_PATH,
-      GITORANGE_EVENT: JSON.stringify(g.event ?? {}),
+      CLOUDFORGE_EVENT: JSON.stringify(g.event ?? {}),
     };
-    const writeEvent = `printf '%s' "$GITORANGE_EVENT" > "$GITHUB_EVENT_PATH"`;
+    const writeEvent = `printf '%s' "$CLOUDFORGE_EVENT" > "$GITHUB_EVENT_PATH"`;
     const entries = [...(meta.pre ? [meta.pre] : []), meta.main];
     const r = remote;
     return {
@@ -1711,7 +1711,7 @@ interface CompositeCall {
 }
 
 /** Where a JavaScript action finds the event payload ($GITHUB_EVENT_PATH). */
-const EVENT_PATH = '/tmp/gitorange-event.json';
+const EVENT_PATH = '/tmp/cloudforge-event.json';
 
 /** action.yml of an action, read once per isolate for a while (a tag like @v4 can move, so not forever). */
 const metaCache = new Map<string, { at: number; meta: Promise<ActionMeta> }>();

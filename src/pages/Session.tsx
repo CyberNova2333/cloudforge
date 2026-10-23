@@ -83,7 +83,7 @@ function TimelineRow({ e, base }: { e: SessionEvent; base: string }) {
         ) : e.kind === 'merged' ? (
           <span>
             {e.automatic
-              ? tx('Merged {pull} automatically, by GitOrange', { pull: pr })
+              ? tx('Merged {pull} automatically, by CloudForge', { pull: pr })
               : e.actor
                 ? tx('Merged {pull} (by {actor})', {
                     pull: pr,

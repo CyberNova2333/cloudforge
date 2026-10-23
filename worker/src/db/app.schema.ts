@@ -36,7 +36,7 @@ export const repositories = sqliteTable(
     name: text('name').notNull(),
     description: text('description'),
     defaultBranch: text('default_branch').notNull().default('main'),
-    // Branch name patterns GitOrange never rebases (lib/protected-branches.ts); null ⇒ none. The default branch is
+    // Branch name patterns CloudForge never rebases (lib/protected-branches.ts); null ⇒ none. The default branch is
     // always protected.
     protectedBranches: text('protected_branches', { mode: 'json' }).$type<
       string[]
@@ -259,7 +259,7 @@ export const pullRequests = sqliteTable(
     mergedById: text('merged_by_id').references(() => users.id),
     mergedAt: integer('merged_at', { mode: 'timestamp' }),
     closedAt: integer('closed_at', { mode: 'timestamp' }),
-    // Merged by GitOrange on its own (auto-merge); such merges have no merged_by_id.
+    // Merged by CloudForge on its own (auto-merge); such merges have no merged_by_id.
     mergedAutomatically: integer('merged_automatically', { mode: 'boolean' })
       .notNull()
       .default(false),
@@ -532,7 +532,7 @@ export const prReviewFlags = sqliteTable(
     }),
     approvedAt: integer('approved_at', { mode: 'timestamp' }),
     // How the current decision (approval, dismissal, or request for changes) was made: the connected app's name when
-    // a moderator app made it over MCP, "GitOrange AI" when the AI decided for the person; null from the web.
+    // a moderator app made it over MCP, "CloudForge AI" when the AI decided for the person; null from the web.
     approvedVia: text('approved_via'),
     // A person asked for changes instead of approving: blocks auto-merge until someone approves
     // (which clears these). Never set together with approved_at.
@@ -819,7 +819,7 @@ export const prEdges = sqliteTable(
 export type PrEdge = typeof prEdges.$inferSelect;
 
 // ── Pull request timeline ────────────────────────────────────────────────────
-// GitOrange's own timeline entries. state_changed: the PR's computed state changed (states are never stored
+// CloudForge's own timeline entries. state_changed: the PR's computed state changed (states are never stored
 // otherwise). Milestone 2b adds stacking events.
 
 export type PrEventKind =
@@ -835,7 +835,7 @@ export type PrEventKind =
   | 'withdrawn'
   // An agent committed what it learned from this pull request's dismissed change requests.
   | 'learned'
-  // GitOrange rebased the pull request's branch onto its base.
+  // CloudForge rebased the pull request's branch onto its base.
   | 'rebased'
   // The version bump the pull request calls for changed (data: { from, to }).
   | 'version_bump';
@@ -927,7 +927,7 @@ export const auditActions = [
   'artifact.deleted',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
-/** person: a member. agent: a reviewer agent. ai: GitOrange AI deciding for `actor_id`. system: GitOrange itself. */
+/** person: a member. agent: a reviewer agent. ai: CloudForge AI deciding for `actor_id`. system: CloudForge itself. */
 export const auditActorKinds = ['person', 'agent', 'ai', 'system'] as const;
 export type AuditActorKind = (typeof auditActorKinds)[number];
 
@@ -942,7 +942,7 @@ export const auditEvents = sqliteTable(
       onDelete: 'set null',
     }),
     actorKind: text('actor_kind', { enum: auditActorKinds }).notNull(),
-    // The app it went through: a connected MCP app's name, or "GitOrange AI".
+    // The app it went through: a connected MCP app's name, or "CloudForge AI".
     via: text('via'),
     action: text('action', { enum: auditActions }).notNull(),
     // What it was done to, as people read it: "#12", a branch, a handle, a token or setting name.
@@ -959,7 +959,7 @@ export const auditEvents = sqliteTable(
 );
 export type AuditEventRow = typeof auditEvents.$inferSelect;
 
-// A person lets GitOrange AI answer this agent's findings on their pull requests ("Let Claude decide"). Never a
+// A person lets CloudForge AI answer this agent's findings on their pull requests ("Let Claude decide"). Never a
 // guarded agent's (isGuarded).
 export const aiDelegations = sqliteTable(
   'ai_delegations',
@@ -1218,7 +1218,7 @@ export const agentSteps = sqliteTable(
 
 /**
  * Daily usage per metric and resource. `source` is `cloudflare` (GraphQL Analytics, filtered to
- * this deployment's resources) or `gitorange` (counted by the app, e.g. emails sent). Costs are
+ * this deployment's resources) or `cloudforge` (counted by the app, e.g. emails sent). Costs are
  * computed on read from worker/src/usage/pricing.ts, so a price fix re-prices history.
  */
 export const usageDaily = sqliteTable(
@@ -1231,7 +1231,7 @@ export const usageDaily = sqliteTable(
     /** Script, namespace, bucket, database, or gateway the number is for; '' when none. */
     resource: text('resource').notNull().default(''),
     quantity: real('quantity').notNull(),
-    source: text('source', { enum: ['cloudflare', 'gitorange'] }).notNull(),
+    source: text('source', { enum: ['cloudflare', 'cloudforge'] }).notNull(),
     fetchedAt: integer('fetched_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.date, t.metric, t.resource] })]
@@ -1268,7 +1268,7 @@ export type UserEmail = typeof userEmails.$inferSelect;
 export type AgentRun = typeof agentRuns.$inferSelect;
 export type AgentStep = typeof agentSteps.$inferSelect;
 
-// Written by `yarn gitorange install`: one row per installation of this instance.
+// Written by `yarn cloudforge install`: one row per installation of this instance.
 export const installState = sqliteTable('install_state', {
   installationId: text('installation_id').primaryKey(),
   ownershipNonce: text('ownership_nonce').notNull(),

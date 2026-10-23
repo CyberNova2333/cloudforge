@@ -63,12 +63,12 @@ function fullEnv(overrides: Record<string, unknown> = {}): TestEnv {
     AI_GATEWAY: 'default',
     // Usage & cost, fully configured.
     CF_ANALYTICS_TOKEN: 'test-analytics-token-value',
-    WORKER_NAME: 'gitorange',
+    WORKER_NAME: 'cloudforge',
     D1_DATABASE_ID: '00000000-0000-0000-0000-000000000000',
-    ACTIONS_LOGS_BUCKET_NAME: 'gitorange-actions-logs-test',
-    ARTIFACTS_NAMESPACE: 'gitorange',
-    ACTIONS_WORKFLOW_NAME: 'gitorange-actions-run',
-    MERGE_RESOLUTION_WORKFLOW_NAME: 'gitorange-merge-resolution',
+    ACTIONS_LOGS_BUCKET_NAME: 'cloudforge-actions-logs-test',
+    ARTIFACTS_NAMESPACE: 'cloudforge',
+    ACTIONS_WORKFLOW_NAME: 'cloudforge-actions-run',
+    MERGE_RESOLUTION_WORKFLOW_NAME: 'cloudforge-merge-resolution',
     JOB_RUNNER_NAMESPACE_ID: '2e9b604bd8074f37b34f857cad04e2c7',
     MERGE_RESOLVER_NAMESPACE_ID: '78f866a1c792450095145fbd79082892',
     LIVE_NAMESPACE_ID: '9a896aa6a1754ed78b6415ec9b0fd5a7',
@@ -175,8 +175,8 @@ describe('Site admin → Setup', () => {
     expect(byId(body, 'probe-d1').detail).toMatch(/every migration/);
     // The signed probes read a key that doesn't exist, in both buckets.
     expect(probed).toEqual([
-      '/gitorange-lfs-test/__gitorange-setup-probe',
-      '/gitorange-actions-cache-test/__gitorange-setup-probe',
+      '/cloudforge-lfs-test/__cloudforge-setup-probe',
+      '/cloudforge-actions-cache-test/__cloudforge-setup-probe',
     ]);
     for (const v of Object.values(SECRETS)) expect(text).not.toContain(v);
     expect(text).not.toContain('test-analytics-token-value');

@@ -108,7 +108,7 @@ const pullSchema = z
     headRef: z.string(),
     mergeCommitSha: z.string().nullable(),
     mergedBy: publicUserSchema.nullable(),
-    /** GitOrange merged it on its own (auto-merge); mergedBy is then null. */
+    /** CloudForge merged it on its own (auto-merge); mergedBy is then null. */
     mergedAutomatically: z.boolean(),
     mergedAt: z.string().nullable(),
     closedAt: z.string().nullable(),
@@ -804,7 +804,7 @@ const getPullRoute = createRoute({
         stack: stackNodeSchema.nullable(),
         /** Whose move it is, and why; null unless the PR is open with both branches. */
         pullState: pullStateSchema.nullable(),
-        /** GitOrange's timeline entries (state changes), oldest first. */
+        /** CloudForge's timeline entries (state changes), oldest first. */
         events: z.array(prEventSchema),
       }),
       'Pull request'
@@ -1197,7 +1197,7 @@ const retryRebaseRoute = createRoute({
   description:
     'Sets aside where the rebase stopped (rebase_conflict: AI could not resolve a commit, too many commits for AI, ' +
     'and the like) and starts a rebase run, which asks AI again. Needs merge permission. 409 when nothing is ' +
-    'stopped, or for a branch GitOrange never rebases ("Not rebased: ...").',
+    'stopped, or for a branch CloudForge never rebases ("Not rebased: ...").',
   request: { params: numberParams },
   responses: {
     ...json200Response(
@@ -1352,7 +1352,7 @@ pullsRouter.openapi(withdrawRoute, async (c) => {
 
 const flagParams = numberParams.extend({ flagId: z.string() });
 
-/** A rule refused it: a guarded agent's finding without a reason, GitOrange AI and a guarded agent, an assignee. */
+/** A rule refused it: a guarded agent's finding without a reason, CloudForge AI and a guarded agent, an assignee. */
 const json422Response = {
   422: {
     content: { 'application/json': { schema: errorSchema } },
@@ -1528,7 +1528,7 @@ const undoFlagRoute = createRoute({
   tags: ['Pull requests'],
   summary: 'Undo your decision on a finding',
   description:
-    'Reopens an approval, dismissal or request for changes you made (or GitOrange AI made for you), with its ' +
+    'Reopens an approval, dismissal or request for changes you made (or CloudForge AI made for you), with its ' +
     "reason and teach note, while the pull request is open (409 after it merged or closed). 403 for anyone else's.",
   request: { params: flagParams },
   responses: {
@@ -1560,11 +1560,11 @@ const delegateFlagRoute = createRoute({
   method: 'post',
   path: '/{owner}/{repo}/pulls/{number}/review/flags/{flagId}/delegate',
   tags: ['Pull requests'],
-  summary: 'Let GitOrange AI decide a finding now',
+  summary: 'Let CloudForge AI decide a finding now',
   description:
-    "GitOrange AI decides one finding for a person as you, with the instance's reasoning model: approve, request " +
+    "CloudForge AI decides one finding for a person as you, with the instance's reasoning model: approve, request " +
     'changes (its reason is the note), or leave it for you with a reason (always, where no model is set up). ' +
-    'Recorded via "GitOrange AI" and undoable while the pull request is open. Never a guarded agent\'s finding ' +
+    'Recorded via "CloudForge AI" and undoable while the pull request is open. Never a guarded agent\'s finding ' +
     "(422) or an agent's own change request (400). Needs push rights.",
   request: { params: flagParams },
   responses: {
@@ -1575,7 +1575,7 @@ const delegateFlagRoute = createRoute({
         /** False when it left the finding for you. */
         applied: z.boolean(),
       }),
-      'What GitOrange AI decided'
+      'What CloudForge AI decided'
     ),
     ...json400Response,
     ...json403Response,

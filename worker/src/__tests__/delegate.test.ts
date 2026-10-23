@@ -84,7 +84,7 @@ describe('the decider contract', () => {
   });
 });
 
-describe('Let GitOrange AI decide (GET/PUT /api/me/delegations)', () => {
+describe('Let CloudForge AI decide (GET/PUT /api/me/delegations)', () => {
   it('lists every agent, delegates the ones you pick, and refuses a guarded one', async () => {
     const { t, admin } = await questionedPull();
     await newAgent(t, admin, 'securityagent', 'Security');
@@ -145,7 +145,7 @@ describe('Let GitOrange AI decide (GET/PUT /api/me/delegations)', () => {
 });
 
 describe('deciding one finding (decideFinding)', () => {
-  it('approves as the person, via GitOrange AI, and records it', async () => {
+  it('approves as the person, via CloudForge AI, and records it', async () => {
     const { t, person } = await questionedPull();
     const me = await userId(t);
     const decider = fakeDecider();
@@ -179,7 +179,7 @@ describe('deciding one finding (decideFinding)', () => {
         action: 'finding.delegated',
         actor_kind: 'ai',
         actor: 'octocat',
-        via: 'GitOrange AI',
+        via: 'CloudForge AI',
         target: 'Invoice currency',
         data: {
           finding: person.id,
@@ -407,7 +407,7 @@ describe('after a review finishes', () => {
     });
     expect((await flagState(t, change.id))!.approved_at).toBeNull();
 
-    // What GitOrange AI did today, for this person: undoable while the pull request is open.
+    // What CloudForge AI did today, for this person: undoable while the pull request is open.
     const today = (await delegations(t, admin)).today;
     expect(today).toMatchObject([
       {

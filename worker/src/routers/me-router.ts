@@ -17,7 +17,7 @@ export const meRouter = new OpenAPIHono<AppEnv>({
 
 const delegationsSchema = z
   .object({
-    /** Every reviewer agent, and whether GitOrange AI decides its findings on your pull requests. */
+    /** Every reviewer agent, and whether CloudForge AI decides its findings on your pull requests. */
     agents: z.array(
       z.object({
         handle: z.string(),
@@ -29,7 +29,7 @@ const delegationsSchema = z
       })
     ),
     /**
-     * GitOrange AI's answers for you since UTC midnight, newest first (`finding.delegated`). Each one's `data` holds
+     * CloudForge AI's answers for you since UTC midnight, newest first (`finding.delegated`). Each one's `data` holds
      * `finding` (its id), `decision` (approve, request_changes, leave), `reason`, `undone` (it no longer stands) and
      * `undoable` (still standing, on an open pull request: POST .../review/flags/{finding}/undo).
      */
@@ -41,7 +41,7 @@ const getRoute = createRoute({
   method: 'get',
   path: '/delegations',
   tags: ['Users'],
-  summary: 'Let GitOrange AI decide: your agents and what it did today',
+  summary: 'Let CloudForge AI decide: your agents and what it did today',
   responses: {
     ...json200Response(delegationsSchema, 'Your delegations'),
   },
@@ -54,9 +54,9 @@ const putRoute = createRoute({
   method: 'put',
   path: '/delegations',
   tags: ['Users'],
-  summary: 'Choose the agents whose findings GitOrange AI decides for you',
+  summary: 'Choose the agents whose findings CloudForge AI decides for you',
   description:
-    'Replaces the set: GitOrange AI decides these agents’ findings on pull requests you open, as you, right ' +
+    'Replaces the set: CloudForge AI decides these agents’ findings on pull requests you open, as you, right ' +
     'after each review. 400 for an agent nobody has; 422 for a guarded agent (its findings always come to a person).',
   request: {
     body: {

@@ -1,5 +1,5 @@
-// `gitorange adopt --from <checkout>` (spec §7): moves an install made from a git checkout into the
-// package's home (<home>/<slug>/) so `npx gitorange upgrade` can manage it. Files only: no
+// `cloudforge adopt --from <checkout>` (spec §7): moves an install made from a git checkout into the
+// package's home (<home>/<slug>/) so `npx @cybernova2333/cloudforge upgrade` can manage it. Files only: no
 // Cloudflare call, no deploy.
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,17 +20,17 @@ export function pickCheckoutState(
   checkout: string,
   name: string | undefined
 ): InstallState {
-  const dir = join(checkout, '.gitorange');
+  const dir = join(checkout, '.cloudforge');
   const all = listStates(dir);
   if (name !== undefined) {
     const hit = all.find((s) => s.inputs.name === name);
     if (!hit) {
-      throw new UsageError(`No gitorange install named ${name} in ${dir}.`);
+      throw new UsageError(`No cloudforge install named ${name} in ${dir}.`);
     }
     return hit;
   }
   if (all.length === 0) {
-    throw new UsageError(`No gitorange install in ${dir}.`);
+    throw new UsageError(`No cloudforge install in ${dir}.`);
   }
   if (all.length > 1) {
     throw new UsageError(
@@ -47,7 +47,7 @@ export async function adoptFromCheckout(o: {
   io: Io;
   now(): Date;
 }): Promise<{ slug: string; dir: string }> {
-  const checkoutDir = join(o.checkout, '.gitorange');
+  const checkoutDir = join(o.checkout, '.cloudforge');
   const picked = pickCheckoutState(o.checkout, o.name);
   const slug = picked.names.worker;
   const dir = installDir(o.home, slug);

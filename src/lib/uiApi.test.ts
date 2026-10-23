@@ -207,7 +207,7 @@ describe('crew redesign writes', () => {
     ).toEqual({ login: null });
   });
 
-  it('undoes a decision and lets GitOrange AI decide, with no body', async () => {
+  it('undoes a decision and lets CloudForge AI decide, with no body', async () => {
     expect(await sent(() => api.undoFlag('o', 'r', 3, 'f1'))).toEqual({
       url: '/api/repos/o/r/pulls/3/review/flags/f1/undo',
       method: 'POST',

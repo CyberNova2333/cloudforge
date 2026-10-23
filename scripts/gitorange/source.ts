@@ -20,7 +20,7 @@ export type Source = {
   migrationsDir: string; // <root>/migrations
   /** Running version: checkout = git sha[-dirty]; package = package.json version. */
   version(runner: Runner): Promise<string>;
-  /** Package only: the commit the package was built from (package.json `gitorangeCommit`). */
+  /** Package only: the commit the package was built from (package.json `cloudforgeCommit`). */
   commit: string | null;
   /** Package only: absolute paths written into the generated config. */
   build: BuildPaths | null;
@@ -33,7 +33,7 @@ export type Source = {
     configDir: string,
     secretsFile: string | null
   ): { cmd: string; args: string[] };
-  /** A printed command line: `yarn gitorange <args>` or `npx gitorange@<version> <args>`. */
+  /** A printed command line: `yarn cloudforge <args>` or `npx @cybernova2333/cloudforge@<version> <args>`. */
   command(args: string): string;
   /** A printed wrangler command line: `yarn wrangler <args>` or `npx wrangler@<version> <args>`. */
   wranglerCommand(args: string): string;
@@ -79,7 +79,7 @@ export function checkoutSource(root: string): Source {
         ...(secretsFile ? ['--secrets-file', secretsFile] : []),
       ],
     }),
-    command: (args) => `yarn gitorange ${args}`,
+    command: (args) => `yarn cloudforge ${args}`,
     wranglerCommand: (args) => `yarn wrangler ${args}`,
   };
 }
@@ -91,7 +91,7 @@ const MODULE_KEYS = ['no_bundle', 'rules', 'find_additional_modules'];
 export function packageSource(root: string): Source {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
     version: string;
-    gitorangeCommit?: string;
+    cloudforgeCommit?: string;
   };
   const buildJson = JSON.parse(
     readFileSync(join(root, 'worker', 'build.json'), 'utf8')
@@ -124,7 +124,7 @@ export function packageSource(root: string): Source {
     templatePath: join(root, 'wrangler.jsonc.example'),
     migrationsDir: join(root, 'migrations'),
     version: async () => pkg.version,
-    commit: pkg.gitorangeCommit ?? null,
+    commit: pkg.cloudforgeCommit ?? null,
     build: {
       main: join(root, 'worker', 'index.js'),
       assetsDir: join(root, 'client'),
@@ -150,7 +150,7 @@ export function packageSource(root: string): Source {
         ...(secretsFile ? ['--secrets-file', secretsFile] : []),
       ],
     }),
-    command: (args) => `npx gitorange@${pkg.version} ${args}`,
+    command: (args) => `npx @cybernova2333/cloudforge@${pkg.version} ${args}`,
     wranglerCommand: (args) => `npx wrangler@${wranglerPkg.version} ${args}`,
   };
 }

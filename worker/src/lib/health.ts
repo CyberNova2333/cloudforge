@@ -23,10 +23,10 @@ import { mainStatus } from './branches';
 import { GHOST, personRefs } from './person-ref';
 import { pullSessionId } from './sessions';
 
-// A repository's health (Decision 1), measured only from what GitOrange itself knows, week over week (ISO weeks,
+// A repository's health (Decision 1), measured only from what CloudForge itself knows, week over week (ISO weeks,
 // Monday 00:00 UTC): one row per invited reviewer agent (its findings: those that needed a person or asked for
 // changes), "Tests on main" (the share of finished runs on the default branch that failed) and "Merging" (reverts;
-// merges and clashes GitOrange fixed in its status). Every row counts problems, so a row got worse when this week has
+// merges and clashes CloudForge fixed in its status). Every row counts problems, so a row got worse when this week has
 // more than last week. Sentences are plain English for the owner.
 
 export type Trend = 'better' | 'same' | 'worse';
@@ -425,7 +425,7 @@ export async function repoHealth(
           (passLast === null ? '' : `, down from ${passLast}%`),
   });
 
-  // Merging: reverts are its problems; merges and clashes GitOrange fixed say how it went.
+  // Merging: reverts are its problems; merges and clashes CloudForge fixed say how it went.
   const revertWeeks = perWeek(
     reverts.map((r) => r.createdAt.getTime()),
     starts
@@ -447,7 +447,7 @@ export async function repoHealth(
         ? `${merged.length} merged this week`
         : 'Nothing merged this week') +
       (fixed
-        ? `, ${plural(fixed, 'clash', 'clashes')} fixed by GitOrange`
+        ? `, ${plural(fixed, 'clash', 'clashes')} fixed by CloudForge`
         : ''),
     detail: weekOverWeek(
       revertWeeks[last],

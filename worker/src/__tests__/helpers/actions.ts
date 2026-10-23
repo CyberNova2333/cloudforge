@@ -253,7 +253,7 @@ export function harness(
 
 export const script = (r: StepRequest) => r.argv[r.argv.length - 1];
 
-/** The outputs a gitorange/relevance step writes to $GITHUB_OUTPUT, as the real runner reports them. */
+/** The outputs a cloudforge/relevance step writes to $GITHUB_OUTPUT, as the real runner reports them. */
 export function scriptOutputs(r: StepRequest): Record<string, string> {
   const out: Record<string, string> = {};
   for (const m of script(r).matchAll(
@@ -263,7 +263,7 @@ export function scriptOutputs(r: StepRequest): Record<string, string> {
   return out;
 }
 
-/** What a gitorange/relevance step prints: its `echo '…'` lines, as the real runner logs them. */
+/** What a cloudforge/relevance step prints: its `echo '…'` lines, as the real runner logs them. */
 export function scriptLog(r: StepRequest): string {
   return [...script(r).matchAll(/^echo '((?:[^']|'\\'')*)'$/gm)]
     .map((m) => m[1].replace(/'\\''/g, "'"))

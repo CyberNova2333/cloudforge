@@ -359,7 +359,7 @@ export interface AgentReviewDeps {
   /** This Workflow instance, for the Pi reviewer's "settled" event. */
   instanceId?: string;
   /**
-   * The model GitOrange AI decides delegated findings with once a review finishes ("Let Claude decide"); undefined:
+   * The model CloudForge AI decides delegated findings with once a review finishes ("Let Claude decide"); undefined:
    * the instance's reasoning model (none without an AI binding), null: none.
    */
   delegate?: DelegateModel | null;
@@ -985,7 +985,7 @@ async function reviewHead(
     await startStacking(env, db, pr.id, headSha);
     return true;
   });
-  // Findings of agents the author delegated: GitOrange AI decides them before auto-merge looks. Never throws. A
+  // Findings of agents the author delegated: CloudForge AI decides them before auto-merge looks. Never throws. A
   // step only for someone who delegates (steps are keyed by name, so a replay that skips or adds it is fine).
   if (await delegatesAny(db, pr.authorId))
     await step.do('delegate', async () => {

@@ -1,7 +1,7 @@
-// Publishes a GitOrange release to npm from this machine:
+// Publishes a CloudForge release to npm from this machine:
 //   yarn release:publish vX.Y.Z
 // Builds from a throwaway worktree of the tag, never the working copy. The tag must be on origin's main. Before asking, it
-// runs CI's Package job on the packed build (dry-run deploy of a generated config, `gitorange --help` from the installed
+// runs CI's Package job on the packed build (dry-run deploy of a generated config, `cloudforge --help` from the installed
 // tarball), then publishes that tarball. npm asks for the 2FA code itself.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
@@ -58,9 +58,9 @@ async function main() {
     fetchImpl: fetch,
     runner: processRunner,
   });
-  const tmp = mkdtempSync(join(tmpdir(), 'gitorange-release-'));
+  const tmp = mkdtempSync(join(tmpdir(), 'cloudforge-release-'));
   // Outside the worktree, so the tarball installs into an app of its own (as CI's RUNNER_TEMP).
-  const scratch = mkdtempSync(join(tmpdir(), 'gitorange-release-smoke-'));
+  const scratch = mkdtempSync(join(tmpdir(), 'cloudforge-release-smoke-'));
   try {
     execFileSync('git', worktreeAddArgs(REPO, tmp, commit), {
       stdio: 'inherit',
@@ -100,20 +100,20 @@ async function main() {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'inherit'],
     });
-    if (help.status !== 0) throw new Error('gitorange --help failed');
+    if (help.status !== 0) throw new Error('cloudforge --help failed');
     const missing = missingCommands(help.stdout);
     if (missing.length > 0) {
-      throw new Error(`gitorange --help does not list ${missing.join(', ')}`);
+      throw new Error(`cloudforge --help does not list ${missing.join(', ')}`);
     }
     console.log(
       `\n${name}@${version}\ncommit ${commit}\n${files} files, ${(bytes / 1048576).toFixed(1)} MB`
     );
-    console.log("Publish only tags cut in GitOrange's Releases tab.");
+    console.log("Publish only tags cut in CloudForge's Releases tab.");
     const rl = createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    const answer = await rl.question(`Publish gitorange@${version}? (y/N) `);
+    const answer = await rl.question(`Publish cloudforge@${version}? (y/N) `);
     rl.close();
     if (!/^y(es)?$/i.test(answer.trim())) {
       console.log('Not published.');
@@ -121,7 +121,7 @@ async function main() {
     }
     // The tarball the smoke installed, so what was checked is what is published.
     step('npm', ['publish', smoke.tarball, '--access', 'public'], tmp);
-    console.log(`Published gitorange@${version}.`);
+    console.log(`Published cloudforge@${version}.`);
   } finally {
     spawnSync('git', ['-C', REPO, 'worktree', 'remove', '--force', tmp], {
       stdio: 'ignore',

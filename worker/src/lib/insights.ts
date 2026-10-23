@@ -8,7 +8,7 @@ export const INSIGHT_PERIODS = [7, 30, 90, 365] as const;
 
 /**
  * How pull requests fared in one repository over the last `days` days: how many were opened and
- * merged, how many GitOrange merged on its own, how often the auto-merge review needed a person,
+ * merged, how many CloudForge merged on its own, how often the auto-merge review needed a person,
  * AI conflict resolution, CI on pull requests, and what agents learned. Events count in the period they happened in
  * (merged → merged_at, a flag → when it was raised); "now" fields are a snapshot.
  *

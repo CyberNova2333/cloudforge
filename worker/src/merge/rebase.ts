@@ -1,5 +1,5 @@
 /**
- * Rebase runs. GitOrange keeps each open pull request rebased onto its base_ref (a parent pull request's branch while
+ * Rebase runs. CloudForge keeps each open pull request rebased onto its base_ref (a parent pull request's branch while
  * stacked, else the land target): a `rebase` payload on MERGE_RESOLUTION replays the pull request's own commits
  * (git/rebase.ts) and replaces the branch with compare-and-swap on the old head, keeping the old head as
  * refs/pull/N/pre-rebase/<sha7>. A commit whose replay conflicts gets a merge_resolutions row: AI resolves its text
@@ -120,7 +120,7 @@ export const stopMessage = {
 };
 
 /**
- * Why GitOrange must not rewrite this pull request's branch, or null. The default branch is shared history, and so is
+ * Why CloudForge must not rewrite this pull request's branch, or null. The default branch is shared history, and so is
  * any branch matching the repository's protected branch patterns (release/*, develop: lib/protected-branches.ts); a
  * head that another open pull request uses with a different base would be rebased onto each base in turn, each write
  * re-queueing the other, forever. A pull request opened against this branch (hand-stacked) doesn't block it: it
@@ -330,7 +330,7 @@ export async function ensureRebase(
     // Up to date (or git can't say), or the base already has all of it: nothing to replay.
     if ((await contains(git, tips.onto, tips.head)) !== false) return false;
     if ((await contains(git, tips.head, tips.onto)) === true) return false;
-    // A branch GitOrange must not rewrite: say why, and queue nothing.
+    // A branch CloudForge must not rewrite: say why, and queue nothing.
     const blocked = await rebaseBlocked(db, pr);
     if (blocked) {
       await recordStop(db, pr.id, tips, {
@@ -401,7 +401,7 @@ export type RetryRebase =
  * then a rebase run starts. The run reuses those rows: it claims a set-aside commit afresh, asking AI again with a new
  * resolver (claimResolution; the failed attempt's usage and transcript keep their own keys), or records the same stop
  * again (recordStop). Refused when
- * nothing is stopped, or for a branch GitOrange doesn't rewrite ("Not rebased: ..."), which only that branch's owner
+ * nothing is stopped, or for a branch CloudForge doesn't rewrite ("Not rebased: ..."), which only that branch's owner
  * can bring up to date.
  */
 export async function retryRebase(
@@ -416,7 +416,7 @@ export async function retryRebase(
     return {
       ok: false,
       error:
-        'GitOrange does not rebase pull requests on this instance: rebase it locally.',
+        'CloudForge does not rebase pull requests on this instance: rebase it locally.',
     };
   const tips = await rebaseTips(git, pr);
   if (!tips)
@@ -429,7 +429,7 @@ export async function retryRebase(
         view.status === 'resolving'
           ? `Nothing to retry: AI is resolving ${view.commit ? `commit ${sha7(view.commit)}` : 'a conflict'} now.`
           : view.status === 'behind'
-            ? `Nothing to retry: GitOrange is rebasing it onto ${view.onto}.`
+            ? `Nothing to retry: CloudForge is rebasing it onto ${view.onto}.`
             : `Nothing to retry: it is up to date with ${view.onto}.`,
     };
   if (isNotRebased(view.error)) return { ok: false, error: view.error! };
@@ -959,7 +959,7 @@ export type RebaseView = {
 
 /**
  * Where an open pull request stands against its base: nothing to merge (the base has it all, by ancestry or as a
- * rebase run found), up to date, behind (GitOrange rebases it, and landing does too), resolving (AI is resolving a
+ * rebase run found), up to date, behind (CloudForge rebases it, and landing does too), resolving (AI is resolving a
  * commit), or a conflict for the agent. Where no rebase runs (no
  * MERGE_RESOLUTION binding), a dry run says whether landing's rebase would stop.
  */
@@ -980,7 +980,7 @@ export async function rebaseView(
     return { ...view, status: 'nothing_to_merge' };
   if ((await contains(git, tips.onto, tips.head)) === true)
     return { ...view, status: 'up_to_date' };
-  // A branch GitOrange doesn't rewrite: why, whatever was recorded (a lifted block's row is ignored below).
+  // A branch CloudForge doesn't rewrite: why, whatever was recorded (a lifted block's row is ignored below).
   const blocked = await rebaseBlocked(db, pr);
   if (blocked) return { ...view, status: 'conflict', error: blocked };
   const row = await latestResolution(db, pr.id);

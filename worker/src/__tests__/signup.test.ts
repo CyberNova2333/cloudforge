@@ -101,7 +101,7 @@ describe('self sign-up', () => {
     ).toBe(200);
     expect(t.sent.length).toBe(before);
     await expect(signIn(t, 'eve', 'password123')).resolves.toContain(
-      'gitorange'
+      'cloudforge'
     );
   });
 
@@ -182,7 +182,7 @@ describe('self sign-up', () => {
     const { t, admin } = await setup();
     await setting(t, admin, 'signup.enabled', true);
     // addMember signs the new member in; it throws if sign-in is refused.
-    await expect(addMember(t, admin, 'bob')).resolves.toContain('gitorange');
+    await expect(addMember(t, admin, 'bob')).resolves.toContain('cloudforge');
   });
 });
 
@@ -215,7 +215,7 @@ describe('verified emails', () => {
     expect(await verified(t, 'eve')).toBe(false);
     // The admin API's account signs in while verification is required.
     await expect(signIn(t, 'carol', 'password123')).resolves.toContain(
-      'gitorange'
+      'cloudforge'
     );
   });
 

@@ -28,7 +28,7 @@ let root: string;
 let home: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gitorange-adopt-worker-'));
+  root = mkdtempSync(join(tmpdir(), 'cloudforge-adopt-worker-'));
   home = join(root, 'home');
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
@@ -74,11 +74,11 @@ const BINDINGS: WorkerBinding[] = [
   { type: 'send_email', name: 'EMAIL' },
   { type: 'plain_text', name: 'BASE_URL', text: W_BASE },
   { type: 'plain_text', name: 'FROM_EMAIL', text: 'noreply@acme.dev' },
-  { type: 'plain_text', name: 'APP_NAME', text: 'GitOrange' },
+  { type: 'plain_text', name: 'APP_NAME', text: 'CloudForge' },
   { type: 'plain_text', name: 'JOB_RUNNER_NAMESPACE_ID', text: 'ns-job' },
   { type: 'plain_text', name: 'LIVE_NAMESPACE_ID', text: '' },
-  { type: 'plain_text', name: 'GITORANGE_VERSION', text: '' },
-  { type: 'plain_text', name: 'GITORANGE_INSTALLATION', text: '' },
+  { type: 'plain_text', name: 'CLOUDFORGE_VERSION', text: '' },
+  { type: 'plain_text', name: 'CLOUDFORGE_INSTALLATION', text: '' },
   { type: 'secret_text', name: 'BETTER_AUTH_SECRET' },
   { type: 'secret_text', name: 'R2_ACCESS_KEY_ID' },
   { type: 'secret_text', name: 'R2_SECRET_ACCESS_KEY' },
@@ -256,7 +256,7 @@ describe('adoptWorker', () => {
     expect(config).toContain('"namespace": "acme-git"');
     expect(config).toContain('"name": "acme-merge"');
     expect(config).toContain(
-      join(root, 'pkg', 'gitorange', 'worker', 'index.js')
+      join(root, 'pkg', 'cloudforge', 'worker', 'index.js')
     );
     expect(statSync(join(dest(), 'wrangler.jsonc')).mode & 0o777).toBe(0o600);
     expect(statSync(dest()).mode & 0o777).toBe(0o700);
@@ -277,7 +277,7 @@ describe('adoptWorker', () => {
       ].join('\n')
     );
     expect(h.text()).toContain(
-      `Adopted acme into ${dest()}.\nCheck it: npx gitorange@1.3.0 status --name acme\nUpgrade it: npx gitorange@1.3.0 upgrade --name acme`
+      `Adopted acme into ${dest()}.\nCheck it: npx @cybernova2333/cloudforge@1.3.0 status --name acme\nUpgrade it: npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme`
     );
   });
 
@@ -332,7 +332,7 @@ describe('adoptWorker', () => {
       ]),
     });
     await expect(run(h)).rejects.toThrow(
-      "Worker acme has bindings GitOrange's template does not: CACHE (kv_namespace). Nothing was changed."
+      "Worker acme has bindings CloudForge's template does not: CACHE (kv_namespace). Nothing was changed."
     );
     // A template name with the wrong type, and a Durable Object binding to another worker's class.
     const typed = workerHarness({
@@ -371,7 +371,7 @@ describe('adoptWorker', () => {
       ]),
     });
     await expect(run(bound)).rejects.toThrow(
-      "Worker acme has Durable Object classes GitOrange's template does not declare: SessionStore. The first upgrade's config declares exactly the template's classes (JobRunner, ActionsQueue, MergeResolver, AgentReviewer, LiveHub). Nothing was changed."
+      "Worker acme has Durable Object classes CloudForge's template does not declare: SessionStore. The first upgrade's config declares exactly the template's classes (JobRunner, ActionsQueue, MergeResolver, AgentReviewer, LiveHub). Nothing was changed."
     );
     // A class the worker exports without binding it counts too.
     const unbound = workerHarness({
@@ -384,7 +384,7 @@ describe('adoptWorker', () => {
       }),
     });
     await expect(run(unbound)).rejects.toThrow(
-      "Durable Object classes GitOrange's template does not declare: OldHub."
+      "Durable Object classes CloudForge's template does not declare: OldHub."
     );
     expect(existsSync(home)).toBe(false);
   });
@@ -556,7 +556,7 @@ describe('adoptWorker', () => {
     expect(p.report).toContain(
       `  TRUSTED_ORIGINS  ${JSON.stringify(value)} -> removed (drops local development origins)`
     );
-    // GitOrange has retired no var yet; the rule is the same as saasmail's.
+    // CloudForge has retired no var yet; the rule is the same as saasmail's.
     expect(
       varChanges(
         {
@@ -565,15 +565,15 @@ describe('adoptWorker', () => {
           WORKER_NAME: 'mine',
           APP_NAME: 'Mine',
         },
-        { WORKER_NAME: 'acme', APP_NAME: 'GitOrange' },
+        { WORKER_NAME: 'acme', APP_NAME: 'CloudForge' },
         new Set(['OLD_LOGO'])
       )
     ).toEqual({
       stops: [
-        '  FEATURE_X  "on" -> removed (GitOrange\'s config does not set it)',
+        '  FEATURE_X  "on" -> removed (CloudForge\'s config does not set it)',
         '  WORKER_NAME  "mine" -> "acme"',
       ],
-      drops: ['  OLD_LOGO  "x" -> removed (GitOrange no longer reads it)'],
+      drops: ['  OLD_LOGO  "x" -> removed (CloudForge no longer reads it)'],
     });
   });
 
@@ -581,8 +581,8 @@ describe('adoptWorker', () => {
     const h = workerHarness({
       seed: workerSeed({}, [
         ...without('APP_NAME'),
-        { type: 'plain_text', name: 'APP_NAME', text: 'XY SPACE GitOrange' },
-        { type: 'plain_text', name: 'AI_GATEWAY', text: 'xyspace-gitorange' },
+        { type: 'plain_text', name: 'APP_NAME', text: 'XY SPACE CloudForge' },
+        { type: 'plain_text', name: 'AI_GATEWAY', text: 'xyspace-cloudforge' },
         {
           type: 'plain_text',
           name: 'REVIEW_MODEL',
@@ -593,20 +593,20 @@ describe('adoptWorker', () => {
     const s = await run(h);
     // REVIEW_MODEL equals the template's default: nothing to keep.
     expect(s.inputs.vars).toEqual({
-      AI_GATEWAY: 'xyspace-gitorange',
-      APP_NAME: 'XY SPACE GitOrange',
+      AI_GATEWAY: 'xyspace-cloudforge',
+      APP_NAME: 'XY SPACE CloudForge',
     });
     const config = readFileSync(join(dest(), 'wrangler.jsonc'), 'utf8');
-    expect(config).toContain('"APP_NAME": "XY SPACE GitOrange"');
-    expect(config).toContain('"AI_GATEWAY": "xyspace-gitorange"');
+    expect(config).toContain('"APP_NAME": "XY SPACE CloudForge"');
+    expect(config).toContain('"AI_GATEWAY": "xyspace-cloudforge"');
     expect(h.text()).toContain(
-      '  Kept: AI_GATEWAY "xyspace-gitorange"\n  Kept: APP_NAME "XY SPACE GitOrange"'
+      '  Kept: AI_GATEWAY "xyspace-cloudforge"\n  Kept: APP_NAME "XY SPACE CloudForge"'
     );
     // An unknown changed var still stops, next to kept ones.
     const stop = workerHarness({
       seed: workerSeed({}, [
         ...BINDINGS,
-        { type: 'plain_text', name: 'AI_GATEWAY', text: 'xyspace-gitorange' },
+        { type: 'plain_text', name: 'AI_GATEWAY', text: 'xyspace-cloudforge' },
         { type: 'plain_text', name: 'FEATURE_X', text: 'on' },
       ]),
     });
@@ -676,9 +676,9 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('GITORANGE_VERSION is the running version when the site does not say', async () => {
+  it('CLOUDFORGE_VERSION is the running version when the site does not say', async () => {
     const h = workerHarness({
-      seed: workerSeed({}, withVar('GITORANGE_VERSION', '1.3.0')),
+      seed: workerSeed({}, withVar('CLOUDFORGE_VERSION', '1.3.0')),
     });
     const p = await plan(h);
     expect(p.state.deployedVersion).toBe('1.3.0');
@@ -724,15 +724,15 @@ describe('adoptWorker: the report and its stops', () => {
     ).rejects.toThrow('The worker has no D1 binding DB');
   });
 
-  it('a worker that already carries GITORANGE_INSTALLATION stops', async () => {
+  it('a worker that already carries CLOUDFORGE_INSTALLATION stops', async () => {
     const h = workerHarness({
       seed: workerSeed(
         {},
-        withVar('GITORANGE_INSTALLATION', '{"installationId":"acme-1"}')
+        withVar('CLOUDFORGE_INSTALLATION', '{"installationId":"acme-1"}')
       ),
     });
     await expect(plan(h)).rejects.toThrow(
-      'Worker acme already carries a gitorange installation (GITORANGE_INSTALLATION): adopt it from its checkout with npx gitorange@1.3.0 adopt --from <checkout>. Nothing was changed.'
+      'Worker acme already carries a cloudforge installation (CLOUDFORGE_INSTALLATION): adopt it from its checkout with npx @cybernova2333/cloudforge@1.3.0 adopt --from <checkout>. Nothing was changed.'
     );
   });
 
@@ -785,7 +785,7 @@ describe('adoptWorker: the report and its stops', () => {
       ),
     });
     await expect(plan(h)).rejects.toThrow(
-      `  TRUSTED_ORIGINS  "http://localhost:8080,https://admin.acme.dev" -> removed (GitOrange's config does not set it)`
+      `  TRUSTED_ORIGINS  "http://localhost:8080,https://admin.acme.dev" -> removed (CloudForge's config does not set it)`
     );
   });
 

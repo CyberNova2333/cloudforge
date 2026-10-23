@@ -61,7 +61,7 @@ export default function RepoActions() {
         title={t('Actions')}
         tab="actions"
         lede={t(
-          'Your workflows run on Cloudflare Containers. Every AI process GitOrange runs, such as reviews, rebases and conflict fixes, is listed under Agent runs.'
+          'Your workflows run on Cloudflare Containers. Every AI process CloudForge runs, such as reviews, rebases and conflict fixes, is listed under Agent runs.'
         )}
       />
       <nav className="act-tabs" aria-label={t('Actions')}>
@@ -181,7 +181,7 @@ function WorkflowRuns({
               local: <code>./path</code>,
               needs: <code>needs</code>,
               if: <code>if</code>,
-              runsOn: <code>runs-on: gitorange-standard-2</code>,
+              runsOn: <code>runs-on: cloudforge-standard-2</code>,
               max: <code>standard-4</code>,
             }
           )}

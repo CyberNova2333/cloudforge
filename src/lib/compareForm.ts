@@ -33,7 +33,7 @@ export function prefillTitle(commits: Commit[], head: string): string {
 export interface ComparisonView {
   /** There is something to open a pull request for: commits, and the head is not behind the base. */
   ready: boolean;
-  /** "Able to merge": it is mergeable or only ahead, so GitOrange can rebase it cleanly. */
+  /** "Able to merge": it is mergeable or only ahead, so CloudForge can rebase it cleanly. */
   canRebase: boolean;
   /** "Can't rebase automatically": there are conflicts (a pull request can still be opened). */
   conflicts: boolean;

@@ -64,7 +64,7 @@ let root: string;
 let home: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gitorange-upgrade-'));
+  root = mkdtempSync(join(tmpdir(), 'cloudforge-upgrade-'));
   home = join(root, 'home', 'acme');
   mkdirSync(home, { recursive: true });
 });
@@ -130,7 +130,7 @@ function seedFor(s: InstallState): FakeCloudflareSeed {
     ],
     workerVars: {
       acme: {
-        GITORANGE_INSTALLATION: JSON.stringify({
+        CLOUDFORGE_INSTALLATION: JSON.stringify({
           installationId: s.installationId,
           ownershipNonce: s.ownershipNonce,
         }),
@@ -238,7 +238,7 @@ function harness(
         : input instanceof URL
           ? input.href
           : input.url;
-    if (url === `${BASE}/.well-known/gitorange`) {
+    if (url === `${BASE}/.well-known/cloudforge`) {
       const deployed = deploys.length > 0 && deployResult.code === 0;
       if (down && !deployed) throw new TypeError('fetch failed');
       return Response.json({
@@ -356,7 +356,7 @@ describe('planUpgrade', () => {
       },
     });
     await expect(planUpgrade(h.ctx, h.state)).rejects.toThrow(
-      'D1 acme-db has tables but no d1_migrations table; GitOrange cannot tell which migrations ran.'
+      'D1 acme-db has tables but no d1_migrations table; CloudForge cannot tell which migrations ran.'
     );
     await expect(run(h)).rejects.toThrow('no d1_migrations table');
     expect(h.deploys).toHaveLength(0);
@@ -415,7 +415,7 @@ describe('upgrade', () => {
     const s = await run(h);
     const config = readFileSync(join(home, 'wrangler.jsonc'), 'utf8');
     expect(config).toContain('"AI_GATEWAY": "mine"');
-    expect(config).toContain('"APP_NAME": "GitOrange"');
+    expect(config).toContain('"APP_NAME": "CloudForge"');
     expect(s.inputs.vars).toEqual({ AI_GATEWAY: 'mine' });
   });
 
@@ -453,7 +453,7 @@ describe('upgrade', () => {
   it('downgrade refused', async () => {
     const h = harness({ running: '1.4.0' });
     await expect(run(h)).rejects.toThrow(
-      'Run that version instead: npx gitorange@1.4.0 upgrade --name acme'
+      'Run that version instead: npx @cybernova2333/cloudforge@1.4.0 upgrade --name acme'
     );
     expect(h.nonDocker()).toHaveLength(0);
     expect(h.saved().status).toBe('installed');
@@ -531,10 +531,10 @@ describe('upgrade', () => {
     expect(e).toBeInstanceOf(Error);
     const m = (e as Error).message;
     expect(m).toContain('not a release');
-    expect(m).toContain('stock GitOrange');
+    expect(m).toContain('stock CloudForge');
     expect(m).toContain('own checkout');
     expect(m).toContain(
-      'npx gitorange@1.3.0 upgrade --name acme --replace-custom-code'
+      'npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --replace-custom-code'
     );
     expect(h.nonDocker()).toHaveLength(0);
   });
@@ -544,7 +544,7 @@ describe('upgrade', () => {
     const s = await run(h, { replaceCustomCode: true });
     expect(s.status).toBe('installed');
     expect(h.printed.join('\n')).toContain(
-      'Replacing custom code: deadbeef1234-dirty (uncommitted changes) → GitOrange 1.3.0'
+      'Replacing custom code: deadbeef1234-dirty (uncommitted changes) → CloudForge 1.3.0'
     );
   });
 
@@ -659,7 +659,7 @@ describe('upgrade', () => {
     h.failDeploys();
     const e = await run(h).catch((x: Error) => x);
     expect((e as Error).message).toContain(
-      'Run: npx gitorange@1.3.0 upgrade --resume --name acme'
+      'Run: npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
     );
     const failed = h.saved();
     expect(failed.status).toBe('failed');
@@ -742,7 +742,9 @@ describe('upgrade', () => {
     const e = await run(h).catch((x: Error) => x);
     const m = (e as Error).message;
     expect(m).toContain('anyone could claim this instance');
-    expect(m).toContain('npx gitorange@1.3.0 upgrade --resume --name acme');
+    expect(m).toContain(
+      'npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
+    );
     expect(m).not.toContain('install --resume');
   });
 
@@ -751,7 +753,7 @@ describe('upgrade', () => {
       state: { ...installedAt120(), status: 'failed', upgradeTarget: '1.2.5' },
     });
     await expect(run(h, { resume: true })).rejects.toThrow(
-      'An upgrade to 1.2.5 is unfinished; run npx gitorange@1.2.5 upgrade --resume'
+      'An upgrade to 1.2.5 is unfinished; run npx @cybernova2333/cloudforge@1.2.5 upgrade --resume'
     );
     expect(h.deploys).toHaveLength(0);
   });
@@ -906,7 +908,7 @@ describe('upgrade', () => {
     expect(h.deploys).toHaveLength(0);
     const p = await planUpgrade(h.ctx, h.state);
     expect(h.printed.join('\n')).toContain(
-      `npx gitorange@${TO} upgrade --name acme --expect-plan ${p.digest} --yes`
+      `npx @cybernova2333/cloudforge@${TO} upgrade --name acme --expect-plan ${p.digest} --yes`
     );
   });
 });

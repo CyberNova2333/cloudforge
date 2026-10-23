@@ -248,11 +248,11 @@ export function saveScript(paths: string[], key: string): string {
     'if [ -z "$existing" ]; then echo "Nothing to cache: none of the paths exist."; exit 0; fi',
     `echo ${quote(`Saving cache: ${key}`)}`,
     'start=$(date +%s)',
-    'printf "%s\\n" "$existing" | tar -cPf - -T - | zstd -T0 -3 -q -o /tmp/gitorange-cache.tar.zst',
-    'size=$(stat -c %s /tmp/gitorange-cache.tar.zst)',
-    `if [ "$size" -gt ${MAX_CACHE_ENTRY_BYTES} ]; then echo "The cache is $size bytes, over the 5 GB limit; not saving it."; rm -f /tmp/gitorange-cache.tar.zst; exit 0; fi`,
-    'curl -fsS --retry 3 -X PUT -H "Content-Type: application/zstd" -T /tmp/gitorange-cache.tar.zst "$CACHE_URL" -o /dev/null',
-    'rm -f /tmp/gitorange-cache.tar.zst',
+    'printf "%s\\n" "$existing" | tar -cPf - -T - | zstd -T0 -3 -q -o /tmp/cloudforge-cache.tar.zst',
+    'size=$(stat -c %s /tmp/cloudforge-cache.tar.zst)',
+    `if [ "$size" -gt ${MAX_CACHE_ENTRY_BYTES} ]; then echo "The cache is $size bytes, over the 5 GB limit; not saving it."; rm -f /tmp/cloudforge-cache.tar.zst; exit 0; fi`,
+    'curl -fsS --retry 3 -X PUT -H "Content-Type: application/zstd" -T /tmp/cloudforge-cache.tar.zst "$CACHE_URL" -o /dev/null',
+    'rm -f /tmp/cloudforge-cache.tar.zst',
     'echo "Saved $(( size / 1048576 )) MB in $(( $(date +%s) - start ))s"',
   ].join('\n');
 }

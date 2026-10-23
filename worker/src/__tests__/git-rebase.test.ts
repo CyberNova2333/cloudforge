@@ -100,8 +100,8 @@ describe('rebase', () => {
       expect(c.author).toEqual(ALICE);
       expect(c.authoredAt).toBe(repo.parseCommit(original)!.authoredAt);
       expect(c.committer).toEqual({
-        name: 'GitOrange',
-        email: 'noreply@gitorange',
+        name: 'CloudForge',
+        email: 'noreply@cloudforge',
       });
       expect(c.committedAt).toBe(AT.timestamp);
     }
@@ -613,8 +613,8 @@ describe('rebase', () => {
     const carry = repo.parseCommit(r.head)!;
     expect(carry.message).toBe(CARRY_OVER_MESSAGE);
     expect(carry.author).toEqual({
-      name: 'GitOrange',
-      email: 'noreply@gitorange',
+      name: 'CloudForge',
+      email: 'noreply@cloudforge',
     });
     expect(carry.parents).toEqual([r.commits[0].rebased]);
     expect(await text(git, r.head, 'a.txt')).toBe(

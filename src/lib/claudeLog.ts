@@ -1,5 +1,5 @@
 /**
- * Sentences for GitOrange AI's answers ("Let Claude decide", shown as Claude) and for one finding's history.
+ * Sentences for CloudForge AI's answers ("Let Claude decide", shown as Claude) and for one finding's history.
  * A small local stand-in until the shared audit sentences (`auditText.ts`, crew redesign C12) land; the final
  * review may fold these into it.
  */
@@ -7,9 +7,9 @@ import { lang, t } from './i18n';
 import { withVia } from './via';
 import type { AuditEvent, DelegatedEvent, PersonRef } from './uiApi';
 
-/** How GitOrange AI's decisions are recorded (`decidedVia`, `audit.via`). */
-export const AI_VIA = 'GitOrange AI';
-/** What the interface calls GitOrange AI. */
+/** How CloudForge AI's decisions are recorded (`decidedVia`, `audit.via`). */
+export const AI_VIA = 'CloudForge AI';
+/** What the interface calls CloudForge AI. */
 export const AI_NAME = 'Claude';
 
 export const isAiVia = (via: string | null | undefined) => via === AI_VIA;
@@ -95,7 +95,7 @@ export function findingEventText(
   ctx: { me: string | null; agentName: string }
 ): string {
   const actor =
-    e.actor.kind === 'system' ? 'GitOrange' : capital(named(e.actor, ctx.me));
+    e.actor.kind === 'system' ? 'CloudForge' : capital(named(e.actor, ctx.me));
   const who = isAiVia(e.via) ? actor : withVia(actor, e.via);
   const forWhom = named(e.actor, ctx.me);
   const d = e.data;

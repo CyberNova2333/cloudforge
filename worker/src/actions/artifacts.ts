@@ -140,7 +140,7 @@ const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
  * Finds the files like upload-artifact does (globs with `**`, `!` excludes, hidden files left out unless asked)
  * and zips them relative to the search paths' least common ancestor, so `path: dist/` stores dist's contents
  * at the root. Reads ARTIFACT_PATHS, ARTIFACT_NAME, ARTIFACT_IF_NO_FILES, ARTIFACT_LEVEL and ARTIFACT_HIDDEN;
- * writes /tmp/gitorange-artifact.zip (absent when there was nothing to upload).
+ * writes /tmp/cloudforge-artifact.zip (absent when there was nothing to upload).
  */
 const ZIP_PY = String.raw`
 import glob, hashlib, os, sys, zipfile
@@ -187,7 +187,7 @@ if not files:
         sys.exit(1)
     print(('Warning: ' if mode == 'warn' else '') + msg + ' No artifacts will be uploaded.')
     sys.exit(0)
-out = '/tmp/gitorange-artifact.zip'
+out = '/tmp/cloudforge-artifact.zip'
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED if level else zipfile.ZIP_STORED, compresslevel=level or None) as z:
     for f in sorted(files):
         z.write(f, os.path.relpath(f, root))
@@ -196,7 +196,7 @@ h = hashlib.sha256()
 with open(out, 'rb') as fh:
     for chunk in iter(lambda: fh.read(1 << 20), b''):
         h.update(chunk)
-with open('/tmp/gitorange-artifact.sha256', 'w') as fh:
+with open('/tmp/cloudforge-artifact.sha256', 'w') as fh:
     fh.write(h.hexdigest())
 print("With the provided path, there will be %d file%s uploaded as '%s' (%d bytes zipped)." % (len(files), '' if len(files) == 1 else 's', name, size))
 `;
@@ -209,23 +209,23 @@ export function uploadScript(opts: {
 }): string {
   return [
     'set -e',
-    'rm -f /tmp/gitorange-artifact.zip /tmp/gitorange-artifact.sha256',
+    'rm -f /tmp/cloudforge-artifact.zip /tmp/cloudforge-artifact.sha256',
     ...(opts.retentionDays
       ? [
           `echo ${quote('Note: retention-days is not used here; artifacts are kept as long as their run (the Actions retention setting).')}`,
         ]
       : []),
-    `python3 - <<'GITORANGE_ZIP'\n${ZIP_PY.trim()}\nGITORANGE_ZIP`,
-    '[ -f /tmp/gitorange-artifact.zip ] || exit 0',
-    'size=$(stat -c %s /tmp/gitorange-artifact.zip)',
-    `if [ "$size" -gt ${MAX_CACHE_ENTRY_BYTES} ]; then echo "Error: the artifact is $size bytes zipped, over the 5 GB limit."; rm -f /tmp/gitorange-artifact.zip; exit 1; fi`,
-    'curl -fsS --retry 3 -X PUT -H "Content-Type: application/zip" -T /tmp/gitorange-artifact.zip "$ARTIFACT_URL" -o /dev/null',
-    'rm -f /tmp/gitorange-artifact.zip',
+    `python3 - <<'CLOUDFORGE_ZIP'\n${ZIP_PY.trim()}\nCLOUDFORGE_ZIP`,
+    '[ -f /tmp/cloudforge-artifact.zip ] || exit 0',
+    'size=$(stat -c %s /tmp/cloudforge-artifact.zip)',
+    `if [ "$size" -gt ${MAX_CACHE_ENTRY_BYTES} ]; then echo "Error: the artifact is $size bytes zipped, over the 5 GB limit."; rm -f /tmp/cloudforge-artifact.zip; exit 1; fi`,
+    'curl -fsS --retry 3 -X PUT -H "Content-Type: application/zip" -T /tmp/cloudforge-artifact.zip "$ARTIFACT_URL" -o /dev/null',
+    'rm -f /tmp/cloudforge-artifact.zip',
     `echo "Artifact '$ARTIFACT_NAME' uploaded."`,
     `echo ${quote(`artifact-id=${opts.id}`)} >> "$GITHUB_OUTPUT"`,
     `echo ${quote(`artifact-url=${opts.url}`)} >> "$GITHUB_OUTPUT"`,
-    '[ -f /tmp/gitorange-artifact.sha256 ] && echo "artifact-digest=$(cat /tmp/gitorange-artifact.sha256)" >> "$GITHUB_OUTPUT"',
-    'rm -f /tmp/gitorange-artifact.sha256',
+    '[ -f /tmp/cloudforge-artifact.sha256 ] && echo "artifact-digest=$(cat /tmp/cloudforge-artifact.sha256)" >> "$GITHUB_OUTPUT"',
+    'rm -f /tmp/cloudforge-artifact.sha256',
   ].join('\n');
 }
 
@@ -240,9 +240,9 @@ export function downloadScript(
     ...items.flatMap((a, i) => [
       `echo ${quote(`Downloading artifact '${a.name}' to ${a.dir}`)}`,
       `mkdir -p ${quote(a.dir)}`,
-      `curl -fsSL --retry 3 "$ARTIFACT_URL_${i}" -o /tmp/gitorange-artifact-${i}.zip`,
-      `unzip -oq /tmp/gitorange-artifact-${i}.zip -d ${quote(a.dir)}`,
-      `rm -f /tmp/gitorange-artifact-${i}.zip`,
+      `curl -fsSL --retry 3 "$ARTIFACT_URL_${i}" -o /tmp/cloudforge-artifact-${i}.zip`,
+      `unzip -oq /tmp/cloudforge-artifact-${i}.zip -d ${quote(a.dir)}`,
+      `rm -f /tmp/cloudforge-artifact-${i}.zip`,
     ]),
     `echo ${quote(`Downloaded ${items.length} artifact${items.length === 1 ? '' : 's'}.`)}`,
     `echo ${quote(`download-path=${downloadPath}`)} >> "$GITHUB_OUTPUT"`,

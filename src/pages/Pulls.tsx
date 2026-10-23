@@ -13,7 +13,7 @@ import { PullBoard } from '@/components/PullBoard';
 import { PullGraph } from '@/components/PullGraph';
 import { PullList } from '@/components/PullList';
 
-const VIEW_KEY = 'gitorange.pulls.view';
+const VIEW_KEY = 'cloudforge.pulls.view';
 
 /** The view a person last chose, so the page opens on it again. A convenience: never fails without storage. */
 function storedView(): string | null {

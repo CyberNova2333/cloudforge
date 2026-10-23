@@ -16,12 +16,12 @@ import {
 } from '../state.ts';
 import { fakeCloudflare } from './fakes.ts';
 
-const names = resourceNames('gitorange');
-const installationId = 'gitorange-1a2b3c4d5e6f';
+const names = resourceNames('cloudforge');
+const installationId = 'cloudforge-1a2b3c4d5e6f';
 const ownershipNonce = 'n'.repeat(64);
 const desired = { installationId, ownershipNonce, names };
 
-const MARKER_KEY = '.gitorange/ownership.json';
+const MARKER_KEY = '.cloudforge/ownership.json';
 
 function empty(): Observed {
   return {
@@ -43,7 +43,7 @@ function state(): InstallState {
       installationId,
       accountId: 'acc',
       inputs: {
-        name: 'gitorange',
+        name: 'cloudforge',
         hostname: 'git.example.com',
         workersDev: false,
         fromEmail: 'noreply@example.com',
@@ -90,13 +90,13 @@ describe('computePlan', () => {
     const plan = computePlan(desired, empty(), null);
     expect(plan.installationId).toBe(installationId);
     expect(tuples(plan)).toEqual([
-      ['create', 'd1', 'gitorange-db'],
-      ['create', 'r2', 'gitorange-lfs'],
-      ['create', 'r2', 'gitorange-actions-logs'],
-      ['create', 'r2', 'gitorange-actions-cache'],
-      ['create', 'workflow', 'gitorange-actions-run'],
-      ['create', 'workflow', 'gitorange-merge-resolution'],
-      ['create', 'worker', 'gitorange'],
+      ['create', 'd1', 'cloudforge-db'],
+      ['create', 'r2', 'cloudforge-lfs'],
+      ['create', 'r2', 'cloudforge-actions-logs'],
+      ['create', 'r2', 'cloudforge-actions-cache'],
+      ['create', 'workflow', 'cloudforge-actions-run'],
+      ['create', 'workflow', 'cloudforge-merge-resolution'],
+      ['create', 'worker', 'cloudforge'],
     ]);
     expect(plan.actions.map((a) => a.key)).toEqual([
       'd1',
@@ -130,20 +130,20 @@ describe('computePlan', () => {
   it('stops on a bucket that exists without our marker', () => {
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': null },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': null },
     };
     expect(stopMessage(() => computePlan(desired, o, null))).toBe(
-      notOurs('gitorange-lfs')
+      notOurs('cloudforge-lfs')
     );
   });
 
   it('reuses an empty unmarked bucket after a provision intent (apply writes the marker)', () => {
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': null },
-      r2Empty: { 'gitorange-lfs': true },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': null },
+      r2Empty: { 'cloudforge-lfs': true },
     };
     const s = recordStep(state(), 'provision-intent:lfs');
     expect(
@@ -154,40 +154,40 @@ describe('computePlan', () => {
   it('stops on an empty unmarked bucket without a provision intent', () => {
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': null },
-      r2Empty: { 'gitorange-lfs': true },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': null },
+      r2Empty: { 'cloudforge-lfs': true },
     };
     expect(stopMessage(() => computePlan(desired, o, state()))).toBe(
-      notOurs('gitorange-lfs')
+      notOurs('cloudforge-lfs')
     );
   });
 
   it('stops on a non-empty unmarked bucket after a provision intent, with a hint', () => {
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': null },
-      r2Empty: { 'gitorange-lfs': false },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': null },
+      r2Empty: { 'cloudforge-lfs': false },
     };
     const s = recordStep(state(), 'provision-intent:lfs');
     expect(stopMessage(() => computePlan(desired, o, s))).toBe(
-      `${notOurs('gitorange-lfs')} It may be the bucket this install created before it was interrupted; if it is empty, delete it and run --resume.`
+      `${notOurs('cloudforge-lfs')} It may be the bucket this install created before it was interrupted; if it is empty, delete it and run --resume.`
     );
   });
 
   it('reuses a bucket whose marker matches', () => {
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': marker('lfs') },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': marker('lfs') },
     };
     const plan = computePlan(desired, o, null);
     expect(plan.actions[1]).toEqual({
       action: 'reuse',
       kind: 'r2',
       key: 'lfs',
-      name: 'gitorange-lfs',
+      name: 'cloudforge-lfs',
     });
   });
 
@@ -199,8 +199,8 @@ describe('computePlan', () => {
     });
     const o = {
       ...empty(),
-      r2: ['gitorange-lfs'],
-      r2Markers: { 'gitorange-lfs': ` ${reordered}\n` },
+      r2: ['cloudforge-lfs'],
+      r2Markers: { 'cloudforge-lfs': ` ${reordered}\n` },
     };
     expect(computePlan(desired, o, null).actions[1].action).toBe('reuse');
   });
@@ -214,11 +214,11 @@ describe('computePlan', () => {
     ]) {
       const o = {
         ...empty(),
-        r2: ['gitorange-lfs'],
-        r2Markers: { 'gitorange-lfs': body },
+        r2: ['cloudforge-lfs'],
+        r2Markers: { 'cloudforge-lfs': body },
       };
       expect(stopMessage(() => computePlan(desired, o, null))).toBe(
-        notOurs('gitorange-lfs')
+        notOurs('cloudforge-lfs')
       );
     }
   });
@@ -229,17 +229,17 @@ describe('computePlan', () => {
       rec(
         'actionsCache',
         'r2',
-        'gitorange-actions-cache',
-        'gitorange-actions-cache'
+        'cloudforge-actions-cache',
+        'cloudforge-actions-cache'
       )
     );
     const o = {
       ...empty(),
-      r2: ['gitorange-actions-cache'],
-      r2Markers: { 'gitorange-actions-cache': null },
+      r2: ['cloudforge-actions-cache'],
+      r2Markers: { 'cloudforge-actions-cache': null },
     };
     expect(stopMessage(() => computePlan(desired, o, s))).toBe(
-      notOurs('gitorange-actions-cache')
+      notOurs('cloudforge-actions-cache')
     );
   });
 
@@ -249,26 +249,26 @@ describe('computePlan', () => {
       rec(
         'actionsCache',
         'r2',
-        'gitorange-actions-cache',
-        'gitorange-actions-cache'
+        'cloudforge-actions-cache',
+        'cloudforge-actions-cache'
       )
     );
     const o = {
       ...empty(),
-      r2: ['gitorange-actions-cache'],
-      r2Markers: { 'gitorange-actions-cache': marker('actionsCache') },
+      r2: ['cloudforge-actions-cache'],
+      r2Markers: { 'cloudforge-actions-cache': marker('actionsCache') },
     };
     expect(computePlan(desired, o, s).actions[3].action).toBe('reuse');
   });
 
   it('stops when a recorded worker or workflow is missing', () => {
     for (const r of [
-      rec('worker', 'worker', 'gitorange', 'gitorange'),
+      rec('worker', 'worker', 'cloudforge', 'cloudforge'),
       rec(
         'mergeWorkflow',
         'workflow',
-        'gitorange-merge-resolution',
-        'gitorange-merge-resolution'
+        'cloudforge-merge-resolution',
+        'cloudforge-merge-resolution'
       ),
     ]) {
       const s = state();
@@ -283,12 +283,12 @@ describe('computePlan', () => {
     const o = {
       ...empty(),
       workflows: [
-        { name: 'gitorange-actions-run', scriptName: 'gitorange' },
-        { name: 'gitorange-actions-run', scriptName: 'gitorange' },
+        { name: 'cloudforge-actions-run', scriptName: 'cloudforge' },
+        { name: 'cloudforge-actions-run', scriptName: 'cloudforge' },
       ],
     };
     const msg = stopMessage(() => computePlan(desired, o, null));
-    expect(msg).toContain('gitorange-actions-run');
+    expect(msg).toContain('cloudforge-actions-run');
     expect(msg).toContain('Nothing was changed.');
   });
 
@@ -312,11 +312,11 @@ describe('computePlan', () => {
     const o = {
       ...empty(),
       workflows: [
-        { name: 'gitorange-actions-run', scriptName: 'someone-else' },
+        { name: 'cloudforge-actions-run', scriptName: 'someone-else' },
       ],
     };
     expect(stopMessage(() => computePlan(desired, o, null))).toBe(
-      notOurs('gitorange-actions-run')
+      notOurs('cloudforge-actions-run')
     );
   });
 
@@ -324,7 +324,7 @@ describe('computePlan', () => {
     const o = {
       ...empty(),
       workflows: [
-        { name: 'gitorange-merge-resolution', scriptName: 'gitorange' },
+        { name: 'cloudforge-merge-resolution', scriptName: 'cloudforge' },
         { name: 'unrelated', scriptName: 'other' },
       ],
     };
@@ -333,7 +333,7 @@ describe('computePlan', () => {
       action: 'reuse',
       kind: 'workflow',
       key: 'mergeWorkflow',
-      name: 'gitorange-merge-resolution',
+      name: 'cloudforge-merge-resolution',
     });
     expect(plan.actions[4].action).toBe('create');
   });
@@ -343,14 +343,14 @@ describe('computePlan', () => {
     s.resources.push({
       key: 'lfs',
       kind: 'r2',
-      name: 'gitorange-lfs',
-      id: 'gitorange-lfs',
+      name: 'cloudforge-lfs',
+      id: 'cloudforge-lfs',
       ownership: 'created',
       state: 'ready',
     });
     const msg = stopMessage(() => computePlan(desired, empty(), s));
     expect(msg).toContain('recorded but missing');
-    expect(msg).toContain('gitorange-lfs');
+    expect(msg).toContain('cloudforge-lfs');
   });
 
   it('stops when a recorded D1 database was replaced by another with the same name', () => {
@@ -358,14 +358,14 @@ describe('computePlan', () => {
     s.resources.push({
       key: 'd1',
       kind: 'd1',
-      name: 'gitorange-db',
+      name: 'cloudforge-db',
       id: 'uuid-old',
       ownership: 'created',
       state: 'ready',
     });
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-new', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-new', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-new': [] },
       d1InstallRow: { 'uuid-new': null },
     };
@@ -379,14 +379,14 @@ describe('computePlan', () => {
     s.resources.push({
       key: 'd1',
       kind: 'd1',
-      name: 'gitorange-db',
+      name: 'cloudforge-db',
       id: 'uuid-1',
       ownership: 'created',
       state: 'ready',
     });
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-1': ['users'] },
       d1InstallRow: { 'uuid-1': null },
     };
@@ -397,22 +397,22 @@ describe('computePlan', () => {
     const o = {
       ...empty(),
       d1: [
-        { uuid: 'uuid-1', name: 'gitorange-db' },
-        { uuid: 'uuid-2', name: 'gitorange-db' },
+        { uuid: 'uuid-1', name: 'cloudforge-db' },
+        { uuid: 'uuid-2', name: 'cloudforge-db' },
       ],
       d1Tables: { 'uuid-1': [], 'uuid-2': [] },
       d1InstallRow: { 'uuid-1': null, 'uuid-2': null },
     };
     const s = recordStep(state(), 'provision-intent:d1');
     const msg = stopMessage(() => computePlan(desired, o, s));
-    expect(msg).toContain('gitorange-db');
+    expect(msg).toContain('cloudforge-db');
     expect(msg).toContain('Nothing was changed.');
   });
 
   it('accepts a same-name empty D1 database after a provision intent', () => {
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-1': [] },
       d1InstallRow: { 'uuid-1': null },
     };
@@ -421,22 +421,22 @@ describe('computePlan', () => {
       action: 'reuse',
       kind: 'd1',
       key: 'd1',
-      name: 'gitorange-db',
+      name: 'cloudforge-db',
     });
   });
 
   it('stops on a same-name empty D1 database without a provision intent', () => {
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-1': [] },
       d1InstallRow: { 'uuid-1': null },
     };
     expect(stopMessage(() => computePlan(desired, o, state()))).toBe(
-      notOurs('gitorange-db')
+      notOurs('cloudforge-db')
     );
     expect(stopMessage(() => computePlan(desired, o, null))).toBe(
-      notOurs('gitorange-db')
+      notOurs('cloudforge-db')
     );
   });
 
@@ -452,12 +452,12 @@ describe('computePlan', () => {
     ]) {
       const o = {
         ...empty(),
-        d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+        d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
         d1Tables: { 'uuid-1': ['users', 'install_state'] },
         d1InstallRow: { 'uuid-1': row },
       };
       expect(stopMessage(() => computePlan(desired, o, s))).toBe(
-        notOurs('gitorange-db')
+        notOurs('cloudforge-db')
       );
     }
   });
@@ -465,7 +465,7 @@ describe('computePlan', () => {
   it('reuses a same-name D1 whose install_state row matches', () => {
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-1': ['users', 'install_state'] },
       d1InstallRow: {
         'uuid-1': {
@@ -483,7 +483,7 @@ describe('computePlan', () => {
       worker: {
         exists: true,
         vars: {
-          GITORANGE_INSTALLATION: JSON.stringify({
+          CLOUDFORGE_INSTALLATION: JSON.stringify({
             ownershipNonce,
             installationId,
           }),
@@ -494,17 +494,17 @@ describe('computePlan', () => {
       action: 'deploy',
       kind: 'worker',
       key: 'worker',
-      name: 'gitorange',
+      name: 'cloudforge',
     });
   });
 
   it('existing worker without our marker → stop', () => {
     for (const vars of [
       {} as Record<string, string>,
-      { GITORANGE_INSTALLATION: '' },
-      { GITORANGE_INSTALLATION: 'not json' },
+      { CLOUDFORGE_INSTALLATION: '' },
+      { CLOUDFORGE_INSTALLATION: 'not json' },
       {
-        GITORANGE_INSTALLATION: JSON.stringify({
+        CLOUDFORGE_INSTALLATION: JSON.stringify({
           installationId,
           ownershipNonce: 'x'.repeat(64),
         }),
@@ -512,15 +512,15 @@ describe('computePlan', () => {
     ]) {
       const o = { ...empty(), worker: { exists: true, vars } };
       expect(stopMessage(() => computePlan(desired, o, null))).toBe(
-        notOurs('gitorange')
+        notOurs('cloudforge')
       );
     }
   });
 
   it('notes an existing Artifacts namespace', () => {
-    const o = { ...empty(), artifactsNamespaces: ['other', 'gitorange'] };
+    const o = { ...empty(), artifactsNamespaces: ['other', 'cloudforge'] };
     expect(computePlan(desired, o, null).info).toEqual([
-      'existing Artifacts namespace gitorange reused',
+      'existing Artifacts namespace cloudforge reused',
     ]);
   });
 });
@@ -530,7 +530,7 @@ describe('formatPlan', () => {
     const s = state();
     const plan = computePlan(
       desired,
-      { ...empty(), artifactsNamespaces: ['gitorange'] },
+      { ...empty(), artifactsNamespaces: ['cloudforge'] },
       null
     );
     const out = formatPlan(plan, s.inputs, s.baseUrl);
@@ -538,23 +538,23 @@ describe('formatPlan', () => {
     expect(lines.at(-1)).toBe(
       'No Cloudflare resource or local file was changed.'
     );
-    expect(lines).toContain('create  d1        gitorange-db');
-    expect(lines).toContain('create  worker    gitorange');
+    expect(lines).toContain('create  d1        cloudforge-db');
+    expect(lines).toContain('create  worker    cloudforge');
     expect(out).toContain('git.example.com');
     expect(out).toContain('https://git.example.com');
     expect(out).toContain('noreply@example.com');
-    expect(out).toContain('existing Artifacts namespace gitorange reused');
+    expect(out).toContain('existing Artifacts namespace cloudforge reused');
   });
 
   it('formats a workers.dev install without a sender', () => {
     const plan = computePlan(desired, empty(), null);
     const out = formatPlan(
       plan,
-      { name: 'gitorange', hostname: null, workersDev: true, fromEmail: null },
-      'https://gitorange.acme.workers.dev'
+      { name: 'cloudforge', hostname: null, workersDev: true, fromEmail: null },
+      'https://cloudforge.acme.workers.dev'
     );
     expect(out).toContain('workers.dev');
-    expect(out).toContain('https://gitorange.acme.workers.dev');
+    expect(out).toContain('https://cloudforge.acme.workers.dev');
     expect(out.split('\n').at(-1)).toBe(
       'No Cloudflare resource or local file was changed.'
     );
@@ -565,41 +565,41 @@ describe('observe', () => {
   it('reads only our resources and markers', async () => {
     const cf = fakeCloudflare({
       d1: [
-        { uuid: 'uuid-1', name: 'gitorange-db' },
+        { uuid: 'uuid-1', name: 'cloudforge-db' },
         { uuid: 'uuid-2', name: 'other-db' },
       ],
       r2: {
-        'gitorange-lfs': { [MARKER_KEY]: marker('lfs') },
+        'cloudforge-lfs': { [MARKER_KEY]: marker('lfs') },
         'other-bucket': { [MARKER_KEY]: 'x' },
-        'gitorange-actions-logs': {},
-        'gitorange-actions-cache': { 'some/object': 'x' },
+        'cloudforge-actions-logs': {},
+        'cloudforge-actions-cache': { 'some/object': 'x' },
       },
-      workflows: [{ name: 'gitorange-actions-run', scriptName: 'gitorange' }],
-      workerVars: { gitorange: { GITORANGE_INSTALLATION: 'v' } },
-      artifactsNamespaces: ['gitorange'],
+      workflows: [{ name: 'cloudforge-actions-run', scriptName: 'cloudforge' }],
+      workerVars: { cloudforge: { CLOUDFORGE_INSTALLATION: 'v' } },
+      artifactsNamespaces: ['cloudforge'],
     });
     const o = await observe(cf, 'acc', names);
     expect(o.worker).toEqual({
       exists: true,
-      vars: { GITORANGE_INSTALLATION: 'v' },
+      vars: { CLOUDFORGE_INSTALLATION: 'v' },
     });
     expect(o.d1).toHaveLength(2);
     expect(o.d1Tables).toEqual({ 'uuid-1': [] });
     expect(o.d1InstallRow).toEqual({ 'uuid-1': null });
     expect(o.r2Markers).toEqual({
-      'gitorange-lfs': marker('lfs'),
-      'gitorange-actions-logs': null,
-      'gitorange-actions-cache': null,
+      'cloudforge-lfs': marker('lfs'),
+      'cloudforge-actions-logs': null,
+      'cloudforge-actions-cache': null,
     });
     // Emptiness is read only for our unmarked buckets.
     expect(o.r2Empty).toEqual({
-      'gitorange-actions-logs': true,
-      'gitorange-actions-cache': false,
+      'cloudforge-actions-logs': true,
+      'cloudforge-actions-cache': false,
     });
     expect(o.workflows).toEqual([
-      { name: 'gitorange-actions-run', scriptName: 'gitorange' },
+      { name: 'cloudforge-actions-run', scriptName: 'cloudforge' },
     ]);
-    expect(o.artifactsNamespaces).toEqual(['gitorange']);
+    expect(o.artifactsNamespaces).toEqual(['cloudforge']);
     const queried = cf.calls.filter((c) => c.method === 'queryD1');
     expect(queried.map((c) => c.args[1])).toEqual(['uuid-1']);
     // No install_state table, so no row query.
@@ -609,15 +609,15 @@ describe('observe', () => {
     );
     const markers = cf.calls.filter((c) => c.method === 'getR2Object');
     expect(markers.map((c) => c.args.slice(1))).toEqual([
-      ['gitorange-lfs', MARKER_KEY],
-      ['gitorange-actions-logs', MARKER_KEY],
-      ['gitorange-actions-cache', MARKER_KEY],
+      ['cloudforge-lfs', MARKER_KEY],
+      ['cloudforge-actions-logs', MARKER_KEY],
+      ['cloudforge-actions-cache', MARKER_KEY],
     ]);
   });
 
   it('reads the install_state row when that table exists', async () => {
     const cf = fakeCloudflare({
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
     });
     const row = {
       installation_id: installationId,
@@ -652,10 +652,10 @@ describe('computePlan: adopted resources', () => {
   };
 
   it('adopted d1 without install row is reused', () => {
-    const s = withRes(adopted('d1', 'd1', 'gitorange-db', 'uuid-1'));
+    const s = withRes(adopted('d1', 'd1', 'cloudforge-db', 'uuid-1'));
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-1', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-1', name: 'cloudforge-db' }],
       d1Tables: { 'uuid-1': ['repositories'] },
       d1InstallRow: { 'uuid-1': null },
     };
@@ -663,9 +663,9 @@ describe('computePlan: adopted resources', () => {
   });
 
   const buckets: [string, string, number][] = [
-    ['lfs', 'gitorange-lfs', 1],
-    ['actionsLogs', 'gitorange-actions-logs', 2],
-    ['actionsCache', 'gitorange-actions-cache', 3],
+    ['lfs', 'cloudforge-lfs', 1],
+    ['actionsLogs', 'cloudforge-actions-logs', 2],
+    ['actionsCache', 'cloudforge-actions-cache', 3],
   ];
   for (const [key, name, i] of buckets) {
     it(`adopted r2 without marker is reused (${key})`, () => {
@@ -685,21 +685,21 @@ describe('computePlan: adopted resources', () => {
       adopted(
         'actionsWorkflow',
         'workflow',
-        'gitorange-actions-run',
-        'gitorange-actions-run'
+        'cloudforge-actions-run',
+        'cloudforge-actions-run'
       ),
       adopted(
         'mergeWorkflow',
         'workflow',
-        'gitorange-merge-resolution',
-        'gitorange-merge-resolution'
+        'cloudforge-merge-resolution',
+        'cloudforge-merge-resolution'
       )
     );
     const o = {
       ...empty(),
       workflows: [
-        { name: 'gitorange-actions-run', scriptName: 'other' },
-        { name: 'gitorange-merge-resolution', scriptName: 'other' },
+        { name: 'cloudforge-actions-run', scriptName: 'other' },
+        { name: 'cloudforge-merge-resolution', scriptName: 'other' },
       ],
     };
     const a = computePlan(desired, o, s).actions;
@@ -707,37 +707,37 @@ describe('computePlan: adopted resources', () => {
     expect(a[5].action).toBe('reuse');
   });
 
-  it('adopted worker without GITORANGE_INSTALLATION deploys', () => {
-    const s = withRes(adopted('worker', 'worker', 'gitorange', 'gitorange'));
+  it('adopted worker without CLOUDFORGE_INSTALLATION deploys', () => {
+    const s = withRes(adopted('worker', 'worker', 'cloudforge', 'cloudforge'));
     const o = { ...empty(), worker: { exists: true, vars: {} } };
     expect(computePlan(desired, o, s).actions[6].action).toBe('deploy');
   });
 
   it('adopted id mismatch stops', () => {
-    const s = withRes(adopted('d1', 'd1', 'gitorange-db', 'uuid-old'));
+    const s = withRes(adopted('d1', 'd1', 'cloudforge-db', 'uuid-old'));
     const o = {
       ...empty(),
-      d1: [{ uuid: 'uuid-new', name: 'gitorange-db' }],
+      d1: [{ uuid: 'uuid-new', name: 'cloudforge-db' }],
     };
     expect(stopMessage(() => computePlan(desired, o, s))).toContain(
-      '`gitorange-db` is recorded as adopted'
+      '`cloudforge-db` is recorded as adopted'
     );
   });
 
   it('adopted r2, workflow and worker with a different recorded id stop', () => {
     const cases: [Resource, Partial<Observed>][] = [
       [
-        adopted('lfs', 'r2', 'gitorange-lfs', 'old-bucket'),
-        { r2: ['gitorange-lfs'] },
+        adopted('lfs', 'r2', 'cloudforge-lfs', 'old-bucket'),
+        { r2: ['cloudforge-lfs'] },
       ],
       [
-        adopted('actionsWorkflow', 'workflow', 'gitorange-actions-run', 'old'),
+        adopted('actionsWorkflow', 'workflow', 'cloudforge-actions-run', 'old'),
         {
-          workflows: [{ name: 'gitorange-actions-run', scriptName: 'x' }],
+          workflows: [{ name: 'cloudforge-actions-run', scriptName: 'x' }],
         },
       ],
       [
-        adopted('worker', 'worker', 'gitorange', 'old-script'),
+        adopted('worker', 'worker', 'cloudforge', 'old-script'),
         { worker: { exists: true, vars: {} } },
       ],
     ];
@@ -751,7 +751,7 @@ describe('computePlan: adopted resources', () => {
   });
 
   it('an adopted resource missing in Cloudflare stops as missing', () => {
-    const s = withRes(adopted('worker', 'worker', 'gitorange', 'gitorange'));
+    const s = withRes(adopted('worker', 'worker', 'cloudforge', 'cloudforge'));
     expect(stopMessage(() => computePlan(desired, empty(), s))).toContain(
       'recorded but missing'
     );

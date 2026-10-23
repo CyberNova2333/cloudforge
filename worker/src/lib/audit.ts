@@ -38,7 +38,7 @@ export type NewAuditEvent = {
   actorId: string | null;
   /** Defaults to `person` when there is an actor, else `system`. */
   actorKind?: AuditActorKind;
-  /** The app it went through: a connected MCP app's name, or "GitOrange AI". */
+  /** The app it went through: a connected MCP app's name, or "CloudForge AI". */
   via?: string | null;
   action: AuditAction;
   /** What it was done to, as people read it: "#12", a branch, a handle, a token or setting name. */

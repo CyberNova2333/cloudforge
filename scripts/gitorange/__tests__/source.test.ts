@@ -35,7 +35,7 @@ describe('checkoutSource', () => {
   });
   it('command and null package fields', () => {
     expect(s.command('install --resume --name acme')).toBe(
-      'yarn gitorange install --resume --name acme'
+      'yarn cloudforge install --resume --name acme'
     );
     expect(s.commit).toBeNull();
     expect(s.build).toBeNull();
@@ -140,7 +140,7 @@ describe.each(['nested', 'hoisted'] as const)(
     });
     it('command', () => {
       expect(setup().s.command('install --resume --name acme')).toBe(
-        'npx gitorange@1.2.0 install --resume --name acme'
+        'npx @cybernova2333/cloudforge@1.2.0 install --resume --name acme'
       );
     });
   }

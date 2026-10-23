@@ -18,7 +18,7 @@ import {
 export const SUMMARY_MODEL = '@cf/zai-org/glm-5.3-flash';
 export const CLASSIFIER_MODEL = '@cf/cloudflare/clef';
 export const REVIEW_MODEL = '@cf/zai-org/glm-5.3';
-export const AI_VIA = 'GitOrange AI';
+export const AI_VIA = 'CloudForge AI';
 export const WORKFLOW = { path: '.github/workflows/test.yml', name: 'Tests' };
 
 /** A small stable number from text, so a fabricated detail (a probability, a duration) never changes between runs. */
@@ -122,7 +122,7 @@ export function findingDetail(git, base, head, flag) {
 
 /**
  * Provenance (which app opened each pull request, in which session, at whose request), real dates for everything the
- * seed created through the API a moment ago, and who merged what: some landings are marked as GitOrange's own.
+ * seed created through the API a moment ago, and who merged what: some landings are marked as CloudForge's own.
  */
 export function historyStatements(ctx) {
   const { clock, repoId, prs } = ctx;
@@ -481,7 +481,7 @@ export function extraStatements(ctx) {
     }
   });
 
-  // Admin lets GitOrange AI answer the Shipping agent's findings on their pull requests.
+  // Admin lets CloudForge AI answer the Shipping agent's findings on their pull requests.
   const shipping = agents.get('shippingagent');
   if (shipping)
     out.push(

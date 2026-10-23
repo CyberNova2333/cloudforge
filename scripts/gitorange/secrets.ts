@@ -40,7 +40,7 @@ export async function withSecretsFile<T>(
   secrets: Record<string, string>,
   fn: (path: string) => Promise<T>
 ): Promise<T> {
-  const dir = mkdtempSync(join(tmpdir(), 'gitorange-'));
+  const dir = mkdtempSync(join(tmpdir(), 'cloudforge-'));
   try {
     const path = join(dir, 'secrets.json');
     writeFileSync(path, JSON.stringify(secrets), { mode: 0o600, flag: 'wx' });
@@ -61,7 +61,7 @@ export function r2TokenLink(accountId: string, _buckets: string[]): string {
     new URLSearchParams({
       to: `/${accountId}/r2/api-tokens/create`,
       type: 'account',
-      name: 'GitOrange Uploads',
+      name: 'CloudForge Uploads',
       permission: 'object-write',
       bucketScope: 'all',
     })

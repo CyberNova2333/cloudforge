@@ -1,4 +1,4 @@
-// `gitorange status` (spec §6): prints the recorded state and asks the deployed worker who it
+// `cloudforge status` (spec §6): prints the recorded state and asks the deployed worker who it
 // is, once. Read-only: no Cloudflare API call, no subprocess, no file written.
 import type { Io } from './collect.ts';
 import type { Source } from './source.ts';
@@ -74,14 +74,14 @@ export function describeState(
 /**
  * The command that moves this install to `latest`: always npx at that version (this package's own
  * version would redeploy the same release). An install still in a checkout is adopted first, since
- * upgrade runs only on installs under ~/.gitorange.
+ * upgrade runs only on installs under ~/.cloudforge.
  */
 export function upgradeHint(
   s: InstallState,
   latest: string | null,
   where: { slug?: string; checkout?: string }
 ): string {
-  const npx = `npx gitorange@${latest ?? 'latest'}`;
+  const npx = `npx @cybernova2333/cloudforge@${latest ?? 'latest'}`;
   const slug = where.slug ?? s.inputs.name;
   const upgrade = `${npx} upgrade --name ${slug}`;
   if (where.checkout === undefined || s.movedTo !== undefined) return upgrade;
@@ -121,7 +121,7 @@ export async function status(
     })
   );
 
-  const url = `${s.baseUrl}/.well-known/gitorange`;
+  const url = `${s.baseUrl}/.well-known/cloudforge`;
   let got: { installationId?: unknown; version?: unknown };
   try {
     const res = await deps.fetchImpl(url, {

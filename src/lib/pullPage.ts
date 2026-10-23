@@ -135,7 +135,7 @@ export function pullBlockers(
  * state's own (`reasonText`), for `rebase_conflict` and `resolution_running`.
  */
 const REBASE_BLOCKER =
-  /^(Clashes with newer changes|GitOrange is fixing a clash|AI is resolving conflicts|Commit \w+ conflicts in|The rebase stopped)/i;
+  /^(Clashes with newer changes|CloudForge is fixing a clash|AI is resolving conflicts|Commit \w+ conflicts in|The rebase stopped)/i;
 
 export interface NextStepInput {
   state: Pull['state'];
@@ -213,7 +213,7 @@ export function nextStep(
     if (r.error?.startsWith('Not rebased:'))
       return step(
         'serious',
-        t('GitOrange doesn’t rebase this branch, and it is behind {onto}.', {
+        t('CloudForge doesn’t rebase this branch, and it is behind {onto}.', {
           onto: r.onto,
         }),
         r.error,
@@ -243,7 +243,7 @@ export function nextStep(
   switch (ps.state) {
     case 'ready':
       return d.autoMerge === 'ready'
-        ? step('good', t('Ready. GitOrange is merging it now.'))
+        ? step('good', t('Ready. CloudForge is merging it now.'))
         : d.autoMerge === 'disabled'
           ? step(
               'good',

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dirOf, repoImageSrc, repoLinkHref, resolveRepoPath } from './repoUrls';
 
-const root = { owner: 'choyiny', repo: 'gitorange', ref: 'main', dir: '' };
+const root = { owner: 'octocat', repo: 'cloudforge', ref: 'main', dir: '' };
 const nested = { ...root, dir: 'docs/guides' };
 const raw = (ref: string, path: string) =>
-  `/api/repos/choyiny/gitorange/raw?${new URLSearchParams({ ref, path })}`;
+  `/api/repos/octocat/cloudforge/raw?${new URLSearchParams({ ref, path })}`;
 
 describe('repoImageSrc', () => {
   it('points an image next to a root README at the raw endpoint', () => {
@@ -51,41 +51,41 @@ describe('repoImageSrc', () => {
 describe('repoLinkHref', () => {
   it('links root-README files to the blob view', () => {
     expect(repoLinkHref(root, 'docs/setup.md')).toBe(
-      '/choyiny/gitorange/blob/main/docs/setup.md'
+      '/octocat/cloudforge/blob/main/docs/setup.md'
     );
   });
 
   it('resolves ./, ../ and root-relative links from a nested file', () => {
     expect(repoLinkHref(nested, './auto-merge.md')).toBe(
-      '/choyiny/gitorange/blob/main/docs/guides/auto-merge.md'
+      '/octocat/cloudforge/blob/main/docs/guides/auto-merge.md'
     );
     expect(repoLinkHref(nested, '../setup.md')).toBe(
-      '/choyiny/gitorange/blob/main/docs/setup.md'
+      '/octocat/cloudforge/blob/main/docs/setup.md'
     );
     expect(repoLinkHref(nested, '/README.md')).toBe(
-      '/choyiny/gitorange/blob/main/README.md'
+      '/octocat/cloudforge/blob/main/README.md'
     );
   });
 
   it('keeps fragments', () => {
     expect(repoLinkHref(root, 'docs/setup.md#deploying')).toBe(
-      '/choyiny/gitorange/blob/main/docs/setup.md#deploying'
+      '/octocat/cloudforge/blob/main/docs/setup.md#deploying'
     );
   });
 
   it('uses the tree view for directories', () => {
     expect(repoLinkHref(root, 'docs/')).toBe(
-      '/choyiny/gitorange/tree/main/docs'
+      '/octocat/cloudforge/tree/main/docs'
     );
     expect(repoLinkHref(nested, '..')).toBe(
-      '/choyiny/gitorange/tree/main/docs'
+      '/octocat/cloudforge/tree/main/docs'
     );
-    expect(repoLinkHref(root, '/')).toBe('/choyiny/gitorange/tree/main');
+    expect(repoLinkHref(root, '/')).toBe('/octocat/cloudforge/tree/main');
   });
 
   it('encodes ref and path segments for the URL', () => {
     expect(repoLinkHref({ ...root, ref: 'feature/x' }, 'docs/my file.md')).toBe(
-      '/choyiny/gitorange/blob/feature/x/docs/my%20file.md'
+      '/octocat/cloudforge/blob/feature/x/docs/my%20file.md'
     );
   });
 

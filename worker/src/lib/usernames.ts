@@ -23,8 +23,8 @@ export const RESERVED_USERNAMES = new Set([
   'favicon.png',
   'apple-touch-icon.png',
   'logo.png',
-  'gitorange-logo.png',
-  'gitorange-logo.svg',
+  'cloudforge-logo.png',
+  'cloudforge-logo.svg',
 ]);
 
 export function isReservedUsername(name: string): boolean {

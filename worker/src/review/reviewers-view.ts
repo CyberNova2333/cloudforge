@@ -53,9 +53,9 @@ export function flagJson(
     /** Never approved in bulk, by one key or by AI; approving it needs a reason. */
     guarded: opts.guarded ?? false,
     assignee: f.assigneeId ? (opts.refs?.get(f.assigneeId) ?? null) : null,
-    /** How the current decision was made: a moderator app, or "GitOrange AI"; null from the web or while open. */
+    /** How the current decision was made: a moderator app, or "CloudForge AI"; null from the web or while open. */
     decidedVia: decided ? f.approvedVia : null,
-    /** The decider's reason (GitOrange AI's, or a person's for an approval). */
+    /** The decider's reason (CloudForge AI's, or a person's for an approval). */
     reason: decided ? f.decisionReason : null,
     /** What the decider taught the agent with the decision. */
     teach: decided ? f.teachNote : null,

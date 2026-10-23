@@ -16,7 +16,7 @@ describe('rebase status text', () => {
     expect(rebaseHeadline({ ...view, status: 'behind' }, 'feature')).toEqual({
       title: 'Behind main',
       detail:
-        'GitOrange rebases it onto the latest commits; merging rebases it first if it still needs to.',
+        'CloudForge rebases it onto the latest commits; merging rebases it first if it still needs to.',
     });
     expect(
       rebaseHeadline({ ...view, status: 'nothing_to_merge' }, 'feature').title
@@ -51,7 +51,7 @@ describe('rebase status text', () => {
     ).toBe('Resolving commit abc1234’s conflict with AI');
   });
 
-  it('offers to try a stopped rebase again, except on a branch GitOrange never rebases', () => {
+  it('offers to try a stopped rebase again, except on a branch CloudForge never rebases', () => {
     expect(
       canRetryRebase({
         ...view,
@@ -82,7 +82,7 @@ describe('rebase status text', () => {
         resolved: 1,
       })
     ).toBe(
-      'GitOrange rebased this branch onto main (aaaaaaa → bbbbbbb), skipping 2 commits main already has; AI resolved the conflicts of 1 commit'
+      'CloudForge rebased this branch onto main (aaaaaaa → bbbbbbb), skipping 2 commits main already has; AI resolved the conflicts of 1 commit'
     );
     expect(
       rebasedText({
@@ -92,7 +92,7 @@ describe('rebase status text', () => {
         skipped: 0,
         resolved: 0,
       })
-    ).toBe('GitOrange rebased this branch onto main (aaaaaaa → bbbbbbb)');
+    ).toBe('CloudForge rebased this branch onto main (aaaaaaa → bbbbbbb)');
   });
 
   it('tells a merge that rebased first and waits apart from a refusal', () => {
