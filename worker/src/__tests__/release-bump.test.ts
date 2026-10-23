@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, call, settle } from './helpers/app';
 import { collaborator, connect, crewRepo, tool } from './helpers/crew';
@@ -28,8 +29,8 @@ const patch = (
   cookie = s.admin
 ) => call(s.t, `${BASE}/pulls/${n}`, { cookie, method: 'PATCH', json });
 
-describe('version bump on pull requests', () => {
-  it('create with a bump stores it and returns it', async () => {
+describe('拉取请求的版本升级级别', () => {
+  it('创建时保存并返回版本升级级别', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const res = await open(s, 'feature', { versionBump: 'minor' });
@@ -43,14 +44,14 @@ describe('version bump on pull requests', () => {
     expect(pull.releasedIn).toBeNull();
   });
 
-  it('a pull request opened without a bump has none', async () => {
+  it('未指定版本升级级别的拉取请求保持为空', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature');
     expect((await getPull(s, n)).pull.versionBump).toBeNull();
   });
 
-  it('PATCH changes the bump and audits it, once, only when it changes', async () => {
+  it('PATCH 仅在级别实际变化时修改并记录一次审计', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const res = await open(s, 'feature', { versionBump: 'minor' });
@@ -87,7 +88,7 @@ describe('version bump on pull requests', () => {
     expect(count!.n).toBe(2);
   });
 
-  it('the bump cannot change after landing', async () => {
+  it('合入后不能修改版本升级级别', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature');
@@ -99,7 +100,7 @@ describe('version bump on pull requests', () => {
     });
   });
 
-  it('the author or a writer may change it; others get 403', async () => {
+  it('作者或有写权限者可修改，其他人返回 403', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const n = await s.web('feature');
@@ -114,7 +115,7 @@ describe('version bump on pull requests', () => {
     expect((await getPull(s, n)).pull.versionBump).toBe('patch');
   });
 
-  it('an invalid bump is 400', async () => {
+  it('无效的版本升级级别返回 400', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     expect((await open(s, 'feature', { versionBump: 'huge' })).status).toBe(
@@ -124,7 +125,7 @@ describe('version bump on pull requests', () => {
     expect((await patch(s, n, { versionBump: 'huge' })).status).toBe(400);
   });
 
-  it('MCP create takes version_bump', async () => {
+  it('通过 MCP 创建时接受 version_bump', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
@@ -156,7 +157,7 @@ describe('version bump on pull requests', () => {
     expect(pr.released_in).toBeNull();
   });
 
-  it('MCP create refuses an invalid version_bump and opens nothing', async () => {
+  it('通过 MCP 创建时拒绝无效 version_bump，且不创建请求', async () => {
     const s = await crewRepo();
     await s.branch('feature');
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');

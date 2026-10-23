@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -26,8 +27,8 @@ const changeRequests = async (
     (f) => f.agent === agent && f.kind === 'change_requested'
   );
 
-describe('lessons from dismissed change requests', () => {
-  it('queues one lesson per agent whose change requests a person dismissed, when the pull request closes', async () => {
+describe('从被驳回的修改请求中学习', () => {
+  it('拉取请求关闭时，为每个修改请求被人工驳回的智能体排入一个学习任务', async () => {
     const { t, admin } = await reviewedPull(['perfagent', 'secagent']);
     const sec = await changeRequests(t);
     for (const f of sec) await decide(t, admin, f.id);
@@ -54,7 +55,7 @@ describe('lessons from dismissed change requests', () => {
     expect(JSON.parse(rows[0].finding_ids)).toEqual(sec.map((f) => f.id));
   });
 
-  it('queues nothing when no change request was dismissed', async () => {
+  it('没有修改请求被驳回时，不排入学习任务', async () => {
     const { t, admin } = await reviewedPull();
     const person = (await findings(t)).find((f) => f.kind === 'needs_person')!;
     await decide(t, admin, person.id);
@@ -62,7 +63,7 @@ describe('lessons from dismissed change requests', () => {
     expect(await lessons(t)).toEqual([]);
   });
 
-  it('learns once: reopening and closing again adds no second lesson', async () => {
+  it('仅学习一次：重新打开再关闭时不添加第二个任务', async () => {
     const { t, admin } = await reviewedPull();
     for (const f of await changeRequests(t)) await decide(t, admin, f.id);
     await closePull(t, admin);
@@ -72,7 +73,7 @@ describe('lessons from dismissed change requests', () => {
     expect((await lessons(t)).map((l) => l.id)).toEqual([first.id]);
   });
 
-  it('queues a lesson when the pull request merges (merge button)', async () => {
+  it('通过合并按钮合并拉取请求时，排入学习任务', async () => {
     // The finding for a person stays open, so nothing auto-merges before the merge button.
     const { t, admin } = await reviewedPull();
     const crs = await changeRequests(t);
@@ -84,7 +85,7 @@ describe('lessons from dismissed change requests', () => {
     expect(JSON.parse(rows[0].finding_ids)).toEqual(crs.map((f) => f.id));
   });
 
-  it('queues a lesson when the pull request auto-merges', async () => {
+  it('拉取请求自动合并时，排入学习任务', async () => {
     // Dismissing the only change request clears the review gate: the pull request lands by itself.
     const { t, admin } = await reviewedPull(['secagent'], ONE_CHANGE_REQUEST);
     const [cr] = await changeRequests(t);
@@ -94,7 +95,7 @@ describe('lessons from dismissed change requests', () => {
     expect(JSON.parse(rows[0].finding_ids)).toEqual([cr.id]);
   });
 
-  it('counts a change request dismissed on an earlier commit of the pull request', async () => {
+  it('计入拉取请求较早提交上被驳回的修改请求', async () => {
     const { t, admin, repo } = await reviewedPull();
     const [cr] = await changeRequests(t);
     await decide(t, admin, cr.id);
@@ -111,7 +112,7 @@ describe('lessons from dismissed change requests', () => {
     expect(JSON.parse((await lessons(t))[0].finding_ids)).toEqual([cr.id]);
   });
 
-  it('skips an agent deleted before the pull request closed', async () => {
+  it('跳过在拉取请求关闭前已删除的智能体', async () => {
     const { t, admin } = await reviewedPull();
     for (const f of await changeRequests(t)) await decide(t, admin, f.id);
     const res = await call(t, '/api/admin/agents/secagent', {
@@ -124,7 +125,7 @@ describe('lessons from dismissed change requests', () => {
   });
 });
 
-describe('lessons from what people taught', () => {
+describe('从人工指导中学习', () => {
   type T = Awaited<ReturnType<typeof reviewedPull>>['t'];
   const db = (t: T) => drizzle(t.env.DB, { schema });
   const teach = async (
@@ -144,7 +145,7 @@ describe('lessons from what people taught', () => {
   };
   const RULE = 'Rotation is handled by the vault: never ask about it.';
 
-  it("queues a lesson for a finding a person approved with a teach note, and gives the learner the person's words as the rule", async () => {
+  it('人工批准审查意见并附带指导说明时排入学习任务，将原话作为规则交给学习器', async () => {
     const { t, admin } = await reviewedPull();
     const person = (await findings(t)).find((f) => f.kind === 'needs_person')!;
     await teach(t, admin, person.id, 'approve', RULE);
@@ -179,7 +180,7 @@ describe('lessons from what people taught', () => {
     expect(learnSystemPrompt('secagent', 30)).toMatch(/rule/);
   });
 
-  it('adds taught findings to the dismissed change requests, in order, one lesson per agent', async () => {
+  it('按顺序将带指导的审查意见加入被驳回的修改请求，每个智能体生成一个学习任务', async () => {
     const { t, admin } = await reviewedPull();
     const all = await findings(t);
     const [tokenLogged] = all.filter((f) => f.kind === 'change_requested');
@@ -203,7 +204,7 @@ describe('lessons from what people taught', () => {
     ]);
   });
 
-  it('forgets a teach note whose decision was undone', async () => {
+  it('决定被撤销时，遗忘对应的指导说明', async () => {
     const { t, admin } = await reviewedPull();
     const person = (await findings(t)).find((f) => f.kind === 'needs_person')!;
     await teach(t, admin, person.id, 'approve', RULE);

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -47,8 +48,8 @@ import {
 
 const done = (text: string) => () => ({ state: 'done' as const, text });
 
-describe('a lesson', () => {
-  it('commits an allowed edit to main as the agent: the summary, the pull request, one trailer per dismissed finding', async () => {
+describe('学习任务', () => {
+  it('以智能体身份将允许的编辑提交到 main，包含摘要、拉取请求及每条被驳回意见的尾注', async () => {
     const { t } = await closedLesson();
     expect(learnRuns(t)).toHaveLength(1);
     const dismissed = (await findings(t)).filter(
@@ -124,7 +125,7 @@ describe('a lesson', () => {
     expect(event!.actor_id).toBe(agent.user_id);
   });
 
-  it("the next review reads the agent's new instructions", async () => {
+  it('下一轮审查读取智能体的新指令', async () => {
     const { t, admin, repo } = await closedLesson();
     await runLessons(
       t,
@@ -144,7 +145,7 @@ describe('a lesson', () => {
     );
   });
 
-  it('nothing to learn: commits nothing, and keeps the explanation', async () => {
+  it('没有可学习内容时不创建提交，并保留解释', async () => {
     const { t } = await closedLesson();
     const main = (await agentRepo(t)).refs.get('refs/heads/main');
     await runLessons(t, fakeLearner(done('Both were one-offs.')).api);
@@ -161,7 +162,7 @@ describe('a lesson', () => {
     ).toBe(0);
   });
 
-  it('a rejected edit fails, commits nothing, and is not retried', async () => {
+  it('编辑被拒绝时失败，不创建提交，也不重试', async () => {
     const { t } = await closedLesson();
     const main = (await agentRepo(t)).refs.get('refs/heads/main');
     await runLessons(
@@ -183,7 +184,7 @@ describe('a lesson', () => {
     expect((await agentRepo(t)).refs.get('refs/heads/main')).toBe(main);
   });
 
-  it('fails, retryable, when Pi gives up, and records what it spent', async () => {
+  it('Pi 放弃时报告可重试故障，并记录消耗', async () => {
     const { t } = await closedLesson();
     await runLessons(
       t,
@@ -204,7 +205,7 @@ describe('a lesson', () => {
     ).toEqual({ feature: 'review-agent-learn', requests: 2, tokens_in: 2000 });
   });
 
-  it('stops a lesson past its wall clock: failed, retryable', async () => {
+  it('超过实际耗时上限时停止学习，标记为可重试故障', async () => {
     const { t } = await closedLesson();
     const learner = fakeLearner(() => ({ state: 'running' }), {
       startedAt: Date.now() - 11 * 60_000,
@@ -218,7 +219,7 @@ describe('a lesson', () => {
     expect(learner.stopped).toHaveLength(1);
   });
 
-  it('runs one lesson of an agent at a time: a second waits, and starts when the first ends', async () => {
+  it('同一智能体每次仅运行一个学习任务，第二个等待第一个结束后启动', async () => {
     const { t, admin, repo } = await closedLesson();
     // #2: another change request of the same agent, dismissed, then closed. (The finding for a person keeps it from
     // auto-merging once its change request is dismissed.)
@@ -260,7 +261,7 @@ describe('a lesson', () => {
     expect(learner.starts).toEqual([learnerName(second.id, 1)]);
   });
 
-  it('is dropped when its agent was deleted before it ran', async () => {
+  it('运行前智能体已删除时丢弃任务', async () => {
     const { t, admin } = await closedLesson();
     await call(t, '/api/admin/agents/secagent', {
       cookie: admin,
@@ -272,7 +273,7 @@ describe('a lesson', () => {
     expect(learner.starts).toEqual([]);
   });
 
-  it("fails without Pi (no AGENT_REVIEWER binding), and isn't retried", async () => {
+  it('缺少 Pi 的 AGENT_REVIEWER 绑定时失败，且不重试', async () => {
     const { t } = await closedLesson();
     await runLessons(t);
     expect((await lessons(t))[0]).toMatchObject({
@@ -282,7 +283,7 @@ describe('a lesson', () => {
     });
   });
 
-  it('reads its own, smaller limits from Site admin when it starts', async () => {
+  it('启动时从站点管理设置读取自身更小的限额', async () => {
     const { t, admin } = await closedLesson();
     const put = (key: string, value: unknown) =>
       call(t, `/api/admin/settings/${key}`, {
@@ -303,7 +304,7 @@ describe('a lesson', () => {
     });
   });
 
-  it('is an agent run of the pull request, its steps said in words', async () => {
+  it('作为拉取请求的智能体运行展示，并以文字说明步骤', async () => {
     const { t } = await closedLesson();
     const [lesson] = await lessons(t);
     const db = drizzle(t.env.DB, { schema });
@@ -347,7 +348,7 @@ describe('a lesson', () => {
     );
   });
 
-  it('resumes its own claim after a retried start step, reading the tip when no base commit was recorded', async () => {
+  it('启动步骤重试后恢复自身认领；未记录基础提交时读取分支顶端', async () => {
     const { t } = await closedLesson();
     const [run] = learnRuns(t);
     const [lesson] = await lessons(t);
@@ -373,7 +374,7 @@ describe('a lesson', () => {
     ]);
   });
 
-  it("records a pushed commit even when the lesson stopped being this run's meanwhile, so it is never learned again", async () => {
+  it('即使任务已转属其他运行，也记录已推送的提交，避免再次学习', async () => {
     const { t } = await closedLesson();
     const [lesson] = await lessons(t);
     // A requeue lands between the push and the commit being recorded.
@@ -405,7 +406,7 @@ describe('a lesson', () => {
     expect(await startNextLesson(t.env, db, lesson.agent_id)).toBeNull();
   });
 
-  it("pushes nothing once the lesson was requeued and another run claimed it before this run's commit", async () => {
+  it('当前运行提交前任务已重新排队并被其他运行认领时，不推送任何内容', async () => {
     const { t } = await closedLesson();
     const [lesson] = await lessons(t);
     const main = (await agentRepo(t)).refs.get('refs/heads/main');
@@ -442,7 +443,7 @@ describe('a lesson', () => {
     ).toBe(0);
   });
 
-  it('from a private repository, commits only the summary and the trailers, and tells the learner to stay general', async () => {
+  it('来自私有仓库时仅提交摘要和尾注，并要求学习器保持内容通用', async () => {
     const { t } = await closedLesson();
     await t.env.DB.prepare(
       `UPDATE repositories SET visibility = 'private' WHERE name = 'app'`
@@ -485,7 +486,7 @@ describe('a lesson', () => {
     ).toContain('# The pull request is private');
   });
 
-  it('ends, at the longest allowed limits, before the stale window could requeue it', () => {
+  it('即使使用允许的最大限额，也在过期窗口重新排队前结束', () => {
     // From the claim (started_at): the start step's worst case, the longest lesson, its last check and the
     // learner's own expiry all end inside the 2-hour window after which a learning lesson counts as stuck.
     expect(
@@ -497,7 +498,7 @@ describe('a lesson', () => {
     expect(LEARN_STALE_MS).toBe(2 * 3600_000);
   });
 
-  it('records the commit an earlier try already pushed, instead of failing over its own change', async () => {
+  it('记录先前尝试已推送的提交，避免因自身变更而失败', async () => {
     const { t } = await closedLesson();
     const [lesson] = await lessons(t);
     const db = drizzle(t.env.DB, { schema });
@@ -569,7 +570,7 @@ describe('a lesson', () => {
     ).toBe(pushed);
   });
 
-  it("fails its own claim, retryable, when the learner reports stopped at the start, so the agent's next lesson can start", async () => {
+  it('学习器启动即报告停止时，将自身认领标记为可重试故障，以便启动下一学习任务', async () => {
     const { t } = await closedLesson();
     const [lesson] = await lessons(t);
     const inner = fakeLearner();

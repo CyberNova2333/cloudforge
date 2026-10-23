@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { searchQueryOptions } from './searchQuery';
@@ -62,8 +63,8 @@ function watch() {
   };
 }
 
-describe('searchQueryOptions', () => {
-  it('asks /api/search for the term, in the scope of the repository being viewed', async () => {
+describe('searchQueryOptions：搜索查询选项', () => {
+  it('在当前仓库范围内向 /api/search 查询词条', async () => {
     const s = watch();
     await wait();
     s.type('auth', 'o/r');
@@ -75,7 +76,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it('never asks for an empty term', async () => {
+  it('查询为空时不发送请求', async () => {
     const s = watch();
     await wait();
     requests[0].answer(results('o/a'));
@@ -87,7 +88,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it('keeps the previous results up while the next ones load', async () => {
+  it('下一批结果加载期间保留上一批结果', async () => {
     const s = watch();
     await wait();
     requests[0].answer(results('o/a'));
@@ -109,7 +110,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it('cancels a request the next keystroke made stale', async () => {
+  it('下一次输入使请求过期时取消该请求', async () => {
     const s = watch();
     await wait();
     s.type('ab');
@@ -119,7 +120,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it("doesn't carry results over to another repository", async () => {
+  it('不将结果带入其他仓库', async () => {
     const s = watch();
     await wait();
     requests[0].answer(results('o/a'));
@@ -130,7 +131,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it('answers from memory when a term is typed again within a few seconds', async () => {
+  it('几秒内再次输入同一查询时从缓存返回', async () => {
     const s = watch();
     await wait();
     requests[0].answer(results('o/a'));
@@ -146,7 +147,7 @@ describe('searchQueryOptions', () => {
     s.stop();
   });
 
-  it('shows an error at once instead of retrying', async () => {
+  it('立即显示错误而不重试', async () => {
     const s = watch();
     await wait();
     // The server refused it.

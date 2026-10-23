@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   addMember,
@@ -52,8 +53,8 @@ const approve = (
   method = 'POST'
 ) => call(t, '/api/repos/octocat/app/pulls/1/approval', { cookie, method });
 
-describe('approving a pull request', () => {
-  it('records the head commit as approved by a person with merge access', async () => {
+describe('批准拉取请求', () => {
+  it('记录具有合入权限的用户对分支头提交的批准', async () => {
     const { t, admin, head } = await setup();
     const res = await approve(t, admin);
     expect(res.status).toBe(200);
@@ -66,7 +67,7 @@ describe('approving a pull request', () => {
     ]);
   });
 
-  it('keeps one approval, and one timeline entry, when approving twice', async () => {
+  it('重复批准时仅保留一条批准记录和一条时间线事件', async () => {
     const { t, admin } = await setup();
     await approve(t, admin);
     await approve(t, admin);
@@ -80,14 +81,14 @@ describe('approving a pull request', () => {
     expect(events).toHaveLength(1);
   });
 
-  it('needs a new approval for a new commit', async () => {
+  it('新提交需要重新批准', async () => {
     const { t, admin, repo } = await setup();
     await approve(t, admin);
     await commitPaths(repo, 'feature', { 'a.txt': 'three\n' }, 'Three');
     expect((await detail(t, admin)).approvals).toEqual([]);
   });
 
-  it('counts an approval again when the branch returns to its commit', async () => {
+  it('分支回到已批准的提交时再次计入该批准', async () => {
     const { t, admin, repo, head } = await setup();
     await approve(t, admin);
     await commitPaths(repo, 'feature', { 'a.txt': 'three\n' }, 'Three');
@@ -95,7 +96,7 @@ describe('approving a pull request', () => {
     expect((await detail(t, admin)).approvals).toHaveLength(1);
   });
 
-  it('withdraws only your own approval of the head', async () => {
+  it('只能撤销自己对当前分支头的批准', async () => {
     const { t, admin } = await setup();
     await approve(t, admin);
     const res = await approve(t, admin, 'DELETE');
@@ -103,7 +104,7 @@ describe('approving a pull request', () => {
     expect((await detail(t, admin)).approvals).toEqual([]);
   });
 
-  it('records a withdrawal on the timeline, once, and only when there was an approval', async () => {
+  it('仅在存在批准时记录一次撤销时间线事件', async () => {
     const { t, admin, head } = await setup();
     // Nothing to withdraw: no entry.
     expect((await approve(t, admin, 'DELETE')).status).toBe(200);
@@ -118,13 +119,13 @@ describe('approving a pull request', () => {
     ]);
   });
 
-  it('refuses members without merge access', async () => {
+  it('拒绝没有合入权限的成员', async () => {
     const { t, admin } = await setup();
     const mona = await addMember(t, admin, 'mona');
     expect((await approve(t, mona)).status).toBe(403);
   });
 
-  it('refuses a pull request that is no longer open', async () => {
+  it('拒绝已不处于打开状态的拉取请求', async () => {
     const { t, admin } = await setup();
     await call(t, '/api/repos/octocat/app/pulls/1', {
       cookie: admin,

@@ -238,8 +238,8 @@ async function childLands(s: Scenario) {
   return head;
 }
 
-describe('a stacked child after its parent lands', () => {
-  it('A: the child only adds a file', async () => {
+describe('父级合入后的堆叠子请求', () => {
+  it('A：子请求仅新增文件', async () => {
     const s = await scenario({ 'b.txt': 'b\n' });
     const two = s.repo.refs.get('refs/heads/two')!;
     await landedCleanly(s);
@@ -248,7 +248,7 @@ describe('a stacked child after its parent lands', () => {
     expect(messages(s.repo, two)).toEqual(['Two', 'One', 'base']);
   });
 
-  it('B: the parent fixed its lines after the child stacked; the child only adds a file', async () => {
+  it('B：子请求堆叠后父级修改了其代码行，子请求仅新增文件', async () => {
     const s = await scenario(
       { 'b.txt': 'b\n' },
       { 'a.txt': 'line 1\nfunction f() {\n  return 10;\n}\n' }
@@ -273,7 +273,7 @@ describe('a stacked child after its parent lands', () => {
     ]);
   });
 
-  it('C: the child edits the lines its parent added', async () => {
+  it('C：子请求修改父级新增的代码行', async () => {
     const s = await scenario({
       'a.txt': 'line 1\nfunction f() {\n  return 2;\n}\n',
     });
@@ -326,7 +326,7 @@ describe('a stacked child after its parent lands', () => {
     return main;
   }
 
-  it('A′: the child only adds a file, and main moved before its parent landed', async () => {
+  it('A′：子请求仅新增文件，且父级合入前 main 已移动', async () => {
     const s = await scenario({ 'b.txt': 'b\n' }, undefined, {
       mainFirst: true,
     });
@@ -335,7 +335,7 @@ describe('a stacked child after its parent lands', () => {
     expect(fileAt(s.repo, main, 'a.txt')).toBe(PARENT_A);
   });
 
-  it('B′: the parent fixed its lines after the child stacked, and main moved before it landed', async () => {
+  it('B′：子请求堆叠后父级修改了其代码行，且合入前 main 已移动', async () => {
     const s = await scenario(
       { 'b.txt': 'b\n' },
       { 'a.txt': 'line 1\nfunction f() {\n  return 10;\n}\n' },
@@ -348,7 +348,7 @@ describe('a stacked child after its parent lands', () => {
     expect(fileAt(s.repo, main, 'b.txt')).toBe('b\n');
   });
 
-  it('C′: the child edits its parent’s lines, and main moved before the parent landed', async () => {
+  it('C′：子请求修改父级代码行，且父级合入前 main 已移动', async () => {
     const s = await scenario(
       { 'a.txt': 'line 1\nfunction f() {\n  return 2;\n}\n' },
       undefined,
@@ -380,7 +380,7 @@ describe('a stacked child after its parent lands', () => {
     return rebasedOntoMain(s, parentCommits);
   }
 
-  it('A″: the child only adds a file, still on its parent’s original commits when the rebased parent landed', async () => {
+  it('A″：子请求仅新增文件，变基后的父级合入时子请求仍基于父级原始提交', async () => {
     const s = await scenario({ 'b.txt': 'b\n' }, undefined, {
       mainFirst: true,
       holdChild: true,
@@ -390,7 +390,7 @@ describe('a stacked child after its parent lands', () => {
     expect(fileAt(s.repo, main, 'a.txt')).toBe(PARENT_A);
   });
 
-  it('B″: the parent’s fix, then main moved; the child held its parent’s original commits until it landed', async () => {
+  it('B″：父级修正后 main 又移动，直到父级合入子请求仍包含父级原始提交', async () => {
     const s = await scenario(
       { 'b.txt': 'b\n' },
       { 'a.txt': 'line 1\nfunction f() {\n  return 10;\n}\n' },
@@ -403,7 +403,7 @@ describe('a stacked child after its parent lands', () => {
     expect(fileAt(s.repo, main, 'b.txt')).toBe('b\n');
   });
 
-  it('C″: the child edits its parent’s lines, still on its parent’s original commits when the rebased parent landed', async () => {
+  it('C″：子请求修改父级代码行，变基后的父级合入时子请求仍基于父级原始提交', async () => {
     const s = await scenario(
       { 'a.txt': 'line 1\nfunction f() {\n  return 2;\n}\n' },
       undefined,
@@ -415,7 +415,7 @@ describe('a stacked child after its parent lands', () => {
     );
   });
 
-  it('a real conflict with main still surfaces, naming the child’s commit', async () => {
+  it('仍报告与 main 的真实冲突，并指出子请求的提交', async () => {
     const s = await scenario({
       'a.txt': 'line 1\nfunction f() {\n  return 2;\n}\n',
     });
@@ -455,7 +455,7 @@ describe('a stacked child after its parent lands', () => {
     );
   });
 
-  it('pairs a pull request with a landed one by everything it landed', async () => {
+  it('根据已合入请求的全部合入内容建立请求对', async () => {
     const { t, admin, repo, open, files } = await repoWithAgent(false);
     const { models, calls } = stackModels();
     await open('one', { 'x.txt': 'x\n' }, 'One');

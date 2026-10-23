@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it, vi } from 'vitest';
 import {
   env,
@@ -90,8 +91,8 @@ const stored = async (state: DurableObjectState) => [
   ...(await state.storage.list()).keys(),
 ];
 
-describe('a stopped Pi reviewer', () => {
-  it('does nothing on a later start, on this instance or a fresh one (evicted)', async () => {
+describe('已停止的 Pi 审查器', () => {
+  it('后续在当前实例或逐出后的新实例启动时，均不执行任何操作', async () => {
     const { id, generation } = await reviewing();
     await inReviewer(stub(id, generation), async (reviewer, state) => {
       // Still this attempt, reviewing: the start gets as far as its draft.
@@ -123,7 +124,7 @@ describe('a stopped Pi reviewer', () => {
     });
   });
 
-  it('a start whose row was cancelled meanwhile starts nothing, and tombstones the object', async () => {
+  it('启动期间记录被取消时不启动审查，并为对象设置终止标记', async () => {
     const { t, id, generation } = await reviewing();
     await setStatus(t, id, 'not_needed');
     await inReviewer(stub(id, generation), async (reviewer, state) => {
@@ -140,7 +141,7 @@ describe('a stopped Pi reviewer', () => {
     });
   });
 
-  it('a start for an older attempt of the row starts nothing', async () => {
+  it('针对记录较早尝试的启动请求不启动任何内容', async () => {
     const { id, generation } = await reviewing();
     await inReviewer(stub(id, generation - 1000), async (reviewer, state) => {
       expect(await reviewer.start(request(id, generation - 1000))).toEqual({
@@ -150,7 +151,7 @@ describe('a stopped Pi reviewer', () => {
     });
   });
 
-  it('a name stopped before it ever started never starts', async () => {
+  it('首次启动前已停止的名称不再启动', async () => {
     const { id, generation } = await reviewing();
     const s = stub(id, generation);
     await s.stop();
@@ -164,7 +165,7 @@ describe('a stopped Pi reviewer', () => {
     });
   });
 
-  it('forgets everything a day after the tombstone, and not before', async () => {
+  it('终止标记满一天后清除全部内容，不提前清除', async () => {
     const { id, generation } = await reviewing();
     const s = stub(id, generation);
     await s.stop();
@@ -187,8 +188,8 @@ describe('a stopped Pi reviewer', () => {
   });
 });
 
-describe('the review Workflow and a stopped Pi reviewer', () => {
-  it('a cancel landing between the step reading its row and starting the object: skipped, nothing runs', async () => {
+describe('审查 Workflow 与已停止的 Pi 审查器', () => {
+  it('读取记录和启动对象之间收到取消时，跳过执行且不运行任何内容', async () => {
     const t = await underReview();
     const real = (name: string) =>
       env.AGENT_REVIEWER.getByName(name) as unknown as PiReviewerApi;

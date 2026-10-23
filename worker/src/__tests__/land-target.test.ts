@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { landTargetOf } from '../lib/land-target';
 import { bootstrapAdmin, call, makeEnv, settle } from './helpers/app';
@@ -10,8 +11,8 @@ import { executeSweep } from '../merge/auto';
 import { onRefsUpdated } from '../actions/trigger';
 import { findRepoById, gitFor } from '../lib/repos';
 
-describe('land target', () => {
-  it('is the base a pull request was opened against', async () => {
+describe('合并目标', () => {
+  it('取拉取请求创建时指定的基础分支', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -34,7 +35,7 @@ describe('land target', () => {
     ).toEqual({ baseRef: 'main', landTarget: 'main' });
   });
 
-  it('falls back to base_ref for rows written before the column (null)', () => {
+  it('字段添加前写入的记录值为 null 时，回退到 base_ref', () => {
     expect(landTargetOf({ landTarget: null, baseRef: 'main' })).toBe('main');
     expect(landTargetOf({ landTarget: 'main', baseRef: 'parent' })).toBe(
       'main'
@@ -154,8 +155,8 @@ const passChecks = (s: Awaited<ReturnType<typeof stackedByHand>>) =>
     "UPDATE workflow_runs SET status = 'completed', conclusion = 'success'"
   ).run();
 
-describe('readers of the land target', () => {
-  it('reviews and lands against the land target (review, auto-merge, list, states, sweep)', async () => {
+describe('合并目标的读取方', () => {
+  it('审查、自动合并、列表、状态和扫描均针对合并目标进行审查与合并', async () => {
     const s = await stackedByHand();
     const d = await detail(s, 2);
     expect(d.pull).toMatchObject({ baseRef: 'parent', landTarget: 'main' });
@@ -189,7 +190,7 @@ describe('readers of the land target', () => {
     expect(latest?.id).toBe(`${s.pr2}-${next}`);
   });
 
-  it('runs pull_request workflows filtered by the land target', async () => {
+  it('运行按合并目标过滤的 pull_request 工作流', async () => {
     const s = await stackedByHand();
     const old = s.repo.refs.get('refs/heads/child')!;
     await commitPaths(
@@ -221,14 +222,14 @@ describe('readers of the land target', () => {
     ).toEqual({ n: 1 });
   });
 
-  it('rebases a stacked PR onto its parent’s branch, not the land target', async () => {
+  it('将堆叠 PR 变基到父 PR 分支，而非合并目标', async () => {
     const s = await stackedByHand({ conflict: true });
     const d = await detail(s, 2);
     // #2 already contains its parent, so it is up to date with base_ref even though main moved.
     expect(d.rebase).toMatchObject({ status: 'up_to_date', onto: 'parent' });
   });
 
-  it('sweeps many moved branches in chunks and still reaches a PR by its land target', async () => {
+  it('分块扫描大量已变化分支，且仍能按合并目标找到 PR', async () => {
     const s = await stackedByHand();
     await s.t.env.DB.prepare(
       "UPDATE pull_requests SET base_ref = 'main' WHERE number = 2"
@@ -255,7 +256,7 @@ describe('readers of the land target', () => {
     ).toHaveLength(1);
   });
 
-  it('rebases onto the land target when the base_ref branch is gone', async () => {
+  it('base_ref 分支不存在时变基到合并目标', async () => {
     const s = await stackedByHand({ conflict: true });
     s.repo.refs.delete('refs/heads/parent');
     const d = await detail(s, 2);
@@ -263,7 +264,7 @@ describe('readers of the land target', () => {
     expect(d.rebase!.status).not.toBe('up_to_date');
   });
 
-  it('lands into the land target, never the parent branch', async () => {
+  it('合并到合并目标，不合并到父分支', async () => {
     const s = await stackedByHand();
     const parentTip = s.repo.refs.get('refs/heads/parent');
     const mainTip = s.repo.refs.get('refs/heads/main')!;
@@ -292,7 +293,7 @@ describe('readers of the land target', () => {
     expect(s.repo.parseCommit(parentTip!)!.parents).toEqual([mainTip]);
   });
 
-  it('groups the stack tree by land target', async () => {
+  it('按合并目标分组堆叠树', async () => {
     const s = await stackedByHand();
     const tree = (await (
       await call(s.t, '/api/repos/octocat/app/pulls/tree', { cookie: s.admin })
@@ -304,7 +305,7 @@ describe('readers of the land target', () => {
     ).toEqual([['main', [1, 2]]]);
   });
 
-  it('treats a row with a null land_target as landing into its base, as before', async () => {
+  it('land_target 为 null 的记录仍按原行为合并到其基础分支', async () => {
     const s = await stackedByHand();
     // As on rows written before the column: no land_target, base_ref is the target.
     await s.t.env.DB.prepare(

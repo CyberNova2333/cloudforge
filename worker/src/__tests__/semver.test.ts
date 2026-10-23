@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   bumpVersion,
@@ -9,8 +10,8 @@ import {
 
 const v = (s: string) => parseVersion(s)!;
 
-describe('version arithmetic', () => {
-  it('parses vX.Y.Z tags only', () => {
+describe('语义化版本运算', () => {
+  it('只解析 vX.Y.Z 格式的标签', () => {
     expect(parseVersion('v1.2.3')).toEqual({ major: 1, minor: 2, patch: 3 });
     expect(parseVersion('v0.0.0')).toEqual({ major: 0, minor: 0, patch: 0 });
     expect(parseVersion('v12345678.0.0')).toEqual({
@@ -33,24 +34,24 @@ describe('version arithmetic', () => {
       expect(parseVersion(bad)).toBeNull();
   });
 
-  it('formats a version as its tag', () => {
+  it('将版本格式化为标签', () => {
     expect(formatVersion({ major: 0, minor: 1, patch: 0 })).toBe('v0.1.0');
   });
 
-  it('bumps and resets the lower parts', () => {
+  it('提升版本级别并重置较低位', () => {
     expect(bumpVersion(v('v1.4.2'), 'major')).toEqual(v('v2.0.0'));
     expect(bumpVersion(v('v1.4.2'), 'minor')).toEqual(v('v1.5.0'));
     expect(bumpVersion(v('v1.4.2'), 'patch')).toEqual(v('v1.4.3'));
   });
 
-  it('takes the largest bump, with null and nothing counting as patch', () => {
+  it('采用最大的升级级别，将 null 和空列表视为 patch', () => {
     expect(largestBump([null, 'patch', 'minor'])).toBe('minor');
     expect(largestBump(['patch', 'major', 'minor'])).toBe('major');
     expect(largestBump([null])).toBe('patch');
     expect(largestBump([])).toBe('patch');
   });
 
-  it('compares numerically, not as text', () => {
+  it('按数值而不是文本比较版本', () => {
     expect(compareVersions(v('v1.10.0'), v('v1.9.9'))).toBeGreaterThan(0);
     expect(compareVersions(v('v2.0.0'), v('v2.0.0'))).toBe(0);
     expect(compareVersions(v('v1.0.0'), v('v1.0.1'))).toBeLessThan(0);

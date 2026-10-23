@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -47,8 +48,8 @@ async function pullWith(changes: Record<string, string>) {
   return { t, admin, repo };
 }
 
-describe('code excerpts for flags', () => {
-  it('takes the lines a model points at from the real diff, numbered as in the file', async () => {
+describe('审查意见的代码片段', () => {
+  it('从真实差异提取模型指向的行，并使用文件中的行号', async () => {
     const { renderNumberedDiff, snippetLines } =
       await import('../review/detail');
     const d = {
@@ -85,8 +86,8 @@ describe('code excerpts for flags', () => {
   });
 });
 
-describe('what the investigating model reads', () => {
-  it('leaves out generated files and lockfiles, caps huge diffs, and reads source first', async () => {
+describe('调查模型读取的内容', () => {
+  it('排除生成文件和锁文件，限制巨大差异，并优先读取源码', async () => {
     const { diffsFor } = await import('../review/detail');
     const { ArtifactsRepoClient } = await import('../git/remote');
     const { GitService } = await import('../git/service');
@@ -135,8 +136,8 @@ describe('what the investigating model reads', () => {
   });
 });
 
-describe('Mermaid diagrams', () => {
-  it('keeps multi-line or escaped diagrams and drops one-line ones', async () => {
+describe('Mermaid 图表', () => {
+  it('保留多行或转义图表，丢弃单行图表', async () => {
     const { mermaidSource } = await import('../review/models');
     // A literal "\n" from the model becomes a real line break.
     expect(
@@ -154,8 +155,8 @@ describe('Mermaid diagrams', () => {
   });
 });
 
-describe('.orangeignore', () => {
-  it('reads .gitignore-style patterns', async () => {
+describe('.orangeignore 忽略规则', () => {
+  it('读取与 .gitignore 风格一致的模式', async () => {
     const { ignoreMatcher } = await import('../review/ignore');
     const ignored = ignoreMatcher(
       [
@@ -193,7 +194,7 @@ describe('.orangeignore', () => {
   });
 });
 
-describe('auto-merge deletes the merged branch', () => {
+describe('自动合入后删除已合入分支', () => {
   /** Calls the cleanup directly, as auto-merge does after landing pull request #`number`. */
   async function cleanup(t: TestEnv, number: number, headSha: string) {
     const db = drizzle(t.env.DB, { schema });
@@ -224,14 +225,14 @@ describe('auto-merge deletes the merged branch', () => {
     await settle(t);
   }
 
-  it('keeps the branch after a manual merge when the repository keeps merged branches', async () => {
+  it('仓库配置为保留合入分支时，手动合入后保留分支', async () => {
     const { t, admin, repo } = await pullWith({ 'src/b.ts': 'b\n' });
     const head = repo.refs.get('refs/heads/feature');
     await mergeByHand(t, admin);
     expect(repo.refs.get('refs/heads/feature')).toBe(head);
   });
 
-  it('keeps the branch when someone pushed to it after the merged commit', async () => {
+  it('合入提交之后又有人推送时保留分支', async () => {
     const { t, admin, repo } = await pullWith({ 'src/b.ts': 'b\n' });
     const merged = repo.refs.get('refs/heads/feature')!;
     await mergeByHand(t, admin);
@@ -258,7 +259,7 @@ describe('auto-merge deletes the merged branch', () => {
     expect(repo.refs.has('refs/heads/feature')).toBe(false);
   });
 
-  it('keeps a branch another open pull request builds on', async () => {
+  it('其他打开的拉取请求依赖该分支时保留分支', async () => {
     const { t, admin, repo } = await pullWith({ 'src/b.ts': 'b\n' });
     const head = repo.refs.get('refs/heads/feature')!;
     repo.refs.set('refs/heads/child', head);
@@ -273,7 +274,7 @@ describe('auto-merge deletes the merged branch', () => {
     expect(repo.refs.get('refs/heads/feature')).toBe(head);
   });
 
-  it('never deletes the default branch', async () => {
+  it('不删除默认分支', async () => {
     const { t, admin, repo } = await pullWith({ 'src/b.ts': 'b\n' });
     // A pull request from main into an older release branch.
     const main = repo.refs.get('refs/heads/main')!;

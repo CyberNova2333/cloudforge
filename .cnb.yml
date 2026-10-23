@@ -1,32 +1,33 @@
-# CloudForge CI on CNB (https://cnb.cool/CyberNova2333/cloudforge): format, typecheck, build and every test, the checks
-# .github/workflows/ci.yml and format.yml run on GitHub and on a CloudForge instance (which read those files instead).
-# Syntax: https://docs.cnb.cool/zh/build/grammar.html
+# CloudForge 在 CNB 上的持续集成：https://cnb.cool/CyberNova2333/cloudforge
+# 依次检查代码格式、类型、构建和全部测试；GitHub 与 CloudForge 实例使用
+# .github/workflows/ci.yml 和 format.yml 执行相应检查。
+# 配置语法：https://docs.cnb.cool/zh/build/grammar.html
 main:
   push: &ci
-    - name: ci
+    - name: 持续集成
       docker:
         image: node:22
-        # Cached on the build node, copy-on-write (concurrent builds each get their own copy): on the same node the
-        # install only reconciles node_modules with the lockfile. Another node starts empty.
+        # 依赖缓存在构建节点上（copy-on-write，并发构建各用一份副本）：落到同一节点时，安装只需按
+        # lockfile 校正 node_modules；换了节点则从空开始。
         volumes:
           - /usr/local/share/.cache/yarn
           - ./node_modules
       stages:
-        - name: install
+        - name: 安装依赖
           script: yarn install --frozen-lockfile
-        - name: config
+        - name: 准备验证配置
           script: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
-        - name: format
+        - name: 检查代码格式
           script: yarn format:check
-        - name: typecheck
+        - name: 检查类型
           script: yarn typecheck
-        - name: build
+        - name: 构建项目
           script: yarn build
-        - name: test
-          # Six workers on the runner's 8 cores, each a workerd with its own storage (worker/vitest.config.ts).
+        - name: 运行全部测试
+          # 8 核 runner 上开 6 个 worker，每个是独立的 workerd、有自己的存储（见 worker/vitest.config.ts）。
           script: TEST_WORKERS=6 yarn test
   pull_request: *ci
 
-# Every other branch, on push.
+# 其他分支推送时复用同一流水线。
 $:
   push: *ci

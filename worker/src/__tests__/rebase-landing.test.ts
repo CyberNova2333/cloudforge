@@ -105,8 +105,8 @@ const row = (t: TestEnv) =>
     'SELECT state, merge_commit_sha AS sha, landed_commits AS landed FROM pull_requests WHERE number = 1'
   ).first();
 
-describe('landing by fast-forward', () => {
-  it('moves the target to the head: no new commit, every SHA and message kept', async () => {
+describe('通过快进合入', () => {
+  it('将目标指向分支头，不创建新提交，保留所有 SHA 和提交说明', async () => {
     const { t, repo, root, f1, f2, merge } = await landing();
     const res = await merge();
     expect(res.status).toBe(200);
@@ -118,7 +118,7 @@ describe('landing by fast-forward', () => {
     expect(await row(t)).toEqual({ state: 'merged', sha: f2, landed: 2 });
   });
 
-  it('shows a landed pull request’s own commits and files, even after the target moves on', async () => {
+  it('即使目标继续前进，仍展示已合入拉取请求自己的提交及文件', async () => {
     const { t, admin, merge, moveMain } = await landing();
     expect((await merge()).status).toBe(200);
     await moveMain();
@@ -132,7 +132,7 @@ describe('landing by fast-forward', () => {
     expect(files.map((f) => f.path)).toEqual(['b.txt', 'c.txt']);
   });
 
-  it('rebases first when the target moved, and lands at once when nothing needs checks', async () => {
+  it('目标变化时先变基，没有待检查事项则立即合入', async () => {
     const { t, repo, f2, merge, moveMain } = await landing();
     const tip = await moveMain();
     const res = await merge();
@@ -148,7 +148,7 @@ describe('landing by fast-forward', () => {
     expect((await events(t, 1)).map((e) => e.kind)).toContain('rebased');
   });
 
-  it('rebases first, then waits for checks on the new head; merging again lands it', async () => {
+  it('先变基，再等待新分支头的检查，再次合入时成功', async () => {
     const { t, repo, base, merge, moveMain, passChecks } = await landing({
       ci: true,
     });
@@ -181,7 +181,7 @@ describe('landing by fast-forward', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(head);
   });
 
-  it('says which gate refused a merge, with no rebased head when nothing was rebased', async () => {
+  it('指出拒绝合入的门禁；未变基时不返回变基后的分支头', async () => {
     const { merge } = await landing({ ci: true });
     const res = await merge();
     expect(res.status).toBe(409);
@@ -190,7 +190,7 @@ describe('landing by fast-forward', () => {
     expect(body.rebased).toBeUndefined();
   });
 
-  it('refuses a rebase conflict, naming the commit, and leaves it to a rebase run', async () => {
+  it('拒绝变基冲突，指出冲突提交，并交由变基运行处理', async () => {
     const { t, repo, base, f2, merge, moveMain } = await landing();
     await moveMain({ ...base, 'c.txt': 'main c\n' });
     const res = await merge();
@@ -207,7 +207,7 @@ describe('landing by fast-forward', () => {
     ).toBe(true);
   });
 
-  it('refuses when there is nothing to merge', async () => {
+  it('没有可合入内容时拒绝合入', async () => {
     const { repo, f2, merge } = await landing();
     repo.refs.set('refs/heads/main', f2);
     const res = await merge();
@@ -215,7 +215,7 @@ describe('landing by fast-forward', () => {
     expect(await res.text()).toContain('Nothing to merge');
   });
 
-  it('keeps the squash rule for pull requests merged before rebase merging', async () => {
+  it('对引入变基合入前已合入的拉取请求保留压缩合并规则', async () => {
     const { t, admin, repo, f2 } = await landing();
     const squash = await commitPaths(
       repo,
@@ -235,7 +235,7 @@ describe('landing by fast-forward', () => {
     expect(files.map((f) => f.path)).toEqual(['b.txt', 'c.txt']);
   });
 
-  it('never rewrites a head another open pull request shares, to land it', async () => {
+  it('不为合入而改写其他打开拉取请求共享的分支头', async () => {
     const { t, admin, repo, root, f2, merge, moveMain } = await landing();
     repo.refs.set('refs/heads/release', root);
     const other = await call(t, '/api/repos/octocat/app/pulls', {
@@ -254,7 +254,7 @@ describe('landing by fast-forward', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(tip);
   });
 
-  it('counts a merged-in branch as one landed commit, as a first-parent log shows it', async () => {
+  it('按第一父提交日志，将合入分支计作一个合入提交', async () => {
     const { t, admin, repo, base, root, f2, merge } = await landing();
     const side = await commitFiles(
       repo,
@@ -280,8 +280,8 @@ describe('landing by fast-forward', () => {
   });
 });
 
-describe('Actions on a rebased head', () => {
-  it('a rebase run queues them before anything else can fail, so the head can’t land untested', async () => {
+describe('变基后分支头的 Actions 检查', () => {
+  it('变基运行在其他操作可能失败前先排队检查，避免未经测试的分支头被合入', async () => {
     const { t, repo, root, f2, merge, moveMain, passChecks } = await landing({
       ci: true,
     });
@@ -303,7 +303,7 @@ describe('Actions on a rebased head', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(head);
   });
 
-  it('landing’s own rebase queues them first too, and waits for them when the rest fails', async () => {
+  it('合入内联变基也先排队检查，其他操作失败时仍等待检查', async () => {
     const { t, repo, f2, merge, moveMain, passChecks } = await landing({
       ci: true,
     });
@@ -325,8 +325,8 @@ describe('Actions on a rebased head', () => {
   });
 });
 
-describe('a target that moves again while landing rebases', () => {
-  it('says the branch was rebased, with the new head, in the "Base branch was modified" refusal', async () => {
+describe('合入期间目标再次移动时的变基', () => {
+  it('在“Base branch was modified”拒绝信息中说明分支已变基，并给出新分支头', async () => {
     const { repo, base, f2, merge, moveMain } = await landing();
     await moveMain();
     // Main moves once more right after landing pushes the rebased branch, before it fast-forwards main.

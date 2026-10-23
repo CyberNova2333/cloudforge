@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -25,8 +26,8 @@ const set = (t: T, id: string, sql: string, ...binds: unknown[]) =>
 
 const longAgo = () => Math.floor((Date.now() - LEARN_STALE_MS - 60_000) / 1000);
 
-describe('lesson recovery (daily)', () => {
-  it('requeues a lesson stuck learning past the stale window and starts it; fails it after its last attempt', async () => {
+describe('每日学习任务恢复', () => {
+  it('重新排入并启动超过过期窗口仍卡在学习中的任务；最后一次尝试后标记失败', async () => {
     const { t } = await closedLesson();
     const db = drizzle(t.env.DB, { schema });
     const [l] = await lessons(t);
@@ -68,7 +69,7 @@ describe('lesson recovery (daily)', () => {
     });
   });
 
-  it('leaves a lesson learning inside the stale window alone', async () => {
+  it('不干预尚在过期窗口内的学习任务', async () => {
     const { t } = await closedLesson();
     const [l] = await lessons(t);
     await set(
@@ -88,7 +89,7 @@ describe('lesson recovery (daily)', () => {
     });
   });
 
-  it('retries a retryable failure once, never a second time, and never a rejected edit', async () => {
+  it('仅重试可重试故障一次，不进行第二次重试，也不重试被拒绝的编辑', async () => {
     const { t } = await closedLesson();
     const db = drizzle(t.env.DB, { schema });
     const [l] = await lessons(t);
@@ -112,7 +113,7 @@ describe('lesson recovery (daily)', () => {
     expect((await lessons(t))[0].status).toBe('failed');
   });
 
-  it("starts a pending lesson whose Workflow was lost, and it's learned once", async () => {
+  it('启动 Workflow 丢失的待处理学习任务，且仅学习一次', async () => {
     const { t } = await closedLesson();
     expect(learnRuns(t)).toHaveLength(1);
     expect(await recoverLessons(t.env, drizzle(t.env.DB, { schema }))).toEqual({
@@ -127,7 +128,7 @@ describe('lesson recovery (daily)', () => {
     expect((await lessons(t))[0].status).toBe('nothing');
   });
 
-  it('drops unfinished lessons of a deleted agent, and keeps committed ones', async () => {
+  it('丢弃已删除智能体的未完成学习任务，保留已提交的任务', async () => {
     const { t, admin } = await closedLesson();
     const db = drizzle(t.env.DB, { schema });
     const [l] = await lessons(t);
@@ -146,7 +147,7 @@ describe('lesson recovery (daily)', () => {
     expect(await lessons(t)).toEqual([]);
   });
 
-  it('runs with the daily retention, which reports what it did', async () => {
+  it('随每日保留清理运行，并报告执行结果', async () => {
     const { t } = await closedLesson();
     const status = await runActionsRetention(
       t.env,

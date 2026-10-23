@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   areaKind,
@@ -46,24 +47,24 @@ const report = (over: Partial<HealthReport> = {}): HealthReport => ({
   ...over,
 });
 
-describe('areaKind', () => {
-  it('tells agent rows from the two built-in rows', () => {
+describe('areaKind：区域类型', () => {
+  it('区分代理行与两种内置行', () => {
     expect(areaKind(area())).toBe('agent');
     expect(areaKind(area({ id: 'tests', agent: null }))).toBe('tests');
     expect(areaKind(area({ id: 'merging', agent: null }))).toBe('merging');
   });
 });
 
-describe('TREND_LOOK', () => {
-  it('has words and a tone for every trend, so colour is never the only signal', () => {
+describe('TREND_LOOK：趋势外观', () => {
+  it('每种趋势都有文字和色调，避免仅靠颜色传达', () => {
     expect(TREND_LOOK.better).toEqual({ label: 'Better', tone: 'good' });
     expect(TREND_LOOK.same).toEqual({ label: 'Same', tone: 'off' });
     expect(TREND_LOOK.worse).toEqual({ label: 'Worse', tone: 'serious' });
   });
 });
 
-describe('weekLabels', () => {
-  it('names the eight weeks oldest first, ending with this week', () => {
+describe('weekLabels：周标签', () => {
+  it('从最早的一周到本周命名八周', () => {
     expect(weekLabels(8)).toEqual([
       '7 weeks ago',
       '6 weeks ago',
@@ -75,15 +76,15 @@ describe('weekLabels', () => {
       'This week',
     ]);
   });
-  it('copes with a different number of weeks', () => {
+  it('处理不同的周数', () => {
     expect(weekLabels(2)).toEqual(['Last week', 'This week']);
     expect(weekLabels(1)).toEqual(['This week']);
     expect(weekLabels(0)).toEqual([]);
   });
 });
 
-describe('areaSpark', () => {
-  it('charts an agent by findings raised', () => {
+describe('areaSpark：区域迷你图', () => {
+  it('按提出的问题数绘制代理图表', () => {
     const s = areaSpark(area());
     expect(s.values).toEqual([0, 1, 0, 2, 1, 0, 1, 3]);
     expect(s.unit).toBe(' raised');
@@ -92,7 +93,7 @@ describe('areaSpark', () => {
     expect(s.trend).toBe('worse');
   });
 
-  it('titles the tests row as failures, never as a pass rate', () => {
+  it('测试行标题表示失败数而非通过率', () => {
     const s = areaSpark(
       area({
         id: 'tests',
@@ -109,7 +110,7 @@ describe('areaSpark', () => {
     expect(`${s.label} ${s.unit}`).not.toMatch(/pass/i);
   });
 
-  it('charts merging by reverts', () => {
+  it('按回退次数绘制合并图表', () => {
     const s = areaSpark(
       area({ id: 'merging', agent: null, label: 'Merging', weeks: [0, 1] })
     );
@@ -119,7 +120,7 @@ describe('areaSpark', () => {
   });
 });
 
-describe('areaSpark gaps', () => {
+describe('areaSpark：图表空缺', () => {
   const tests = (over: Partial<HealthArea> = {}) =>
     area({
       id: 'tests',
@@ -131,7 +132,7 @@ describe('areaSpark gaps', () => {
       ...over,
     });
 
-  it('draws the weeks with no test runs as gaps, with a tooltip that says so', () => {
+  it('没有测试运行的周绘制为空缺，并在提示中说明', () => {
     const s = areaSpark(tests());
     expect(s.missing).toEqual([
       true,
@@ -149,7 +150,7 @@ describe('areaSpark gaps', () => {
     expect(s.label).toContain('weeks with no test runs are gaps');
   });
 
-  it('draws no gaps when every week had runs, when the API sent none, or off the tests row', () => {
+  it('每周都有运行、API 未提供空缺或非测试行时不绘制空缺', () => {
     expect(
       areaSpark(tests({ noRuns: Array(8).fill(false) })).missing
     ).toBeUndefined();
@@ -161,18 +162,18 @@ describe('areaSpark gaps', () => {
     ).toBeUndefined();
   });
 
-  it('ignores a noRuns list that does not line up with the weeks', () => {
+  it('忽略与周数不对应的 noRuns 列表', () => {
     expect(areaSpark(tests({ noRuns: [true, false] })).missing).toBeUndefined();
   });
 });
 
-describe('healthLede', () => {
-  it('leads with the summary, then what waits and what is open', () => {
+describe('healthLede：健康摘要', () => {
+  it('先显示摘要，再显示待决定和开放项', () => {
     expect(healthLede(report({ decisionsWaiting: 1 }), 6)).toBe(
       'Nothing got worse this week. 1 decision needs you. 6 pull requests open.'
     );
   });
-  it('says nothing about decisions when none wait, and handles one or none open', () => {
+  it('无待决定项时不提决定，并处理一个或零个开放项', () => {
     expect(healthLede(report(), 1)).toBe(
       'Nothing got worse this week. 1 pull request open.'
     );
@@ -247,19 +248,19 @@ const item = (
   stackUnchecked: [],
 });
 
-describe('pickDecision', () => {
-  it('finds nothing in other repositories or when there are no items', () => {
+describe('pickDecision：选择待决定项', () => {
+  it('其他仓库或没有条目时不返回结果', () => {
     expect(pickDecision([], 'o/r')).toBeNull();
     expect(pickDecision([item('o/other', 1, [flag()])], 'o/r')).toBeNull();
   });
 
-  it('matches the repository without regard to case', () => {
+  it('匹配仓库时忽略大小写', () => {
     const d = pickDecision([item('O/R', 4, [flag()])], 'o/r');
     expect(d?.flag.id).toBe('f1');
     expect(d?.pull.number).toBe(4);
   });
 
-  it('prefers a question for the owner over an ordinary finding', () => {
+  it('所有者问题优先于普通问题', () => {
     const d = pickDecision(
       [
         item('o/r', 1, [flag({ id: 'plain' })]),
@@ -270,7 +271,7 @@ describe('pickDecision', () => {
     expect(d?.flag.id).toBe('ask');
   });
 
-  it('skips findings somebody already decided and change requests', () => {
+  it('跳过已决定的问题和修改要求', () => {
     expect(
       pickDecision(
         [
@@ -289,10 +290,10 @@ describe('pickDecision', () => {
   });
 });
 
-describe('decisionCopy', () => {
+describe('decisionCopy：决定文案', () => {
   const row = (f: ReviewFlag) => pickDecision([item('o/r', 7, [f])], 'o/r')!;
 
-  it('puts an owner question in plain words', () => {
+  it('用易懂的文字表达所有者问题', () => {
     const c = decisionCopy(
       row(
         flag({
@@ -308,7 +309,7 @@ describe('decisionCopy', () => {
     );
   });
 
-  it('uses the finding title when the agent asked no question', () => {
+  it('代理未提问时使用问题标题', () => {
     const c = decisionCopy(row(flag()));
     expect(c.from).toBe('Data wants a person to decide');
     expect(c.title).toBe('Invoices change currency');
@@ -316,7 +317,7 @@ describe('decisionCopy', () => {
   });
 });
 
-describe('contributorLine', () => {
+describe('contributorLine：贡献者说明', () => {
   const c = (over: Partial<HealthReport['contributors'][number]> = {}) => ({
     who: {
       kind: 'person' as const,
@@ -332,7 +333,7 @@ describe('contributorLine', () => {
     ...over,
   });
 
-  it('says nothing got worse when reviewers raised nothing', () => {
+  it('评审者未提出问题时说明没有恶化', () => {
     expect(contributorLine(c())).toEqual({
       text: 'Nothing got worse',
       detail: 'No findings from your reviewers',
@@ -340,7 +341,7 @@ describe('contributorLine', () => {
     });
   });
 
-  it('marks fewer findings as better', () => {
+  it('问题减少时标记为改善', () => {
     expect(contributorLine(c({ trend: 'better' }))).toEqual({
       text: 'Nothing got worse',
       detail: 'No findings this week, fewer than last week',
@@ -348,7 +349,7 @@ describe('contributorLine', () => {
     });
   });
 
-  it('shows the note and compares with last week when findings were raised', () => {
+  it('提出问题时显示备注并与上周比较', () => {
     expect(
       contributorLine(
         c({ findings: 2, note: '2 findings, most on #74', trend: 'worse' })
@@ -369,19 +370,19 @@ describe('contributorLine', () => {
   });
 });
 
-describe('clientMark', () => {
-  it('takes the first letter of the app; Codex is an X drawn as an outline', () => {
+describe('clientMark：客户端标识', () => {
+  it('取应用首字母，Codex 使用轮廓 X', () => {
     expect(clientMark('Claude Code')).toEqual({ mark: 'C', codex: false });
     expect(clientMark('Codex')).toEqual({ mark: 'X', codex: true });
     expect(clientMark('  cursor')).toEqual({ mark: 'C', codex: false });
   });
-  it('has a placeholder for a missing name', () => {
+  it('缺少名称时显示占位符', () => {
     expect(clientMark(null)).toEqual({ mark: '?', codex: false });
     expect(clientMark('')).toEqual({ mark: '?', codex: false });
   });
 });
 
-describe('reviewer record and state', () => {
+describe('评审记录与状态', () => {
   const stats = (over: Partial<AgentStats> = {}): AgentStats => ({
     handle: 'dataagent',
     raised: 12,
@@ -399,19 +400,19 @@ describe('reviewer record and state', () => {
     ...over,
   });
 
-  it('writes the record from this week and the overall numbers', () => {
+  it('根据本周和总体数据生成记录', () => {
     expect(reviewerRecord(area(), stats())).toBe(
       '3 raised this week · 80% kept overall · 3 rules learned overall'
     );
   });
 
-  it('uses singular forms and leaves out what is not known', () => {
+  it('使用单数形式并省略未知项', () => {
     expect(
       reviewerRecord(area({ thisWeek: 1 }), stats({ keptPct: null, rules: 1 }))
     ).toBe('1 raised this week · 1 rule learned overall');
   });
 
-  it('still says something when only one source loaded', () => {
+  it('仅加载一个数据来源时仍显示信息', () => {
     expect(reviewerRecord(area({ thisWeek: 0 }), undefined)).toBe(
       'Nothing raised this week'
     );
@@ -421,7 +422,7 @@ describe('reviewer record and state', () => {
     expect(reviewerRecord(undefined, undefined)).toBeNull();
   });
 
-  it('reads the state from what the agent is doing in this repository', () => {
+  it('根据代理在该仓库中的活动读取状态', () => {
     expect(reviewerState(stats(), 'o/r')).toBe('flagged');
     expect(reviewerState(stats(), 'o/other')).toBe('approved');
     expect(reviewerState(stats(), 'o/none')).toBe('idle');
@@ -429,7 +430,7 @@ describe('reviewer record and state', () => {
   });
 });
 
-describe('notReviewing', () => {
+describe('notReviewing：未参与评审的代理', () => {
   const agent = (username: string, deletedAt: string | null = null) =>
     ({
       id: `id-${username}`,
@@ -439,7 +440,7 @@ describe('notReviewing', () => {
       deletedAt,
     }) as unknown as Agent;
 
-  it('lists the agents that exist but are not on this repository, skipping deleted ones', () => {
+  it('列出存在但未加入该仓库的代理，并跳过已删除者', () => {
     const all = [
       agent('dataagent'),
       agent('securityagent'),
@@ -451,8 +452,8 @@ describe('notReviewing', () => {
   });
 });
 
-describe('noReviewersBody', () => {
-  it('tells an admin to add one and anyone else who can', () => {
+describe('noReviewersBody：没有评审者的说明', () => {
+  it('提示管理员添加代理，并告知其他人谁可以添加', () => {
     expect(noReviewersBody({ admin: true, available: 3 })).toBe(
       'Reviewers look at each change before it merges. Add one below.'
     );
@@ -463,7 +464,7 @@ describe('noReviewersBody', () => {
     expect(other).not.toMatch(/below/i);
   });
 
-  it('points at Agents when there is nothing to add, for everyone', () => {
+  it('没有可添加代理时对所有人指向代理页面', () => {
     for (const admin of [true, false])
       expect(noReviewersBody({ admin, available: 0 })).toBe(
         'Reviewers look at each change before it merges. A site admin can create them from Agents.'

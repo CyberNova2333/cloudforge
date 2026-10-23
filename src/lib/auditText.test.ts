@@ -32,14 +32,14 @@ const ev = (over: Partial<AuditEvent>): AuditEvent => ({
   ...over,
 });
 
-describe('the sentences in the brief', () => {
-  it('mahmoud paused merging on choyiny/gitorange', () => {
+describe('审计摘要中的句子', () => {
+  it('mahmoud 暂停 choyiny/gitorange 的合并', () => {
     expect(auditText(ev({ action: 'merging.paused' }))).toBe(
       'mahmoud paused merging on choyiny/gitorange'
     );
   });
 
-  it("CloudForge AI approved Speed's finding on #74 for cho", () => {
+  it('CloudForge AI 代表 cho 批准 Speed 在 #74 上的问题', () => {
     expect(
       auditText(
         ev({
@@ -61,7 +61,7 @@ describe('the sentences in the brief', () => {
     ).toBe("CloudForge AI approved Speed's finding on #74 for cho");
   });
 
-  it('System deleted branch stack-tree after #47 merged', () => {
+  it('系统在 #47 合并后删除 stack-tree 分支', () => {
     expect(
       auditText(
         ev({
@@ -77,8 +77,8 @@ describe('the sentences in the brief', () => {
   });
 });
 
-describe('who did it', () => {
-  it('names a person by username, falling back to their name', () => {
+describe('操作执行者', () => {
+  it('优先以用户名指代用户，缺失时使用姓名', () => {
     expect(actorName({ kind: 'person', login: 'cho', name: 'Cho' })).toBe(
       'cho'
     );
@@ -90,7 +90,7 @@ describe('who did it', () => {
     );
   });
 
-  it('names CloudForge AI, the system and an agent', () => {
+  it('命名 CloudForge AI、系统和代理', () => {
     expect(actorName({ kind: 'ai', login: 'cho', name: null })).toBe(
       'CloudForge AI'
     );
@@ -102,7 +102,7 @@ describe('who did it', () => {
     ).toBe('Security');
   });
 
-  it('uses the real agent names when the page knows them', () => {
+  it('页面已知代理名称时使用真实名称', () => {
     expect(
       actorName(
         { kind: 'agent', login: 'a11y', name: null },
@@ -111,7 +111,7 @@ describe('who did it', () => {
     ).toBe('Accessibility');
   });
 
-  it('turns a handle into the name people use', () => {
+  it('将账号名转换为常用名称', () => {
     expect(agentLabel('speedagent')).toBe('Speed');
     expect(agentLabel('dataagent')).toBe('Data');
     expect(agentLabel('reviewer')).toBe('reviewer');
@@ -119,7 +119,7 @@ describe('who did it', () => {
   });
 });
 
-describe('repository and instance views', () => {
+describe('仓库视图与实例视图', () => {
   const merged = ev({
     action: 'pull.merged',
     target: '#12',
@@ -132,19 +132,19 @@ describe('repository and instance views', () => {
     },
   });
 
-  it('keeps the repository out of its own log', () => {
+  it('仓库自身的日志不重复显示仓库名', () => {
     expect(auditText(merged, { scope: 'repo' })).toBe(
       'mahmoud merged #12 “Fix the queue” into main'
     );
   });
 
-  it('names the repository in the instance-wide log', () => {
+  it('实例日志包含仓库名', () => {
     expect(auditText(merged)).toBe(
       'mahmoud merged choyiny/gitorange#12 “Fix the queue” into main'
     );
   });
 
-  it('links the repository and the pull request', () => {
+  it('为仓库和拉取请求添加链接', () => {
     const parts = auditParts(merged);
     expect(parts.find((p) => p.kind === 'pull')).toEqual({
       kind: 'pull',
@@ -160,7 +160,7 @@ describe('repository and instance views', () => {
     });
   });
 
-  it('leaves an instance event without a repository alone', () => {
+  it('实例事件没有仓库时保持原样', () => {
     expect(
       auditText(
         ev({
@@ -173,17 +173,17 @@ describe('repository and instance views', () => {
     ).toBe('mahmoud created the access token “laptop”');
   });
 
-  it('shows how a person reached the change', () => {
+  it('显示用户通过何种入口作出变更', () => {
     expect(
       auditText(ev({ action: 'merging.resumed', via: 'Claude Code' }))
     ).toBe('mahmoud resumed merging on choyiny/gitorange via Claude Code');
   });
 });
 
-describe('every audit action reads as one sentence', () => {
+describe('每项审计操作都构成一个句子', () => {
   const cases: [string, Partial<AuditEvent>, string][] = [
     [
-      'settings.changed',
+      'settings.changed 设置变更',
       {
         action: 'settings.changed',
         target: 'choyiny/gitorange',
@@ -197,32 +197,32 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud changed the default branch and the description on choyiny/gitorange',
     ],
     [
-      'settings.changed with no known keys',
+      'settings.changed 不包含已知字段',
       { action: 'settings.changed', data: {} },
       'mahmoud changed settings on choyiny/gitorange',
     ],
     [
-      'collaborator.added',
+      'collaborator.added 添加协作者',
       { action: 'collaborator.added', target: 'cho' },
       'mahmoud added cho as a collaborator on choyiny/gitorange',
     ],
     [
-      'collaborator.removed',
+      'collaborator.removed 移除协作者',
       { action: 'collaborator.removed', target: 'cho' },
       'mahmoud removed cho as a collaborator on choyiny/gitorange',
     ],
     [
-      'agent.invited',
+      'agent.invited 邀请智能体',
       { action: 'agent.invited', target: 'speedagent' },
       'mahmoud invited Speed to review choyiny/gitorange',
     ],
     [
-      'agent.removed',
+      'agent.removed 移除智能体',
       { action: 'agent.removed', target: 'speedagent' },
       'mahmoud removed Speed as a reviewer on choyiny/gitorange',
     ],
     [
-      'agent.created',
+      'agent.created 创建智能体',
       {
         action: 'agent.created',
         repo: null,
@@ -232,17 +232,17 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud created the reviewer Security',
     ],
     [
-      'agent.deleted',
+      'agent.deleted 删除智能体',
       { action: 'agent.deleted', repo: null, target: 'securityagent' },
       'mahmoud deleted the reviewer Security',
     ],
     [
-      'agent.restored',
+      'agent.restored 恢复智能体',
       { action: 'agent.restored', repo: null, target: 'securityagent' },
       'mahmoud restored the reviewer Security',
     ],
     [
-      'secret.saved (new, in a repository)',
+      'secret.saved 在仓库中新建密钥',
       {
         action: 'secret.saved',
         target: 'NPM_TOKEN',
@@ -251,7 +251,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud added the Actions secret NPM_TOKEN in choyiny/gitorange',
     ],
     [
-      'variable.saved (instance-wide)',
+      'variable.saved 保存实例级变量',
       {
         action: 'variable.saved',
         repo: null,
@@ -261,7 +261,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud updated the Actions variable REGION for every repository',
     ],
     [
-      'secret.deleted',
+      'secret.deleted 删除密钥',
       {
         action: 'secret.deleted',
         target: 'NPM_TOKEN',
@@ -270,7 +270,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud deleted the Actions secret NPM_TOKEN in choyiny/gitorange',
     ],
     [
-      'variable.deleted (instance-wide)',
+      'variable.deleted 删除实例级变量',
       {
         action: 'variable.deleted',
         repo: null,
@@ -280,17 +280,17 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud deleted the Actions variable REGION for every repository',
     ],
     [
-      'artifact.deleted',
+      'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in choyiny/gitorange',
     ],
     [
-      'branch.deleted by a person',
+      'branch.deleted 由人工删除分支',
       { action: 'branch.deleted', target: 'old-idea', data: { sha: 'abc' } },
       'mahmoud deleted branch old-idea in choyiny/gitorange',
     ],
     [
-      'branches.cleaned',
+      'branches.cleaned 清理分支',
       {
         action: 'branches.cleaned',
         target: '3 branches',
@@ -299,17 +299,17 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud cleaned up 3 merged branches in choyiny/gitorange',
     ],
     [
-      'merging.paused',
+      'merging.paused 暂停合并',
       { action: 'merging.paused' },
       'mahmoud paused merging on choyiny/gitorange',
     ],
     [
-      'merging.resumed',
+      'merging.resumed 恢复合并',
       { action: 'merging.resumed' },
       'mahmoud resumed merging on choyiny/gitorange',
     ],
     [
-      'pull.merged',
+      'pull.merged 合并拉取请求',
       {
         action: 'pull.merged',
         target: '#12',
@@ -319,7 +319,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud merged choyiny/gitorange#12 “Fix it” into main',
     ],
     [
-      'pull.merged automatically',
+      'pull.merged 自动合并',
       {
         actor: { kind: 'system', login: null, name: null },
         action: 'pull.merged',
@@ -330,12 +330,12 @@ describe('every audit action reads as one sentence', () => {
       'System merged choyiny/gitorange#12 “Fix it” into main',
     ],
     [
-      'pull.reverted',
+      'pull.reverted 回退拉取请求',
       { action: 'pull.reverted', target: '#12', pull: 12 },
       'mahmoud reverted choyiny/gitorange#12',
     ],
     [
-      'pull.reverted with its new pull request',
+      'pull.reverted 显示新建的回退拉取请求',
       {
         action: 'pull.reverted',
         target: '#12',
@@ -345,12 +345,12 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud reverted choyiny/gitorange#12 with choyiny/gitorange#13',
     ],
     [
-      'pull.approved',
+      'pull.approved 批准拉取请求',
       { action: 'pull.approved', target: '#12', pull: 12 },
       'mahmoud approved choyiny/gitorange#12',
     ],
     [
-      'finding.approved',
+      'finding.approved 批准审查意见',
       {
         action: 'finding.approved',
         target: 'Token is logged',
@@ -360,7 +360,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud approved Security's finding on choyiny/gitorange#74",
     ],
     [
-      'finding.approved on a change request is a dismissal',
+      'finding.approved 在修改请求上表示驳回',
       {
         action: 'finding.approved',
         target: 'Slow query',
@@ -370,7 +370,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud dismissed Speed's change request on choyiny/gitorange#74",
     ],
     [
-      'finding.changes_requested',
+      'finding.changes_requested 要求修改',
       {
         action: 'finding.changes_requested',
         target: 'Slow query',
@@ -380,7 +380,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud asked for changes on Speed's finding on choyiny/gitorange#74",
     ],
     [
-      'finding.assigned',
+      'finding.assigned 指派审查意见',
       {
         action: 'finding.assigned',
         target: 'Slow query',
@@ -390,7 +390,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud assigned Speed's finding on choyiny/gitorange#74 to cho",
     ],
     [
-      'finding.assigned cleared',
+      'finding.assigned 清除指派',
       {
         action: 'finding.assigned',
         target: 'Slow query',
@@ -400,7 +400,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud unassigned Speed's finding on choyiny/gitorange#74",
     ],
     [
-      'finding.delegated: approve',
+      'finding.delegated 委托批准',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
         via: 'CloudForge AI',
@@ -415,7 +415,7 @@ describe('every audit action reads as one sentence', () => {
       "CloudForge AI approved Speed's finding on choyiny/gitorange#74 for cho",
     ],
     [
-      'finding.delegated: request changes',
+      'finding.delegated 委托要求修改',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
         via: 'CloudForge AI',
@@ -430,7 +430,7 @@ describe('every audit action reads as one sentence', () => {
       "CloudForge AI asked for changes on Speed's finding on choyiny/gitorange#74 for cho",
     ],
     [
-      'finding.delegated: leave',
+      'finding.delegated 留待人工处理',
       {
         actor: { kind: 'ai', login: 'cho', name: null },
         via: 'CloudForge AI',
@@ -441,7 +441,7 @@ describe('every audit action reads as one sentence', () => {
       "CloudForge AI left Speed's finding on choyiny/gitorange#74 for cho to decide",
     ],
     [
-      'finding.undone: an AI decision',
+      'finding.undone 撤销 AI 决定',
       {
         action: 'finding.undone',
         pull: 74,
@@ -454,7 +454,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud undid CloudForge AI's decision on Speed's finding on choyiny/gitorange#74",
     ],
     [
-      'finding.undone: their own decision',
+      'finding.undone 撤销自己的决定',
       {
         action: 'finding.undone',
         pull: 74,
@@ -463,7 +463,7 @@ describe('every audit action reads as one sentence', () => {
       "mahmoud reopened Speed's finding on choyiny/gitorange#74",
     ],
     [
-      'finding.taught',
+      'finding.taught 附加指导说明',
       {
         action: 'finding.taught',
         pull: 74,
@@ -472,7 +472,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud taught Speed a rule from its finding on choyiny/gitorange#74',
     ],
     [
-      'token.created',
+      'token.created 创建令牌',
       {
         action: 'token.created',
         repo: null,
@@ -482,7 +482,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud created the access token “laptop”',
     ],
     [
-      'token.deleted',
+      'token.deleted 删除令牌',
       {
         action: 'token.deleted',
         repo: null,
@@ -492,7 +492,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud deleted the access token “laptop”',
     ],
     [
-      'visibility.changed',
+      'visibility.changed 修改可见性',
       {
         action: 'visibility.changed',
         target: 'choyiny/gitorange',
@@ -501,7 +501,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud made choyiny/gitorange internal',
     ],
     [
-      'repository.created',
+      'repository.created 创建仓库',
       {
         action: 'repository.created',
         target: 'choyiny/gitorange',
@@ -510,7 +510,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud created choyiny/gitorange (private)',
     ],
     [
-      'repository.deleted',
+      'repository.deleted 删除仓库',
       {
         action: 'repository.deleted',
         repo: null,
@@ -520,7 +520,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud deleted choyiny/old-thing',
     ],
     [
-      'instance.settings',
+      'instance.settings 修改实例设置',
       {
         action: 'instance.settings',
         repo: null,
@@ -530,7 +530,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud changed the instance setting Actions retention days',
     ],
     [
-      'instance.settings reset',
+      'instance.settings 重置实例设置',
       {
         action: 'instance.settings',
         repo: null,
@@ -540,7 +540,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud reset the instance setting AI review model to its default',
     ],
     [
-      'release.created',
+      'release.created 创建发行版本',
       {
         action: 'release.created',
         target: 'v1.2.0',
@@ -549,7 +549,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud released v1.2.0 of choyiny/gitorange',
     ],
     [
-      'release.updated',
+      'release.updated 更新发行版本',
       {
         action: 'release.updated',
         target: 'v1.2.0',
@@ -558,7 +558,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud edited the title and notes of release v1.2.0 in choyiny/gitorange',
     ],
     [
-      'release.updated (notes only)',
+      'release.updated 仅更新发行说明',
       {
         action: 'release.updated',
         target: 'v1.2.0',
@@ -567,7 +567,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud edited the notes of release v1.2.0 in choyiny/gitorange',
     ],
     [
-      'pull.version_bump set',
+      'pull.version_bump 设置版本递增级别',
       {
         action: 'pull.version_bump',
         target: '#4',
@@ -577,7 +577,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud set the version bump to minor on choyiny/gitorange#4',
     ],
     [
-      'pull.version_bump changed',
+      'pull.version_bump 修改版本递增级别',
       {
         action: 'pull.version_bump',
         target: '#4',
@@ -587,7 +587,7 @@ describe('every audit action reads as one sentence', () => {
       'mahmoud changed the version bump from minor to major on choyiny/gitorange#4',
     ],
     [
-      'pull.version_bump cleared',
+      'pull.version_bump 清除版本递增级别',
       {
         action: 'pull.version_bump',
         target: '#4',
@@ -598,11 +598,11 @@ describe('every audit action reads as one sentence', () => {
     ],
   ];
 
-  it.each(cases)('%s', (_name, over, sentence) => {
+  it.each(cases)('审计操作：%s', (_name, over, sentence) => {
     expect(auditText(ev(over))).toBe(sentence);
   });
 
-  it('is told about every action the spec lists', () => {
+  it('覆盖规范列出的每项操作', () => {
     // Every audit_events action (auditActions in worker/src/db/app.schema.ts).
     expect([...AUDIT_ACTIONS].sort()).toEqual(
       [
@@ -645,7 +645,7 @@ describe('every audit action reads as one sentence', () => {
     );
   });
 
-  it('has a case for each of them', () => {
+  it('为每项操作提供用例', () => {
     const covered = new Set(
       cases.map(([, over]) => over.action).filter(Boolean)
     );
@@ -653,25 +653,25 @@ describe('every audit action reads as one sentence', () => {
   });
 });
 
-describe('in a repository’s own log', () => {
+describe('仓库自身的日志', () => {
   it.each<[string, Partial<AuditEvent>, string]>([
     [
-      'settings',
+      '设置变更',
       { action: 'settings.changed', data: { changes: { name: {} } } },
       'mahmoud changed the name',
     ],
     [
-      'invited agent',
+      '邀请智能体',
       { action: 'agent.invited', target: 'speedagent' },
       'mahmoud invited Speed to review this repository',
     ],
     [
-      'removed agent',
+      '移除智能体',
       { action: 'agent.removed', target: 'speedagent' },
       'mahmoud removed Speed as a reviewer on this repository',
     ],
     [
-      'visibility',
+      '修改可见性',
       {
         action: 'visibility.changed',
         data: { from: 'internal', to: 'private' },
@@ -679,13 +679,13 @@ describe('in a repository’s own log', () => {
       'mahmoud made this repository private',
     ],
     [
-      'created',
+      '创建仓库',
       { action: 'repository.created', data: { visibility: 'internal' } },
       'mahmoud created this repository (internal)',
     ],
-    ['paused', { action: 'merging.paused' }, 'mahmoud paused merging'],
+    ['暂停合并', { action: 'merging.paused' }, 'mahmoud paused merging'],
     [
-      'cleaned',
+      '清理分支',
       {
         action: 'branches.cleaned',
         data: { branches: ['a'] },
@@ -694,12 +694,12 @@ describe('in a repository’s own log', () => {
       'mahmoud cleaned up 1 merged branch',
     ],
     [
-      'released',
+      '发布版本',
       { action: 'release.created', target: 'v0.1.0', data: { pulls: 9 } },
       'mahmoud released v0.1.0',
     ],
     [
-      'bump',
+      '版本递增',
       {
         action: 'pull.version_bump',
         pull: 4,
@@ -707,16 +707,16 @@ describe('in a repository’s own log', () => {
       },
       'mahmoud set the version bump to patch on #4',
     ],
-  ])('%s', (_n, over, sentence) => {
+  ])('仓库操作：%s', (_n, over, sentence) => {
     expect(auditText(ev(over), { scope: 'repo' })).toBe(sentence);
   });
 });
 
-describe('the pull request timeline in the same log', () => {
+describe('同一日志中的拉取请求时间线', () => {
   const system = { kind: 'system', login: null, name: null } as const;
   it.each<[string, Partial<AuditEvent>, string]>([
     [
-      'state changed',
+      '状态变更',
       {
         actor: system,
         action: 'pull.state_changed',
@@ -726,7 +726,7 @@ describe('the pull request timeline in the same log', () => {
       'System marked #74 as ready to merge',
     ],
     [
-      'waiting on a person',
+      '等待人工处理',
       {
         actor: system,
         action: 'pull.state_changed',
@@ -736,17 +736,17 @@ describe('the pull request timeline in the same log', () => {
       'System marked #74 as waiting on a person',
     ],
     [
-      'stacked',
+      '建立堆叠关系',
       { actor: system, action: 'pull.stacked', pull: 74, data: { pr: 73 } },
       'System stacked #74 on #73',
     ],
     [
-      'unstacked',
+      '移除堆叠关系',
       { actor: system, action: 'pull.unstacked', pull: 74, data: { pr: 73 } },
       'System unstacked #74 from #73',
     ],
     [
-      'ordered: recorded on the pull request that lands later',
+      '排序记录在较晚合并的拉取请求上',
       {
         actor: system,
         action: 'pull.ordered',
@@ -756,7 +756,7 @@ describe('the pull request timeline in the same log', () => {
       'System set #73 to land after #72, so #74 can build on both',
     ],
     [
-      'ordered without a third pull request',
+      '没有第三个拉取请求时排序',
       {
         actor: system,
         action: 'pull.ordered',
@@ -766,7 +766,7 @@ describe('the pull request timeline in the same log', () => {
       'System set #73 to land after #72',
     ],
     [
-      'must account for',
+      '需要考虑另一拉取请求',
       {
         actor: system,
         action: 'pull.must_account_for',
@@ -776,7 +776,7 @@ describe('the pull request timeline in the same log', () => {
       'System flagged #74 as needing to account for #73',
     ],
     [
-      'accounted for',
+      '已考虑另一拉取请求',
       {
         actor: system,
         action: 'pull.accounted_for',
@@ -786,17 +786,17 @@ describe('the pull request timeline in the same log', () => {
       'System marked #74 as accounted for #73',
     ],
     [
-      'dismissed',
+      '驳回依赖关系',
       { action: 'pull.dismissed', pull: 74, data: { pr: 73 } },
       'mahmoud dismissed the dependency of #74 on #73',
     ],
     [
-      'withdrawn',
+      '撤回批准',
       { action: 'pull.withdrawn', pull: 74 },
       'mahmoud withdrew their approval of #74',
     ],
     [
-      'learned',
+      '完成学习',
       {
         actor: { kind: 'agent', login: 'speedagent', name: 'Speed' },
         action: 'pull.learned',
@@ -806,7 +806,7 @@ describe('the pull request timeline in the same log', () => {
       'Speed learned from 2 dismissed findings on #74',
     ],
     [
-      'rebased',
+      '完成变基',
       {
         actor: system,
         action: 'pull.rebased',
@@ -815,11 +815,11 @@ describe('the pull request timeline in the same log', () => {
       },
       'System rebased #74 onto main',
     ],
-  ])('%s', (_n, over, sentence) => {
+  ])('时间线事件：%s', (_n, over, sentence) => {
     expect(auditText(ev(over), { scope: 'repo' })).toBe(sentence);
   });
 
-  it('says what blocks a pull request, in the detail line', () => {
+  it('在详情行说明拉取请求的阻塞原因', () => {
     expect(
       auditDetail(
         ev({
@@ -836,8 +836,8 @@ describe('the pull request timeline in the same log', () => {
   });
 });
 
-describe('what the data does not say', () => {
-  it('copes with an action it does not know', () => {
+describe('数据未提供的信息', () => {
+  it('处理未知操作', () => {
     expect(
       auditText(ev({ action: 'pull.something_new', pull: 5, target: '#5' }), {
         scope: 'repo',
@@ -848,7 +848,7 @@ describe('what the data does not say', () => {
     ).toBe('mahmoud widget frobbed w1');
   });
 
-  it('copes with a finding that names no agent', () => {
+  it('处理未指明代理的问题', () => {
     expect(
       auditText(
         ev({
@@ -861,7 +861,7 @@ describe('what the data does not say', () => {
     ).toBe('mahmoud approved a finding on #9');
   });
 
-  it('copes with a removed actor', () => {
+  it('处理已移除的执行者', () => {
     expect(
       auditText(
         ev({
@@ -873,7 +873,7 @@ describe('what the data does not say', () => {
     ).toBe('A former member resumed merging');
   });
 
-  it('copes with data that is not what it expects', () => {
+  it('处理不符合预期的数据', () => {
     expect(
       auditText(
         ev({
@@ -891,8 +891,8 @@ describe('what the data does not say', () => {
   });
 });
 
-describe('the second line', () => {
-  it('quotes the finding and the reason for a decision', () => {
+describe('第二行详情', () => {
+  it('引用问题及决定理由', () => {
     expect(
       auditDetail(
         ev({
@@ -909,7 +909,7 @@ describe('the second line', () => {
     ).toBe('“Token is logged”. Reason: Only the first four characters.');
   });
 
-  it('gives the note for requested changes and the teaching', () => {
+  it('显示修改要求的备注和教学内容', () => {
     expect(
       auditDetail(
         ev({
@@ -930,7 +930,7 @@ describe('the second line', () => {
     ).toBe('“Slow query”. Taught: Never flag test files.');
   });
 
-  it('gives what CloudForge AI thought', () => {
+  it('显示 CloudForge AI 的判断', () => {
     expect(
       auditDetail(
         ev({
@@ -943,7 +943,7 @@ describe('the second line', () => {
     ).toBe('“Slow query”. Why: Unsure.');
   });
 
-  it('shows what a settings change was', () => {
+  it('显示设置的具体变更', () => {
     expect(
       auditDetail(
         ev({
@@ -962,7 +962,7 @@ describe('the second line', () => {
     );
   });
 
-  it('lists cleaned branches and the instance setting value', () => {
+  it('列出清理的分支和实例设置值', () => {
     expect(
       auditDetail(
         ev({
@@ -983,7 +983,7 @@ describe('the second line', () => {
     ).toBe('Now: XY Space');
   });
 
-  it('says when a token lapses', () => {
+  it('说明令牌何时失效', () => {
     expect(
       auditDetail(
         ev({
@@ -1006,7 +1006,7 @@ describe('the second line', () => {
     ).toBe('Never expires');
   });
 
-  it('gives the reason merging was paused', () => {
+  it('显示暂停合并的原因', () => {
     expect(
       auditDetail(
         ev({
@@ -1020,7 +1020,7 @@ describe('the second line', () => {
     ).toBeNull();
   });
 
-  it('shows an empty value as none', () => {
+  it('将空值显示为无', () => {
     expect(
       auditDetail(
         ev({
@@ -1031,7 +1031,7 @@ describe('the second line', () => {
     ).toBe('Description: none → A code host');
   });
 
-  it('counts the pull requests a release shipped', () => {
+  it('统计发行版本包含的拉取请求数量', () => {
     expect(
       auditDetail(ev({ action: 'release.created', data: { pulls: 3 } }))
     ).toBe('3 pull requests');
@@ -1043,11 +1043,11 @@ describe('the second line', () => {
     ).toBeNull();
   });
 
-  it('has nothing to add to a plain event', () => {
+  it('普通事件没有额外详情', () => {
     expect(auditDetail(ev({ action: 'merging.paused' }))).toBeNull();
   });
 
-  it('keeps a long reason short', () => {
+  it('缩短过长的理由', () => {
     const d = auditDetail(
       ev({
         action: 'finding.approved',
@@ -1060,8 +1060,8 @@ describe('the second line', () => {
   });
 });
 
-describe('links and categories', () => {
-  it('links to the pull request, else the repository, else nothing', () => {
+describe('链接和分类', () => {
+  it('优先链接拉取请求，其次仓库，否则无链接', () => {
     expect(auditLink(ev({ action: 'pull.merged', pull: 12 }))).toBe(
       '/choyiny/gitorange/pull/12'
     );
@@ -1071,7 +1071,7 @@ describe('links and categories', () => {
     expect(auditLink(ev({ action: 'token.created', repo: null }))).toBeNull();
   });
 
-  it('links a release event to the release', () => {
+  it('将发布事件链接到发行版本', () => {
     expect(auditLink(ev({ action: 'release.created', target: 'v1.2.0' }))).toBe(
       '/choyiny/gitorange/releases/v1.2.0'
     );
@@ -1080,7 +1080,7 @@ describe('links and categories', () => {
     );
   });
 
-  it('puts every action in a category', () => {
+  it('为每项操作分配类别', () => {
     for (const action of AUDIT_ACTIONS)
       if (action !== 'pull.version_bump')
         expect(auditCategory(action)).toMatch(

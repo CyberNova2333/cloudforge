@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it, vi } from 'vitest';
 import example from '../../../wrangler.jsonc.example?raw';
 import ci from '../../../wrangler.jsonc.ci?raw';
@@ -14,8 +15,8 @@ const retentionStatus = (t: ReturnType<typeof makeEnv>) =>
     "SELECT COUNT(*) AS n FROM instance_settings WHERE key = 'actions.retention_status'"
   ).first<{ n: number }>();
 
-describe('scheduled jobs', () => {
-  it('runs only the job for the cron that fired', async () => {
+describe('定时任务', () => {
+  it('仅运行触发的 cron 对应任务', async () => {
     const t = makeEnv();
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
     await runScheduled({ cron: USAGE_SYNC_CRON }, t.env).catch(() => {});
@@ -25,7 +26,7 @@ describe('scheduled jobs', () => {
     vi.restoreAllMocks();
   });
 
-  it('lists every job in one triggers.crons per environment of each template', () => {
+  it('在各模板的每个环境中，用一个 triggers.crons 列出所有任务', () => {
     for (const [name, text] of [
       ['wrangler.jsonc.example', example],
       ['wrangler.jsonc.ci', ci],

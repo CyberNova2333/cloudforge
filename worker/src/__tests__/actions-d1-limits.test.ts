@@ -40,8 +40,8 @@ async function largeRun() {
   return { ...s, db, run, planned };
 }
 
-describe('Actions D1 limits across multiple matrices', () => {
-  it('returns all jobs and steps through the run API', async () => {
+describe('多个矩阵下的 Actions D1 限制', () => {
+  it('通过运行 API 返回所有作业和步骤', async () => {
     const s = await largeRun();
     const res = await call(s.t, '/api/repos/octocat/app/actions/runs/1', {
       cookie: s.admin,
@@ -52,7 +52,7 @@ describe('Actions D1 limits across multiple matrices', () => {
     expect(detail.jobs.every((j) => j.steps.length === 3)).toBe(true);
   });
 
-  it('returns all step summaries through MCP logs', async () => {
+  it('通过 MCP 日志返回所有步骤摘要', async () => {
     const s = await largeRun();
     const user = (await s.db.query.users.findFirst())!;
     const result = await TOOL_HANDLERS.get('gitorange_get_run_logs')!.handler(
@@ -73,7 +73,7 @@ describe('Actions D1 limits across multiple matrices', () => {
     ).toBe(true);
   });
 
-  it('cancels the run and every pending job and step atomically', async () => {
+  it('原子取消运行及其所有待处理作业和步骤', async () => {
     const s = await largeRun();
     const res = await call(
       s.t,
@@ -101,7 +101,7 @@ describe('Actions D1 limits across multiple matrices', () => {
     ).toBe(true);
   });
 
-  it('records stops for all selected runner sessions without touching another job', async () => {
+  it('为所有选中的运行器会话记录停止状态，且不影响其他作业', async () => {
     const s = await largeRun();
     const inserts = s.planned.map((j) =>
       s.db.insert(runnerSessions).values({

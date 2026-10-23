@@ -45,8 +45,8 @@ const put = (
     json: { value },
   });
 
-describe('instance settings', () => {
-  it('limits Actions jobs running at once: 10 by default, a whole number of at least 1', async () => {
+describe('实例设置', () => {
+  it('限制同时运行的 Actions 任务数，默认为 10，且必须为至少 1 的整数', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     expect(
@@ -70,7 +70,7 @@ describe('instance settings', () => {
     expect(await getSetting(db, t.env, 'actions.max_concurrent_jobs')).toBe(3);
   });
 
-  it('defaults to the wrangler vars, and Site admin overrides them where they are used', async () => {
+  it('默认采用 Wrangler 变量，站点管理员可覆盖实际使用的值', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const before = await get(t, admin);
@@ -129,7 +129,7 @@ describe('instance settings', () => {
     ).toBe('CloudForge');
   });
 
-  it('validates values, rejects unknown keys, and is for site admins only', async () => {
+  it('校验配置值，拒绝未知键，并仅允许站点管理员修改', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bad = await put(t, admin, 'ai.review_model', 'gpt-4');
@@ -151,7 +151,7 @@ describe('instance settings', () => {
   });
 });
 
-describe('Actions retention', () => {
+describe('Actions 保留策略', () => {
   async function seed() {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
@@ -203,7 +203,7 @@ describe('Actions retention', () => {
     return { t, admin, repoId, now: new Date(now * 1000) };
   }
 
-  it('deletes finished runs older than the retention, with their jobs and logs', async () => {
+  it('删除超过保留期的已完成运行及其任务和日志', async () => {
     const { t, admin, repoId, now } = await seed();
     const db = drizzle(t.env.DB, { schema });
     const status = await runActionsRetention(t.env, db, now);
@@ -248,7 +248,7 @@ describe('Actions retention', () => {
     });
   });
 
-  it('follows the configured retention, and keeps everything when set to keep forever', async () => {
+  it('遵循配置的保留期，设为永久保留时不删除内容', async () => {
     const { t, admin, now } = await seed();
     const db = drizzle(t.env.DB, { schema });
     await put(t, admin, 'actions.retention_days', null);
@@ -263,8 +263,8 @@ describe('Actions retention', () => {
   });
 });
 
-describe('Pi review settings', () => {
-  it('has a deep review model and the Pi limits, defaulting to the built-in limits', async () => {
+describe('Pi 审查设置', () => {
+  it('提供深度审查模型及 Pi 限制，默认采用内置限制', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { settings } = await get(t, admin);
@@ -291,7 +291,7 @@ describe('Pi review settings', () => {
     ]);
   });
 
-  it('keeps the limits sane, and the longest Pi review well inside the stale window', async () => {
+  it('保持限制合理，最长 Pi 审查时间明显短于过期窗口', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const cases: [string, unknown[], number[]][] = [
@@ -326,7 +326,7 @@ describe('Pi review settings', () => {
     ).toBeLessThan(REVIEW_STALE_MS);
   });
 
-  it('follows the resolved agent review model until it is overridden itself', async () => {
+  it('在单独覆盖前沿用解析后的代理审查模型', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const pi = async () =>
@@ -350,7 +350,7 @@ describe('Pi review settings', () => {
     expect(await getSetting(db, t.env, 'ai.review_pi_model')).toBe('@cf/b/y');
   });
 
-  it('exposes numeric bounds to Site admin', async () => {
+  it('向站点管理员提供数值上下界', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { settings } = await get(t, admin);

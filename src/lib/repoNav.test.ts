@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { repoBand, repoRest, repoTabOf, repoTabs } from './repoNav';
 
-describe('repoRest', () => {
-  it('splits and decodes the path after /owner/repo', () => {
+describe('repoRest：仓库剩余路径', () => {
+  it('拆分并解码 /owner/repo 后的路径', () => {
     expect(repoRest('/o/r')).toEqual([]);
     expect(repoRest('/o/r/')).toEqual([]);
     expect(repoRest('/o/r/blob/main/src/a%20b.ts')).toEqual([
@@ -16,8 +17,8 @@ describe('repoRest', () => {
   });
 });
 
-describe('repoTabOf', () => {
-  it('marks Pull requests on the list, a pull request and compare', () => {
+describe('repoTabOf：仓库当前标签', () => {
+  it('在列表、单个拉取请求和比较页面标记拉取请求标签', () => {
     for (const rest of [
       ['pulls'],
       ['pull', '3'],
@@ -29,16 +30,16 @@ describe('repoTabOf', () => {
       expect(repoTabOf(rest, false)).toBe('pulls');
   });
 
-  it('marks Releases on the releases, a release and the tags', () => {
+  it('在发行列表、单个发行版本和标签页面标记发行标签', () => {
     for (const rest of [['releases'], ['releases', 'v1.2.0'], ['tags']])
       expect(repoTabOf(rest, false)).toBe('releases');
   });
 
-  it('marks Health on its page', () => {
+  it('在健康页面标记健康标签', () => {
     expect(repoTabOf(['health'], false)).toBe('health');
   });
 
-  it('marks Actions, Insights and Settings on their pages', () => {
+  it('在各自页面标记自动化、洞察和设置标签', () => {
     expect(repoTabOf(['actions'], false)).toBe('actions');
     expect(repoTabOf(['actions', 'runs', '4', 'job', 'j'], false)).toBe(
       'actions'
@@ -48,7 +49,7 @@ describe('repoTabOf', () => {
     expect(repoTabOf(['settings'], false)).toBe('settings');
   });
 
-  it('marks Code everywhere else; commits are Code except on agent repositories', () => {
+  it('其他位置标记代码标签；提交页面也属于代码，代理仓库除外', () => {
     for (const rest of [
       [],
       ['tree', 'main'],
@@ -63,8 +64,8 @@ describe('repoTabOf', () => {
   });
 });
 
-describe('repoTabs', () => {
-  it('shows the existing tabs, Settings only to admins', () => {
+describe('repoTabs：仓库标签集合', () => {
+  it('显示现有标签，仅管理员可见设置', () => {
     expect(repoTabs(false, true).map((t) => t.id)).toEqual([
       'code',
       'health',
@@ -84,7 +85,7 @@ describe('repoTabs', () => {
     ]);
   });
 
-  it('puts Releases after Pull requests, with the tag icon', () => {
+  it('将发行标签放在拉取请求之后，并使用标签图标', () => {
     expect(repoTabs(false, false).find((t) => t.id === 'releases')).toEqual({
       id: 'releases',
       label: 'Releases',
@@ -93,7 +94,7 @@ describe('repoTabs', () => {
     });
   });
 
-  it('shows Code, Commits and Settings on agent repositories', () => {
+  it('代理仓库显示代码、提交和设置', () => {
     expect(repoTabs(true, true).map((t) => [t.id, t.path])).toEqual([
       ['code', ''],
       ['commits', 'commits'],
@@ -102,10 +103,10 @@ describe('repoTabs', () => {
   });
 });
 
-describe('repoBand (the default trail for a repository page)', () => {
+describe('repoBand：仓库页面默认导航路径', () => {
   const base = '/o/r';
 
-  it('names the tab on its top page', () => {
+  it('在标签顶层页面显示标签名称', () => {
     expect(repoBand([], base, false)).toEqual({
       tab: 'code',
       icon: 'code',
@@ -126,7 +127,7 @@ describe('repoBand (the default trail for a repository page)', () => {
     });
   });
 
-  it('names a folder or file by its last segment', () => {
+  it('使用最后一个路径分段命名文件夹或文件', () => {
     expect(repoBand(['tree', 'main', 'src', 'lib'], base, false)).toEqual({
       tab: 'code',
       icon: 'code',
@@ -139,7 +140,7 @@ describe('repoBand (the default trail for a repository page)', () => {
     });
   });
 
-  it('links back to the list from one item', () => {
+  it('从单个条目链接回列表', () => {
     expect(repoBand(['pull', '12', 'files'], base, false)).toEqual({
       tab: 'pulls',
       icon: 'pull',
@@ -173,7 +174,7 @@ describe('repoBand (the default trail for a repository page)', () => {
     );
   });
 
-  it('names Releases, a release by its tag, and Tags under Releases', () => {
+  it('显示发行列表名称、发行版本标签，以及发行下的标签页面', () => {
     expect(repoBand(['releases'], base, false)).toEqual({
       tab: 'releases',
       icon: 'tag',

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { queueOrder } from '../lib/queue';
 import { addMember, call, settle } from './helpers/app';
@@ -145,8 +146,8 @@ const auditRows = (s: CrewRepo) =>
       WHERE a.action LIKE 'merging.%' ORDER BY a.created_at, a.rowid`
   ).all<{ action: string; target: string; data: string; actor: string }>();
 
-describe('queueOrder', () => {
-  it('puts prerequisites before what waits on them, otherwise oldest first', () => {
+describe('queueOrder 队列排序', () => {
+  it('前置依赖排在等待它的请求之前，其余按创建时间从旧到新排列', () => {
     const prs = [1, 2, 3, 4].map((number) => ({ number, createdAt: number }));
     expect(queueOrder(prs, new Map())).toEqual([1, 2, 3, 4]);
     // #1 lands after #3; #3 after #4.
@@ -175,8 +176,8 @@ describe('queueOrder', () => {
   });
 });
 
-describe('GET /api/repos/{o}/{r}/queue', () => {
-  it('lists each target’s open pull requests in landing order: ordering edges first, then when they were opened', async () => {
+describe('读取合入队列：GET /api/repos/{o}/{r}/queue', () => {
+  it('按合入顺序列出各目标的打开请求，先按排序边再按创建时间', async () => {
     const s = await crewRepo();
     const claude = (await connect(s.t, s.admin, 'Claude Code')).access_token;
     for (const b of ['a', 'b', 'c', 'd']) await s.branch(b);
@@ -209,7 +210,7 @@ describe('GET /api/repos/{o}/{r}/queue', () => {
     expect(release.entries.map((e) => e.number)).toEqual([n4]);
   });
 
-  it('always lists the default branch, and takes blockers from the pull request’s state', async () => {
+  it('始终列出默认分支，并从拉取请求状态中提取阻塞原因', async () => {
     const s = await crewRepo();
     expect(await queue(s)).toEqual([
       { target: 'main', paused: null, entries: [] },
@@ -241,7 +242,7 @@ describe('GET /api/repos/{o}/{r}/queue', () => {
     expect(main.entries[0]).toMatchObject({ state: 'ready', blockers: [] });
   });
 
-  it('estimates when each lands: the median run and review times, added up down the queue', async () => {
+  it('使用运行和审查耗时的中位数，沿队列累加估计合入时间', async () => {
     const s = await crewRepo();
     for (const b of ['a', 'b', 'c']) await s.branch(b);
     const ns = [await s.web('a'), await s.web('b'), await s.web('c')];
@@ -265,7 +266,7 @@ describe('GET /api/repos/{o}/{r}/queue', () => {
     expect(main.entries.map((e) => e.etaMinutes)).toEqual([0, 5, 10]);
   });
 
-  it('is readable by anyone who can read the repository; 404 for others', async () => {
+  it('有仓库读取权限者均可访问，其他人返回 404', async () => {
     const s = await crewRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     expect((await call(s.t, `${BASE}/queue`, { cookie: bob })).status).toBe(
@@ -278,8 +279,8 @@ describe('GET /api/repos/{o}/{r}/queue', () => {
   });
 });
 
-describe('POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
-  it('pauses the merge button and shows merging_paused; resuming clears it; both are audited', async () => {
+describe('暂停或恢复合入：POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
+  it('暂停合入按钮并显示 merging_paused，恢复后清除，均记录审计', async () => {
     const s = await crewRepo();
     const ada = await collaborator(s, 'ada');
     await s.branch('a');
@@ -343,7 +344,7 @@ describe('POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
     });
   });
 
-  it('records a pause once, and a resume only when paused', async () => {
+  it('暂停只记录一次，仅在已暂停时记录恢复', async () => {
     const s = await crewRepo();
     expect((await resume(s, s.admin)).status).toBe(200);
     const first = (await (await pause(s, s.admin)).json()) as {
@@ -358,7 +359,7 @@ describe('POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
     ).toEqual([['merging.paused', {}]]);
   });
 
-  it('needs push access', async () => {
+  it('需要推送权限', async () => {
     const s = await crewRepo();
     const bob = await addMember(s.t, s.admin, 'bob');
     expect((await pause(s, bob)).status).toBe(403);
@@ -370,7 +371,7 @@ describe('POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
     ).toBe(401);
   });
 
-  it('pings the repository’s live channel', async () => {
+  it('通知仓库的实时频道', async () => {
     const s = await crewRepo();
     const pings: string[] = [];
     (s.t.env as unknown as { LIVE: unknown }).LIVE = {
@@ -383,7 +384,7 @@ describe('POST/DELETE /api/repos/{o}/{r}/merging/pause', () => {
     expect(pings).toContain(`repo:${s.repoId}`);
   });
 
-  it('holds auto-merge while paused, and lands what is ready on resume', async () => {
+  it('暂停时阻止自动合入，恢复后合入已就绪的请求', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent');
     await openPull(t, admin, repo, { 'src/auth.ts': 'x\n' });

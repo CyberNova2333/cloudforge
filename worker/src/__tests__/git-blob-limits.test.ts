@@ -18,8 +18,8 @@ function service() {
   );
 }
 
-describe('blob size limits', () => {
-  it('rejects a combined diff above the budget without buffering either side', async () => {
+describe('blob 大小限制', () => {
+  it('合并差异超出预算时拒绝，且不缓冲任一侧内容', async () => {
     const git = service();
     const oldBlob = new Blob([new Uint8Array(300 * 1024)]);
     const newBlob = new Blob([new Uint8Array(300 * 1024)]);
@@ -35,7 +35,7 @@ describe('blob size limits', () => {
     expect(newRead).not.toHaveBeenCalled();
   });
 
-  it('still generates small text diffs', async () => {
+  it('仍可生成较小的文本差异', async () => {
     const git = service();
     vi.spyOn(git, 'readBlob').mockImplementation(
       async (sha) => new Blob([sha === 'old' ? 'before\n' : 'after\n'])
@@ -45,7 +45,7 @@ describe('blob size limits', () => {
     ]);
   });
 
-  it('exposes staged blob size and contents without remote access', async () => {
+  it('无需远程访问即可提供暂存 blob 的大小和内容', async () => {
     const git = service();
     const object = await makeBlob(new TextEncoder().encode('staged'));
     git.stage([object]);

@@ -31,7 +31,7 @@ const TEST_FILES = [
 const wf = parseWorkflow(ciText);
 const job = (key: string) => {
   const j = wf.jobs.find((x) => x.key === key);
-  if (!j) throw new Error(`ci.yml has no job ${key}`);
+  if (!j) throw new Error(`ci.yml 中没有作业 ${key}`);
   return j;
 };
 const gate = job('gate');
@@ -54,8 +54,8 @@ const covers = (filter: string, file: string) =>
 const moduleIf = (m: string) =>
   `always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-${m} == 'true')`;
 
-describe('CI workflow (.github/workflows/ci.yml)', () => {
-  it('parses and plans with CloudForge Actions', () => {
+describe('CI 工作流（.github/workflows/ci.yml）', () => {
+  it('使用 CloudForge Actions 解析和规划', () => {
     const github = githubContext('octocat/cloudforge', {
       event: 'pull_request',
       ref: 'refs/pull/1/head',
@@ -70,7 +70,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     ]);
   });
 
-  it('build and the module jobs get standard-4 on CloudForge and ubuntu-latest on GitHub', () => {
+  it('构建和模块作业在 CloudForge 使用 standard-4，在 GitHub 使用 ubuntu-latest', () => {
     const plan = (server_url: string) =>
       planJobs(wf, {
         ...githubContext('octocat/cloudforge', {
@@ -92,7 +92,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
       expect(j.runsOn, j.key).toBe('ubuntu-latest');
   });
 
-  it('the package job checks the Node 22.0.0 floor on GitHub only (CloudForge runners use their own Node.js)', () => {
+  it('打包作业仅在 GitHub 检查 Node 22.0.0 最低版本，CloudForge 运行器使用自带 Node.js', () => {
     const pkg = job('package');
     expect(pkg.needs).toEqual([]);
     const floor = pkg.steps.find(
@@ -106,7 +106,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     expect(on('https://git.xyspace.dev')).toBe(false);
   });
 
-  it('sees the test files (import.meta.glob works here)', () => {
+  it('能够发现测试文件，确认 import.meta.glob 在此可用', () => {
     expect(TEST_FILES.length).toBeGreaterThan(25);
     expect(TEST_FILES).toContain(
       'worker/src/__tests__/stacking-landing.test.ts'
@@ -115,7 +115,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     expect(TEST_FILES.some((f) => f.startsWith('src/lib/'))).toBe(true);
   });
 
-  it('every test file belongs to exactly one module', () => {
+  it('每个测试文件恰好属于一个模块', () => {
     const homes = (file: string) =>
       wf.jobs
         .filter((j) => filters(j).some((f) => covers(f, file)))
@@ -127,20 +127,20 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     expect(wrong).toEqual([]);
   });
 
-  it('every listed test file exists', () => {
+  it('所有列出的测试文件均存在', () => {
     const stale = wf.jobs
       .flatMap((j) => filters(j))
       .filter((f) => !TEST_FILES.some((file) => covers(f, file)));
     expect(stale).toEqual([]);
   });
 
-  it('build checks the module split itself, so the gate can never skip that check', () => {
+  it('构建作业自身检查模块划分，确保门控无法跳过此检查', () => {
     expect(filters(job('build'))).toEqual([
       'worker/src/__tests__/ci-workflow.test.ts',
     ]);
   });
 
-  it('the gate, its outputs, and the module jobs agree', () => {
+  it('门控、其输出与模块作业保持一致', () => {
     // Every module has its test-<module> job; every test job belongs to a module.
     for (const m of modules) job(`test-${m}`);
     expect(testJobs.filter((j) => !moduleOf(j)).map((j) => j.key)).toEqual([]);
@@ -159,7 +159,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     }
   });
 
-  it('the gate is skipped on GitHub and runs on CloudForge', () => {
+  it('门控在 GitHub 跳过，在 CloudForge 运行', () => {
     const on = (server_url: string) =>
       evaluateCondition(gate.if, { github: { server_url } });
     expect(on('https://github.com')).toBe(false);
@@ -167,7 +167,7 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
     expect(gate.needs).toEqual([]);
   });
 
-  it("each module's if: runs on GitHub, follows the gate on CloudForge, and never runs after a failed build", () => {
+  it('各模块的 if: 在 GitHub 运行、在 CloudForge 遵循门控，且构建失败后不运行', () => {
     for (const j of testJobs) {
       const m = moduleOf(j)!;
       const when = (
@@ -197,18 +197,17 @@ describe('CI workflow (.github/workflows/ci.yml)', () => {
                   : 'success',
           }
         );
-      expect(when('skipped', undefined), `${j.key} on GitHub`).toBe(true);
-      expect(when('success', 'true'), `${j.key} relevant`).toBe(true);
-      expect(when('success', 'false'), `${j.key} irrelevant`).toBe(false);
-      expect(when('failure', undefined), `${j.key} gate failed`).toBe(false);
-      expect(
-        when('skipped', undefined, 'failure'),
-        `${j.key} build failed`
-      ).toBe(false);
+      expect(when('skipped', undefined), `${j.key} 在 GitHub 上`).toBe(true);
+      expect(when('success', 'true'), `${j.key} 与变更相关`).toBe(true);
+      expect(when('success', 'false'), `${j.key} 与变更无关`).toBe(false);
+      expect(when('failure', undefined), `${j.key} 门控失败`).toBe(false);
+      expect(when('skipped', undefined, 'failure'), `${j.key} 构建失败`).toBe(
+        false
+      );
     }
   });
 
-  it("module jobs restore the commit's build, and build it on a miss", () => {
+  it('模块作业恢复当前提交的构建产物，缓存未命中时重新构建', () => {
     const key = '${{ github.sha }}';
     const save = job('build').steps.find((s) =>
       s.uses?.startsWith('actions/cache@')

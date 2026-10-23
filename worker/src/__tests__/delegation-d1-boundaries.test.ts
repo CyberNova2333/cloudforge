@@ -55,9 +55,9 @@ async function fixture() {
   return { t, db, admin, bob, handles, set, saved };
 }
 
-describe('delegation sets at D1 parameter boundaries', () => {
+describe('D1 参数边界上的委托集合', () => {
   it.each([100, 120])(
-    'replaces %i valid agents and preserves another user when shrinking or clearing',
+    '替换 %i 个有效智能体，并在缩减或清空时保留其他用户的数据',
     async (count) => {
       const { admin, bob, handles, set, saved } = await fixture();
       const other = [handles[0], handles[119]];
@@ -77,7 +77,7 @@ describe('delegation sets at D1 parameter boundaries', () => {
     }
   );
 
-  it('rejects missing, deleted and guarded agents without changing existing delegations', async () => {
+  it('拒绝缺失、已删除或受保护智能体，且不更改现有委托', async () => {
     const { db, admin, handles, set, saved } = await fixture();
     const original = [handles[0], handles[1]];
     expect((await set(admin, original)).status).toBe(200);
@@ -99,7 +99,7 @@ describe('delegation sets at D1 parameter boundaries', () => {
     expect(await saved(admin)).toEqual(original);
   });
 
-  it('rolls back the replacement DELETE when a later INSERT fails', async () => {
+  it('后续 INSERT 失败时回滚替换操作中的 DELETE', async () => {
     const { t, db, admin, bob, handles, set, saved } = await fixture();
     const original = [handles[119]];
     expect((await set(admin, original)).status).toBe(200);

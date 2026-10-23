@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { gitForName } from '../lib/repos';
 import {
@@ -38,8 +39,8 @@ async function checkout(
   return { result, written, order };
 }
 
-describe('checkoutHead', () => {
-  it('writes every text file at its repository path, changed files first', async () => {
+describe('checkoutHead 检出头提交', () => {
+  it('按仓库路径写入每个文本文件，优先写入变更文件', async () => {
     const { result, written, order } = await checkout(
       {
         'README.md': '# app\n',
@@ -56,7 +57,7 @@ describe('checkoutHead', () => {
     );
   });
 
-  it('skips binary, ignored, too-large and over-budget files and lists them', async () => {
+  it('跳过并列出二进制、被忽略、过大及超预算文件', async () => {
     const { result, written } = await checkout(
       {
         'yarn.lock': 'lock\n',
@@ -88,7 +89,7 @@ describe('checkoutHead', () => {
     });
   });
 
-  it('stops reading blobs at the read limit, even when nothing it read was written', async () => {
+  it('达到读取上限时停止读取 blob，即使已读内容均未写入', async () => {
     const { result, written } = await checkout(
       {
         'a.bin': 'A\u0000',
@@ -109,7 +110,7 @@ describe('checkoutHead', () => {
     });
   });
 
-  it('stops walking at the file limit and says so', async () => {
+  it('达到文件数量上限时停止遍历并说明原因', async () => {
     const files: Record<string, string> = {};
     for (let i = 0; i < 12; i++)
       files[`f${String(i).padStart(2, '0')}.txt`] = `${i}\n`;
@@ -121,7 +122,7 @@ describe('checkoutHead', () => {
     );
   });
 
-  it('refuses a commit it cannot read', async () => {
+  it('拒绝无法读取的提交', async () => {
     const { git } = await headWith({ 'a.txt': 'a\n' });
     await expect(
       checkoutHead(
@@ -134,14 +135,14 @@ describe('checkoutHead', () => {
   });
 });
 
-describe('notCheckedOutText', () => {
-  it('says everything is there when nothing was left out', () => {
+describe('notCheckedOutText 未检出内容提示', () => {
+  it('没有遗漏时说明所有内容均已检出', () => {
     expect(
       notCheckedOutText({ files: 3, bytes: 10, skipped: [], truncated: false })
     ).toBe('Every file of the head commit is checked out under /repo.\n');
   });
 
-  it(`lists what was left out with the reason, at most ${MAX_SKIPPED_LISTED} lines`, () => {
+  it(`列出未检出内容及原因，最多 ${MAX_SKIPPED_LISTED} 行`, () => {
     const c: Checkout = {
       files: 1,
       bytes: 1,
@@ -161,8 +162,8 @@ describe('notCheckedOutText', () => {
   });
 });
 
-describe('checkoutHead safety', () => {
-  it('never writes symlinks or submodules, and a malformed name is skipped', async () => {
+describe('checkoutHead 检出安全性', () => {
+  it('不写入符号链接或子模块，并跳过格式错误的名称', async () => {
     const { t, repo } = await appRepo();
     const blob = await makeBlob('ok\n');
     const link = await makeBlob('../../etc');
@@ -208,8 +209,8 @@ describe('checkoutHead safety', () => {
   });
 });
 
-describe('checkoutHead bounds', () => {
-  it('stops descending past the depth cap', async () => {
+describe('checkoutHead 检出边界', () => {
+  it('达到深度上限后不再向下遍历', async () => {
     const { result, written } = await checkout(
       { 'a/b/c/d/e/deep.txt': 'x\n', 'top.txt': 't\n' },
       { limits: { depth: 3 } }
@@ -218,7 +219,7 @@ describe('checkoutHead bounds', () => {
     expect(result.truncated).toBe(true);
   });
 
-  it('stops after the tree budget, however small the directories', async () => {
+  it('耗尽树读取预算后停止，无论目录多小', async () => {
     const { t, repo } = await appRepo();
     const blob = await makeBlob('x\n');
     repo.add(blob);
@@ -257,7 +258,7 @@ describe('checkoutHead bounds', () => {
     expect(result.truncated).toBe(true);
   });
 
-  it('counts malformed names against the walk', async () => {
+  it('将格式错误的名称计入遍历数量', async () => {
     const { t, repo } = await appRepo();
     const blob = await makeBlob('x\n');
     repo.add(blob);
@@ -292,7 +293,7 @@ describe('checkoutHead bounds', () => {
     expect(result.skipped.every((s) => s.reason === 'bad name')).toBe(true);
   });
 
-  it('checks out a changed file even when the walk stops before it', async () => {
+  it('即使遍历提前停止，也检出变更文件', async () => {
     const files: Record<string, string> = {};
     for (let i = 0; i < 12; i++)
       files[`f${String(i).padStart(2, '0')}.txt`] = `${i}\n`;
@@ -306,7 +307,7 @@ describe('checkoutHead bounds', () => {
     expect(result.truncated).toBe(true);
   });
 
-  it('skips .git entries and lists them', async () => {
+  it('跳过并列出 .git 条目', async () => {
     const { result, written } = await checkout({
       '.git/config': 'x\n',
       'sub/.git/HEAD': 'y\n',
@@ -320,8 +321,8 @@ describe('checkoutHead bounds', () => {
   });
 });
 
-describe('CHECKOUT_LIMITS', () => {
-  it('keeps one checkout inside a few thousand Artifacts calls (tree reads plus blob reads)', () => {
+describe('CHECKOUT_LIMITS 检出限额', () => {
+  it('单次检出的 Artifacts 调用数保持在数千次以内，包含树与 blob 读取', () => {
     expect(CHECKOUT_LIMITS.trees).toBe(1000);
     expect(CHECKOUT_LIMITS.reads).toBe(2000);
     expect(CHECKOUT_LIMITS.trees + CHECKOUT_LIMITS.reads).toBeLessThanOrEqual(
@@ -330,8 +331,8 @@ describe('CHECKOUT_LIMITS', () => {
   });
 });
 
-describe('checkoutHead changed files', () => {
-  it('checks out ~300 changed files in nested directories within the default tree budget', async () => {
+describe('checkoutHead 检出变更文件', () => {
+  it('在默认树读取预算内检出嵌套目录中的约 300 个变更文件', async () => {
     const files: Record<string, string> = {};
     const changed: string[] = [];
     for (let i = 0; i < 300; i++) {
@@ -348,7 +349,7 @@ describe('checkoutHead changed files', () => {
     expect(result.truncated).toBe(false);
   });
 
-  it('lists changed files it could not reach within the tree budget as over budget, and still walks', async () => {
+  it('将树读取预算内无法访问的变更文件列为超预算，且仍继续遍历', async () => {
     const { result, written } = await checkout(
       {
         'top.txt': 't\n',

@@ -13,8 +13,8 @@ import {
   withSecretsFile,
 } from '../secrets.ts';
 
-describe('setup code', () => {
-  it('matches the Worker normalisation', () => {
+describe('初始化码', () => {
+  it('与 Worker 的规范化方式一致', () => {
     const hex = createHash('sha256')
       .update('ABCDEFGHJKMNPQRSTUVW')
       .digest('hex');
@@ -25,20 +25,20 @@ describe('setup code', () => {
     // Whitespace anywhere is ignored too (a pasted code), as in the Worker.
     expect(setupCodeHash(' abcd-efgh jkmn-pqrs-tuvw \n')).toBe(hex);
   });
-  it('has the documented format', () => {
+  it('符合文档格式', () => {
     for (let i = 0; i < 50; i++)
       expect(generateSetupCode()).toMatch(
         /^([A-HJKMNP-Z2-9]{4}-){4}[A-HJKMNP-Z2-9]{4}$/
       );
   });
-  it('auth secret is 64 hex chars and random', () => {
+  it('身份验证密钥为 64 位十六进制随机字符串', () => {
     expect(generateAuthSecret()).toMatch(/^[0-9a-f]{64}$/);
     expect(generateAuthSecret()).not.toBe(generateAuthSecret());
   });
 });
 
-describe('withSecretsFile', () => {
-  it('writes a 0600 JSON file and removes it afterwards', async () => {
+describe('withSecretsFile：临时密钥文件', () => {
+  it('写入权限为 0600 的 JSON 文件，结束后删除', async () => {
     let p = '';
     const out = await withSecretsFile({ A: 'x', B: 'y' }, async (path) => {
       p = path;
@@ -52,7 +52,7 @@ describe('withSecretsFile', () => {
     expect(out).toBe(7);
     expect(existsSync(p)).toBe(false);
   });
-  it('removes it when fn throws', async () => {
+  it('fn 抛出错误时删除文件', async () => {
     let p = '';
     await expect(
       withSecretsFile({ A: 'x' }, async (path) => {
@@ -64,13 +64,13 @@ describe('withSecretsFile', () => {
   });
 });
 
-describe('token links', () => {
-  it('R2 link preselects object-write on the create page', () => {
+describe('令牌链接', () => {
+  it('R2 链接在创建页面预选对象写入权限', () => {
     const u = new URL(r2TokenLink('acc123', ['b1', 'b2']));
     expect(u.searchParams.get('to')).toBe('/acc123/r2/api-tokens/create');
     expect(u.searchParams.get('permission')).toBe('object-write');
   });
-  it('analytics link is account-owned with the read permission', () => {
+  it('分析令牌链接属于账户并具有读取权限', () => {
     const u = new URL(analyticsTokenLink('acc123', 'cloudforge'));
     expect(u.searchParams.get('to')).toBe('/acc123/api-tokens');
     expect(JSON.parse(u.searchParams.get('permissionGroupKeys')!)).toEqual([
@@ -79,9 +79,9 @@ describe('token links', () => {
   });
 });
 
-describe('credential checks', () => {
+describe('凭据检查', () => {
   const keys = { id: 'AKID', secret: 'SECRETSECRET' };
-  it('R2 403 gives the message, 200 gives null', async () => {
+  it('R2 返回 403 时给出消息，返回 200 时给出 null', async () => {
     const f = (s: number) =>
       (async () => new Response('', { status: s })) as unknown as typeof fetch;
     expect(await checkR2Keys('a', 'b', keys, f(403))).toBe(
@@ -89,7 +89,7 @@ describe('credential checks', () => {
     );
     expect(await checkR2Keys('a', 'b', keys, f(200))).toBeNull();
   });
-  it('R2 network error never throws or leaks the secret', async () => {
+  it('R2 网络错误不会抛出异常或泄露密钥', async () => {
     const f = (async () => {
       throw new Error('offline');
     }) as unknown as typeof fetch;
@@ -98,7 +98,7 @@ describe('credential checks', () => {
     expect(m).toContain('offline');
     expect(m).not.toContain(keys.secret);
   });
-  it('analytics: errors give the message, account gives null', async () => {
+  it('分析接口：错误返回消息，账户返回 null', async () => {
     const f = (body: object) =>
       (async () => Response.json(body)) as unknown as typeof fetch;
     const msg = "This token can't read Account Analytics for this account.";

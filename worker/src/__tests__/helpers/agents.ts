@@ -32,7 +32,7 @@ export async function newAgent(
     json: { handle, name },
   });
   if (res.status !== 201)
-    throw new Error(`create agent failed: ${res.status} ${await res.text()}`);
+    throw new Error(`创建代理失败： ${res.status} ${await res.text()}`);
   return ((await res.json()) as { agent: AgentJson }).agent;
 }
 

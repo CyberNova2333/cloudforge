@@ -51,16 +51,16 @@ const event = (
   ...over,
 });
 
-describe('names', () => {
-  it('makes a name possessive the way the copy reads it', () => {
+describe('名称', () => {
+  it('按文案规则生成名称的所有格', () => {
     expect(possessive('Data')).toBe('Data’s');
     expect(possessive('Features')).toBe('Features’');
     expect(possessive('@speedagent')).toBe('@speedagent’s');
   });
 });
 
-describe('what Claude did today', () => {
-  it('says each answer in one line', () => {
+describe('Claude 今日操作', () => {
+  it('每个回答显示为一行', () => {
     expect(delegatedText(delegated('approve'), 'Features')).toBe(
       'Claude approved Features’ finding on #68'
     );
@@ -72,14 +72,14 @@ describe('what Claude did today', () => {
     );
   });
 
-  it('gives the time of day as hours and minutes', () => {
+  it('以小时和分钟显示时间', () => {
     const at = new Date(2026, 9, 8, 9, 5).getTime();
     expect(clockTime(at)).toBe('09:05');
     expect(clockTime(new Date(2026, 9, 8, 17, 42).getTime())).toBe('17:42');
   });
 });
 
-describe('who decided', () => {
+describe('决定者', () => {
   const me = 'mahmoud';
   const ref = (login: string, name: string | null = null) => ({
     login,
@@ -88,7 +88,7 @@ describe('who decided', () => {
     color: null,
   });
 
-  it('says "you", a name, an app, or Claude for someone', () => {
+  it('显示“你”、姓名、应用或代表他人的 Claude', () => {
     expect(decidedByText(ref('mahmoud', 'Mahmoud'), null, me)).toBe('you');
     expect(decidedByText(ref('cho', 'Cho'), null, me)).toBe('Cho');
     expect(decidedByText(ref('cho'), null, me)).toBe('@cho');
@@ -103,10 +103,10 @@ describe('who decided', () => {
   });
 });
 
-describe('a finding’s history', () => {
+describe('问题历史', () => {
   const ctx = { me: 'mahmoud', agentName: 'Security' };
 
-  it('says approvals and dismissals with their reason', () => {
+  it('显示批准和驳回及其理由', () => {
     expect(
       findingEventText(
         event('finding.approved', { reason: 'Accepted risk' }),
@@ -137,7 +137,7 @@ describe('a finding’s history', () => {
     ).toBe('Cho via Claude Mod approved it.');
   });
 
-  it('says requests for changes, with the note', () => {
+  it('显示修改要求及其备注', () => {
     expect(
       findingEventText(
         event('finding.changes_requested', { note: 'Check sign-in' }),
@@ -149,7 +149,7 @@ describe('a finding’s history', () => {
     ).toBe('Cho requested changes.');
   });
 
-  it('says who was asked to decide', () => {
+  it('显示受邀作出决定的人', () => {
     expect(
       findingEventText(event('finding.assigned', { assignee: 'ada' }), ctx)
     ).toBe('Cho asked @ada to decide.');
@@ -161,7 +161,7 @@ describe('a finding’s history', () => {
     ).toBe('Cho took the question back.');
   });
 
-  it("says Claude's answers, for whom, and why", () => {
+  it('显示 Claude 的回答、代表的人和原因', () => {
     const ai = {
       actor: { kind: 'ai' as const, login: 'mahmoud', name: 'Mahmoud' },
       via: AI_VIA,
@@ -198,7 +198,7 @@ describe('a finding’s history', () => {
     ).toBe('Claude left it for you: Not sure.');
   });
 
-  it('says what was undone, and teaching', () => {
+  it('显示撤销的操作与教学内容', () => {
     expect(
       findingEventText(event('finding.undone', { undid: 'approved' }), ctx)
     ).toBe('Cho undid the approval.');
@@ -219,7 +219,7 @@ describe('a finding’s history', () => {
     ).toBe('Cho taught Security: “Public links may skip sign-in.”');
   });
 
-  it('falls back to the action for anything else', () => {
+  it('其他情况回退到操作名', () => {
     expect(
       findingEventText(
         event(

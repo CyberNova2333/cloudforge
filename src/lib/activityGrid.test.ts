@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   activityGrid,
@@ -21,8 +22,8 @@ function days(
   }));
 }
 
-describe('levelOf', () => {
-  it('is 0 for no reviews and scales the rest against the busiest day', () => {
+describe('levelOf：活跃等级', () => {
+  it('没有评审时为 0，其余按最繁忙的一天缩放', () => {
     expect(levelOf(0, 8)).toBe(0);
     expect(levelOf(1, 8)).toBe(1);
     expect(levelOf(2, 8)).toBe(1);
@@ -33,16 +34,16 @@ describe('levelOf', () => {
     expect(levelOf(7, 8)).toBe(4);
     expect(levelOf(8, 8)).toBe(4);
   });
-  it('gives any day with a review at least level 1, even next to a very busy one', () => {
+  it('有评审的日期至少为等级 1，即使相邻日期非常繁忙', () => {
     expect(levelOf(1, 1000)).toBe(1);
   });
-  it('is 0 when nothing happened at all', () => {
+  it('完全没有活动时为 0', () => {
     expect(levelOf(0, 0)).toBe(0);
   });
 });
 
-describe('activityGrid', () => {
-  it('lays 182 days out in weeks of seven rows, Sunday first', () => {
+describe('activityGrid：活动网格', () => {
+  it('将 182 天按每周七行排列，星期日优先', () => {
     // 2026-10-08 is a Thursday.
     const grid = activityGrid(days('2026-10-08', 182));
     expect(grid.columns.every((c) => c.length === 7)).toBe(true);
@@ -55,7 +56,7 @@ describe('activityGrid', () => {
     expect(last[6]).toBeNull();
   });
 
-  it('pads the first week above its first day and keeps days in order', () => {
+  it('首周第一天之前补空位，并保持日期顺序', () => {
     const grid = activityGrid(days('2026-10-08', 182));
     const first = grid.columns[0];
     const firstDay = first.find((c) => c !== null)!;
@@ -67,14 +68,14 @@ describe('activityGrid', () => {
     expect(dates).toEqual([...dates].sort());
   });
 
-  it('needs no padding when the range starts on a Sunday and ends on a Saturday', () => {
+  it('范围从星期日开始、星期六结束时无需补空位', () => {
     // 2026-10-10 is a Saturday; 28 days back from it starts on a Sunday.
     const grid = activityGrid(days('2026-10-10', 28));
     expect(grid.columns).toHaveLength(4);
     expect(grid.columns.flat().every((c) => c !== null)).toBe(true);
   });
 
-  it('counts the total and finds the busiest day', () => {
+  it('统计总数并找出最繁忙的一天', () => {
     const grid = activityGrid(
       days('2026-10-08', 10, (i) => (i === 3 ? 9 : i === 7 ? 2 : 0))
     );
@@ -88,7 +89,7 @@ describe('activityGrid', () => {
     expect(none?.level).toBe(0);
   });
 
-  it('is empty for no days', () => {
+  it('没有日期时为空', () => {
     expect(activityGrid([])).toEqual({
       columns: [],
       months: [],
@@ -97,7 +98,7 @@ describe('activityGrid', () => {
     });
   });
 
-  it('labels the column where each month starts', () => {
+  it('标注每个月开始的列', () => {
     const grid = activityGrid(days('2026-10-08', 182));
     expect(grid.months.map((m) => m.label)).toEqual([
       'Apr',
@@ -115,13 +116,13 @@ describe('activityGrid', () => {
     expect(cols[0]).toBe(0);
   });
 
-  it('drops the first month label when it would crowd the next one', () => {
+  it('首月标签会挤占下月标签时将其省略', () => {
     // Sat 25 Apr to Wed 20 May: April has one column to itself before May starts two columns on.
     const grid = activityGrid(days('2026-05-20', 26));
     expect(grid.months.map((m) => m.label)).toEqual(['May']);
   });
 
-  it('keeps the first month label when there is room for it', () => {
+  it('空间足够时保留首月标签', () => {
     // Sun 6 Sep to Wed 14 Oct: October starts four columns after September.
     const grid = activityGrid(days('2026-10-14', 39));
     expect(grid.months.map((m) => [m.label, m.column])).toEqual([
@@ -131,8 +132,8 @@ describe('activityGrid', () => {
   });
 });
 
-describe('activityTitle', () => {
-  it('names the day and its reviews', () => {
+describe('activityTitle：活动标题', () => {
+  it('标明日期和评审数量', () => {
     expect(activityTitle({ date: '2026-10-08', reviews: 3, level: 2 })).toBe(
       'Oct 8: 3 reviews'
     );
@@ -145,8 +146,8 @@ describe('activityTitle', () => {
   });
 });
 
-describe('activitySummary', () => {
-  it('says how much happened over how long, in words for a screen reader', () => {
+describe('activitySummary：活动摘要', () => {
+  it('以屏幕阅读器可读的文字说明时段及活动量', () => {
     expect(activitySummary(182, 41)).toBe('41 reviews in the last 26 weeks');
     expect(activitySummary(182, 1)).toBe('1 review in the last 26 weeks');
     expect(activitySummary(182, 0)).toBe('No reviews in the last 26 weeks');

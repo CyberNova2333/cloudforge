@@ -41,8 +41,8 @@ function fresh() {
   });
 }
 
-describe('newState', () => {
-  it('fills defaults', () => {
+describe('newState：新建状态', () => {
+  it('填充默认值', () => {
     const s = fresh();
     expect(s).toMatchObject({
       schemaVersion: 1,
@@ -57,7 +57,7 @@ describe('newState', () => {
   });
 });
 
-describe('transition', () => {
+describe('transition：状态转换', () => {
   const allowed: [Status, Status][] = [
     ['planned', 'provisioning'],
     ['provisioning', 'deploying'],
@@ -80,12 +80,12 @@ describe('transition', () => {
     ['verifying', 'verifying'],
   ];
   for (const [from, to] of allowed) {
-    it(`${from} -> ${to}`, () => {
+    it(`状态转换：${from} -> ${to}`, () => {
       const s = { ...fresh(), status: from };
       expect(transition(s, to).status).toBe(to);
     });
   }
-  it('same-status is a no-op returning the state unchanged', () => {
+  it('状态相同时不作操作，原样返回状态', () => {
     const s = { ...fresh(), status: 'provisioning' as const };
     expect(transition(s, 'provisioning')).toBe(s);
   });
@@ -98,7 +98,7 @@ describe('transition', () => {
     ['failed', 'installed'],
   ];
   for (const [from, to] of denied) {
-    it(`${from} -> ${to} throws`, () => {
+    it(`状态转换 ${from} -> ${to} 抛出错误`, () => {
       const s = { ...fresh(), status: from };
       expect(() => transition(s, to)).toThrow(
         `Cannot move from ${from} to ${to}`
@@ -107,22 +107,22 @@ describe('transition', () => {
   }
 });
 
-describe('upgrading and adopted', () => {
-  it('installed can start an upgrade', () => {
+describe('升级与接管状态', () => {
+  it('已安装状态可以开始升级', () => {
     const s = { ...fresh(), status: 'installed' as const };
     expect(transition(s, 'upgrading').status).toBe('upgrading');
   });
-  it('failed upgrade resumes', () => {
+  it('失败的升级可以恢复', () => {
     const s = { ...fresh(), status: 'failed' as const, upgradeTarget: '1.2.0' };
     expect(transition(s, 'upgrading').status).toBe('upgrading');
   });
-  it('installed cannot go to provisioning', () => {
+  it('已安装状态不能进入预配状态', () => {
     const s = { ...fresh(), status: 'installed' as const };
     expect(() => transition(s, 'provisioning')).toThrow(
       'Cannot move from installed to provisioning'
     );
   });
-  it('adopted ownership round-trips', () => {
+  it('接管归属信息可以完整保存和读取', () => {
     const r = {
       key: 'd1',
       kind: 'd1',
@@ -144,8 +144,8 @@ describe('upgrading and adopted', () => {
   });
 });
 
-describe('steps and resources', () => {
-  it('recordStep is idempotent', () => {
+describe('步骤和资源', () => {
+  it('recordStep 具有幂等性', () => {
     const a = recordStep(fresh(), 'k');
     const b = recordStep(a, 'k');
     expect(hasStep(a, 'k')).toBe(true);
@@ -153,7 +153,7 @@ describe('steps and resources', () => {
     expect(b.steps).toHaveLength(1);
     expect(Date.parse(a.steps[0].at)).not.toBeNaN();
   });
-  it('recordResource rejects the same id under another key', () => {
+  it('recordResource 拒绝将同一 ID 记录到另一个键下', () => {
     const r = {
       kind: 'd1',
       name: 'x',
@@ -167,8 +167,8 @@ describe('steps and resources', () => {
   });
 });
 
-describe('files', () => {
-  it('round-trips with mode 0600 and no tmp left', () => {
+describe('文件', () => {
+  it('以 0600 权限完整保存和读取，且不遗留临时文件', () => {
     const s = fresh();
     writeState(dir, s);
     expect(readState(dir, s.installationId)).toEqual(s);
@@ -176,14 +176,14 @@ describe('files', () => {
     expect(readdirSync(dir)).toEqual([`${s.installationId}.json`]);
     expect(listStates(dir)).toEqual([s]);
   });
-  it('missing state reads as null, missing dir lists empty', () => {
+  it('缺失状态读取为 null，缺失目录列出空结果', () => {
     expect(readState(dir, 'nope')).toBeNull();
     expect(listStates(dir)).toEqual([]);
   });
 });
 
-describe('lock', () => {
-  it('second acquire throws; release removes the file', () => {
+describe('锁', () => {
+  it('第二次获取锁时抛出错误，释放时删除文件', () => {
     const release = acquireLock(dir, 'id', { pidAlive: () => true });
     expect(() => acquireLock(dir, 'id', { pidAlive: () => true })).toThrow(
       `Another cloudforge run is using this installation (pid ${process.pid} on ${hostname()}).`
@@ -192,7 +192,7 @@ describe('lock', () => {
     expect(existsSync(join(dir, 'id.lock'))).toBe(false);
     acquireLock(dir, 'id', { pidAlive: () => true })();
   });
-  it('stale lock from a dead pid is reclaimed', () => {
+  it('回收已终止进程的过期锁', () => {
     makeDir();
     writeFileSync(
       join(dir, 'id.lock'),
@@ -202,7 +202,7 @@ describe('lock', () => {
     release();
     expect(existsSync(join(dir, 'id.lock'))).toBe(false);
   });
-  it('an empty (partially written) lock is held, not stale, and left untouched', () => {
+  it('空的部分写入锁视为已持有，既不判为过期也不修改', () => {
     makeDir();
     writeFileSync(join(dir, 'id.lock'), '');
     expect(() => acquireLock(dir, 'id', { pidAlive: () => false })).toThrow(
@@ -210,14 +210,14 @@ describe('lock', () => {
     );
     expect(readFileSync(join(dir, 'id.lock'), 'utf8')).toBe('');
   });
-  it('release does not delete a lock now owned by someone else', () => {
+  it('释放操作不删除已归他人所有的锁', () => {
     const release = acquireLock(dir, 'id', { pidAlive: () => true });
     const other = JSON.stringify({ pid: 1, host: 'elsewhere', startedAt: 'y' });
     writeFileSync(join(dir, 'id.lock'), other);
     release();
     expect(readFileSync(join(dir, 'id.lock'), 'utf8')).toBe(other);
   });
-  it('leaves no stray files after reclaiming a stale lock', () => {
+  it('回收过期锁后不遗留文件', () => {
     makeDir();
     writeFileSync(
       join(dir, 'id.lock'),
@@ -227,7 +227,7 @@ describe('lock', () => {
     expect(readdirSync(dir)).toEqual(['id.lock']);
     release();
   });
-  it('a corrupt state file names the path', () => {
+  it('状态文件损坏时指出路径', () => {
     makeDir();
     writeFileSync(join(dir, 'bad.json'), '{');
     expect(() => readState(dir, 'bad')).toThrow(
@@ -235,7 +235,7 @@ describe('lock', () => {
     );
     expect(() => listStates(dir)).toThrow(/is corrupt/);
   });
-  it('a lock from another host is never reclaimed', () => {
+  it('从不回收来自其他主机的锁', () => {
     makeDir();
     writeFileSync(
       join(dir, 'id.lock'),

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   AGENT_RUN_KINDS,
@@ -15,8 +16,8 @@ import {
 } from './agentRuns';
 import { avatarState } from './agentLook';
 
-describe('kinds', () => {
-  it('names the six kinds the server records, in the order the page lists them', () => {
+describe('运行类型', () => {
+  it('按页面顺序命名服务端记录的六种类型', () => {
     expect(AGENT_RUN_KINDS.map((k) => k.kind)).toEqual([
       'review',
       'rebase',
@@ -30,7 +31,7 @@ describe('kinds', () => {
       'Conflict resolution (squash-era)'
     );
   });
-  it('recognises a kind from the URL and nothing else', () => {
+  it('仅从 URL 中识别有效类型', () => {
     expect(isAgentKind('learning')).toBe(true);
     expect(isAgentKind('all')).toBe(false);
     expect(isAgentKind(null)).toBe(false);
@@ -38,9 +39,9 @@ describe('kinds', () => {
   });
 });
 
-describe('parseActionsView', () => {
+describe('parseActionsView：解析自动化视图', () => {
   const view = (qs: string) => parseActionsView(new URLSearchParams(qs));
-  it('shows workflow runs by default, with the filter and page from the URL', () => {
+  it('默认显示工作流运行，并从 URL 读取筛选和页码', () => {
     expect(view('')).toEqual({ mode: 'workflows', workflow: '', page: 1 });
     expect(view('workflow=.github/workflows/ci.yml&page=3')).toEqual({
       mode: 'workflows',
@@ -48,21 +49,21 @@ describe('parseActionsView', () => {
       page: 3,
     });
   });
-  it('clamps a bad page to 1', () => {
+  it('无效页码限制为 1', () => {
     for (const qs of ['page=0', 'page=-4', 'page=abc'])
       expect(view(qs)).toMatchObject({ mode: 'workflows', page: 1 });
   });
-  it('opens Agent runs for a kind, or for all of them', () => {
+  it('打开特定类型或全部代理运行', () => {
     expect(view('agent=review')).toEqual({ mode: 'agents', kind: 'review' });
     expect(view('agent=all')).toEqual({ mode: 'agents', kind: null });
   });
-  it('treats an unknown agent kind as the workflow list, like before', () => {
+  it('未知代理类型仍显示工作流列表', () => {
     expect(view('agent=bogus').mode).toBe('workflows');
   });
 });
 
-describe('runActor: who did the work', () => {
-  it('Clef routes reviews and stacks pull requests', () => {
+describe('runActor：工作执行者', () => {
+  it('Clef 负责评审路由和拉取请求堆叠', () => {
     expect(
       runActor({ kind: 'review', title: 'Review of 1a2b3c4' })
     ).toMatchObject({ id: 'clef', handle: 'clef', builtin: true });
@@ -73,7 +74,7 @@ describe('runActor: who did the work', () => {
       runActor({ kind: 'sweep', title: 'Sweep after a push to main' })
     ).toMatchObject({ id: 'clef' });
   });
-  it('Fixer rebases and resolves conflicts', () => {
+  it('Fixer 负责变基和解决冲突', () => {
     expect(
       runActor({ kind: 'rebase', title: 'Rebase #4 onto main' })
     ).toMatchObject({ id: 'fixer', handle: 'fixer', builtin: true });
@@ -84,7 +85,7 @@ describe('runActor: who did the work', () => {
       })
     ).toMatchObject({ id: 'fixer' });
   });
-  it('a reviewer agent reviews and learns, named in the run title', () => {
+  it('评审代理负责评审和学习，并在运行标题中显示名称', () => {
     expect(
       runActor({ kind: 'review', title: 'Review by @securityagent of 1a2b3c4' })
     ).toEqual({
@@ -96,13 +97,13 @@ describe('runActor: who did the work', () => {
       runActor({ kind: 'learning', title: '@data-agent learns from #67' })
     ).toEqual({ id: 'reviewer', handle: 'data-agent', builtin: false });
   });
-  it('is null when a learning run does not name its agent', () => {
+  it('学习运行未指明代理时返回 null', () => {
     expect(runActor({ kind: 'learning', title: 'Something else' })).toBeNull();
   });
 });
 
-describe('actorRole', () => {
-  it('says in plain words what each did', () => {
+describe('actorRole：执行者角色', () => {
+  it('用易懂的文字说明各执行者的工作', () => {
     expect(actorRole({ kind: 'review', title: 'Review of 1a2b3c4' })).toBe(
       'Decides which reviewers to ask'
     );
@@ -130,13 +131,13 @@ describe('actorRole', () => {
   });
 });
 
-describe('run status', () => {
-  it('running shows the working avatar, failed the failure face, finished a pass', () => {
+describe('运行状态', () => {
+  it('运行中显示工作头像，失败显示失败表情，完成显示通过', () => {
     expect(avatarState(runAvatarStatus('running'))).toBe('startWaiting');
     expect(avatarState(runAvatarStatus('failed'))).toBe('error');
     expect(avatarState(runAvatarStatus('succeeded'))).toBe('success');
   });
-  it('chips always carry words', () => {
+  it('状态标签始终包含文字', () => {
     expect(runStatusLook('running')).toEqual({
       tone: 'info',
       label: 'Running',
@@ -152,20 +153,20 @@ describe('run status', () => {
   });
 });
 
-describe('runOutcome', () => {
+describe('runOutcome：运行结果', () => {
   const step = (over: Partial<Parameters<typeof runOutcome>[1][number]>) => ({
     decision: null,
     error: null,
     ...over,
   });
-  it('is the run error when it failed', () => {
+  it('失败时使用运行错误', () => {
     expect(
       runOutcome({ status: 'failed', error: 'Model timed out' }, [
         step({ decision: 'earlier decision' }),
       ])
     ).toBe('Model timed out');
   });
-  it('falls back to the last failing step when the run has no error text', () => {
+  it('运行没有错误文字时回退到最后一个失败步骤', () => {
     expect(
       runOutcome({ status: 'failed', error: null }, [
         step({}),
@@ -173,7 +174,7 @@ describe('runOutcome', () => {
       ])
     ).toBe('Push rejected');
   });
-  it('is the last decision a step recorded when it finished', () => {
+  it('完成后使用步骤记录的最后一个决定', () => {
     expect(
       runOutcome({ status: 'succeeded', error: null }, [
         step({ decision: 'first' }),
@@ -182,7 +183,7 @@ describe('runOutcome', () => {
       ])
     ).toBe('Ordered #77 after #76.');
   });
-  it('says nothing was recorded, or that it is still going', () => {
+  it('说明没有记录或仍在进行', () => {
     expect(runOutcome({ status: 'succeeded', error: null }, [step({})])).toBe(
       null
     );
@@ -192,8 +193,8 @@ describe('runOutcome', () => {
   });
 });
 
-describe('formatting', () => {
-  it('shows dollars with enough places for fractions of a cent', () => {
+describe('格式化', () => {
+  it('美元金额保留足够小数位以显示不足一美分的金额', () => {
     expect(formatCost(null)).toBe('');
     expect(formatCost(0)).toBe('$0');
     expect(formatCost(0.00001)).toBe('<$0.0001');
@@ -201,10 +202,10 @@ describe('formatting', () => {
     expect(formatCost(0.1234)).toBe('$0.123');
     expect(formatCost(12.3456)).toBe('$12.35');
   });
-  it('groups token counts', () => {
+  it('对令牌数量进行分组格式化', () => {
     expect(formatTokens(38125)).toBe('38,125');
   });
-  it('lists each model once, without the Workers AI prefix', () => {
+  it('每个模型仅列出一次，并去掉 Workers AI 前缀', () => {
     expect(
       modelsOf([
         { model: '@cf/zai/glm-5.3' },

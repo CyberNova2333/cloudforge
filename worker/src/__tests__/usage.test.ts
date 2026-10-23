@@ -112,15 +112,15 @@ async function usageRows(t: TestEnv) {
   ).results;
 }
 
-describe('Usage pricing', () => {
-  it('prices flows at list price and above the allowance', () => {
+describe('用量计费', () => {
+  it('按标价及超出免费额度的部分计算请求费用', () => {
     const p = book.prices['workers.requests'];
     expect(listCost(p, 12_000_000)).toBeCloseTo(3.6);
     expect(costOverAllowance(p, 12_000_000)).toBeCloseTo(0.6);
     expect(costOverAllowance(p, 9_000_000)).toBe(0);
   });
 
-  it('bills storage as GB-month: the average of daily peaks over 30 days', () => {
+  it('按 GB 月计算存储费用，取 30 天每日峰值的平均值', () => {
     const p = book.prices['d1.storage_bytes'];
     const byDay = new Map<string, number>();
     for (let i = 0; i < 30; i++) byDay.set(addDays('2026-09-01', i), 10e9);
@@ -143,7 +143,7 @@ describe('Usage pricing', () => {
     expect(h.projectedQuantity).toBeCloseTo(10);
   });
 
-  it('projects flows at the daily average and skips days before billing starts', () => {
+  it('按日均值预测请求量，并跳过计费开始前的日期', () => {
     const p = book.prices['artifacts.operations'];
     expect(p.billedFrom).toBe('2026-10-14');
     const byDay = new Map<string, number>();
@@ -170,7 +170,7 @@ describe('Usage pricing', () => {
     expect(sept.projectedListCost).toBe(0);
   });
 
-  it('prices Workers AI tokens per model, and R2 operations by class', () => {
+  it('按模型计算 Workers AI 令牌费用，按类别计算 R2 操作费用', () => {
     expect(aiTokenCost(book, '@cf/zai-org/glm-5.3', 1e6, 1e6)).toBeCloseTo(5.8);
     expect(aiTokenCost(book, '@cf/cloudflare/clef', 1e6, 0)).toBeCloseTo(0.24);
     expect(aiTokenCost(book, '@cf/unknown/model', 1, 1)).toBeNull();
@@ -179,7 +179,7 @@ describe('Usage pricing', () => {
     expect(r2Class('DeleteObject')).toBeNull();
   });
 
-  it('knows month lengths', () => {
+  it('正确处理各月天数', () => {
     expect(monthBounds('2026-02')).toMatchObject({
       from: '2026-02-01',
       to: '2026-02-28',
@@ -189,8 +189,8 @@ describe('Usage pricing', () => {
   });
 });
 
-describe('usageFromTranscript', () => {
-  it('counts a pi harness transcript: entry records carry their messages under model', () => {
+describe('usageFromTranscript 从记录中提取用量', () => {
+  it('统计 Pi 测试环境记录，条目消息位于 model 字段下', () => {
     const entries = [
       {
         id: 'e1',
@@ -241,8 +241,8 @@ describe('usageFromTranscript', () => {
   });
 });
 
-describe('Usage sync', () => {
-  it('does nothing without the analytics token', async () => {
+describe('用量同步', () => {
+  it('缺少分析令牌时不执行同步', async () => {
     const t = makeEnv();
     const g = fakeGraphql();
     const res = await syncUsage(t.env, ['2026-10-01'], { fetch: g.fetch });
@@ -250,7 +250,7 @@ describe('Usage sync', () => {
     expect(g.calls).toHaveLength(0);
   });
 
-  it("asks only about this deployment's own resources, and stores each day", async () => {
+  it('仅查询本次部署自己的资源，并逐日存储', async () => {
     const t = configured(makeEnv());
     const g = fakeGraphql();
     const res = await syncUsage(t.env, ['2026-10-01'], { fetch: g.fetch });
@@ -303,7 +303,7 @@ describe('Usage sync', () => {
     expect(JSON.stringify(errors)).not.toContain(TOKEN);
   });
 
-  it('replaces a day when synced again, leaving app-counted usage alone', async () => {
+  it('再次同步时替换当日记录，保留应用自行计数的用量', async () => {
     const t = configured(makeEnv());
     await t.env.DB.prepare(
       `INSERT INTO usage_daily (date, product, metric, resource, quantity, source, fetched_at)
@@ -318,7 +318,7 @@ describe('Usage sync', () => {
     expect(rows.find((r) => r.metric === 'email.sends')?.quantity).toBe(3);
   });
 
-  it('re-reads recent days and backfills a few never-synced ones per run', async () => {
+  it('重读最近日期，并在每次运行中补齐少量从未同步的日期', async () => {
     const t = configured(makeEnv());
     const db = drizzle(t.env.DB, { schema });
     const now = new Date('2026-10-04T02:30:00Z');
@@ -343,7 +343,7 @@ describe('Usage sync', () => {
     ]);
   });
 
-  it('runs from the daily cron, and ignores crons it does not know', async () => {
+  it('由每日定时任务执行，并忽略未知定时表达式', async () => {
     const t = configured(makeEnv());
     const g = fakeGraphql();
     vi.spyOn(globalThis, 'fetch').mockImplementation(g.fetch);
@@ -358,8 +358,8 @@ describe('Usage sync', () => {
   });
 });
 
-describe('Usage report', () => {
-  it('is for site admins only', async () => {
+describe('用量报告', () => {
+  it('仅供站点管理员访问', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -381,7 +381,7 @@ describe('Usage report', () => {
     expect(workers.reason).toContain('CF_ANALYTICS_TOKEN');
   });
 
-  it('prices Actions runners, AI calls, and synced analytics for a month', async () => {
+  it('计算一个月的 Actions 运行器、AI 调用及同步分析费用', async () => {
     const t = configured(makeEnv());
     const admin = await bootstrapAdmin(t);
     const db = drizzle(t.env.DB, { schema });
@@ -474,7 +474,7 @@ describe('Usage report', () => {
     expect(r.prices.planFee).toBe(5);
   });
 
-  it('syncs on demand, at most every five minutes', async () => {
+  it('支持按需同步，频率不超过每五分钟一次', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const notSetUp = await call(t, '/api/admin/usage/sync', {

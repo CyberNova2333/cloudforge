@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 import { newAgent } from './helpers/agents';
@@ -30,8 +31,8 @@ type Profile = {
   };
 };
 
-describe('agent profiles', () => {
-  it('marks the agent and shows what it reviews and where it is invited (as the viewer sees it)', async () => {
+describe('智能体资料', () => {
+  it('标识智能体，并按查看者权限展示其审查范围和受邀仓库', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -74,7 +75,7 @@ describe('agent profiles', () => {
     );
   });
 
-  it('says when the agent was deleted, and has no agent block for people', async () => {
+  it('说明智能体删除时间，且普通用户不显示智能体区块', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await newAgent(t, admin);
@@ -93,7 +94,7 @@ describe('agent profiles', () => {
     expect(person.owner.email).toBe('octocat@example.com');
   });
 
-  it("lists the agent's recent reviews in repositories the viewer can see", async () => {
+  it('列出查看者可访问仓库中的智能体近期审查', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const { head } = await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });

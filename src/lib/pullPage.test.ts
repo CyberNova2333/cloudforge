@@ -91,23 +91,23 @@ const ctx = (over: Partial<Parameters<typeof nextStep>[1]> = {}) => ({
   ...over,
 });
 
-describe('pullTab', () => {
-  it('reads the conversation from no tab and the other tabs by name', () => {
+describe('pullTab：拉取请求标签页', () => {
+  it('未指定标签时显示讨论，其他标签按名称读取', () => {
     expect(pullTab(undefined)).toBe('conversation');
     expect(pullTab('')).toBe('conversation');
     expect(pullTab('commits')).toBe('commits');
     expect(pullTab('files')).toBe('files');
     expect(pullTab('checks')).toBe('checks');
   });
-  it('refuses anything else', () => {
+  it('拒绝其他值', () => {
     expect(pullTab('conversation')).toBeNull();
     expect(pullTab('Files')).toBeNull();
     expect(pullTab('settings')).toBeNull();
   });
 });
 
-describe('ordinal', () => {
-  it('says 1st, 2nd, 3rd and th, with the teens', () => {
+describe('ordinal：序数', () => {
+  it('正确显示 1st、2nd、3rd、th 及十几的序数', () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinal)).toEqual(
       [
         '1st',
@@ -127,11 +127,11 @@ describe('ordinal', () => {
   });
 });
 
-describe('etaText', () => {
-  it('has no estimate without history', () => {
+describe('etaText：预计耗时', () => {
+  it('没有历史数据时不提供估算', () => {
     expect(etaText(null)).toBeNull();
   });
-  it('reads minutes and hours in plain words', () => {
+  it('用自然语言显示分钟和小时', () => {
     expect(etaText(0)).toBe('any minute now');
     expect(etaText(1)).toBe('about 1 min');
     expect(etaText(14)).toBe('about 14 min');
@@ -140,7 +140,7 @@ describe('etaText', () => {
   });
 });
 
-describe('queueSpot and queueLine', () => {
+describe('queueSpot 和 queueLine：队列位置与说明', () => {
   const entry = (n: number, position: number) => ({
     position,
     number: n,
@@ -157,7 +157,7 @@ describe('queueSpot and queueLine', () => {
     { target: 'main', paused: null, entries: [entry(9, 1), entry(10, 2)] },
     { target: 'release', paused: null, entries: [entry(12, 1)] },
   ];
-  it('finds the pull request in its target', () => {
+  it('在目标队列中找到拉取请求', () => {
     expect(queueSpot(queue, 10)).toMatchObject({
       target: 'main',
       total: 2,
@@ -167,7 +167,7 @@ describe('queueSpot and queueLine', () => {
     expect(queueSpot(queue, 99)).toBeNull();
     expect(queueSpot(undefined, 10)).toBeNull();
   });
-  it('says where it is in line', () => {
+  it('说明其排队位置', () => {
     expect(queueLine(queueSpot(queue, 9)!)).toBe(
       'First in line to land on main.'
     );
@@ -177,9 +177,9 @@ describe('queueSpot and queueLine', () => {
   });
 });
 
-describe('openQuestion', () => {
+describe('openQuestion：开放问题', () => {
   const data = person('dataagent');
-  it('finds the first open finding that asks a person a question', () => {
+  it('找到首个仍待人工回答的问题', () => {
     const q = flag({ id: 'q', question: 'Were all your invoices in CAD?' });
     const found = openQuestion([
       { agent: person('securityagent'), flags: [flag({ id: 'x' })] },
@@ -187,7 +187,7 @@ describe('openQuestion', () => {
     ]);
     expect(found).toEqual({ agent: data, flag: q });
   });
-  it('skips answered, refused and change-request findings', () => {
+  it('跳过已回答、已拒绝和要求修改的问题', () => {
     expect(
       openQuestion([
         {
@@ -204,15 +204,15 @@ describe('openQuestion', () => {
   });
 });
 
-describe('pullBlockers', () => {
-  it('prefers the queue’s plain words', () => {
+describe('pullBlockers：拉取请求阻塞原因', () => {
+  it('优先使用队列提供的易懂说明', () => {
     expect(
       pullBlockers(state('waiting', 'checks_running'), [
         'The test check is running',
       ])
     ).toEqual(['The test check is running']);
   });
-  it('falls back to the state’s blocking reasons, capitalised', () => {
+  it('回退到状态阻塞原因，并将首字母大写', () => {
     expect(
       pullBlockers(
         state(
@@ -227,8 +227,8 @@ describe('pullBlockers', () => {
   });
 });
 
-describe('nextStep', () => {
-  it('says a merged or closed pull request is done', () => {
+describe('nextStep：下一步', () => {
+  it('已合并或已关闭的拉取请求显示完成', () => {
     expect(nextStep(input({ state: 'merged' }), ctx())).toEqual({
       tone: 'good',
       headline: 'Merged into main.',
@@ -240,7 +240,7 @@ describe('nextStep', () => {
     );
   });
 
-  it('puts a missing branch first', () => {
+  it('优先显示分支缺失', () => {
     const s = nextStep(input({ headBranchExists: false, rebase: null }), ctx());
     expect(s.tone).toBe('critical');
     expect(s.headline).toBe(
@@ -248,7 +248,7 @@ describe('nextStep', () => {
     );
   });
 
-  it('explains a clash Fixer could not combine, and a branch CloudForge never rebases', () => {
+  it('说明 Fixer 无法解决的冲突和 CloudForge 不会变基的分支', () => {
     const clash = nextStep(
       input({
         rebase: rebase({ status: 'conflict', commit: 'abc1234def' }),
@@ -282,7 +282,7 @@ describe('nextStep', () => {
     expect(blocked.detail).toBe('Not rebased: release/* is protected');
   });
 
-  it('says Fixer is working while it resolves', () => {
+  it('Fixer 解决冲突期间显示正在处理', () => {
     const s = nextStep(
       input({ rebase: rebase({ status: 'resolving' }) }),
       ctx({ blockers: ['CloudForge is fixing a clash', 'Lands after #9'] })
@@ -301,7 +301,7 @@ describe('nextStep', () => {
     ).toEqual([]);
   });
 
-  it('reads a ready pull request by its auto-merge', () => {
+  it('根据自动合并设置描述已就绪的拉取请求', () => {
     expect(nextStep(input({ autoMerge: 'ready' }), ctx()).headline).toBe(
       'Ready. CloudForge is merging it now.'
     );
@@ -314,7 +314,7 @@ describe('nextStep', () => {
     });
   });
 
-  it('says when only the pause holds it', () => {
+  it('仅暂停阻止合入时说明情况', () => {
     const s = nextStep(
       input({ pullState: state('waiting', 'merging_paused', 'stacked_on') }),
       ctx({ blockers: ['Merging is paused', 'Lands after #9'] })
@@ -337,7 +337,7 @@ describe('nextStep', () => {
   });
 
   it.each(['disabled', 'off'] as const)(
-    'does not promise an automatic merge after resuming when auto-merge is %s',
+    '自动合并为 %s 时不承诺恢复后自动合并',
     (autoMerge) => {
       const s = nextStep(
         input({ autoMerge, pullState: state('waiting', 'merging_paused') }),
@@ -350,7 +350,7 @@ describe('nextStep', () => {
     }
   );
 
-  it('leads a wait with its first blocker', () => {
+  it('等待说明优先显示首个阻塞原因', () => {
     const s = nextStep(
       input({ pullState: state('waiting', 'checks_running') }),
       ctx({ blockers: ['The test check is running', 'Lands after #9'] })
@@ -366,7 +366,7 @@ describe('nextStep', () => {
     ).toBe('Waiting.');
   });
 
-  it('asks the owner’s question in its own words', () => {
+  it('原样表达所有者的问题', () => {
     const s = nextStep(
       input({ pullState: state('human_review', 'agent_flagged') }),
       ctx({
@@ -395,7 +395,7 @@ describe('nextStep', () => {
     ).toBe('Data asks Cho: Is it CAD?');
   });
 
-  it('otherwise says what a person has to decide', () => {
+  it('其他情况下说明用户需要决定的事项', () => {
     const s = nextStep(
       input({ pullState: state('human_review', 'needs_approval') }),
       ctx({ blockers: ['Needs a person to approve it'] })
@@ -410,7 +410,7 @@ describe('nextStep', () => {
     ).toBe('Needs a person before it can merge.');
   });
 
-  it('names who has to make changes', () => {
+  it('指出需要作出修改的人', () => {
     const s = nextStep(
       input({ pullState: state('agent_followup', 'agent_changes_requested') }),
       ctx({ blockers: ['Security asked for 1 change'], coder: 'Codex' })
@@ -423,14 +423,14 @@ describe('nextStep', () => {
     });
   });
 
-  it('checks before it knows', () => {
+  it('状态未知前显示检查中', () => {
     expect(nextStep(input({ pullState: null }), ctx()).headline).toBe(
       'Checking where it stands.'
     );
   });
 });
 
-describe('fixerAttempts', () => {
+describe('fixerAttempts：冲突修复尝试', () => {
   const run = (id: string, at: string): AgentRun => ({
     id,
     kind: 'rebase',
@@ -441,7 +441,7 @@ describe('fixerAttempts', () => {
     finishedAt: null,
     error: null,
   });
-  it('merges the kinds newest first, once each, at most five', () => {
+  it('合并各类型，最新在前、每项一次、最多五项', () => {
     const a = [run('a', '2026-10-08T10:00:00Z'), run('b', '2026-10-08T08:00Z')];
     const b = [
       run('c', '2026-10-08T09:00:00Z'),
@@ -465,8 +465,8 @@ describe('fixerAttempts', () => {
   });
 });
 
-describe('participants', () => {
-  it('lists the author, commenters and the merger once each', () => {
+describe('participants：参与者', () => {
+  it('列出作者、评论者和合并者，每人一次', () => {
     const a = person('a');
     const b = person('b');
     const c = person('c');
@@ -481,8 +481,8 @@ describe('participants', () => {
   });
 });
 
-describe('pullChip', () => {
-  it('reads an open pull request by whose move it is', () => {
+describe('pullChip：拉取请求标签', () => {
+  it('按当前应行动的角色描述开放请求', () => {
     expect(pullChip('open', state('human_review'))).toEqual({
       tone: 'warn',
       label: 'Requires human review',
@@ -493,7 +493,7 @@ describe('pullChip', () => {
     });
     expect(pullChip('open', null)).toEqual({ tone: 'info', label: 'Open' });
   });
-  it('reads merged and closed as they are', () => {
+  it('如实显示已合并和已关闭状态', () => {
     expect(pullChip('merged', null)).toEqual({
       tone: 'merged',
       label: 'Merged',
@@ -505,17 +505,17 @@ describe('pullChip', () => {
   });
 });
 
-describe('canDeleteMergedBranch', () => {
+describe('canDeleteMergedBranch：合并分支删除权限', () => {
   const branch = {
     name: 'feature',
     isProtected: false,
     mergedNotDeleted: true,
   };
-  it('waits for the server to confirm the merged branch is safe to delete', () => {
+  it('等待服务端确认已合并分支可安全删除', () => {
     expect(canDeleteMergedBranch('feature', undefined)).toBe(false);
     expect(canDeleteMergedBranch('feature', branch)).toBe(true);
   });
-  it('keeps protected, reused and advanced branches, including stale data for another branch', () => {
+  it('保留受保护、复用和已有新提交的分支，并防止使用其他分支的过期数据', () => {
     expect(
       canDeleteMergedBranch('feature', { ...branch, isProtected: true })
     ).toBe(false);

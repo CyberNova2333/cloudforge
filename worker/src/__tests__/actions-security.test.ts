@@ -22,21 +22,21 @@ import {
   setup,
 } from './helpers/actions';
 
-it('honors short masks and masks overlapping values without exposing the longer suffix', () => {
+it('支持短脱敏值，对重叠值脱敏时不泄露较长值的后缀', () => {
   const parsed = workflowCommands(
     '::add-mask::xy\n::add-mask::abcd\n::add-mask::abcdef\nxy abcdef'
   );
   expect(mask(parsed.text, parsed.masks)).toBe('*** ***');
 });
 
-it('redacts the union of crossing and self-overlapping secret matches', () => {
+it('对交叉和自重叠密钥匹配的并集进行脱敏', () => {
   expect(mask('abcdef', ['abcd', 'cdef'])).toBe('***');
   expect(mask('abcdef', ['cdef', 'abcd'])).toBe('***');
   expect(mask('ababa', ['aba'])).toBe('***');
   expect(mask('x and *', ['x', '*'])).toBe('*** and ***');
 });
 
-it('redacts a full-size log with a densely self-overlapping secret', () => {
+it('对完整长度日志中密集自重叠的密钥进行脱敏', () => {
   expect(mask('a'.repeat(4 * 1024 * 1024), ['a'.repeat(1024)])).toBe('***');
 });
 
@@ -69,8 +69,8 @@ function failStateReads(
   };
 }
 
-describe('Actions durable secret state', () => {
-  it('does not replay completed commands when the next step cannot update D1', async () => {
+describe('Actions 持久化密钥状态', () => {
+  it('下一步骤无法更新 D1 时，不重放已完成的命令', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -101,7 +101,7 @@ jobs:
     }
   });
   it.each(['state', 'log', 'persistent logs'])(
-    'never repeats a completed command after an R2 %s write fails',
+    'R2 %s 写入失败后，不重复已完成的命令',
     async (kind) => {
       const s = await setup();
       await pushFiles(s, 'main', {
@@ -164,7 +164,7 @@ jobs:
     }
   );
 
-  it('persists a replayable failure marker without exception text or secret-bearing state', async () => {
+  it('持久化可重放的失败标记，且不包含异常文本或含密钥的状态', async () => {
     const s = await setup();
     const saved = await persistState(async () => {
       throw new Error('secret-bearing-failure');
@@ -185,7 +185,7 @@ jobs:
     ).rejects.toThrow('preparation failed');
   });
 
-  it('stops later cleanup commands when a post result cannot be saved', async () => {
+  it('无法保存收尾结果时，停止后续清理命令', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -229,7 +229,7 @@ jobs:
     }
   });
   it.each([false, true])(
-    'retries only R2 reads and never repeats a completed command (persistent outage: %s)',
+    '仅重试 R2 读取，不重复已完成的命令（持续故障：%s）',
     async (persistent) => {
       const s = await setup();
       await pushFiles(s, 'main', {
@@ -277,7 +277,7 @@ jobs:
     }
   );
 
-  it('fails explicitly when completed job outputs cannot be hydrated, without executing commands again', async () => {
+  it('无法恢复已完成作业的输出时明确报告失败，且不重新执行命令', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -311,7 +311,7 @@ jobs:
     }
   });
 
-  it('stops later post commands when post masks cannot be restored', async () => {
+  it('无法恢复收尾步骤的脱敏规则时，停止后续收尾命令', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -348,7 +348,7 @@ jobs:
     }
   });
 
-  it('does not copy large unused static secrets into each durable result', async () => {
+  it('不将未使用的大型静态密钥复制到每个持久化结果中', async () => {
     const s = await setup();
     const db = drizzle(s.t.env.DB, { schema });
     const repo = (await db.select().from(schema.repositories).get())!;
@@ -398,7 +398,7 @@ jobs:
     ).toHaveLength(0);
   });
 
-  it('encrypts command files, post inputs and masks, then restores them on replay', async () => {
+  it('加密命令文件、收尾输入和脱敏规则，并在重放时恢复', async () => {
     const s = await setup();
     const secret = 'configured-secret-12345';
     const generated = 'generated-secret-67890';
@@ -519,7 +519,7 @@ jobs:
     expect(JSON.stringify([...persisted.values()])).not.toContain(generated);
   });
 
-  it('retains request credentials as encrypted masks across replay and withholds matching job outputs', async () => {
+  it('跨重放将请求凭据保留为加密脱敏规则，并禁止输出与其匹配的作业结果', async () => {
     const s = await setup();
     await pushFiles(s, 'main', {
       '.github/workflows/ci.yml': `on: push
@@ -594,7 +594,7 @@ jobs:
     expect(requests[0].masks).toContain(token);
   });
 
-  it('binds encrypted state to its run and step and works without configured Actions secrets', async () => {
+  it('将加密状态绑定到所属运行和步骤，未配置 Actions 密钥时也可工作', async () => {
     const s = await setup();
     const env = { ...s.t.env, ACTIONS_SECRETS_KEY: '' };
     const saved = await sealState(env, 'repo-a', 'run-a', 'step-a', {
@@ -621,7 +621,7 @@ jobs:
     ).rejects.toThrow(/could not be decrypted/);
   });
 
-  it('stores large state encrypted in R2 while keeping Workflow results small', async () => {
+  it('将大型状态加密存入 R2，同时保持 Workflow 结果精简', async () => {
     const s = await setup();
     const value = { output: 'large-sensitive-value'.repeat(80_000) };
     const saved = await sealState(
@@ -646,8 +646,8 @@ jobs:
   });
 });
 
-describe('JobRunner masks and process lifetime', () => {
-  it('masks crossing secrets in live and saved runner logs', async () => {
+describe('JobRunner 脱敏与进程生命周期', () => {
+  it('对运行器实时日志和已保存日志中交叉的密钥进行脱敏', async () => {
     let release!: () => void;
     const container = {
       running: true,
@@ -697,7 +697,7 @@ describe('JobRunner masks and process lifetime', () => {
     expect(live?.trim()).toBe('***');
     expect(saved.log.trim()).toBe('***');
   });
-  it('fails when stdout reading fails after the process exited successfully', async () => {
+  it('进程成功退出后读取 stdout 失败时，报告失败', async () => {
     const container = {
       running: true,
       exec: async (argv: string[]) => {
@@ -737,7 +737,7 @@ describe('JobRunner masks and process lifetime', () => {
     expect(result.interrupted).toBeUndefined();
   });
 
-  it('keeps dynamic masks across chunks, truncation, live logs and later steps', async () => {
+  it('跨数据块、截断、实时日志和后续步骤保留动态脱敏规则', async () => {
     const token = 'runtime-credential-12345';
     let release!: () => void;
     let first = true;
@@ -810,7 +810,7 @@ describe('JobRunner masks and process lifetime', () => {
     expect((await runner.runStep({ ...req, number: 3 })).log).toBe('***');
   });
 
-  it('uses a process-group timeout and does not wait forever on a daemon holding stdout', async () => {
+  it('使用进程组超时，不无限等待持有 stdout 的守护进程', async () => {
     let cancelled = false;
     const exec = vi.fn(async (argv: string[], options?: any) => {
       if (argv[0] !== '/usr/bin/timeout')
@@ -890,7 +890,7 @@ describe('JobRunner masks and process lifetime', () => {
     masks: [],
   };
 
-  it('reports an early exit 137 (the OOM killer) or 124 as the step failing, not as a timeout', async () => {
+  it('提前以 137（被 OOM 杀掉）或 124 退出算步骤自身失败，不算超时', async () => {
     for (const code of [137, 124]) {
       const result = await fakeRunner('Killed\n', code).runStep(step);
       expect(result).toMatchObject({ timedOut: false, exitCode: code });
@@ -899,7 +899,7 @@ describe('JobRunner masks and process lifetime', () => {
     }
   });
 
-  it('masks a multi-line add-mask value without hiding its braces everywhere', async () => {
+  it('遮蔽多行 add-mask 值，但不会把日志里所有花括号都遮掉', async () => {
     const result = await fakeRunner(
       '::add-mask::{%0A  "token": "s3cr3t-value"%0A}\n{"ok":true} "token": "s3cr3t-value"\n',
       0
@@ -911,7 +911,7 @@ describe('JobRunner masks and process lifetime', () => {
   });
 });
 
-it('rejects huge matrix products before copying any combination', () => {
+it('复制任何组合前，拒绝过大的矩阵笛卡尔积', () => {
   const values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   const map = vi.spyOn(values, 'map');
   expect(() =>
@@ -927,7 +927,7 @@ it('rejects huge matrix products before copying any combination', () => {
   map.mockRestore();
 });
 
-it('preserves PR branch snapshots for execution and reruns after retargeting', async () => {
+it('重新指定目标分支后，执行及重跑仍保留 PR 分支快照', async () => {
   const s = await setup();
   const yml = `on: pull_request
 jobs:
@@ -977,7 +977,7 @@ jobs:
   expect(script(h2.requests[0])).toBe('echo "main feature"');
 });
 
-it('retries a failed landing delivery with one run and one Workflow instance', async () => {
+it('通过单个运行和单个 Workflow 实例重试失败的合并投递', async () => {
   const s = await setup();
   const sha = await pushFiles(s, 'main', {
     '.github/workflows/ci.yml':

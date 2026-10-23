@@ -10,7 +10,7 @@ import {
 } from '../stack/lineage';
 import type { GitService } from '../git/service';
 
-it('blocks every member of a dependency cycle even though the tree removes its ordinary parent/waits edges', () => {
+it('即使依赖树移除了普通父级及等待边，仍阻止依赖环中的所有成员合入', () => {
   const edge = (a: number, b: number): EdgeInput => ({
     a,
     b,
@@ -32,7 +32,7 @@ it('blocks every member of a dependency cycle even though the tree removes its o
   }
 });
 
-it('indexed ownership matches exhaustive containment and retains shared-parent trimming', async () => {
+it('索引归属判定与穷举包含判定一致，并保留共享父级裁剪行为', async () => {
   const line = (...ids: string[]): Lineage => ({
     ids,
     shas: ids.map((id) => `sha-${id}`),
@@ -53,7 +53,7 @@ it('indexed ownership matches exhaustive containment and retains shared-parent t
   // Equal SHAs establish containment; attempting a patch read here would be a regression.
   const git = {
     commit: async () => {
-      throw new Error('unexpected patch read');
+      throw new Error('意外读取了补丁');
     },
   } as unknown as GitService;
   const indexed = await lineageOwnership(git, all);

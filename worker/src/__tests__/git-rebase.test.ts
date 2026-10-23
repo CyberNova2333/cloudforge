@@ -40,13 +40,13 @@ async function text(git: GitService, commit: string, path: string) {
 
 /** Throws unless the rebase finished; keeps its objects readable from the fake. */
 function done(repo: FakeRepo, r: Awaited<ReturnType<typeof rebase>>) {
-  if (r.kind !== 'done') throw new Error(`expected done, got ${r.kind}`);
+  if (r.kind !== 'done') throw new Error(`预期为 done，实际为 ${r.kind}`);
   repo.add(...r.objects);
   return r;
 }
 
-describe('rebase', () => {
-  it('replays the branch’s commits onto the target, keeping authors, dates and messages', async () => {
+describe('变基', () => {
+  it('将分支提交重放到目标上，保留作者、日期和消息', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -111,7 +111,7 @@ describe('rebase', () => {
     );
   });
 
-  it('is up to date when the head already contains the target', async () => {
+  it('头提交已包含目标时视为最新', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const head = await commitFiles(
@@ -126,7 +126,7 @@ describe('rebase', () => {
     });
   });
 
-  it('skips a commit the target already has under another sha, wherever it landed in the file', async () => {
+  it('目标已通过其他 SHA 包含相同变更时跳过提交，不受文件中变更位置影响', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -164,7 +164,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'b.txt')).toBe('b\n');
   });
 
-  it('gives the same change the same identity whatever its context, and a different change another', async () => {
+  it('不论上下文如何，相同变更具有相同标识，不同变更具有不同标识', async () => {
     const { repo, git } = await fixture();
     let n = 0;
     const tree = async (content: string) =>
@@ -184,7 +184,7 @@ describe('rebase', () => {
     expect(await patchId(git, a1, c2)).not.toBe(await patchId(git, a1, a2));
   });
 
-  it('skips commits already in the target’s history', async () => {
+  it('跳过目标历史中已存在的提交', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const f1 = await commitFiles(repo, 'feature', { 'a.txt': 'a1\n' }, 'One', [
@@ -211,7 +211,7 @@ describe('rebase', () => {
     expect(repo.parseCommit(r.head)!.parents).toEqual([tip]);
   });
 
-  it('flattens merge commits on the branch', async () => {
+  it('将分支上的合并提交展开为线性历史', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -259,7 +259,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'o.txt')).toBe('o\n');
   });
 
-  it('drops a commit whose changes the target already made (no empty commit)', async () => {
+  it('目标已包含变更时丢弃对应提交，不生成空提交', async () => {
     const { repo, git } = await fixture();
     const base = LINES(10);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -291,7 +291,7 @@ describe('rebase', () => {
     expect(r.skipped).toBe(1);
   });
 
-  it('notices when a replayed commit no longer makes the same change', async () => {
+  it('识别重放提交已不再产生相同变更的情况', async () => {
     const { repo, git } = await fixture();
     const base = LINES(10);
     const root = await commitFiles(
@@ -321,7 +321,7 @@ describe('rebase', () => {
     expect(r.samePatches).toBe(false); // the rebased commit only changes c.txt now
   });
 
-  it('stops at the first conflicting commit with its files and what replayed before it', async () => {
+  it('在首个冲突提交处停止，返回冲突文件及此前已重放内容', async () => {
     const { repo, git } = await fixture();
     const base = LINES(5);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -361,7 +361,7 @@ describe('rebase', () => {
     expect(markers).toContain('line 3 feature');
   });
 
-  it('applies resolved contents for a conflicting commit and marks it with the trailer', async () => {
+  it('为冲突提交应用已解决内容，并附加尾注标记', async () => {
     const { repo, git } = await fixture();
     const base = LINES(5);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -401,7 +401,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'a.txt')).toBe(resolved);
   });
 
-  it('keeps messages byte for byte, trailers included', async () => {
+  it('逐字节保留提交消息，包括尾注', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const message = 'Fix it\n\nCo-authored-by: Bob <bob@example.com>';
@@ -417,7 +417,7 @@ describe('rebase', () => {
     expect(repo.parseCommit(r.head)!.message).toBe(message);
   });
 
-  it('adds the trailer to an existing trailer block', () => {
+  it('将尾注添加到现有尾注区块', () => {
     expect(
       withResolvedTrailer('Fix it\n\nCo-authored-by: Bob <bob@example.com>')
     ).toBe(
@@ -429,7 +429,7 @@ describe('rebase', () => {
     );
   });
 
-  it('refuses more than 100 commits', async () => {
+  it('拒绝超过 100 个提交', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     repo.refs.set('refs/heads/feature', root);
@@ -453,7 +453,7 @@ describe('rebase', () => {
     });
   });
 
-  it('builds the same commits from the same inputs (a replayed Workflow step rebuilds them)', async () => {
+  it('相同输入构建相同提交，Workflow 步骤重放时也保持一致', async () => {
     const { fake, repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const head = await commitFiles(
@@ -474,7 +474,7 @@ describe('rebase', () => {
     );
   });
 
-  it('finishes with no commits when the target already has every change (callers refuse it)', async () => {
+  it('目标已包含全部变更时以零提交结束，由调用者拒绝此结果', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const head = await commitFiles(repo, 'feature', { 'a.txt': 'b\n' }, 'B', [
@@ -495,7 +495,7 @@ describe('rebase', () => {
     });
   });
 
-  it('returns each object it made once', async () => {
+  it('每个生成的对象仅返回一次', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     // Two commits that make the same file contents again (the same blob and subtree on each replay).
@@ -526,7 +526,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'b.txt')).toBe('x\n');
   });
 
-  it('replays a side branch merged back into the branch after its parents', async () => {
+  it('在父提交之后重放已合回主分支的侧分支', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -572,7 +572,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'a.txt')).toBe(edit(final, 19, 'main'));
   });
 
-  it('carries over edits made inside a merge commit in one extra commit', async () => {
+  it('通过一个额外提交保留合并提交中的编辑', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -626,7 +626,7 @@ describe('rebase', () => {
     expect(r.samePatches).toBe(true);
   });
 
-  it('notices when a merge commit’s own edits no longer make the same change', async () => {
+  it('识别合并提交自身的编辑已不再产生相同变更的情况', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(
@@ -679,7 +679,7 @@ describe('rebase', () => {
     expect(r.samePatches).toBe(false);
   });
 
-  it('stops at a merge commit whose own edit conflicts with the target', async () => {
+  it('合并提交自身编辑与目标冲突时停止', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');
@@ -716,7 +716,7 @@ describe('rebase', () => {
     expect(r.replayed.map((c) => c.original)).toEqual([f1]);
   });
 
-  it('ignores a resolution for a commit that replays cleanly', async () => {
+  it('能够干净重放的提交忽略外部解决结果', async () => {
     const { repo, git } = await fixture();
     const root = await commitFiles(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     const head = await commitFiles(
@@ -741,7 +741,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'b.txt')).toBe('b\n');
   });
 
-  it('tells indenting from dedenting, but not trailing whitespace', async () => {
+  it('区分增加缩进与减少缩进，但忽略行尾空白', async () => {
     const { repo, git } = await fixture();
     let n = 0;
     const tree = async (content: string) =>
@@ -800,7 +800,7 @@ describe('rebase', () => {
     return { repo, git, base, f2 };
   }
 
-  it('does not bring back a change the target picked and then reverted', async () => {
+  it('不重新引入目标已挑选后又回退的变更', async () => {
     const { repo, git, base, f2 } = await mergedBranch();
     const tip = await commitFiles(
       repo,
@@ -822,7 +822,7 @@ describe('rebase', () => {
     );
   });
 
-  it('does not conflict on a merge commit when the target picked a change and edited it further', async () => {
+  it('目标挑选变更并继续编辑后，不在合并提交处产生冲突', async () => {
     const { repo, git, base, f2 } = await mergedBranch();
     const further = edit(edit(base, 2, 'x more'), 10, 'm1');
     const tip = await commitFiles(repo, 'main', { 'a.txt': further }, 'More');
@@ -871,7 +871,7 @@ describe('rebase', () => {
     return { repo, git, base, b, x, merge };
   }
 
-  it('does not bring back what main reverted after a hand-resolved merge', async () => {
+  it('不重新引入人工解决合并后被 main 回退的内容', async () => {
     const { repo, git, base, b, x, merge } = await handResolvedMerge();
     const tip = await commitFiles(
       repo,
@@ -894,7 +894,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'a.txt')).toBe(resolved);
   });
 
-  it('does not conflict when main edits a hunk that came in through a hand-resolved merge', async () => {
+  it('main 编辑来自人工解决合并的差异块时，不产生冲突', async () => {
     const { repo, git, base, b, x, merge } = await handResolvedMerge();
     const tip = await commitFiles(
       repo,
@@ -916,7 +916,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'a.txt')).toBe(resolved);
   });
 
-  it('carries over a hand-resolved merge’s edit in a path that merged cleanly', async () => {
+  it('保留人工解决合并中在干净合并路径上的编辑', async () => {
     const { repo, git, base, b, x, merge } = await handResolvedMerge({
       'b.txt': edit(LINES(10), 3, 'fix'),
     });
@@ -942,7 +942,7 @@ describe('rebase', () => {
     expect(await text(git, r.head, 'b.txt')).toBe(edit(b, 3, 'fix'));
   });
 
-  it('carries nothing over from an octopus merge', async () => {
+  it('不从八爪鱼合并中携带任何额外编辑', async () => {
     const { repo, git } = await fixture();
     const base = LINES(20);
     const root = await commitFiles(repo, 'main', { 'a.txt': base }, 'base');

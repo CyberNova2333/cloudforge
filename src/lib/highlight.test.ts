@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   highlightHunkLines,
@@ -17,8 +18,8 @@ const balanced = (html: string) =>
   (html.match(/<span/g) ?? []).length ===
   (html.match(/<\/span>/g) ?? []).length;
 
-describe('languageFor', () => {
-  it('detects common extensions and special filenames', () => {
+describe('languageFor：识别语言', () => {
+  it('检测常见扩展名和特殊文件名', () => {
     expect(languageFor('src/App.tsx')).toBe('typescript');
     expect(languageFor('main.py')).toBe('python');
     expect(languageFor('a/b/Dockerfile')).toBe('dockerfile');
@@ -29,8 +30,8 @@ describe('languageFor', () => {
   });
 });
 
-describe('highlightLines', () => {
-  it('returns one well-formed line per source line, preserving text', () => {
+describe('highlightLines：逐行高亮', () => {
+  it('为每行源码返回结构完整的一行，并保留文本', () => {
     const code =
       'def greet(name):\n    """Say\n    hello."""\n    return f"Hi {name}"\n';
     const lines = highlightLines(code, 'python')!;
@@ -44,7 +45,7 @@ describe('highlightLines', () => {
     expect(lines[2]).toContain('hljs-string');
   });
 
-  it('escapes HTML in source text', () => {
+  it('转义源码中的 HTML', () => {
     const lines = highlightLines(
       'const x = "<img src=x onerror=alert(1)>";',
       'javascript'
@@ -53,13 +54,13 @@ describe('highlightLines', () => {
     expect(lines[0]).toContain('&lt;img');
   });
 
-  it('declines unknown languages', () => {
+  it('不处理未知语言', () => {
     expect(highlightLines('x', 'not-a-language')).toBeNull();
   });
 });
 
-describe('splitHtmlLines', () => {
-  it('reopens spans that cross a newline', () => {
+describe('splitHtmlLines：拆分 HTML 行', () => {
+  it('跨行的 span 在下一行重新打开', () => {
     expect(splitHtmlLines('<span class="a">x\ny</span>z')).toEqual([
       '<span class="a">x</span>',
       '<span class="a">y</span>z',
@@ -67,8 +68,8 @@ describe('splitHtmlLines', () => {
   });
 });
 
-describe('highlightHunkLines', () => {
-  it('colors each diff line from its own side, keeping markers out of the code', () => {
+describe('highlightHunkLines：差异块逐行高亮', () => {
+  it('按差异各侧的源码为每行着色，并将差异标记排除在代码外', () => {
     const lines = [
       ' /* start of a',
       '-   old comment */',

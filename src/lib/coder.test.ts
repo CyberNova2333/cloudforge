@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { coderOf } from './coder';
 
-describe('coderOf', () => {
-  it('names a Claude Code session by its short name and label', () => {
+describe('coderOf：编码助手信息', () => {
+  it('使用简称和标签命名 Claude Code 会话', () => {
     expect(coderOf('Claude Code', 's4')).toEqual({
       kind: 'claude',
       mono: 'C',
@@ -12,7 +13,7 @@ describe('coderOf', () => {
     });
   });
 
-  it('gives Codex its own monogram', () => {
+  it('为 Codex 使用独有的字母标识', () => {
     expect(coderOf('Codex', 's5')).toMatchObject({
       kind: 'codex',
       mono: 'X',
@@ -21,12 +22,12 @@ describe('coderOf', () => {
     });
   });
 
-  it('matches the app name without caring about case or what follows', () => {
+  it('匹配应用名时忽略大小写和后缀', () => {
     expect(coderOf('claude desktop', 's1').kind).toBe('claude');
     expect(coderOf('CODEX CLI', null).kind).toBe('codex');
   });
 
-  it('keeps another app by its first word with its initial', () => {
+  it('其他应用取首个单词及首字母', () => {
     expect(coderOf('Cursor Agent', 's9')).toMatchObject({
       kind: 'other',
       mono: 'C',
@@ -36,7 +37,7 @@ describe('coderOf', () => {
     });
   });
 
-  it('shows the app alone when it reported no session label', () => {
+  it('未报告会话标签时只显示应用名', () => {
     expect(coderOf('Claude Code', null)).toMatchObject({
       label: 'Claude',
       title: 'Claude Code',
@@ -44,7 +45,7 @@ describe('coderOf', () => {
     expect(coderOf('Claude Code', '   ').label).toBe('Claude');
   });
 
-  it('treats no app as a pull request opened by hand', () => {
+  it('没有应用信息时视为手动创建的拉取请求', () => {
     expect(coderOf(null, null)).toEqual({
       kind: 'person',
       mono: '',
@@ -56,7 +57,7 @@ describe('coderOf', () => {
     expect(coderOf(undefined, undefined).kind).toBe('person');
   });
 
-  it('shortens a very long app name', () => {
+  it('缩短过长的应用名', () => {
     const c = coderOf('A'.repeat(40) + ' Agent', 's1');
     expect(c.name.length).toBeLessThanOrEqual(14);
     expect(c.name.endsWith('…')).toBe(true);

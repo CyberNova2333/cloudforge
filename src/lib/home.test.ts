@@ -76,8 +76,8 @@ const item = (n: number, flags: ReviewFlag[]): ApprovalItem => ({
   stackUnchecked: [],
 });
 
-describe('decisionsOf', () => {
-  it('lists the open findings that carry a plain question for the owner', () => {
+describe('decisionsOf：待决定项', () => {
+  it('列出包含面向所有者的明确问题且尚未关闭的记录', () => {
     const ds = decisionsOf(
       [
         item(1, [flag('a'), flag('b', { question: null })]),
@@ -90,7 +90,7 @@ describe('decisionsOf', () => {
     expect(ds[0].agent.agent.username).toBe('dataagent');
   });
 
-  it('skips change requests and findings someone already decided', () => {
+  it('跳过修改要求和已决定的问题', () => {
     const ds = decisionsOf(
       [
         item(1, [
@@ -104,7 +104,7 @@ describe('decisionsOf', () => {
     expect(ds.map((d) => d.flag.id)).toEqual(['c']);
   });
 
-  it('puts what is assigned to you first, and what is assigned to someone else last', () => {
+  it('分配给当前用户的排最前，分配给其他人的排最后', () => {
     const person = (login: string) => ({
       login,
       name: null,
@@ -125,10 +125,10 @@ describe('decisionsOf', () => {
   });
 });
 
-describe('homeHeadline', () => {
+describe('homeHeadline：首页标题', () => {
   const fine = { kind: 'fine', checked: 3, total: 3 } as const;
 
-  it('reassures when every repository was checked and nothing is broken', () => {
+  it('所有仓库都已检查且没有故障时说明一切正常', () => {
     const h = (decisions: number, others: number) =>
       homeHeadline({ decisions, others, health: fine });
     expect(h(1, 3)).toBe(
@@ -141,7 +141,7 @@ describe('homeHeadline', () => {
     expect(h(0, 0)).toBe('Nothing is broken. Nothing needs you.');
   });
 
-  it('only claims what was checked when there are more repositories', () => {
+  it('还有其他仓库时仅描述已检查的范围', () => {
     expect(
       homeHeadline({
         decisions: 1,
@@ -160,7 +160,7 @@ describe('homeHeadline', () => {
     ).toBe('Nothing is broken in your busiest repository. Nothing needs you.');
   });
 
-  it('says what is failing instead of reassuring', () => {
+  it('有失败时指出失败项', () => {
     expect(
       homeHeadline({
         decisions: 0,
@@ -170,7 +170,7 @@ describe('homeHeadline', () => {
     ).toBe('Tests are failing on a/one and a/two. Nothing needs you.');
   });
 
-  it('makes no claim when health could not be read', () => {
+  it('无法读取健康状况时不作结论', () => {
     expect(
       homeHeadline({
         decisions: 1,
@@ -187,14 +187,14 @@ describe('homeHeadline', () => {
     ).toBe('Nothing needs you.');
   });
 
-  it('says nothing while it is still loading', () => {
+  it('加载期间不显示结论', () => {
     expect(
       homeHeadline({ decisions: 1, others: 0, health: { kind: 'loading' } })
     ).toBeNull();
   });
 });
 
-describe('healthState', () => {
+describe('healthState：健康状态', () => {
   const base = {
     loading: false,
     unavailable: false,
@@ -205,7 +205,7 @@ describe('healthState', () => {
     failing: [] as string[],
   };
 
-  it('is loading until the board, the agents and every report have settled', () => {
+  it('看板、代理和所有报告都完成处理前保持加载状态', () => {
     expect(healthState({ ...base, loading: true })).toEqual({
       kind: 'loading',
     });
@@ -216,7 +216,7 @@ describe('healthState', () => {
     });
   });
 
-  it('is fine for as many repositories as were checked', () => {
+  it('仅对已检查的仓库判定正常', () => {
     expect(healthState(base)).toEqual({ kind: 'fine', checked: 3, total: 5 });
     expect(healthState({ ...base, total: 0, checked: 0 })).toEqual({
       kind: 'fine',
@@ -225,14 +225,14 @@ describe('healthState', () => {
     });
   });
 
-  it('reports failing tests whatever else failed', () => {
+  it('无论其他失败情况如何都报告测试失败', () => {
     expect(healthState({ ...base, failing: ['a/b'], failed: 1 })).toEqual({
       kind: 'failing',
       repos: ['a/b'],
     });
   });
 
-  it('is unavailable when a report or the lists could not be read', () => {
+  it('报告或列表无法读取时标记为不可用', () => {
     expect(healthState({ ...base, failed: 1 })).toEqual({
       kind: 'unavailable',
     });
@@ -242,8 +242,8 @@ describe('healthState', () => {
   });
 });
 
-describe('homeLede', () => {
-  it('tells what merged and how much needed no merge click', () => {
+describe('homeLede：首页摘要', () => {
+  it('说明已合并的内容及无需手动点击合并的数量', () => {
     expect(homeLede({ merged7d: 67, automatic: 56 })).toBe(
       'CloudForge merged 67 changes in the last 7 days; 56 needed no merge click.'
     );
@@ -259,8 +259,8 @@ describe('homeLede', () => {
   });
 });
 
-describe('dateEyebrow', () => {
-  it('writes the day as people say it', () => {
+describe('dateEyebrow：日期提示', () => {
+  it('使用自然语言显示日期', () => {
     expect(dateEyebrow(new Date(2026, 9, 9, 15))).toBe('Friday 9 October');
     expect(dateEyebrow(new Date(2026, 0, 1, 0, 5))).toBe('Thursday 1 January');
   });
@@ -308,8 +308,8 @@ const repo = (
   stats: stats(over),
 });
 
-describe('topByActivity', () => {
-  it('ranks code repositories by open pull requests plus merges this week, then by recency', () => {
+describe('topByActivity：按活跃度排名', () => {
+  it('按开放拉取请求与本周合并数之和排列代码仓库，再按最近活动排序', () => {
     const rows = boardRows(
       [
         repo('a', 'quiet', { updatedAt: 50 }),
@@ -372,8 +372,8 @@ const report = (
   ...over,
 });
 
-describe('sinceLastWeek', () => {
-  it('tells what got worse, then better, then what stayed the same', () => {
+describe('sinceLastWeek：与上周比较', () => {
+  it('依次说明恶化、改善和保持不变的部分', () => {
     const lines = sinceLastWeek([
       {
         repo: 'a/b',
@@ -406,7 +406,7 @@ describe('sinceLastWeek', () => {
     ]);
   });
 
-  it('names an area that stayed the same but still has open problems', () => {
+  it('指出保持不变但仍有未解决问题的领域', () => {
     const lines = sinceLastWeek([
       {
         repo: 'a/b',
@@ -422,7 +422,7 @@ describe('sinceLastWeek', () => {
     ]);
   });
 
-  it('names the repository when there are several', () => {
+  it('多个仓库时包含仓库名', () => {
     const lines = sinceLastWeek([
       {
         repo: 'a/one',
@@ -436,7 +436,7 @@ describe('sinceLastWeek', () => {
     ]);
   });
 
-  it('joins several quiet areas', () => {
+  it('合并多个平静领域的说明', () => {
     const lines = sinceLastWeek([
       {
         repo: 'a/b',
@@ -452,12 +452,12 @@ describe('sinceLastWeek', () => {
     ]);
   });
 
-  it('has nothing to say without a report', () => {
+  it('没有报告时不显示说明', () => {
     expect(sinceLastWeek([])).toEqual([]);
   });
 });
 
-describe('brokenRepos and repoVerdict', () => {
+describe('brokenRepos 和 repoVerdict：异常仓库与判定', () => {
   const failing = report([
     area({
       id: 'tests',
@@ -467,7 +467,7 @@ describe('brokenRepos and repoVerdict', () => {
     }),
   ]);
 
-  it('finds the repositories whose tests on main are failing', () => {
+  it('找出 main 分支测试失败的仓库', () => {
     expect(
       brokenRepos([
         { repo: 'a/one', report: failing },
@@ -476,7 +476,7 @@ describe('brokenRepos and repoVerdict', () => {
     ).toEqual(['a/one']);
   });
 
-  it('gives a verdict: failing tests, then decisions, then what got worse, else healthy', () => {
+  it('判定优先级为测试失败、待决定、恶化，否则为健康', () => {
     expect(repoVerdict(failing)).toEqual({
       tone: 'critical',
       label: 'Tests are failing on main',
@@ -526,8 +526,8 @@ const ev = (
   ...over,
 });
 
-describe('isNotable and mergeActivity', () => {
-  it('keeps what an owner cares about and drops the timeline noise', () => {
+describe('isNotable 和 mergeActivity：重要活动与合并活动', () => {
+  it('保留所有者关心的事件，移除时间线噪声', () => {
     expect(isNotable(ev('1', 1, 'pull.merged'))).toBe(true);
     expect(isNotable(ev('1', 1, 'finding.approved'))).toBe(true);
     expect(isNotable(ev('1', 1, 'merging.paused'))).toBe(true);
@@ -537,7 +537,7 @@ describe('isNotable and mergeActivity', () => {
     expect(isNotable(ev('1', 1, 'pull.something_new'))).toBe(false);
   });
 
-  it('merges several repositories newest first, once each, up to the limit', () => {
+  it('合并多个仓库的活动，最新在前、去重并限制数量', () => {
     const merged = mergeActivity(
       [
         [ev('a', 10, 'pull.merged'), ev('b', 30, 'pull.state_changed')],

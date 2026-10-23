@@ -122,8 +122,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Site admin → Setup', () => {
-  it('is admin-only', async () => {
+describe('站点管理 → 设置向导', () => {
+  it('仅允许管理员访问', async () => {
     const t = fullEnv();
     const admin = await bootstrapAdmin(t);
     const member = await addMember(t, admin, 'mona');
@@ -141,7 +141,7 @@ describe('Site admin → Setup', () => {
     ).toBe(403);
   });
 
-  it('reports everything OK for a complete deployment, and never leaks secrets', async () => {
+  it('完整部署的所有检查均通过，且不泄露密钥', async () => {
     const t = fullEnv();
     await syncedOnce(t, {});
     const probed = fakeR2Api();
@@ -184,7 +184,7 @@ describe('Site admin → Setup', () => {
     expect(text).not.toContain('test-analytics-token-value');
   });
 
-  it('warns about Usage & cost configuration: token, resource vars, namespace IDs, last sync', async () => {
+  it('对用量与费用配置中的令牌、资源变量、命名空间 ID 和最后同步状态发出警告', async () => {
     const t = without(
       fullEnv({
         LIVE_NAMESPACE_ID: 'not-an-id',
@@ -234,7 +234,7 @@ describe('Site admin → Setup', () => {
     ).toContain('yarn wrangler secret put CF_ANALYTICS_TOKEN');
   });
 
-  it('flags missing secrets as errors, with the commands to set them', async () => {
+  it('将缺失密钥标记为错误，并给出设置命令', async () => {
     // Through the endpoint: the R2 secret is missing.
     const t = without(fullEnv(), 'R2_SECRET_ACCESS_KEY');
     const admin = await bootstrapAdmin(t);
@@ -265,7 +265,7 @@ describe('Site admin → Setup', () => {
     expect(list[0].status).toBe('error');
   });
 
-  it('flags a short or placeholder auth secret without echoing it', async () => {
+  it('标记过短或占位认证密钥，且不回显其内容', async () => {
     const { runSetupChecks } = await import('../lib/setup-checks');
     for (const secret of [
       'short-secret',
@@ -280,7 +280,7 @@ describe('Site admin → Setup', () => {
     }
   });
 
-  it('flags missing bindings: required as errors, optional features as warnings', async () => {
+  it('标记缺失绑定：必需项记为错误，可选功能记为警告', async () => {
     const t = without(fullEnv(), 'LFS', 'ACTIONS_RUN', 'AI', 'LIVE');
     fakeR2Api();
     const admin = await bootstrapAdmin(t);
@@ -300,7 +300,7 @@ describe('Site admin → Setup', () => {
     expect(lastError).toBeLessThan(firstWarning);
   });
 
-  it('warns when AGENT_REVIEWER is missing: Pi agents review as a single pass', async () => {
+  it('缺少 AGENT_REVIEWER 时发出警告：Pi 智能体将执行单轮审查', async () => {
     const t = without(
       fullEnv(),
       'AGENT_REVIEWER',
@@ -318,7 +318,7 @@ describe('Site admin → Setup', () => {
     );
   });
 
-  it('reports failing probes: Artifacts, R2 credentials, and pending migrations', async () => {
+  it('报告 Artifacts、R2 凭据和待执行迁移的探测失败', async () => {
     const t = fullEnv();
     t.env = {
       ...t.env,
@@ -356,7 +356,7 @@ describe('Site admin → Setup', () => {
     }
   });
 
-  it('checks variables: BASE_URL vs this origin, models, bucket names, the gateway', async () => {
+  it('检查变量：BASE_URL 与当前源、模型、存储桶名称及网关', async () => {
     const t = fullEnv({
       BASE_URL: 'https://git.example.com',
       AI_GATEWAY: 'off',
@@ -382,7 +382,7 @@ describe('Site admin → Setup', () => {
     expect(gw.fix.some((s) => s.link?.includes('ai/ai-gateway'))).toBe(true);
   });
 
-  it('gives .dev.vars fixes under yarn dev', async () => {
+  it('在 yarn dev 下给出 .dev.vars 修复建议', async () => {
     const t = without(
       fullEnv({ BASE_URL: 'http://localhost:8080' }),
       'R2_ACCESS_KEY_ID'
@@ -394,7 +394,7 @@ describe('Site admin → Setup', () => {
     expect(list.find((c) => c.id === 'var-base-url')!.status).toBe('ok');
   });
 
-  it('sends one capped AI request through the gateway on demand', async () => {
+  it('按需通过网关发送一次有额度上限的 AI 请求', async () => {
     const calls: unknown[][] = [];
     const t = fullEnv();
     (t.env as unknown as { AI: { run: unknown } }).AI.run = async (

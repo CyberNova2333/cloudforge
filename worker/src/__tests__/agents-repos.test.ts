@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   addMember,
@@ -32,8 +33,8 @@ const list = async (t: TestEnv, cookie: string, repo = 'octocat/app') =>
     invitedAt: string;
   }[];
 
-describe('repository agents', () => {
-  it('lets a repository admin invite an agent, once', async () => {
+describe('仓库智能体', () => {
+  it('允许仓库管理员邀请智能体，且只邀请一次', async () => {
     const { t, admin } = await setup();
     expect((await invite(t, admin, 'secagent')).status).toBe(200);
     expect((await invite(t, admin, 'SecAgent')).status).toBe(200);
@@ -44,7 +45,7 @@ describe('repository agents', () => {
     expect(agents[0].invitedAt).toEqual(expect.any(String));
   });
 
-  it('lets only repository admins invite or remove; readers can see the list', async () => {
+  it('仅仓库管理员可邀请或移除，读取者可查看列表', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     const carol = await addMember(t, admin, 'carol');
@@ -66,7 +67,7 @@ describe('repository agents', () => {
     expect(await list(t, carol)).toMatchObject([{ username: 'secagent' }]);
   });
 
-  it('hides a private repository’s agents from non-collaborators', async () => {
+  it('向非协作者隐藏私有仓库的智能体', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     await call(t, '/api/repos', {
@@ -79,7 +80,7 @@ describe('repository agents', () => {
     ).toBe(404);
   });
 
-  it('hides a private agent repository’s name and config state from those who can’t read it', async () => {
+  it('向无读取权限者隐藏私有智能体仓库的名称和配置状态', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     await invite(t, admin, 'secagent');
@@ -117,7 +118,7 @@ describe('repository agents', () => {
     ]);
   });
 
-  it('refuses unknown and deleted agents, and people', async () => {
+  it('拒绝未知或已删除智能体以及普通用户', async () => {
     const { t, admin } = await setup();
     await addMember(t, admin, 'bob');
     expect((await invite(t, admin, 'nobody')).status).toBe(404);
@@ -129,7 +130,7 @@ describe('repository agents', () => {
     expect((await invite(t, admin, 'secagent')).status).toBe(404);
   });
 
-  it('removes an agent from a repository', async () => {
+  it('从仓库移除智能体', async () => {
     const { t, admin } = await setup();
     await invite(t, admin, 'secagent');
     const res = await call(t, '/api/repos/octocat/app/agents/secagent', {
@@ -140,7 +141,7 @@ describe('repository agents', () => {
     expect(await list(t, admin)).toEqual([]);
   });
 
-  it('lets the agent’s own repository invite agents, including itself', async () => {
+  it('允许智能体自己的仓库邀请智能体，包括其自身', async () => {
     const { t, admin } = await setup();
     expect(
       (await invite(t, admin, 'secagent', 'secagent/secagent')).status
@@ -150,7 +151,7 @@ describe('repository agents', () => {
     ]);
   });
 
-  it('drops invitations with the repository and with the agent', async () => {
+  it('删除仓库或智能体时一并删除邀请', async () => {
     const { t, admin } = await setup();
     await newAgent(t, admin, 'docsagent', 'Docs Agent');
     await invite(t, admin, 'secagent');

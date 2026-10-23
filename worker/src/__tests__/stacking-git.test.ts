@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Stacking: relations git already decides (ancestry and rebased copies), cycles never recorded, and landing never
 // carrying another open pull request's commits. Fixtures: helpers/stacking.ts.
 import { describe, expect, it } from 'vitest';
@@ -69,8 +70,8 @@ const INVERTED: Relation = {
   instructions: null,
 };
 
-describe('relations git decides', () => {
-  it('stacks a child on the parent its branch contains, without asking a model', async () => {
+describe('由 Git 判定的关系', () => {
+  it('无需询问模型，将子请求堆叠到其分支已包含的父请求上', async () => {
     const { t, admin, repo, files, open } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -95,7 +96,7 @@ describe('relations git decides', () => {
     expect(String(pick(await edges(t), 1, 2)!.reason)).toMatch(/#2.*#1/);
   });
 
-  it('sees a rebased copy of the parent’s commits as the same commits', async () => {
+  it('将父级提交的变基副本视为相同提交', async () => {
     const { t, admin, repo, files, open } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -132,7 +133,7 @@ describe('relations git decides', () => {
     });
   });
 
-  it('never takes a commit with the same author, time and message but another change for a copy', async () => {
+  it('作者、时间和说明相同但变更不同的提交不视为副本', async () => {
     const { t, admin, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({ related: () => true });
     const main = repo.refs.get('refs/heads/main')!;
@@ -157,7 +158,7 @@ describe('relations git decides', () => {
     expect(asked(calls).has('1:2')).toBe(true);
   });
 
-  it('judges siblings on their own commits, never on the parent they share', async () => {
+  it('依据同级请求各自的提交判定，不依据共享父级', async () => {
     const { t, admin, repo, files, open } = await repoWithAgent();
     const { models, calls } = stackModels({ related: () => true });
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -195,7 +196,7 @@ describe('relations git decides', () => {
   });
 });
 
-describe('cycles', () => {
+describe('依赖环', () => {
   /** #1, #2, #3 on their own files; the models relate them in a circle. */
   async function circle(rel: (a: number, b: number) => Relation) {
     const { t, open } = await repoWithAgent();
@@ -216,7 +217,7 @@ describe('cycles', () => {
     instructions: null,
   });
 
-  it('never records a model’s edge that would close a cycle', async () => {
+  it('不记录会闭合成环的模型依赖边', async () => {
     // 2 on 1, 3 on 2, and 1 on 3.
     const t = await circle((a, b) =>
       a === 1 && b === 3 ? builds('b') : builds('a')
@@ -229,7 +230,7 @@ describe('cycles', () => {
     expect(String(left[0].reason)).toMatch(/cycle/);
   });
 
-  it('turns a conflict around rather than close a cycle', async () => {
+  it('调整冲突关系方向以避免形成环', async () => {
     // 2 on 1, 3 on 2; #1 and #3 conflict with #3 first, which would close the circle: #1 goes first instead.
     const t = await circle((a, b) =>
       a === 1 && b === 3
@@ -252,7 +253,7 @@ describe('cycles', () => {
   });
 });
 
-describe('landing never carries another open pull request’s commits', () => {
+describe('合入时不携带其他打开拉取请求的提交', () => {
   /** #1 on main, #2 on #1's branch; no stack run has looked at them yet. */
   async function stacked(copy: boolean) {
     const { t, admin, repo, files } = await repoWithAgent(false);
@@ -284,7 +285,7 @@ describe('landing never carries another open pull request’s commits', () => {
   }
 
   for (const copy of [false, true])
-    it(`refuses the child while the parent is open (${copy ? 'a rebased copy' : 'the same commits'})`, async () => {
+    it(`父级仍打开时拒绝合入子请求（${copy ? '变基副本' : '相同提交'}）`, async () => {
       const { repo, main, merge } = await stacked(copy);
       const res = await merge(2);
       expect(res.status).toBe(409);

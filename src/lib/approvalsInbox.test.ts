@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   askCandidates,
@@ -77,8 +78,8 @@ const findingRow = (f: ReviewFlag, agent = user('securityagent', 'Security')) =>
     }),
   ])[0] as FindingRow;
 
-describe('inbox rows', () => {
-  it('turns every kind of item into rows, in the order the old page showed them', () => {
+describe('审批收件箱行', () => {
+  it('将所有类型的条目按原页面顺序转换为行', () => {
     const rows = inboxRows([
       item(7, {
         reviewFailed: 'The model timed out',
@@ -122,7 +123,7 @@ describe('inbox rows', () => {
     });
   });
 
-  it('shows a pull request that needs a person for another reason once, only when nothing else applies', () => {
+  it('仅在不适用其他条目时显示因其他原因需要人工处理的拉取请求，且只显示一次', () => {
     const state = {
       state: 'human_review' as const,
       reasons: [{ kind: 'stack_cycle' }],
@@ -137,7 +138,7 @@ describe('inbox rows', () => {
     ).toEqual(['needs-approval']);
   });
 
-  it("warns on a pull request needing approval when an agent's change request still stands", () => {
+  it('拉取请求需要批准且代理的修改要求仍有效时给出警告', () => {
     const plain = inboxRows([item(1, { needsApproval: true })])[0];
     expect(plain).toMatchObject({ changeRequested: false });
     const asked = inboxRows([
@@ -152,7 +153,7 @@ describe('inbox rows', () => {
     expect(asked).toMatchObject({ changeRequested: true });
   });
 
-  it('shows each pull request once, keeping the first page it came on', () => {
+  it('每个拉取请求仅显示一次，并保留其首次出现的页码', () => {
     const a = item(1);
     const again = item(1, { needsApproval: true });
     const b = item(2);
@@ -167,7 +168,7 @@ describe('inbox rows', () => {
     ]);
   });
 
-  it('keeps only findings someone asked you to decide', () => {
+  it('仅保留被指派给当前用户决定的问题', () => {
     const mine = flag('f1', {
       assignee: { login: 'mahmoud', name: null, isAgent: false, color: null },
     });
@@ -190,8 +191,8 @@ describe('inbox rows', () => {
   });
 });
 
-describe('what can be picked and what keys do', () => {
-  it('never lets a guarded finding, an owner question or a decided finding into bulk approval', () => {
+describe('可选择项与键盘操作', () => {
+  it('受保护问题、所有者问题和已决定问题都不能批量批准', () => {
     expect(selectable(findingRow(flag('a')))).toBe(true);
     expect(selectable(findingRow(flag('a', { guarded: true })))).toBe(false);
     expect(selectable(findingRow(flag('a', { question: 'Was it?' })))).toBe(
@@ -209,7 +210,7 @@ describe('what can be picked and what keys do', () => {
     );
   });
 
-  it('knows an owner question from a developer finding', () => {
+  it('区分所有者问题与开发者问题', () => {
     expect(isOwnerQuestion(findingRow(flag('a', { question: 'Q?' })))).toBe(
       true
     );
@@ -221,14 +222,14 @@ describe('what can be picked and what keys do', () => {
     ).toBe(false);
   });
 
-  it('moves with j and k from any row, and approves selected with A', () => {
+  it('使用 j 和 k 在行间移动，使用 A 批准所选项', () => {
     expect(keyAction('j', null)).toEqual({ kind: 'move', dir: 1 });
     expect(keyAction('k', null)).toEqual({ kind: 'move', dir: -1 });
     expect(keyAction('A', null)).toEqual({ kind: 'bulk' });
     expect(keyAction('a', null)).toBeNull();
   });
 
-  it('approves, asks for changes, dismisses and selects an ordinary finding by one key', () => {
+  it('使用单键批准、要求修改、驳回或选择普通问题', () => {
     const row = findingRow(flag('a'), user('speedagent', 'Speed'));
     expect(keyAction('o', row)).toEqual({ kind: 'open' });
     expect(keyAction('Enter', row)).toEqual({ kind: 'open' });
@@ -239,7 +240,7 @@ describe('what can be picked and what keys do', () => {
     expect(keyAction('q', row)).toBeNull();
   });
 
-  it('never approves or selects a guarded finding by one key: it opens its page and says why', () => {
+  it('受保护问题不能单键批准或选择，而是打开详情并说明原因', () => {
     const row = findingRow(flag('a', { guarded: true }));
     expect(keyAction('a', row)).toEqual({
       kind: 'open',
@@ -256,14 +257,14 @@ describe('what can be picked and what keys do', () => {
     expect(keyAction('r', row)).toEqual({ kind: 'panel', panel: 'changes' });
   });
 
-  it('opens an owner question on its page for a, r and d', () => {
+  it('对所有者问题按 a、r、d 均打开详情页', () => {
     const row = findingRow(flag('a', { question: 'Were they all CAD?' }));
     for (const k of ['a', 'r', 'd', 'o'])
       expect(keyAction(k, row)).toEqual({ kind: 'open' });
     expect(keyAction('x', row)).toBeNull();
   });
 
-  it("says a guarded agent's owner question needs a reason when a or d opens it", () => {
+  it('按 a 或 d 打开受保护代理的所有者问题时提示需要理由', () => {
     const row = findingRow(
       flag('a', { question: 'Were they all CAD?', guarded: true }),
       user('dataagent', 'Data')
@@ -275,13 +276,13 @@ describe('what can be picked and what keys do', () => {
     expect(keyAction('x', row)).toBeNull();
   });
 
-  it('opens other rows, and ignores decision keys on them', () => {
+  it('对其他行打开详情并忽略决定快捷键', () => {
     const row = inboxRows([item(1, { needsApproval: true })])[0];
     expect(keyAction('o', row)).toEqual({ kind: 'open' });
     for (const k of ['a', 'r', 'd', 'x']) expect(keyAction(k, row)).toBeNull();
   });
 
-  it('does not select or re-request a finding that already has changes requested', () => {
+  it('对已要求修改的问题不再选择或重复要求修改', () => {
     const asked = { changesRequestedAt: '2026-10-08T10:00:00.000Z' };
     const row = findingRow(flag('a', asked));
     expect(keyAction('x', row)).toBeNull();
@@ -293,13 +294,13 @@ describe('what can be picked and what keys do', () => {
     expect(keyAction('a', guarded)).toMatchObject({ kind: 'open' });
   });
 
-  it('says why a guarded agent needs a reason, with its name', () => {
+  it('说明受保护代理为何需要理由，并包含代理名称', () => {
     expect(guardMessage('Data')).toBe(
       'Data findings need a reason. Open it to decide.'
     );
   });
 
-  it('moves the current row and stops at the ends', () => {
+  it('移动当前行并在两端停止', () => {
     const keys = ['a', 'b', 'c'];
     expect(moveCurrent(keys, null, 1)).toBe('a');
     expect(moveCurrent(keys, 'gone', -1)).toBe('a');
@@ -310,8 +311,8 @@ describe('what can be picked and what keys do', () => {
   });
 });
 
-describe('receipts in place', () => {
-  it('keeps a decided row where it was after the list reloads without it', () => {
+describe('原位显示处理回执', () => {
+  it('列表刷新后即使不再返回已决定条目，仍保留其原位置', () => {
     expect(
       displayOrder(
         ['a', 'c'],
@@ -334,7 +335,7 @@ describe('receipts in place', () => {
   });
 });
 
-describe('the finding as recorded', () => {
+describe('问题的原始记录', () => {
   const detail = [
     'Opening a link downloads the file without checking who is signed in.',
     '| | Before | After |\n|---|---|---|\n| **Sign-in** | Required | Not checked |',
@@ -343,7 +344,7 @@ describe('the finding as recorded', () => {
     '<details><summary><code>src/a.ts</code> lines 1–2</summary>\n\n```diff\n+x\n```\n\n</details>',
   ].join('\n\n');
 
-  it('splits it into its sentence, table, diagram and excerpts', () => {
+  it('将内容拆分为句子、表格、图表和摘录', () => {
     const parts = splitFindingDetail(detail);
     expect(parts.sentence).toBe(
       'Opening a link downloads the file without checking who is signed in.'
@@ -358,7 +359,7 @@ describe('the finding as recorded', () => {
     expect(parts.rest).toBeNull();
   });
 
-  it('keeps anything it does not recognise, and copes with no detail', () => {
+  it('保留无法识别的内容，并处理缺少详情的情况', () => {
     expect(splitFindingDetail(null)).toEqual({
       sentence: null,
       table: null,
@@ -372,7 +373,7 @@ describe('the finding as recorded', () => {
     expect(splitFindingDetail('| a |\n|---|\n| b |').sentence).toBeNull();
   });
 
-  it('uses the sentence under the title only when it says more', () => {
+  it('仅在补充信息时将该句显示在标题下方', () => {
     expect(
       findingSentence(flag('a', { title: 'Removes CSV export', detail }))
     ).toBe(
@@ -390,7 +391,7 @@ describe('the finding as recorded', () => {
   });
 });
 
-describe('who can be asked', () => {
+describe('可请求协助的人', () => {
   const member = (
     username: string,
     role = 'user',
@@ -402,7 +403,7 @@ describe('who can be asked', () => {
     createdAt: '2026-01-01',
   });
 
-  it('lists people with push rights: site admins, collaborators and the owner, never yourself', () => {
+  it('列出具有推送权限的站点管理员、协作者和所有者，并排除自己', () => {
     expect(
       askCandidates({
         members: [
@@ -423,7 +424,7 @@ describe('who can be asked', () => {
     ]);
   });
 
-  it('leaves out a team owner, which is not a person', () => {
+  it('排除不是自然人的团队所有者', () => {
     expect(
       askCandidates({
         members: [member('cho')],

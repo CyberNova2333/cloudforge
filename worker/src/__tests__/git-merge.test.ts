@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { ArtifactsRepoClient } from '../git/remote';
 import { GitService } from '../git/service';
@@ -34,8 +35,8 @@ async function fileAt(git: GitService, tree: string, name: string) {
   return entry ? decoder.decode((await git.blob(entry.hash))!) : null;
 }
 
-describe('line-level merge', () => {
-  it('merges edits to different parts of the same file', async () => {
+describe('行级合并', () => {
+  it('合并同一文件不同部分的编辑', async () => {
     const base = LINES(20);
     const ours = base.replace('line 2\n', 'line 2 (ours)\n');
     const theirs = base.replace('line 18\n', 'line 18 (theirs)\n');
@@ -45,7 +46,7 @@ describe('line-level merge', () => {
       { 'a.txt': theirs }
     );
     const plan = await git.planMerge(oursSha, theirsSha);
-    if (plan.upToDate) throw new Error('unexpected');
+    if (plan.upToDate) throw new Error('出现意外的合并结果');
     keep(plan);
     expect(plan.conflicts).toEqual([]);
     const merged = await fileAt(git, plan.tree, 'a.txt');
@@ -53,7 +54,7 @@ describe('line-level merge', () => {
     expect(merged).toContain('line 18 (theirs)');
   });
 
-  it('reports overlapping edits with diff3 markers and both sides', async () => {
+  it('使用 diff3 标记及双方内容报告重叠编辑', async () => {
     const base = LINES(5);
     const { git, oursSha, theirsSha, keep } = await diverged(
       { 'a.txt': base, 'b.txt': 'same\n' },
@@ -64,7 +65,7 @@ describe('line-level merge', () => {
       collectConflictFiles: true,
       labels: { a: 'main', o: 'base', b: 'feature' },
     });
-    if (plan.upToDate) throw new Error('unexpected');
+    if (plan.upToDate) throw new Error('出现意外的合并结果');
     keep(plan);
     expect(plan.conflicts).toEqual(['a.txt']);
     expect(plan.conflictFiles).toHaveLength(1);
@@ -79,7 +80,7 @@ describe('line-level merge', () => {
     expect(await fileAt(git, plan.tree, 'b.txt')).toBe('same\n');
   });
 
-  it('applies supplied resolutions for conflicted paths', async () => {
+  it('为冲突路径应用提供的解决结果', async () => {
     const base = LINES(3);
     const { git, oursSha, theirsSha, keep } = await diverged(
       { 'a.txt': base },
@@ -89,13 +90,13 @@ describe('line-level merge', () => {
     const plan = await git.planMerge(oursSha, theirsSha, {
       resolutions: new Map([['a.txt', 'resolved\n']]),
     });
-    if (plan.upToDate) throw new Error('unexpected');
+    if (plan.upToDate) throw new Error('出现意外的合并结果');
     keep(plan);
     expect(plan.conflicts).toEqual([]);
     expect(await fileAt(git, plan.tree, 'a.txt')).toBe('resolved\n');
   });
 
-  it('keeps binary files and delete/modify as conflicts', async () => {
+  it('将二进制文件和删除与修改冲突保留为冲突', async () => {
     const { git, oursSha, theirsSha, keep } = await diverged(
       { 'img.bin': 'a\u0000b', 'gone.txt': 'x\n' },
       { 'img.bin': 'a\u0000c', 'gone.txt': 'x changed\n' },
@@ -105,13 +106,13 @@ describe('line-level merge', () => {
     const plan = await git.planMerge(oursSha, theirsSha, {
       collectConflictFiles: true,
     });
-    if (plan.upToDate) throw new Error('unexpected');
+    if (plan.upToDate) throw new Error('出现意外的合并结果');
     keep(plan);
     expect(plan.conflicts.sort()).toEqual(['gone.txt', 'img.bin']);
     expect(plan.conflictFiles).toEqual([]);
   });
 
-  it('merges files both sides added differently only when they agree line-wise', async () => {
+  it('双方以不同内容新增同一文件时，仅在逐行一致的情况下合并', async () => {
     const { git, oursSha, theirsSha, keep } = await diverged(
       { 'keep.txt': 'k\n' },
       { 'keep.txt': 'k\n', 'new.txt': 'one\n' },
@@ -120,15 +121,15 @@ describe('line-level merge', () => {
     const plan = await git.planMerge(oursSha, theirsSha, {
       collectConflictFiles: true,
     });
-    if (plan.upToDate) throw new Error('unexpected');
+    if (plan.upToDate) throw new Error('出现意外的合并结果');
     keep(plan);
     expect(plan.conflicts).toEqual(['new.txt']);
     expect(plan.conflictFiles[0].base).toBeNull();
   });
 });
 
-describe('leftover conflict markers', () => {
-  it('finds marker lines with their positions, ignoring look-alikes', async () => {
+describe('残留冲突标记', () => {
+  it('找出标记行及其位置，并忽略相似内容', async () => {
     const { markerLines } = await import('../merge/resolver');
     expect(
       markerLines({

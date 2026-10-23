@@ -21,8 +21,8 @@ import {
 
 const PNG = [137, 80, 78, 71, 13, 10, 26, 10];
 
-describe('creating an agent', () => {
-  it('creates the account, a seeded internal repository and the cached fields', async () => {
+describe('创建智能体', () => {
+  it('创建账户、含初始内容的内部仓库及缓存字段', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin, 'SecAgent', 'Security Agent');
@@ -75,7 +75,7 @@ describe('creating an agent', () => {
     expect([...avatar.subarray(0, 8)]).toEqual(PNG);
   });
 
-  it('refuses handles that are invalid, reserved or taken (any case, by a person or the team)', async () => {
+  it('拒绝无效、保留或已被用户或团队占用的标识名，且不区分大小写', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/team', {
@@ -114,7 +114,7 @@ describe('creating an agent', () => {
     expect(team.status).toBe(409);
   });
 
-  it('refuses display names that are blank, too long, or break the AGENT.md heading', async () => {
+  it('拒绝为空、过长或会破坏 AGENT.md 标题的显示名称', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     for (const name of [
@@ -143,7 +143,7 @@ describe('creating an agent', () => {
     ).toBe('Security Agent');
   });
 
-  it('is for site admins only; every member can list agents', async () => {
+  it('仅站点管理员可创建；所有成员均可列出智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -161,8 +161,8 @@ describe('creating an agent', () => {
   });
 });
 
-describe('deleting an agent', () => {
-  it('keeps the user and repository, uninvites it everywhere, and drops it from the list', async () => {
+describe('删除智能体', () => {
+  it('保留用户和仓库，撤销所有仓库邀请，并从列表中移除', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -204,13 +204,13 @@ describe('deleting an agent', () => {
   });
 });
 
-describe('creating a deleted agent again', () => {
+describe('重新创建已删除智能体', () => {
   const create = (t: TestEnv, admin: string, json: unknown) =>
     call(t, '/api/admin/agents', { cookie: admin, json });
   const remove = (t: TestEnv, admin: string, handle = 'secagent') =>
     call(t, `/api/admin/agents/${handle}`, { cookie: admin, method: 'DELETE' });
 
-  it('restores the same agent, with its repository, AGENT.md and history', async () => {
+  it('恢复原智能体及其仓库、AGENT.md 和历史', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -241,7 +241,7 @@ describe('creating a deleted agent again', () => {
     expect(audit.results).toEqual([{ target: 'secagent' }]);
   });
 
-  it('makes a new repository when the old one was deleted', async () => {
+  it('原仓库已删除时创建新仓库', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -270,7 +270,7 @@ describe('creating a deleted agent again', () => {
     ).toBe(200);
   });
 
-  it('lets the recommended crew bring back a deleted member', async () => {
+  it('允许推荐团队恢复已删除成员', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const crew = () =>
@@ -291,7 +291,7 @@ describe('creating a deleted agent again', () => {
     expect(again.skipped.map((s) => s.handle)).not.toContain('securityagent');
   });
 
-  it('still refuses a handle a person or the team holds', async () => {
+  it('仍拒绝被普通用户或团队占用的标识名', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'bob');
@@ -301,8 +301,8 @@ describe('creating a deleted agent again', () => {
   });
 });
 
-describe('agent avatars', () => {
-  it('serves avatar.png from the agent repository as a sandboxed PNG', async () => {
+describe('智能体头像', () => {
+  it('将智能体仓库中的 avatar.png 作为受沙箱限制的 PNG 提供', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -319,7 +319,7 @@ describe('agent avatars', () => {
     ).toBe(404);
   });
 
-  it('answers 404 for a version that isn’t a commit', async () => {
+  it('版本不是提交时返回 404', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await newAgent(t, admin);
@@ -335,7 +335,7 @@ describe('agent avatars', () => {
     }
   });
 
-  it('keeps the agent when its repository is deleted', async () => {
+  it('仓库删除时保留智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
@@ -352,7 +352,7 @@ describe('agent avatars', () => {
   });
 });
 
-describe('the agent account while it is being created', () => {
+describe('创建过程中的智能体账户', () => {
   /** Runs `during` when the agent's repository is created in Artifacts. */
   function onArtifactsCreate(t: TestEnv, during: () => Promise<void>) {
     const binding = t.env.ARTIFACTS as unknown as {
@@ -365,7 +365,7 @@ describe('the agent account while it is being created', () => {
     };
   }
 
-  it('is an agent from the moment its user row exists', async () => {
+  it('用户记录创建时即视为智能体', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     let seen: { username: string; agent: string | null } | null = null;
@@ -380,7 +380,7 @@ describe('the agent account while it is being created', () => {
     expect(seen!.agent).not.toBeNull();
   });
 
-  it('leaves nothing behind when creation fails', async () => {
+  it('创建失败时不留残余数据', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     onArtifactsCreate(t, async () => {
@@ -422,7 +422,7 @@ describe('the agent account while it is being created', () => {
     vi.restoreAllMocks();
   });
 
-  it('removes the rows and the Artifacts repository when the first commit fails', async () => {
+  it('首次提交失败时移除记录及 Artifacts 仓库', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     vi.spyOn(GitService.prototype, 'initialCommit').mockRejectedValueOnce(
@@ -433,7 +433,7 @@ describe('the agent account while it is being created', () => {
     expect(t.fake.repos.size).toBe(0);
   });
 
-  it('surfaces the original error even when the cleanup fails', async () => {
+  it('即使清理失败，也呈现原始错误', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     vi.spyOn(GitService.prototype, 'initialCommit').mockRejectedValueOnce(
@@ -454,7 +454,7 @@ describe('the agent account while it is being created', () => {
     expect(t.fake.repos.size).toBe(0);
   });
 
-  it('answers 409 only when it loses the race for the username', async () => {
+  it('仅在用户名竞争失败时返回 409', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     const db = drizzle(t.env.DB, { schema });
@@ -473,7 +473,7 @@ describe('the agent account while it is being created', () => {
     expect(await create(t, racing)).toMatchObject({ ok: false, status: 409 });
   });
 
-  it('rethrows other failures of the first insert instead of calling them a conflict', async () => {
+  it('首次插入的其他故障重新抛出，不归类为冲突', async () => {
     const t = makeEnv();
     await bootstrapAdmin(t);
     const db = drizzle(t.env.DB, { schema });
@@ -489,7 +489,7 @@ describe('the agent account while it is being created', () => {
   });
 });
 
-describe('an agent’s review language', () => {
+describe('智能体审查语言', () => {
   const set = (
     t: TestEnv,
     cookie: string,
@@ -502,7 +502,7 @@ describe('an agent’s review language', () => {
       json: { language },
     });
 
-  it('is English until a site admin chooses Chinese, and only a site admin can', async () => {
+  it('默认为英文，仅站点管理员可以将其改为中文', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');

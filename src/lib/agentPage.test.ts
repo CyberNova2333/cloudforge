@@ -58,14 +58,14 @@ const stats = (
   ...extra,
 });
 
-describe('overallStatus', () => {
-  it('is idle without repositories or pull requests', () => {
+describe('overallStatus：总体状态', () => {
+  it('没有仓库或拉取请求时为空闲', () => {
     expect(overallStatus([])).toBe('idle');
     expect(overallStatus([{ status: 'idle' }, { status: 'idle' }])).toBe(
       'idle'
     );
   });
-  it('takes the most pressing status across repositories', () => {
+  it('取所有仓库中最紧迫的状态', () => {
     expect(
       overallStatus([{ status: 'approved' }, { status: 'reviewing' }])
     ).toBe('reviewing');
@@ -82,13 +82,13 @@ describe('overallStatus', () => {
       'approved'
     );
   });
-  it('ignores a status that means it is not on the pull request', () => {
+  it('忽略表示未参与拉取请求的状态', () => {
     expect(overallStatus([{ status: 'not_needed' }])).toBe('idle');
   });
 });
 
-describe('avatarStatusOf', () => {
-  it('sleeps when deleted or not on any repository, otherwise shows what it is doing', () => {
+describe('avatarStatusOf：头像状态', () => {
+  it('已删除或未加入任何仓库时休眠，否则展示当前活动', () => {
     expect(avatarStatusOf({ deleted: true, repos: 2, status: 'flagged' })).toBe(
       'off'
     );
@@ -98,11 +98,11 @@ describe('avatarStatusOf', () => {
   });
 });
 
-describe('groupAgents', () => {
+describe('groupAgents：代理分组', () => {
   const a = agent('aagent');
   const b = agent('bagent');
   const c = agent('cagent');
-  it('puts agents invited to a repository you can see under reviewing, the rest under available', () => {
+  it('将加入可见仓库的代理归为评审中，其余归为可用', () => {
     const groups = groupAgents(
       [a, b, c],
       new Map([
@@ -123,15 +123,15 @@ describe('groupAgents', () => {
     ]);
     expect(groups.available.map((x) => x.username)).toEqual(['bagent']);
   });
-  it('keeps an agent whose record could not be read with the reviewers rather than hiding where it works', () => {
+  it('无法读取记录的代理仍保留在评审者中，避免隐藏其工作位置', () => {
     const groups = groupAgents([a], new Map());
     expect(groups.reviewing).toHaveLength(1);
     expect(groups.available).toHaveLength(0);
   });
 });
 
-describe('cardStats', () => {
-  it('shows raised, the share kept and the rules learned', () => {
+describe('cardStats：卡片统计', () => {
+  it('显示提出的问题数、保留比例和学到的规则数', () => {
     expect(
       cardStats(stats('x', [], { raised: 12, keptPct: 75, rules: 2 }))
     ).toEqual([
@@ -140,14 +140,14 @@ describe('cardStats', () => {
       { value: '2', label: 'rules' },
     ]);
   });
-  it('uses a dash for a share nobody has decided yet, and singular for one rule', () => {
+  it('无人作出决定的比例显示短横线，一条规则使用单数', () => {
     expect(cardStats(stats('x', [], { raised: 3, rules: 1 }))).toEqual([
       { value: '3', label: 'raised' },
       { value: '—', label: 'kept' },
       { value: '1', label: 'rule' },
     ]);
   });
-  it('shows dashes while the record is unknown', () => {
+  it('记录未知时显示短横线', () => {
     expect(cardStats(undefined)).toEqual([
       { value: '—', label: 'raised' },
       { value: '—', label: 'kept' },
@@ -156,8 +156,8 @@ describe('cardStats', () => {
   });
 });
 
-describe('whereText', () => {
-  it('names the repository, or counts several, or says it is on none', () => {
+describe('whereText：工作位置说明', () => {
+  it('显示单个仓库名、多个仓库数或未加入仓库', () => {
     expect(whereText(undefined)).toBe('Record unavailable');
     expect(whereText(stats('x', []))).toBe(
       'Add it to a repository from its profile'
@@ -176,8 +176,8 @@ describe('whereText', () => {
   });
 });
 
-describe('parseProfileTab', () => {
-  it('reads the tab from the address and falls back to the overview', () => {
+describe('parseProfileTab：解析资料页标签', () => {
+  it('从地址读取标签，失败时回退到概览', () => {
     expect(parseProfileTab('reviews')).toBe('reviews');
     expect(parseProfileTab('rules')).toBe('rules');
     expect(parseProfileTab('config')).toBe('config');
@@ -210,7 +210,7 @@ const repo = (
   };
 };
 
-describe('inviteChoices', () => {
+describe('inviteChoices：邀请选项', () => {
   const repos = [
     repo('zoe/site'),
     repo('mia/app'),
@@ -222,7 +222,7 @@ describe('inviteChoices', () => {
     invited: [] as string[],
     agentRepos: ['securityagent/securityagent'],
   };
-  it('offers a site admin every repository it is not on, sorted, but not the agents’ own', () => {
+  it('为站点管理员列出排序后的未加入仓库，排除代理自己的仓库', () => {
     expect(
       inviteChoices(repos, {
         ...opts,
@@ -231,14 +231,14 @@ describe('inviteChoices', () => {
       }).map((r) => r.fullName)
     ).toEqual(['mia/tools', 'team/shared', 'zoe/site']);
   });
-  it('offers anyone else the repositories they own', () => {
+  it('为其他人列出其拥有的仓库', () => {
     expect(
       inviteChoices(repos, { ...opts, me: { id: 'u-mia', role: 'user' } }).map(
         (r) => r.fullName
       )
     ).toEqual(['mia/app', 'mia/tools']);
   });
-  it('matches already invited repositories without regard to case', () => {
+  it('匹配已邀请的仓库时忽略大小写', () => {
     expect(
       inviteChoices(repos, {
         ...opts,
@@ -247,13 +247,13 @@ describe('inviteChoices', () => {
       }).map((r) => r.fullName)
     ).toEqual(['mia/tools']);
   });
-  it('offers nothing when nobody is signed in', () => {
+  it('无人登录时不提供选项', () => {
     expect(inviteChoices(repos, { ...opts, me: null })).toEqual([]);
   });
 });
 
-describe('wakeText and engineText', () => {
-  it('says how sure Clef must be, as a whole percentage', () => {
+describe('wakeText 和 engineText：触发条件与引擎说明', () => {
+  it('以整数百分比说明 Clef 所需的置信度', () => {
     expect(wakeText({ ask: 'x', above: 0.4 })).toBe(
       'Wakes when Clef is 40% sure'
     );
@@ -261,12 +261,12 @@ describe('wakeText and engineText', () => {
       'Wakes when Clef is 35% sure'
     );
   });
-  it('states the threshold for the settings', () => {
+  it('说明设置中的阈值', () => {
     expect(thresholdText({ above: 0.4 })).toBe(
       'At least 40% sure that the answer is yes'
     );
   });
-  it('describes the two engines', () => {
+  it('描述两种引擎', () => {
     expect(engineText('pass')).toBe('One reasoning-model pass per review');
     expect(engineText('pi')).toBe(
       'A Pi agent that reads the repository with read-only tools'
@@ -274,8 +274,8 @@ describe('wakeText and engineText', () => {
   });
 });
 
-describe('listNames', () => {
-  it('joins names the way a sentence would', () => {
+describe('listNames：名称列表', () => {
+  it('按自然句式连接名称', () => {
     expect(listNames([])).toBe('');
     expect(listNames(['Security'])).toBe('Security');
     expect(listNames(['Security', 'Data'])).toBe('Security and Data');
@@ -285,9 +285,9 @@ describe('listNames', () => {
   });
 });
 
-describe('crewResultText', () => {
+describe('crewResultText：团队创建结果', () => {
   const created = (n: string) => agent(n.toLowerCase() + 'agent', { name: n });
-  it('names who was added and who was skipped, and why', () => {
+  it('列出新增和跳过的代理及原因', () => {
     const r: CrewResult = {
       created: [created('Security'), created('Data')],
       skipped: [{ handle: 'speedagent', reason: 'Already exists' }],
@@ -297,7 +297,7 @@ describe('crewResultText', () => {
       skipped: ['@speedagent: Already exists'],
     });
   });
-  it('says so when everything was there already', () => {
+  it('所有代理都已存在时说明情况', () => {
     expect(
       crewResultText({
         created: [],
@@ -307,12 +307,12 @@ describe('crewResultText', () => {
   });
 });
 
-describe('handleProblem', () => {
-  it('accepts a handle that is a valid username', () => {
+describe('handleProblem：账号名问题', () => {
+  it('接受符合用户名规则的账号名', () => {
     expect(handleProblem('accessibility')).toBeNull();
     expect(handleProblem('my-agent2')).toBeNull();
   });
-  it('says what is wrong, in plain words', () => {
+  it('用易懂的文字说明问题', () => {
     expect(handleProblem('')).toBe('Give the agent a handle.');
     expect(handleProblem('has space')).toBe(
       'Use letters, numbers and single hyphens only.'
@@ -332,7 +332,7 @@ describe('handleProblem', () => {
   });
 });
 
-describe('presetState', () => {
+describe('presetState：预设状态', () => {
   const preset = (handle: string, exists: boolean): AgentPreset => ({
     facet: 'security',
     name: 'Security',
@@ -346,12 +346,12 @@ describe('presetState', () => {
     recommended: true,
     exists,
   });
-  it('can be created while its handle is free', () => {
+  it('账号名空闲时可以创建', () => {
     expect(presetState(preset('securityagent', false), new Set())).toBe(
       'create'
     );
   });
-  it('is created once an agent holds its handle, and taken when something else does', () => {
+  it('账号名由代理持有时视为已创建，由其他对象持有时视为已占用', () => {
     expect(
       presetState(preset('securityagent', true), new Set(['securityagent']))
     ).toBe('created');
@@ -359,20 +359,20 @@ describe('presetState', () => {
   });
 });
 
-describe('latestNote', () => {
-  it('says how much of the whole a capped list shows', () => {
+describe('latestNote：最新记录说明', () => {
+  it('说明受数量限制的列表展示了总量中的多少项', () => {
     expect(latestNote(10, 143, 'review')).toBe('Latest 10 of 143 reviews');
     expect(latestNote(4, 4, 'review')).toBe('All 4 reviews');
     expect(latestNote(1, 1, 'review')).toBe('1 review');
   });
-  it('does not claim to be everything while the total is unknown', () => {
+  it('总数未知时不声称已展示全部', () => {
     expect(latestNote(10, undefined, 'review')).toBe('Latest 10 reviews');
     expect(latestNote(1, undefined, 'lesson')).toBe('Latest 1 lesson');
   });
 });
 
-describe('lessonTone', () => {
-  it('colours each lesson status: learned is good, working is info, a failure is critical, the rest are quiet', () => {
+describe('lessonTone：学习状态色调', () => {
+  it('已学习为成功、处理中为提示、失败为严重，其余为低调色调', () => {
     expect(lessonTone('committed')).toBe('good');
     expect(lessonTone('learning')).toBe('info');
     expect(lessonTone('failed')).toBe('critical');

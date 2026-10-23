@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { fnv1a, identiconCells } from './identicon';
 
-describe('fnv1a', () => {
-  it('is the 32-bit FNV-1a hash', () => {
+describe('fnv1a：哈希函数', () => {
+  it('生成 32 位 FNV-1a 哈希', () => {
     // Published FNV-1a test vectors.
     expect(fnv1a('')).toBe(0x811c9dc5);
     expect(fnv1a('a')).toBe(0xe40c292c);
@@ -10,20 +11,20 @@ describe('fnv1a', () => {
   });
 });
 
-describe('identiconCells', () => {
-  it('is a 5×5 grid', () => {
+describe('identiconCells：默认头像单元格', () => {
+  it('生成 5×5 网格', () => {
     expect(identiconCells('octocat').cells).toHaveLength(25);
   });
 
-  it('is deterministic', () => {
+  it('结果具有确定性', () => {
     expect(identiconCells('mahmoud')).toEqual(identiconCells('mahmoud'));
   });
 
-  it('ignores case, like usernames', () => {
+  it('与用户名一样忽略大小写', () => {
     expect(identiconCells('Mahmoud')).toEqual(identiconCells('mahmoud'));
   });
 
-  it('mirrors columns 0↔4 and 1↔3', () => {
+  it('镜像第 0↔4 列和第 1↔3 列', () => {
     for (const seed of ['mahmoud', 'cho', 'octocat', 'a', 'securityagent']) {
       const { cells } = identiconCells(seed);
       for (let y = 0; y < 5; y++) {
@@ -33,7 +34,7 @@ describe('identiconCells', () => {
     }
   });
 
-  it('reads the 15 cells of the left half from the hash bits', () => {
+  it('从哈希位读取左半边的 15 个单元格', () => {
     const h = fnv1a('mahmoud');
     const { cells } = identiconCells('mahmoud');
     for (let y = 0; y < 5; y++)
@@ -41,12 +42,12 @@ describe('identiconCells', () => {
         expect(cells[y * 5 + x]).toBe(((h >>> (y * 3 + x)) & 1) === 1);
   });
 
-  it('colours by hue = hash % 360 at 55% saturation and 52% lightness', () => {
+  it('以 hash % 360 为色相、55% 为饱和度、52% 为亮度着色', () => {
     const h = fnv1a('mahmoud');
     expect(identiconCells('mahmoud').color).toBe(`hsl(${h % 360} 55% 52%)`);
   });
 
-  it('draws different people differently', () => {
+  it('为不同用户生成不同图形', () => {
     const a = identiconCells('mahmoud');
     const b = identiconCells('cho');
     expect(a.cells.join() === b.cells.join() && a.color === b.color).toBe(

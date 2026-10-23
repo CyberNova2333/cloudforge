@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import {
   addMember,
@@ -65,8 +66,8 @@ const invited = async (t: TestEnv, cookie: string) =>
     ).json()) as { username: string }[]
   ).map((a) => a.username);
 
-describe('MCP agent tools', () => {
-  it('are listed for every connection', async () => {
+describe('MCP 代理工具', () => {
+  it('向每个连接列出工具', async () => {
     const { t, memberToken } = await setup();
     const res = await rpc(t, memberToken, 'tools/list');
     const names = (
@@ -83,7 +84,7 @@ describe('MCP agent tools', () => {
     );
   });
 
-  it('lists agents with their repository for any member', async () => {
+  it('向任何成员列出代理及其仓库', async () => {
     const { t, memberToken } = await setup();
     const r = await tool(t, memberToken, 'gitorange_list_agents');
     expect(r.isError).toBeFalsy();
@@ -96,7 +97,7 @@ describe('MCP agent tools', () => {
     });
   });
 
-  it("lets a repository admin invite and remove an agent, as the web's routes do", async () => {
+  it('允许仓库管理员邀请和移除代理，与网页路由一致', async () => {
     const { t, admin, adminToken } = await setup();
     const args = { repository: 'octocat/app', handle: 'SecAgent' };
     const first = await tool(t, adminToken, 'gitorange_invite_agent', args);
@@ -131,7 +132,7 @@ describe('MCP agent tools', () => {
     ).toContain('has invited no agents');
   });
 
-  it('refuses invites and removals from someone who is not a repository admin', async () => {
+  it('拒绝非仓库管理员邀请或移除代理', async () => {
     const { t, admin, memberToken } = await setup();
     const args = { repository: 'octocat/app', handle: 'secagent' };
     const invite = await tool(t, memberToken, 'gitorange_invite_agent', args);
@@ -146,7 +147,7 @@ describe('MCP agent tools', () => {
     expect(await invited(t, admin)).toEqual(['secagent']);
   });
 
-  it('answers a missing agent or repository without saying which repositories exist', async () => {
+  it('代理或仓库缺失时返回错误且不泄露仓库是否存在', async () => {
     const { t, adminToken, memberToken } = await setup();
     const missing = await tool(t, adminToken, 'gitorange_invite_agent', {
       repository: 'octocat/app',
@@ -166,7 +167,7 @@ describe('MCP agent tools', () => {
     expect(textOf(hidden)).toContain('No repository named octocat/secret');
   });
 
-  it('refuses an invitation past the cap', async () => {
+  it('拒绝超过上限的邀请', async () => {
     const { t, admin, adminToken } = await setup();
     for (let i = 0; i < MAX_AGENTS_PER_REPOSITORY; i++) {
       await newAgent(t, admin, `agent${i}`, `Agent ${i}`);
@@ -185,7 +186,7 @@ describe('MCP agent tools', () => {
     );
   });
 
-  it('lets only a site admin create an agent, with its repository and how to configure it', async () => {
+  it('仅允许站点管理员创建代理，并返回仓库与配置方法', async () => {
     const { t, admin, adminToken, memberToken } = await setup();
     const refused = await tool(t, memberToken, 'gitorange_create_agent', {
       handle: 'dataagent',
@@ -220,7 +221,7 @@ describe('MCP agent tools', () => {
     expect(taken.isError).toBe(true);
   });
 
-  it("cancels the removed agent's running review", async () => {
+  it('取消被移除代理正在执行的审查', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin);
     await openPull(t, admin, repo, { 'src/auth.ts': 'export const x = 1;\n' });

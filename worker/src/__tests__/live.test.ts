@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { app } from '../index';
 import { publishChange } from '../live/publish';
@@ -27,8 +28,8 @@ async function listen(
 
 const tick = () => new Promise((r) => setTimeout(r, 50));
 
-describe('live updates', () => {
-  it('pings a repository’s open pages, and approval inboxes, when it changes', async () => {
+describe('实时更新', () => {
+  it('仓库变更时通知其打开的页面和审批收件箱', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -56,7 +57,7 @@ describe('live updates', () => {
     elsewhere.ws!.close();
   });
 
-  it('pings after a successful change through the API', async () => {
+  it('通过 API 成功变更后发送通知', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {
@@ -75,7 +76,7 @@ describe('live updates', () => {
     page.ws!.close();
   });
 
-  it('only lets members follow repositories they can read', async () => {
+  it('仅允许成员订阅其有权读取的仓库', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await call(t, '/api/repos', {

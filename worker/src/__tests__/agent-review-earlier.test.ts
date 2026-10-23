@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import type { AgentReview } from '../review/contract';
 import { addMember, call, type TestEnv } from './helpers/app';
@@ -77,8 +78,8 @@ async function twoHeads() {
   return { t, admin, repo, first: first.head, second };
 }
 
-describe("earlier commits' reviews on the pull request page", () => {
-  it('lists them with their commit and findings, and never the head commit', async () => {
+describe('拉取请求页面中较早提交的审查', () => {
+  it('列出审查及其提交和意见，且不包含头提交', async () => {
     const { t, admin, first, second } = await twoHeads();
     const { review } = await view(t, admin);
     expect(review.headSha).toBe(second);
@@ -98,7 +99,7 @@ describe("earlier commits' reviews on the pull request page", () => {
     expect(review.earlier[0].finishedAt).not.toBeNull();
   });
 
-  it('is empty for a pull request with one reviewed commit', async () => {
+  it('仅有一个已审查提交的拉取请求返回空列表', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await openPull(t, admin, repo, CHANGE);
@@ -107,7 +108,7 @@ describe("earlier commits' reviews on the pull request page", () => {
     expect((await view(t, admin)).review.earlier).toEqual([]);
   });
 
-  it('keeps the 50 most recent, newest first', async () => {
+  it('保留最近 50 条，最新的排在最前', async () => {
     const { t, admin, second } = await twoHeads();
     const pr = (await t.env.DB.prepare('SELECT id FROM pull_requests').first<{
       id: string;
@@ -132,7 +133,7 @@ describe("earlier commits' reviews on the pull request page", () => {
     expect(earlier.some((e) => e.headSha === second)).toBe(false);
   });
 
-  it('leaves them out of gitorange_get_pull_request', async () => {
+  it('不将较早审查包含在 gitorange_get_pull_request 中', async () => {
     const { t, admin } = await twoHeads();
     const { access_token } = await connect(t, admin);
     const res = await tool(t, access_token, 'gitorange_get_pull_request', {
@@ -147,7 +148,7 @@ describe("earlier commits' reviews on the pull request page", () => {
     expect(out.reviewers).toMatchObject([{ status: 'approved', findings: [] }]);
   });
 
-  it('is not found for someone who cannot read the repository', async () => {
+  it('无权读取仓库的用户收到未找到响应', async () => {
     const { t, admin } = await twoHeads();
     const outsider = await addMember(t, admin, 'outsider');
     await t.env.DB.prepare(

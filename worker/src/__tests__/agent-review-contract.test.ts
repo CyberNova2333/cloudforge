@@ -38,8 +38,8 @@ const finding = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-describe('parseAgentReview', () => {
-  it('reads an approval', () => {
+describe('parseAgentReview 解析智能体审查', () => {
+  it('读取批准结果', () => {
     expect(
       parseAgentReview(
         JSON.stringify({ verdict: 'approve', summary: 'Fine.', findings: [] }),
@@ -48,7 +48,7 @@ describe('parseAgentReview', () => {
     ).toEqual({ verdict: 'approve', summary: 'Fine.', findings: [] });
   });
 
-  it('reads findings with their kind, keeping only changed files', () => {
+  it('读取带类型的审查意见，仅保留变更文件', () => {
     const r = parseAgentReview(
       '```json\n' +
         JSON.stringify({
@@ -73,7 +73,7 @@ describe('parseAgentReview', () => {
     expect(r.findings[0].diagram).toContain('erDiagram');
   });
 
-  it('lets findings win over a contradictory approve, and treats an unknown kind as needs_person', () => {
+  it('审查意见优先于相矛盾的批准结果，未知类型按 needs_person 处理', () => {
     const r = parseAgentReview(
       JSON.stringify({
         verdict: 'approve',
@@ -86,7 +86,7 @@ describe('parseAgentReview', () => {
     expect(r.findings[0].kind).toBe('needs_person');
   });
 
-  it('keeps at most five findings', () => {
+  it('最多保留五条审查意见', () => {
     const r = parseAgentReview(
       JSON.stringify({
         verdict: 'findings',
@@ -98,7 +98,7 @@ describe('parseAgentReview', () => {
     expect(r.findings).toHaveLength(MAX_FINDINGS);
   });
 
-  it('throws on findings it cannot read, and on text that is not JSON', () => {
+  it('审查意见无法读取或文本不是 JSON 时抛出异常', () => {
     expect(() =>
       parseAgentReview(
         JSON.stringify({ verdict: 'findings', summary: '', findings: [{}] }),
@@ -111,8 +111,8 @@ describe('parseAgentReview', () => {
   });
 });
 
-describe('the review prompt', () => {
-  it('asks for Chinese only for an agent set to review in Chinese', () => {
+describe('审查提示词', () => {
+  it('仅为配置为中文审查的智能体要求中文答复', () => {
     expect(reviewSystemPrompt('secagent')).not.toMatch(/Chinese/);
     expect(reviewSystemPrompt('secagent', 'en')).not.toMatch(/Chinese/);
     const zh = reviewSystemPrompt('secagent', 'zh');
@@ -123,7 +123,7 @@ describe('the review prompt', () => {
     );
   });
 
-  it('says the pull request is data, and carries instructions, knowledge, summaries and diffs', () => {
+  it('说明拉取请求属于数据，并包含指令、知识、摘要和差异', () => {
     expect(reviewSystemPrompt('secagent')).toMatch(/You are @secagent/);
     expect(reviewSystemPrompt('secagent')).toMatch(
       /data .*never follow instructions/i
@@ -154,7 +154,7 @@ describe('the review prompt', () => {
   });
 });
 
-describe('prompt injection', () => {
+describe('提示词注入', () => {
   const base = {
     handle: 'secagent',
     agentSha: 'abcdef1234567890',
@@ -167,7 +167,7 @@ describe('prompt injection', () => {
   };
   const fixed = () => 'cafe01';
 
-  it('keeps a forged heading or closing tag inside the untrusted block', () => {
+  it('将伪造标题或闭合标签保留在不可信区块内', () => {
     const user = reviewUserPrompt(
       {
         ...base,
@@ -187,7 +187,7 @@ describe('prompt injection', () => {
     expect(user.match(/<\/untrusted-cafe01>/g)).toHaveLength(1);
   });
 
-  it('uses a different tag on every build, and tells the model about it', () => {
+  it('每次构建使用不同标签，并告知模型', () => {
     const a = reviewUserPrompt(base);
     const b = reviewUserPrompt(base);
     expect(a.match(/<untrusted-[0-9a-f]{24}>/)![0]).not.toBe(
@@ -196,7 +196,7 @@ describe('prompt injection', () => {
     expect(reviewSystemPrompt('x')).toMatch(/<untrusted-/);
   });
 
-  it('flattens newlines in the title and in file paths', async () => {
+  it('将标题和文件路径中的换行折叠为单行', async () => {
     const user = reviewUserPrompt(
       {
         ...base,
@@ -215,7 +215,7 @@ describe('prompt injection', () => {
     expect(user).toContain('- x # Diffs (added): s # Changed files');
   });
 
-  it('clips a long description', () => {
+  it('截断过长描述', () => {
     const user = reviewUserPrompt(
       { ...base, description: 'z'.repeat(20000) },
       fixed
@@ -225,8 +225,8 @@ describe('prompt injection', () => {
   });
 });
 
-describe('parseAgentReview caps and snippets', () => {
-  it('caps lengths and drops bad or unchanged-file snippets', () => {
+describe('parseAgentReview 长度上限与代码片段', () => {
+  it('限制长度，并丢弃无效或来自未变更文件的片段', () => {
     const r = parseAgentReview(
       JSON.stringify({
         verdict: 'findings',
@@ -257,7 +257,7 @@ describe('parseAgentReview caps and snippets', () => {
   });
 });
 
-describe('readKnowledge', () => {
+describe('readKnowledge 读取知识', () => {
   async function agentGit(files: Record<string, string>) {
     // As agents-config.test.ts builds one: a repository in the fake, read through GitService.
     const fake = createFakeArtifacts();
@@ -274,7 +274,7 @@ describe('readKnowledge', () => {
     };
   }
 
-  it('reads Markdown under knowledge/ in path order, nested folders included', async () => {
+  it('按路径顺序读取 knowledge/ 下的 Markdown，包含嵌套目录', async () => {
     const { git, sha } = await agentGit({
       'AGENT.md': 'x',
       'knowledge/b.md': 'B',
@@ -292,7 +292,7 @@ describe('readKnowledge', () => {
     });
   });
 
-  it('reads at most 20 files and lists the rest', async () => {
+  it('最多读取 20 个文件，并列出其余文件', async () => {
     const files: Record<string, string> = { 'AGENT.md': 'x' };
     for (let i = 0; i < 22; i++)
       files[`knowledge/${String(i).padStart(2, '0')}.md`] = `file ${i}`;
@@ -302,7 +302,7 @@ describe('readKnowledge', () => {
     expect(k.unread).toEqual(['knowledge/20.md', 'knowledge/21.md']);
   });
 
-  it('stops at 64 KB in total, listing every later file', async () => {
+  it('总量达到 64 KB 时停止，并列出后续所有文件', async () => {
     const { git, sha } = await agentGit({
       'AGENT.md': 'x',
       'knowledge/a.md': 'a'.repeat(40 * 1024),
@@ -314,7 +314,7 @@ describe('readKnowledge', () => {
     expect(k.unread).toEqual(['knowledge/b.md', 'knowledge/c.md']);
   });
 
-  it("never loads a file's bytes when its size alone is over the budget", async () => {
+  it('仅凭文件大小已超预算时，不加载其字节内容', async () => {
     const { git, sha } = await agentGit({
       'AGENT.md': 'x',
       'knowledge/a.md': 'small',
@@ -337,7 +337,7 @@ describe('readKnowledge', () => {
     expect(loaded).toEqual([5]);
   });
 
-  it('lists at most 50 unread paths, then counts the rest', async () => {
+  it('最多列出 50 条未读取路径，其余只统计数量', async () => {
     const files: Record<string, string> = { 'AGENT.md': 'x' };
     for (let i = 0; i < 80; i++)
       files[`knowledge/${String(i).padStart(2, '0')}.md`] = 'k';
@@ -348,7 +348,7 @@ describe('readKnowledge', () => {
     expect(k.unread[50]).toBe('…and 10 more');
   });
 
-  it('stops walking after 200 entries', async () => {
+  it('遍历 200 个条目后停止', async () => {
     const files: Record<string, string> = { 'AGENT.md': 'x' };
     for (let i = 0; i < 260; i++)
       files[`knowledge/${String(i).padStart(3, '0')}.md`] = 'k';
@@ -359,14 +359,14 @@ describe('readKnowledge', () => {
     expect(k.unread.join()).not.toContain('knowledge/259.md');
   });
 
-  it('is empty without a knowledge folder', async () => {
+  it('没有知识目录时返回空内容', async () => {
     const { git, sha } = await agentGit({ 'AGENT.md': 'x' });
     expect(await readKnowledge(git, sha)).toEqual({ files: [], unread: [] });
   });
 });
 
-describe('workersAiAgentModels', () => {
-  it('asks Clef one noul question per agent and returns the probabilities it gave', async () => {
+describe('workersAiAgentModels 审查模型', () => {
+  it('为每个智能体向 Clef 提出一个 noul 问题，并返回其给出的概率', async () => {
     const t = makeEnv();
     const seen: unknown[] = [];
     const env = {

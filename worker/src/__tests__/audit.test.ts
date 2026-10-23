@@ -78,8 +78,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('recordAudit', () => {
-  it('never throws: a failed write is logged and the caller carries on', async () => {
+describe('recordAudit 审计记录', () => {
+  it('不抛出异常：记录写入失败日志后调用者继续执行', async () => {
     const t = makeEnv();
     const db = drizzle(t.env.DB, { schema });
     const failing = new Proxy(db, {
@@ -114,7 +114,7 @@ describe('recordAudit', () => {
     expect(await auditRows(t)).toEqual([]);
   });
 
-  it('records a system event with no actor', async () => {
+  it('记录没有操作者的系统事件', async () => {
     const t = makeEnv();
     await recordAudit(drizzle(t.env.DB, { schema }), {
       repositoryId: null,
@@ -137,8 +137,8 @@ describe('recordAudit', () => {
   });
 });
 
-describe('mutations write the audit log', () => {
-  it('repository create, settings, visibility, collaborators, branch delete and delete', async () => {
+describe('变更操作写入审计日志', () => {
+  it('仓库创建、设置、可见性、协作者、分支删除和仓库删除', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'bob');
@@ -276,7 +276,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('agents: create, invite, remove, delete', async () => {
+  it('智能体创建、邀请、移除和删除', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await ok(
@@ -339,7 +339,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('findings approved, dismissed and sent back for changes, by a person or an app', async () => {
+  it('用户或应用批准、驳回审查意见及退回修改', async () => {
     const { t, admin } = await reviewedPull();
     const [tokenLogged, noExpiry, rotation] = await findings(t);
     expect([tokenLogged.kind, noExpiry.kind, rotation.kind]).toEqual([
@@ -426,7 +426,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('a person approving and merging a pull request', async () => {
+  it('人工批准并合并拉取请求', async () => {
     const { t, admin, repo } = await appRepo();
     const { head } = await openPull(t, admin, repo, {
       'src/app.ts': 'export const a = 2;\n',
@@ -485,7 +485,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('CloudForge landing a pull request on its own', async () => {
+  it('CloudForge 自动合并拉取请求', async () => {
     const { t, admin, repo } = await appRepo();
     const { head } = await openPull(t, admin, repo, {
       'src/app.ts': 'export const a = 2;\n',
@@ -533,7 +533,7 @@ describe('mutations write the audit log', () => {
     ]);
   });
 
-  it('personal access tokens and instance settings', async () => {
+  it('个人访问令牌和实例设置', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const created = await recorded(t, async () => {
@@ -696,8 +696,8 @@ function prEventInsert(
   );
 }
 
-describe('GET /api/repos/{owner}/{repo}/audit', () => {
-  it('merges the audit log with the pull request timeline, newest first, a page at a time', async () => {
+describe('GET /api/repos/{owner}/{repo}/audit 仓库审计', () => {
+  it('合并审计日志与拉取请求时间线，按最新优先分页返回', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const ids = await quietRepo(t, admin);
@@ -795,7 +795,7 @@ describe('GET /api/repos/{owner}/{repo}/audit', () => {
     });
   });
 
-  it('reports an agent as an agent, and an app by name', async () => {
+  it('将智能体标识为智能体，并显示应用名称', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const ids = await quietRepo(t, admin);
@@ -830,7 +830,7 @@ describe('GET /api/repos/{owner}/{repo}/audit', () => {
     ]);
   });
 
-  it('refuses a cursor it did not make', async () => {
+  it('拒绝非自身生成的游标', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await quietRepo(t, admin);
@@ -840,7 +840,7 @@ describe('GET /api/repos/{owner}/{repo}/audit', () => {
     expect(res.status).toBe(400);
   });
 
-  it('is hidden from members who cannot read the repository', async () => {
+  it('向无仓库读取权限的成员隐藏', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
@@ -879,8 +879,8 @@ describe('GET /api/repos/{owner}/{repo}/audit', () => {
   });
 });
 
-describe('GET /api/admin/audit', () => {
-  it('shows every repository and the instance to site admins only', async () => {
+describe('GET /api/admin/audit 管理审计', () => {
+  it('仅向站点管理员展示所有仓库及实例事件', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');

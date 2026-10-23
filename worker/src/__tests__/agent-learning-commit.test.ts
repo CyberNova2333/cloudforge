@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { agentFrontMatter } from '../agents/config';
 import { decoder } from '../git/bytes';
@@ -33,8 +34,8 @@ const EDIT = {
   'knowledge/fixtures.md': 'Fixtures under test/ hold fake tokens.\n',
 };
 
-describe('agentFrontMatter', () => {
-  it('is the block between the --- lines, exactly as written', () => {
+describe('agentFrontMatter 前置元数据', () => {
+  it('原样返回两条 --- 行之间的区块', () => {
     expect(agentFrontMatter(MD)).toBe(MD.slice(0, MD.indexOf('Look for')));
     expect(agentFrontMatter(`﻿${MD}`)).toBe(
       `﻿${MD.slice(0, MD.indexOf('Look for'))}`
@@ -43,21 +44,21 @@ describe('agentFrontMatter', () => {
   });
 });
 
-describe('validateLearned', () => {
+describe('validateLearned 学习结果校验', () => {
   const base = { 'AGENT.md': MD, 'knowledge/fixtures.md': null };
 
-  it('keeps real changes to the instructions and to knowledge/', () => {
+  it('保留对指令和 knowledge/ 的实际变更', () => {
     expect(validateLearned(base, EDIT)).toEqual({ ok: true, changes: EDIT });
   });
 
-  it('drops files written back unchanged: nothing to commit', () => {
+  it('丢弃原样写回的文件，避免产生无变更提交', () => {
     expect(validateLearned(base, { 'AGENT.md': MD })).toEqual({
       ok: true,
       changes: {},
     });
   });
 
-  it('refuses any path outside AGENT.md and knowledge/', () => {
+  it('拒绝 AGENT.md 和 knowledge/ 之外的任何路径', () => {
     for (const path of [
       'README.md',
       'avatar.png',
@@ -91,14 +92,14 @@ describe('validateLearned', () => {
     expect(isLearnablePath('knowledge/git-tips.md')).toBe(true);
   });
 
-  it('refuses deleting AGENT.md', () => {
+  it('拒绝删除 AGENT.md', () => {
     expect(validateLearned(base, { 'AGENT.md': null })).toEqual({
       ok: false,
       error: 'The edit deleted AGENT.md.',
     });
   });
 
-  it('refuses a front matter change, even one that parses the same', () => {
+  it('拒绝前置元数据变更，即使解析结果相同', () => {
     const renamed = LEARNED.replace('Security Agent', 'Lenient Agent');
     expect(validateLearned(base, { 'AGENT.md': renamed })).toEqual({
       ok: false,
@@ -115,7 +116,7 @@ describe('validateLearned', () => {
       });
   });
 
-  it('refuses an AGENT.md that no longer parses', () => {
+  it('拒绝无法再被解析的 AGENT.md', () => {
     expect(
       validateLearned(base, { 'AGENT.md': agentFrontMatter(MD)! })
     ).toEqual({
@@ -125,7 +126,7 @@ describe('validateLearned', () => {
     });
   });
 
-  it('refuses binary text, oversize files, and edits over 20 KB in all', () => {
+  it('拒绝二进制文本、超大文件和总计超过 20 KB 的编辑', () => {
     expect(validateLearned(base, { 'knowledge/a.md': 'a\0b' })).toEqual({
       ok: false,
       error: 'knowledge/a.md is not UTF-8 text.',
@@ -149,7 +150,7 @@ describe('validateLearned', () => {
     });
   });
 
-  it('refuses changing or deleting an existing file that is not UTF-8 text', () => {
+  it('拒绝修改或删除现有非 UTF-8 文本文件', () => {
     const binary = { ...base, 'knowledge/logo.bin': '\0PNG' };
     for (const content of ['now text\n', null])
       expect(
@@ -166,7 +167,7 @@ describe('validateLearned', () => {
     });
   });
 
-  it('refuses one path inside another: a file and a directory of one name', () => {
+  it('拒绝路径嵌套冲突：同名文件与目录', () => {
     expect(
       validateLearned(base, {
         'knowledge/x': 'flat\n',
@@ -179,15 +180,15 @@ describe('validateLearned', () => {
     });
   });
 
-  it('measures a change by the lines it adds and removes', () => {
+  it('通过新增和删除的行衡量变更大小', () => {
     const long = `${'line\n'.repeat(5000)}`;
     expect(changeBytes(long, `${long}one more\n`)).toBe(9);
     expect(changeBytes(null, 'abc\n')).toBe(4);
   });
 });
 
-describe('lessonCommitMessage', () => {
-  it('is the summary, where it was learned, and one trailer per dismissed finding', () => {
+describe('lessonCommitMessage 学习提交消息', () => {
+  it('包含摘要、学习来源，并为每条被驳回的审查意见附加一个尾注', () => {
     expect(
       lessonCommitMessage({
         summary: '  Fixtures hold fake tokens.\nSaid so in the instructions.  ',
@@ -202,7 +203,7 @@ describe('lessonCommitMessage', () => {
     );
   });
 
-  it("from a private repository, redacts the repository, the pull request and the findings from the model's summary", () => {
+  it('来自私有仓库时，从模型摘要中隐去仓库、拉取请求和审查意见', () => {
     expect(
       lessonCommitMessage({
         summary:
@@ -220,7 +221,7 @@ describe('lessonCommitMessage', () => {
     expect(redactPrivate('#70 and #7.', [], 7)).toBe('#70 and #[private].');
   });
 
-  it('from a private repository, is only the summary and the trailers', () => {
+  it('来自私有仓库时，仅保留摘要和尾注', () => {
     expect(
       lessonCommitMessage({
         summary: 'Fixtures hold fake tokens.',
@@ -270,8 +271,8 @@ function racing(git: GitService) {
   return git;
 }
 
-describe('commitLearned', () => {
-  it('commits the edit on main with compare-and-swap, as the given author, keeping every other file', async () => {
+describe('commitLearned 提交学习结果', () => {
+  it('以指定作者通过比较并交换提交到 main，保留其他所有文件', async () => {
     const { repo, base, git } = await agentRepository();
     const out = await commitLearned({
       git: git(),
@@ -296,7 +297,7 @@ describe('commitLearned', () => {
     expect(await read(git(), out.sha, 'knowledge/README.md')).toBe('Notes.\n');
   });
 
-  it('commits nothing for an edit written back unchanged, or one validation refuses', async () => {
+  it('编辑内容原样写回或未通过校验时，不创建提交', async () => {
     const { repo, base, git } = await agentRepository();
     const opts = {
       git: git(),
@@ -321,13 +322,13 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(base);
   });
 
-  it('refuses to change a binary file in the repository (no NUL, just not UTF-8)', async () => {
+  it('拒绝修改仓库中的二进制文件，即使其不含 NUL 但并非 UTF-8', async () => {
     const { repo, base, git } = await agentRepository();
     const parent = repo.parseCommit(base)!;
     const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe]);
     const blob = await makeBlob(bytes);
     const knowledge = (await git().entryAt(base, 'knowledge'))!;
-    if (knowledge.type !== 'tree') throw new Error('no knowledge/');
+    if (knowledge.type !== 'tree') throw new Error('缺少 knowledge/ 目录');
     const sub = await makeTree([
       ...knowledge.entries.map((e) => ({ ...e })),
       { name: 'logo.bin', mode: '100644', hash: blob.sha },
@@ -369,7 +370,7 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(commit.sha);
   });
 
-  it('keeps a byte-order mark: AGENT.md reads back byte for byte', async () => {
+  it('保留字节顺序标记，确保 AGENT.md 逐字节读回一致', async () => {
     const { repo, git } = await agentRepository();
     const sha = await commitPaths(
       repo,
@@ -383,7 +384,7 @@ describe('commitLearned', () => {
     });
   });
 
-  it('retries once from the new tip when main moved without touching the edited files', async () => {
+  it('main 前移但未改动待编辑文件时，从新分支顶端重试一次', async () => {
     const { repo, base, git } = await agentRepository();
     const moved = await commitPaths(
       repo,
@@ -410,7 +411,7 @@ describe('commitLearned', () => {
     expect(await read(git(), out.sha, 'AGENT.md')).toBe(LEARNED);
   });
 
-  it('fails, committing nothing, when main changed an edited file meanwhile', async () => {
+  it('main 同时修改了待编辑文件时失败，且不创建提交', async () => {
     const { repo, base, git } = await agentRepository();
     const theirs = AGENT_MD({ body: 'Look for leaked secrets and keys.' });
     const moved = await commitPaths(
@@ -437,7 +438,7 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(moved);
   });
 
-  it('refuses a file over a directory: the subtree is never dropped unchecked', async () => {
+  it('拒绝用文件覆盖目录，避免未检查就丢弃子树', async () => {
     const { repo, git } = await agentRepository();
     const base = await commitPaths(
       repo,
@@ -467,7 +468,7 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(base);
   });
 
-  it('refuses a directory over a file', async () => {
+  it('拒绝用目录覆盖文件', async () => {
     const { repo, base, git } = await agentRepository();
     expect(
       await commitLearned({
@@ -487,7 +488,7 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(base);
   });
 
-  it('refuses an edit writing one path as both a file and a directory', async () => {
+  it('拒绝将同一路径同时写成文件和目录', async () => {
     const { repo, base, git } = await agentRepository();
     expect(
       await commitLearned({
@@ -507,7 +508,7 @@ describe('commitLearned', () => {
     expect(repo.refs.get('refs/heads/main')).toBe(base);
   });
 
-  it("fails, keeping the person's notes, when main made the written path a directory meanwhile", async () => {
+  it('main 同时将写入路径变为目录时失败，并保留用户笔记', async () => {
     const { repo, base, git } = await agentRepository();
     const moved = await commitPaths(
       repo,
@@ -540,7 +541,7 @@ describe('commitLearned', () => {
     );
   });
 
-  it('fails when main keeps moving: the compare-and-swap lost twice', async () => {
+  it('main 持续变化导致比较并交换连续两次失败时，报告失败', async () => {
     const { repo, base, git } = await agentRepository();
     expect(
       await commitLearned({
@@ -557,8 +558,8 @@ describe('commitLearned', () => {
   });
 });
 
-describe('GitService.commitFiles', () => {
-  it('writes nested paths, keeps siblings, deletes with null, and drops emptied directories', async () => {
+describe('GitService.commitFiles 文件提交', () => {
+  it('写入嵌套路径、保留同级文件、以 null 删除文件，并移除空目录', async () => {
     const { repo, base, git } = await agentRepository();
     const sha = await git().commitFiles({
       branch: 'main',
@@ -593,7 +594,7 @@ describe('GitService.commitFiles', () => {
     ).rejects.toBeInstanceOf(GitPushError);
   });
 
-  it('never swaps a directory for a file or back', async () => {
+  it('不将目录替换为文件，也不将文件替换为目录', async () => {
     const { base, git } = await agentRepository();
     const cases: Record<string, string | null>[] = [
       { knowledge: 'flat\n' },

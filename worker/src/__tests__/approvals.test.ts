@@ -156,8 +156,8 @@ const page = async (
   return (await res.json()) as Page;
 };
 
-describe('Approvals pagination', () => {
-  it('pages through more than 100 open pull requests, each item once, in order', async () => {
+describe('审批分页', () => {
+  it('按顺序分页遍历超过 100 个打开的拉取请求，每项仅出现一次', async () => {
     const { t, admin, count, order } = await manyApprovals();
     const first = await page(t, admin);
     expect(first.items).toHaveLength(25); // the default limit
@@ -194,7 +194,7 @@ describe('Approvals pagination', () => {
     expect(rest.nextCursor).toBeNull();
   });
 
-  it("shows a member who can't merge nothing, however much waits elsewhere", async () => {
+  it('无合并权限的成员看不到任何项目，即使其他位置有大量待处理项', async () => {
     const { t, admin } = await manyApprovals();
     const bob = await addMember(t, admin, 'bob');
     expect(await page(t, bob)).toEqual({
@@ -205,7 +205,7 @@ describe('Approvals pagination', () => {
     });
   });
 
-  it('rejects an invalid cursor or limit', async () => {
+  it('拒绝无效游标或条数限制', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     for (const query of [
@@ -221,8 +221,8 @@ describe('Approvals pagination', () => {
   });
 });
 
-describe('Approvals items', () => {
-  it('groups findings for a person by agent, lists failed agent reviews, and leaves change requests to the agent', async () => {
+describe('审批项目', () => {
+  it('按智能体汇总需要人工处理的意见，列出失败审查，并将修改请求交给智能体', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await invitedAgent(t, admin, 'dataagent', AGENT_MD());
@@ -286,7 +286,7 @@ describe('Approvals items', () => {
     expect(res.count).toBe(2); // one finding for a person, one failed review
   });
 
-  it("lists a pull request that needs a person's approval", async () => {
+  it('列出需要人工批准的拉取请求', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });
     const res = (await (
@@ -359,7 +359,7 @@ describe('Approvals items', () => {
     return f;
   }
 
-  it('drops a finding once a person approves it', async () => {
+  it('人工批准后移除审查意见', async () => {
     const { t, admin } = await flagged();
     const before = await inbox(t, admin);
     expect(before.count).toBe(1);
@@ -379,7 +379,7 @@ describe('Approvals items', () => {
     expect(after.count).toBe(0);
   });
 
-  it("doesn't leak a private repository's items to people who can't merge there", async () => {
+  it('不向无合并权限者泄露私有仓库的项目', async () => {
     const { t, admin } = await flagged();
     const bob = await addMember(t, admin, 'bob');
     await t.env.DB.prepare(
@@ -400,7 +400,7 @@ describe('Approvals items', () => {
     expect((await inbox(t, bob)).count).toBe(1);
   });
 
-  it('agrees with the repository insights on how many findings wait', async () => {
+  it('待处理审查意见数量与仓库洞察一致', async () => {
     const { t, admin } = await flagged();
     const res = await call(t, '/api/repos/octocat/app/insights', {
       cookie: admin,
@@ -412,7 +412,7 @@ describe('Approvals items', () => {
     expect(body.flags).toMatchObject({ pendingNow: 1, pendingPullsNow: 1 });
   });
 
-  it("shows the review of the branch's current commit, not the newest review (and insights agree)", async () => {
+  it('显示分支当前提交的审查，而非最新审查，且洞察结果一致', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const { head: first } = await openPull(t, admin, repo, {
@@ -474,7 +474,7 @@ describe('Approvals items', () => {
     expect(insights.flags.pendingNow).toBe(2);
   });
 
-  it("reads branch tips only where the viewer can merge, and keeps an item whose tips can't be read", async () => {
+  it('仅在查看者有合并权限时读取分支顶端，并保留无法读取顶端的项目', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     const { head } = await openPull(t, admin, repo, { 'src/b.ts': 'b\n' });
@@ -528,7 +528,7 @@ describe('Approvals items', () => {
     expect(res.count).toBe(1);
   });
 
-  it('counts a failed review once, however many agents it failed, and still shows each retry target', async () => {
+  it('无论多少智能体失败，一次失败审查只计数一次，同时展示各重试目标', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await invitedAgent(t, admin, 'dataagent', AGENT_MD());
@@ -552,7 +552,7 @@ describe('Approvals items', () => {
   });
 });
 
-describe('Approvals: who decides each finding', () => {
+describe('审批：各审查意见的决策者', () => {
   type Flag = {
     id: string;
     question: string | null;
@@ -576,7 +576,7 @@ describe('Approvals: who decides each finding', () => {
     };
   };
 
-  it("shows a finding CloudForge AI sent back, with its reason, and a guarded agent's finding as guarded", async () => {
+  it('显示 CloudForge AI 退回的审查意见及原因，并标识受保护智能体的意见', async () => {
     const { t, admin, person } = await questionedPull();
     const db = drizzle(t.env.DB, { schema });
     const result = await decideFinding(t.env, db, person.id, await userId(t), {

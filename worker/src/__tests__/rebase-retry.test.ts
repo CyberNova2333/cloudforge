@@ -45,8 +45,8 @@ const queuedRebases = (t: TestEnv) =>
   t.actions.resolutions.filter((r) => (r.params as { rebase?: unknown }).rebase)
     .length;
 
-describe('trying a stopped rebase again', () => {
-  it('asks AI again about the commit it failed on, and writes the rebase', async () => {
+describe('重试已中止的变基', () => {
+  it('再次请求 AI 处理先前失败的提交，并写入变基结果', async () => {
     const { t, admin, repo, f2, failedIds } = await stoppedPull();
     expect(repo.refs.get('refs/heads/feature')).toBe(f2);
     const before = await detail(t, admin);
@@ -98,7 +98,7 @@ describe('trying a stopped rebase again', () => {
     ).toBe(false);
   });
 
-  it('shows the stop again when the retry fails too', async () => {
+  it('重试仍失败时再次显示中止原因', async () => {
     const { t, admin, f2 } = await stoppedPull();
     expect((await retry(t, admin)).status).toBe(200);
     await runRebases(t, { resolver: unreachable([]) });
@@ -111,7 +111,7 @@ describe('trying a stopped rebase again', () => {
     expect((await rows(t)).map((r) => r.status)).toEqual(['failed']);
   });
 
-  it('records a stop AI never takes again (a binary conflict)', async () => {
+  it('记录 AI 无法重试处理的中止原因（二进制冲突）', async () => {
     const { t, admin, repo, root } = await divergedPull();
     const old = repo.refs.get('refs/heads/main')!;
     repo.refs.set('refs/heads/feature', root);
@@ -144,7 +144,7 @@ describe('trying a stopped rebase again', () => {
     ]);
   });
 
-  it('needs merge permission', async () => {
+  it('需要合入权限', async () => {
     const { t, admin } = await stoppedPull();
     const ada = await addMember(t, admin, 'ada');
     // ada can read the internal repository, but not merge.
@@ -154,7 +154,7 @@ describe('trying a stopped rebase again', () => {
     expect((await rows(t)).map((r) => r.status)).toEqual(['failed']);
   });
 
-  it('refuses a branch CloudForge never rebases, with why', async () => {
+  it('拒绝对 CloudForge 不会变基的分支重试，并说明原因', async () => {
     const { t, admin } = await divergedPull({ conflict: true });
     const patched = await call(t, '/api/repos/octocat/app', {
       cookie: admin,
@@ -170,7 +170,7 @@ describe('trying a stopped rebase again', () => {
     expect(await res.json()).toEqual({ error: message });
   });
 
-  it('refuses when nothing is stopped', async () => {
+  it('没有已中止的变基时拒绝重试', async () => {
     const { t, admin, root } = await divergedPull();
     // Behind, not stopped: CloudForge is rebasing it.
     const behind = await retry(t, admin);
@@ -189,7 +189,7 @@ describe('trying a stopped rebase again', () => {
     expect((await retry(t, admin, 9)).status).toBe(404);
   });
 
-  it('works over MCP for people who can merge', async () => {
+  it('具有合入权限的人可通过 MCP 重试', async () => {
     const { t, admin, f2 } = await stoppedPull();
     const ada = await addMember(t, admin, 'ada');
     const args = { repository: 'octocat/app', number: 1 };
@@ -224,7 +224,7 @@ describe('trying a stopped rebase again', () => {
     );
   });
 
-  it('puts the stop back when a rebase run is still finishing', async () => {
+  it('变基运行仍在收尾时恢复中止状态', async () => {
     const { t, admin, f2 } = await stoppedPull();
     const pr = await t.env.DB.prepare(
       'SELECT id, repository_id FROM pull_requests'
@@ -252,7 +252,7 @@ describe('trying a stopped rebase again', () => {
     );
   });
 
-  it('starts one run when retries arrive together', async () => {
+  it('并发重试请求仅启动一次运行', async () => {
     const { t, admin } = await stoppedPull();
     const queued = queuedRebases(t);
     const [a, b] = await Promise.all([retry(t, admin), retry(t, admin)]);
@@ -261,7 +261,7 @@ describe('trying a stopped rebase again', () => {
     expect(queuedRebases(t)).toBe(queued + 1);
   });
 
-  it('refuses a closed pull request', async () => {
+  it('拒绝已关闭的拉取请求', async () => {
     const { t, admin } = await stoppedPull();
     await t.env.DB.prepare("UPDATE pull_requests SET state = 'closed'").run();
     const res = await retry(t, admin);

@@ -10,8 +10,8 @@ import {
 } from './pullState';
 import type { PullState } from './uiApi';
 
-describe('pull state text', () => {
-  it('names each state as the spec does', () => {
+describe('拉取请求状态文字', () => {
+  it('按规范命名每个状态', () => {
     expect(STATE_LABEL).toEqual({
       agent_followup: 'Ready for agent followup',
       human_review: 'Requires human review',
@@ -20,7 +20,7 @@ describe('pull state text', () => {
     });
   });
 
-  it('says each reason in a few words', () => {
+  it('简要说明每种原因', () => {
     expect(
       reasonText({ kind: 'check_failed', run_number: 7, check: 'test' })
     ).toBe('the "test" check failed (run #7)');
@@ -61,13 +61,13 @@ describe('pull state text', () => {
     expect(reasonText({ kind: 'something_new' })).toBe('something new');
   });
 
-  it('says merging is paused in plain English, and counts it as holding the pull request', () => {
+  it('用易懂英文说明合并暂停，并将其视为拉取请求的阻塞原因', () => {
     // Lowercase: callers join reason fragments into sentences ("… ; merging is paused").
     expect(reasonText({ kind: 'merging_paused' })).toBe('merging is paused');
     expect(blocking({ kind: 'merging_paused' })).toBe(true);
   });
 
-  it('is paused only when it waits and the pause is among its reasons', () => {
+  it('仅在等待状态且原因包含暂停时显示已暂停', () => {
     const pause = { kind: 'merging_paused' };
     expect(isPaused({ state: 'waiting', reasons: [pause] })).toBe(true);
     expect(isPaused({ state: 'waiting', reasons: [] })).toBe(false);
@@ -77,7 +77,7 @@ describe('pull state text', () => {
     expect(isPaused(undefined)).toBe(false);
   });
 
-  it('labels a waiting pull request that merging is paused on "Paused", not "Waiting for checks"', () => {
+  it('合并暂停导致等待的拉取请求显示已暂停，而非等待检查', () => {
     const paused: PullState = {
       state: 'waiting',
       reasons: [{ kind: 'merging_paused' }],
@@ -125,7 +125,7 @@ describe('pull state text', () => {
     ).toBe('Ready, stacked on #3');
   });
 
-  it('gives the pause as the reason a paused pull request waits', () => {
+  it('将暂停作为已暂停请求的等待原因', () => {
     expect(
       stateText({ state: 'waiting', reasons: [{ kind: 'merging_paused' }] })
         .reason
@@ -139,7 +139,7 @@ describe('pull state text', () => {
     ).toBe('merging is paused');
   });
 
-  it('omits a missing number instead of printing NaN', () => {
+  it('省略缺失数字而非显示 NaN', () => {
     expect(reasonText({ kind: 'check_failed', check: null })).toBe(
       'a check failed'
     );
@@ -148,7 +148,7 @@ describe('pull state text', () => {
     );
   });
 
-  it('tells informational reasons apart', () => {
+  it('区分仅提供信息的原因', () => {
     expect(blocking({ kind: 'stacked_on', pr: 1 })).toBe(false);
     expect(blocking({ kind: 'must_account_for', pr: 1, landed: false })).toBe(
       true
@@ -158,7 +158,7 @@ describe('pull state text', () => {
     );
   });
 
-  it('says rebase onto and rebase conflict', () => {
+  it('说明变基目标和变基冲突', () => {
     expect(
       reasonText({
         kind: 'rebase_onto',

@@ -29,15 +29,15 @@ const ctx = {
   steps: { build: { outputs: { version: '1.2.3' }, outcome: 'success' } },
 };
 
-describe('expressions', () => {
-  it('reads contexts, case-insensitively, with dots and brackets', () => {
+describe('表达式', () => {
+  it('使用点号和方括号读取上下文，且不区分大小写', () => {
     expect(evaluate('github.sha', ctx)).toBe('abc123');
     expect(evaluate("GitHub['REF']", ctx)).toBe('refs/heads/main');
     expect(evaluate('steps.build.outputs.version', ctx)).toBe('1.2.3');
     expect(evaluate('steps.missing.outputs.x', ctx)).toBe(null);
   });
 
-  it('compares strings case-insensitively and coerces mismatched types', () => {
+  it('比较字符串时不区分大小写，并转换不匹配的类型', () => {
     expect(evaluate("github.ref == 'REFS/HEADS/MAIN'", ctx)).toBe(true);
     expect(evaluate("matrix.node == '20'", ctx)).toBe(true);
     expect(evaluate('matrix.node >= 18 && matrix.node < 22', ctx)).toBe(true);
@@ -45,7 +45,7 @@ describe('expressions', () => {
     expect(evaluate("'' || 'fallback'", ctx)).toBe('fallback');
   });
 
-  it('supports the common functions', () => {
+  it('支持常用函数', () => {
     expect(evaluate("contains(github.labels, 'CI')", ctx)).toBe(true);
     expect(evaluate("startsWith(github.ref, 'refs/heads/')", ctx)).toBe(true);
     expect(evaluate("format('{0}-{1}', matrix.os, matrix.node)", ctx)).toBe(
@@ -55,20 +55,20 @@ describe('expressions', () => {
     expect(evaluate("fromJSON('[1,2]')[1]", ctx)).toBe(2);
   });
 
-  it('interpolates ${{ }} templates', () => {
+  it('插值处理 ${{ }} 模板', () => {
     expect(interpolate('node-${{ matrix.node }} on ${{ env.MODE }}', ctx)).toBe(
       'node-20 on prod'
     );
   });
 
-  it('rejects unknown contexts and functions', () => {
+  it('拒绝未知上下文和函数', () => {
     expect(() => evaluate('secretz.X', ctx)).toThrow(/Unrecognized/);
     expect(() => evaluate("hashFiles('**/*.lock')", ctx)).toThrow(
       /Unsupported function/
     );
   });
 
-  it('applies the implicit success() to conditions', () => {
+  it('为条件应用隐式 success()', () => {
     expect(evaluateCondition(undefined, ctx)).toBe(true);
     expect(evaluateCondition(undefined, ctx, { status: 'failure' })).toBe(
       false
@@ -88,7 +88,7 @@ describe('expressions', () => {
     ).toBe(true);
   });
 
-  it('lets a job-level if: read a gate job: hyphenated outputs, its result, and always()', () => {
+  it('允许作业级 if: 读取门控作业的连字符输出、结果和 always()', () => {
     const cond =
       "always() && needs.build.result == 'success' && (needs.gate.result == 'skipped' || needs.gate.outputs.run-merge-queue == 'true')";
     const needs = (gate: Value, build = 'success') => ({
@@ -118,7 +118,7 @@ describe('expressions', () => {
   });
 });
 
-describe('workflow files', () => {
+describe('工作流文件', () => {
   const ci = `
 name: CI
 on:
@@ -149,7 +149,7 @@ jobs:
       - run: echo deploying
 `;
 
-  it('parses the common syntax', () => {
+  it('解析常用语法', () => {
     const wf = parseWorkflow(ci);
     expect(wf.name).toBe('CI');
     expect(wf.on.push?.branches).toEqual(['main', 'release/**']);
@@ -164,7 +164,7 @@ jobs:
     expect(wf.jobs[1].needs).toEqual(['test']);
   });
 
-  it('plans matrix jobs with GitHub-style step names', () => {
+  it('使用 GitHub 风格的步骤名称规划矩阵作业', () => {
     const jobs = planJobs(parseWorkflow(ci), { ref: 'refs/heads/main' });
     expect(jobs.map((j) => j.name)).toEqual([
       'test (20)',
@@ -182,7 +182,7 @@ jobs:
     expect(jobs[0].matrix).toEqual({ node: 20 });
   });
 
-  it('accepts on as a string or a list', () => {
+  it('接受字符串或列表形式的 on', () => {
     const base =
       'jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: "true"\n';
     expect(parseWorkflow(`on: push\n${base}`).on).toEqual({ push: {} });
@@ -211,12 +211,12 @@ jobs:
       /service containers/,
     ],
     ['on: push\njobs:\n  a: [', /Invalid YAML/],
-  ])('rejects invalid files with a clear message (%#)', (text, msg) => {
+  ])('拒绝无效文件并给出明确提示（%#）', (text, msg) => {
     expect(() => parseWorkflow(text)).toThrow(WorkflowFileError);
     expect(() => parseWorkflow(text)).toThrow(msg);
   });
 
-  it('refuses non-Linux runners and caps matrix size', () => {
+  it('拒绝非 Linux 运行器并限制矩阵大小', () => {
     expect(instanceTypeFor('ubuntu-latest')).toBe('standard-2');
     expect(instanceTypeFor('standard-4')).toBe('standard-4');
     expect(() => instanceTypeFor('macos-latest')).toThrow(/Linux jobs only/);
@@ -225,7 +225,7 @@ jobs:
     );
     expect(() => planJobs(big, {})).toThrow(/expands to 25 jobs/);
   });
-  it('evaluates runs-on expressions with the github and matrix contexts', () => {
+  it('使用 github 和 matrix 上下文计算 runs-on 表达式', () => {
     const wf = parseWorkflow(
       [
         'on: push',
@@ -263,8 +263,8 @@ jobs:
   });
 });
 
-describe('trigger filters', () => {
-  it('matches GitHub glob patterns, last match wins', () => {
+describe('触发器过滤', () => {
+  it('匹配 GitHub glob 模式，以最后一次匹配为准', () => {
     expect(matchesPatterns('release/1.0', ['release/*'])).toBe(true);
     expect(matchesPatterns('release/1.0/hotfix', ['release/*'])).toBe(false);
     expect(matchesPatterns('release/1.0/hotfix', ['release/**'])).toBe(true);
@@ -274,7 +274,7 @@ describe('trigger filters', () => {
     ).toBe(false);
   });
 
-  it('filters pushes by branch, tag, and path', () => {
+  it('按分支、标签和路径过滤推送', () => {
     const f = { branches: ['main'], paths: ['src/**'] };
     expect(pushMatches(f, 'refs/heads/main', ['src/a.ts'])).toBe(true);
     expect(pushMatches(f, 'refs/heads/main', ['README.md'])).toBe(false);
@@ -288,27 +288,27 @@ describe('trigger filters', () => {
     ).toBe(false);
   });
 
-  it('filters pull requests by base branch', () => {
+  it('按目标分支过滤拉取请求', () => {
     expect(pullRequestMatches({ branches: ['main'] }, 'main', null)).toBe(true);
     expect(pullRequestMatches({ branches: ['main'] }, 'dev', null)).toBe(false);
   });
 });
 
-describe('runner command files', () => {
-  it('parses NAME=value lines and heredocs', () => {
+describe('运行器命令文件', () => {
+  it('解析 NAME=value 行和 heredoc', () => {
     expect(
       parseKeyValueFile('A=1\nB=x=y\nNOTES<<EOF\nline 1\nline 2\nEOF\nC=3\n')
     ).toEqual({ A: '1', B: 'x=y', NOTES: 'line 1\nline 2', C: '3' });
   });
 
-  it('masks secrets in logs', () => {
+  it('对日志中的密钥脱敏', () => {
     expect(mask('token art_secret123 done', ['art_secret123'])).toBe(
       'token *** done'
     );
   });
 });
 
-describe('matrix include and exclude', () => {
+describe('矩阵 include 与 exclude', () => {
   const matrixOf = (yaml: string) => {
     const wf = parseWorkflow(
       `on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n${yaml
@@ -319,7 +319,7 @@ describe('matrix include and exclude', () => {
     return wf;
   };
 
-  it('follows GitHub’s documented include example', () => {
+  it('遵循 GitHub 文档中的 include 示例', () => {
     const wf = matrixOf(`fruit: [apple, pear]
 animal: [cat, dog]
 include:
@@ -349,7 +349,7 @@ include:
     ]);
   });
 
-  it('removes excluded combinations before adding includes, matching objects partially', () => {
+  it('添加 include 前移除 exclude 组合，对对象进行部分匹配', () => {
     const wf = matrixOf(`os: [ubuntu-22.04, ubuntu-24.04]
 node:
   - { version: 20, lts: true }
@@ -376,7 +376,7 @@ include:
     );
   });
 
-  it('runs one job per include entry when the matrix has no lists', () => {
+  it('矩阵没有列表时，为每个 include 条目运行一个作业', () => {
     const wf = matrixOf(`include:
   - target: web
   - target: worker
@@ -393,18 +393,18 @@ include:
     ['x: []', /must be a non-empty list/],
     ['x: [1, ~]', /must have a value/],
     ['include: \${{ fromJSON(needs.a.outputs.m) }}', /not supported yet/],
-  ])('rejects bad matrices (%#)', (yaml, msg) => {
+  ])('拒绝无效矩阵（%#）', (yaml, msg) => {
     expect(() => matrixOf(yaml)).toThrow(msg);
   });
 
-  it('refuses a matrix that exclude empties', () => {
+  it('拒绝经 exclude 后为空的矩阵', () => {
     const wf = matrixOf('x: [1]\nexclude:\n  - x: 1');
     expect(() => planJobs(wf, {})).toThrow(/exclude leaves no jobs/);
   });
 });
 
-describe('workflow commands in logs', () => {
-  it('masks add-mask values, keeps groups as headings and drops debug lines', () => {
+describe('日志中的工作流命令', () => {
+  it('对 add-mask 值脱敏，将分组保留为标题，并移除调试行', () => {
     const out = workflowCommands(
       [
         '::add-mask::hunter22',

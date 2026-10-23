@@ -78,8 +78,8 @@ async function reviewed(
   return { t, admin, repo, shas, ...pull };
 }
 
-describe('who reviews a pull request commit', () => {
-  it('reviews nothing in a repository without invited agents', async () => {
+describe('拉取请求提交的审查者选择', () => {
+  it('仓库未邀请智能体时不执行审查', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, SCHEMA_CHANGE);
     expect(await startReview(t)).toBeNull();
@@ -90,7 +90,7 @@ describe('who reviews a pull request commit', () => {
     ).toEqual([]);
   });
 
-  it("asks Clef once, with every agent's question, over the one-liners and never the diff", async () => {
+  it('结合所有智能体的问题仅询问 Clef 一次，提供单行摘要而非差异', async () => {
     const { t } = await reviewed([
       ['secagent', AGENT_MD({ ask: 'Auth?' })],
       ['dataagent', AGENT_MD({ ask: 'Data?' })],
@@ -107,7 +107,7 @@ describe('who reviews a pull request commit', () => {
     expect(state).not.toContain('ALTER TABLE');
   });
 
-  it("gives Clef the title on one line and the description clipped to 8 KB, as the reviewer's prompt does", async () => {
+  it('向 Clef 提供单行标题和截断至 8 KB 的描述，与审查提示词一致', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     await t.env.DB.prepare('UPDATE pull_requests SET title = ?, body = ?')
       .bind('Two\nlines', 'x'.repeat(20 * 1024))
@@ -123,7 +123,7 @@ describe('who reviews a pull request commit', () => {
     );
   });
 
-  it('requests an agent at or above its threshold and records the others as not needed', async () => {
+  it('达到或超过阈值时请求智能体审查，将其他智能体记录为无需参与', async () => {
     const { t } = await reviewed([
       ['secagent', AGENT_MD({ above: 0.5 })],
       ['dataagent', AGENT_MD({ above: 0.5 })],
@@ -144,7 +144,7 @@ describe('who reviews a pull request commit', () => {
     expect(calls.reviewed.map((r) => r.handle)).toEqual(['secagent']);
   });
 
-  it('requests every agent when Clef fails', async () => {
+  it('Clef 失败时请求所有智能体审查', async () => {
     const { t } = await reviewed([
       ['secagent', AGENT_MD({ above: 0.9 })],
       ['dataagent', AGENT_MD({ above: 0.9 })],
@@ -159,7 +159,7 @@ describe('who reviews a pull request commit', () => {
       expect(r).toMatchObject({ requested: 1, probability: null });
   });
 
-  it('requests an agent Clef gave no answer for', async () => {
+  it('Clef 未给出答复的智能体仍需审查', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD({ above: 0.9 })]]);
     const { models, calls } = agentModels({ omit: ['secagent'] });
     await runReviews(t, models);
@@ -170,7 +170,7 @@ describe('who reviews a pull request commit', () => {
     });
   });
 
-  it('fails an agent whose AGENT.md is invalid, with the parse error, without asking Clef about it', async () => {
+  it('AGENT.md 无效时以解析错误标记智能体失败，且不就该智能体询问 Clef', async () => {
     const { t } = await reviewed([
       ['secagent', AGENT_MD({ above: 1 })],
       ['dataagent', AGENT_MD()],
@@ -184,7 +184,7 @@ describe('who reviews a pull request commit', () => {
     expect(sec.error).toContain('trigger.above');
   });
 
-  it('summarizes at most 300 files and still triggers', async () => {
+  it('最多汇总 300 个文件，且仍触发审查', async () => {
     const many: Record<string, string> = {};
     for (let i = 0; i < 301; i++)
       many[`f/${String(i).padStart(3, '0')}.txt`] = `${i}\n`;
@@ -204,7 +204,7 @@ describe('who reviews a pull request commit', () => {
     });
   });
 
-  it('reuses the review when the branch returns to a reviewed commit', async () => {
+  it('分支回到已审查提交时复用审查结果', async () => {
     const { t, repo, head } = await reviewed([['secagent', AGENT_MD()]]);
     // Keep it open: an approving review would otherwise auto-merge it.
     await t.env.DB.prepare(
@@ -226,8 +226,8 @@ describe('who reviews a pull request commit', () => {
   });
 });
 
-describe("an agent's review", () => {
-  it('approves: the reviewer is approved and raises no flag', async () => {
+describe('智能体审查', () => {
+  it('批准时将审查器标记为已批准，且不产生标记', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(t, agentModels().models);
     expect((await reviewers(t))[0]).toMatchObject({
@@ -241,7 +241,7 @@ describe("an agent's review", () => {
     expect(review!.status).toBe('done');
   });
 
-  it('raises findings as flags owned by the agent, with kind, agent_sha and excerpts from the real diff', async () => {
+  it('将审查意见记录为智能体所有的标记，包含类型、agent_sha 和真实差异片段', async () => {
     const { t, shas } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(t, agentModels({ review: () => FINDINGS }).models);
     expect((await reviewers(t))[0].status).toBe('changes_requested');
@@ -263,7 +263,7 @@ describe("an agent's review", () => {
     });
   });
 
-  it('is flagged when every finding needs a person', async () => {
+  it('所有审查意见均需要人工处理时标记为待处理', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(
       t,
@@ -274,7 +274,7 @@ describe("an agent's review", () => {
     expect((await reviewers(t))[0].status).toBe('flagged');
   });
 
-  it('writes no findings for a reviewer cancelled mid-review', async () => {
+  it('审查器在审查中被取消时不写入审查意见', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(
       t,
@@ -294,7 +294,7 @@ describe("an agent's review", () => {
     expect(await flags(t)).toEqual([]);
   });
 
-  it('reads its AGENT.md body and knowledge at its commit, with the one-liners and the diff', async () => {
+  it('读取智能体指定提交中的 AGENT.md 正文和知识，以及单行摘要和差异', async () => {
     const { t, admin, repo } = await appRepo();
     const { sha } = await invitedAgent(
       t,
@@ -327,7 +327,7 @@ describe("an agent's review", () => {
     expect(calls.reviewed[0].language).toBeUndefined();
   });
 
-  it('writes in the language a site admin chose for the agent', async () => {
+  it('使用站点管理员为智能体选择的语言撰写', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(
       t,
@@ -351,7 +351,7 @@ describe("an agent's review", () => {
     });
   });
 
-  it('reviews at the agent commit the trigger pinned, even if the agent moves mid-review', async () => {
+  it('即使智能体在审查中更新，也使用触发时固定的智能体提交', async () => {
     const { t, shas } = await reviewed([['secagent', AGENT_MD()]]);
     const agent = t.fake.repos.get(
       (await t.env.DB.prepare(
@@ -375,7 +375,7 @@ describe("an agent's review", () => {
     expect((await reviewers(t))[0].agent_sha).toBe(shas.secagent);
   });
 
-  it("reviews its own repository's pull requests with its default-branch instructions", async () => {
+  it('使用默认分支指令审查智能体自身仓库的拉取请求', async () => {
     const { t, admin } = await appRepo();
     const { repo: own, sha } = await invitedAgent(
       t,
@@ -407,7 +407,7 @@ describe("an agent's review", () => {
     });
   });
 
-  it('leaves the reviewer failed when the review model keeps failing', async () => {
+  it('审查模型持续失败时，保持审查器失败状态', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(t, agentModels({ failReview: ['secagent'] }).models);
     expect((await reviewers(t))[0]).toMatchObject({
@@ -417,8 +417,8 @@ describe("an agent's review", () => {
   });
 });
 
-describe('agent runs name the agent', () => {
-  it('names review steps after the agent and sums up their decisions', () => {
+describe('智能体运行显示智能体名称', () => {
+  it('以智能体命名审查步骤，并汇总其决定', () => {
     const none = new Map<string, number>();
     expect(stepDisplayName('review:secagent', none)).toBe(
       'Review by @secagent'
@@ -537,7 +537,7 @@ describe('agent runs name the agent', () => {
   });
 });
 
-describe('a review that cannot finish', () => {
+describe('无法完成的审查', () => {
   const reviewRow = (t: TestEnv) =>
     t.env.DB.prepare(
       'SELECT status, error_message AS error FROM pr_classifications'
@@ -550,7 +550,7 @@ describe('a review that cannot finish', () => {
         r.id.includes(`-${head.slice(0, 12)}-`)
     );
 
-  it('still starts stacking when reading the changes fails', async () => {
+  it('读取变更失败时仍启动堆叠分析', async () => {
     const { t, repo, head } = await reviewed([['secagent', AGENT_MD()]]);
     repo.parseTree = () => {
       throw new Error('tree unreadable');
@@ -563,7 +563,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, head)).toBe(true);
   });
 
-  it('still starts stacking when the review Workflow cannot be created', async () => {
+  it('无法创建审查 Workflow 时仍启动堆叠分析', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await openPull(t, admin, repo, SCHEMA_CHANGE);
@@ -590,7 +590,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, next)).toBe(true);
   });
 
-  it('fails when the pull request cannot be read', async () => {
+  it('无法读取拉取请求时报告失败', async () => {
     const { t, repo } = await reviewed([['secagent', AGENT_MD()]]);
     t.fake.repos.delete(repo.name);
     await runReviews(t, agentModels().models);
@@ -600,7 +600,7 @@ describe('a review that cannot finish', () => {
     });
   });
 
-  it('fails, instead of staying in progress, when a later step throws', async () => {
+  it('后续步骤抛出异常时标记失败，避免停留在进行中', async () => {
     const { t, head } = await reviewed([['secagent', AGENT_MD()]]);
     const review = await startReview(t);
     const db = drizzle(t.env.DB, { schema });
@@ -622,7 +622,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, head)).toBe(true);
   });
 
-  it('fails with a clear message when too many files changed', async () => {
+  it('变更文件过多时报告明确的失败信息', async () => {
     const many: Record<string, string> = {};
     for (let i = 0; i <= MAX_REVIEW_FILES; i++) many[`f/${i}.txt`] = `${i}\n`;
     const { t, head } = await reviewed([['secagent', AGENT_MD()]], many);
@@ -637,7 +637,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, head)).toBe(true);
   }, 60_000);
 
-  it('fails, and still starts stacking, when the load step itself fails', async () => {
+  it('加载步骤本身失败时报告失败，且仍启动堆叠分析', async () => {
     const { t, head } = await reviewed([['secagent', AGENT_MD()]]);
     const review = await startReview(t);
     const db = drizzle(t.env.DB, { schema });
@@ -659,7 +659,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, head)).toBe(true);
   });
 
-  it('fails with a clear message when the paths not summarized are too long to carry', async () => {
+  it('未汇总路径过长而无法携带时，报告明确的失败信息', async () => {
     // 830 files, each path ~1 KB: under MAX_REVIEW_FILES, but the 530 beyond the first 300 are > 512 KB of paths.
     const dir = ['a', 'b', 'c', 'd', 'e'].map((c) => c.repeat(200)).join('/');
     const many: Record<string, string> = {};
@@ -675,7 +675,7 @@ describe('a review that cannot finish', () => {
     expect(stackStartedFor(t, head)).toBe(true);
   }, 60_000);
 
-  it("fails an agent's review with what went wrong when it isn't the model", async () => {
+  it('非模型原因导致智能体审查失败时，记录具体原因', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     const { models } = agentModels({
       onTrigger: async () => {
@@ -692,7 +692,7 @@ describe('a review that cannot finish', () => {
     });
   });
 
-  it('a replayed review step returns the outcome already recorded', async () => {
+  it('审查步骤重放时返回已记录的结果', async () => {
     const { t } = await reviewed([['secagent', AGENT_MD()]]);
     const { models } = agentModels({ review: () => FINDINGS });
     await runReviews(t, models);
@@ -753,8 +753,8 @@ const view = async (
     await call(t, '/api/repos/octocat/app/pulls/1', { cookie })
   ).json()) as View;
 
-describe('the pull request page', () => {
-  it('shows each agent with its status, probability, commit and findings, and the verdict', async () => {
+describe('拉取请求页面', () => {
+  it('显示每个智能体的状态、概率、提交和审查意见，以及最终结论', async () => {
     const { t, admin, shas } = await reviewed([
       ['secagent', AGENT_MD()],
       ['docsagent', AGENT_MD()],
@@ -794,7 +794,7 @@ describe('the pull request page', () => {
     expect(review.autoMerge.state).toBe('waiting');
   });
 
-  it('needs merge permission to approve a finding or request changes on one', async () => {
+  it('批准审查意见或要求修改时需要合并权限', async () => {
     const { t, admin } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(t, agentModels({ review: () => FINDINGS }).models);
     const [person, change] = (await view(t, admin)).review.reviewers[0].flags;
@@ -819,7 +819,7 @@ describe('the pull request page', () => {
     for (const f of review.reviewers[0].flags) expect(f.approvedAt).toBeNull();
   });
 
-  it('dismisses a change request, and refuses to request changes on one', async () => {
+  it('驳回修改请求，且不允许对该请求再次要求修改', async () => {
     const { t, admin } = await reviewed([['secagent', AGENT_MD()]]);
     await runReviews(t, agentModels({ review: () => FINDINGS }).models);
     const change = (await view(t, admin)).review.reviewers[0].flags[1];
@@ -842,7 +842,7 @@ describe('the pull request page', () => {
     ]);
   });
 
-  it('starts the review of a head that has none when the page is viewed', async () => {
+  it('查看页面时，为尚未审查的头提交启动审查', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, SCHEMA_CHANGE);
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
@@ -856,8 +856,8 @@ describe('the pull request page', () => {
   });
 });
 
-describe('when reviews start', () => {
-  it('starts when a pull request opens, and for each new head a push brings', async () => {
+describe('审查启动时机', () => {
+  it('拉取请求创建时及每次推送带来新头提交时启动', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await openPull(t, admin, repo, SCHEMA_CHANGE);
@@ -882,7 +882,7 @@ describe('when reviews start', () => {
     expect(started()).toBe(2);
   });
 
-  it('the sweep still starts discovery when starting a review fails', async () => {
+  it('启动审查失败时，扫描仍启动关系发现', async () => {
     const { t, admin, repo } = await appRepo();
     await openPull(t, admin, repo, SCHEMA_CHANGE);
     const next = await commitPaths(
@@ -920,7 +920,7 @@ describe('when reviews start', () => {
     ).toBe(true);
   });
 
-  it("keeps lockfiles and .orangeignore matches out of the summaries and the agent's diff", async () => {
+  it('从摘要和智能体差异中排除锁文件与 .orangeignore 匹配项', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await openPull(
@@ -939,7 +939,7 @@ describe('when reviews start', () => {
     );
   });
 
-  it(".orangeignore comes from the land target: a pull request can't hide its own files", async () => {
+  it('从合并目标读取 .orangeignore，避免拉取请求隐藏自身文件', async () => {
     const { t, admin, repo } = await appRepo();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
     await openPull(

@@ -82,8 +82,8 @@ type Batch = {
   }[];
 };
 
-describe('Git LFS batch API', () => {
-  it('challenges unauthenticated clients with a JSON body', async () => {
+describe('Git LFS 批量 API', () => {
+  it('以 JSON 正文向未认证客户端发起认证质询', async () => {
     const { t } = await setup();
     const res = await lfs(t, '/objects/batch', {
       json: { operation: 'download', objects: [] },
@@ -95,7 +95,7 @@ describe('Git LFS batch API', () => {
     );
   });
 
-  it('hands out a pre-signed, checksum-bound upload URL plus a verify action', async () => {
+  it('提供绑定校验和的预签名上传 URL 及验证动作', async () => {
     const { t, token, repoId } = await setup();
     const f = await blob('big binary file');
     const res = await lfs(t, '/objects/batch', {
@@ -127,7 +127,7 @@ describe('Git LFS batch API', () => {
     expect(verify.href).toBe(`http://test.local${PATH}/objects/verify`);
   });
 
-  it('records an object only once verify confirms it is in storage', async () => {
+  it('仅在验证确认证明对象已存储后记录对象', async () => {
     const { t, token, repoId } = await setup();
     const f = await blob('hello lfs');
     const verify = () =>
@@ -159,7 +159,7 @@ describe('Git LFS batch API', () => {
     );
   });
 
-  it('rejects verify when the stored object does not match the declared size', async () => {
+  it('存储对象大小与声明不符时拒绝验证', async () => {
     const { t, token, repoId } = await setup();
     const f = await blob('size matters');
     await t.env.LFS.put(`lfs/${repoId}/${f.oid}`, f.content);
@@ -170,7 +170,7 @@ describe('Git LFS batch API', () => {
     expect(res.status).toBe(422);
   });
 
-  it('reports missing and malformed objects per object', async () => {
+  it('逐对象报告缺失或格式错误的对象', async () => {
     const { t, token } = await setup();
     const f = await blob('never uploaded');
     const res = await lfs(t, '/objects/batch', {
@@ -187,7 +187,7 @@ describe('Git LFS batch API', () => {
     expect(body.objects.map((o) => o.error?.code)).toEqual([404, 422]);
   });
 
-  it('lets any member download but only writers upload', async () => {
+  it('允许所有成员下载，但仅写入者可上传', async () => {
     const { t, admin, repoId } = await setup();
     const bob = await pat(t, await addMember(t, admin, 'bob'));
     const f = await blob('shared asset');
@@ -217,7 +217,7 @@ describe('Git LFS batch API', () => {
     expect(down.objects[0].actions?.download).toBeDefined();
   });
 
-  it('says LFS is not configured when the R2 secrets are missing', async () => {
+  it('缺少 R2 密钥时说明 LFS 未配置', async () => {
     const { t, token } = await setup();
     const res = await lfs(t, '/objects/batch', {
       token,
@@ -230,7 +230,7 @@ describe('Git LFS batch API', () => {
     );
   });
 
-  it('reports no locks and declines to create one', async () => {
+  it('报告没有锁，并拒绝创建锁', async () => {
     const { t, token } = await setup();
     expect(await (await lfs(t, '/locks', { token })).json()).toEqual({
       locks: [],
@@ -244,8 +244,8 @@ describe('Git LFS batch API', () => {
   });
 });
 
-describe('Git LFS in the web UI', () => {
-  it('detects pointer files, redirects downloads to R2, and deletes objects with the repository', async () => {
+describe('网页界面中的 Git LFS', () => {
+  it('识别指针文件，将下载重定向至 R2，并在删除仓库时删除对象', async () => {
     const { t, admin, token, repoId } = await setup();
     const f = await blob('PNG bytes');
     const repo = [...t.fake.repos.values()][0];
@@ -328,7 +328,7 @@ describe('Git LFS in the web UI', () => {
     expect(await t.env.LFS.head(`lfs/${repoId}/${f.oid}`)).toBeNull();
   });
 
-  it('serves an LFS-stored SVG from R2 as an image', async () => {
+  it('将 LFS 存储的 SVG 从 R2 作为图片提供', async () => {
     const { t, admin, token, repoId } = await setup();
     const f = await blob('<svg xmlns="http://www.w3.org/2000/svg"/>');
     const repo = [...t.fake.repos.values()][0];

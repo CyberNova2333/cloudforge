@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 import {
@@ -7,15 +8,15 @@ import {
   protectedBy,
 } from '../lib/protected-branches';
 
-describe('protected branch patterns', () => {
-  it('matches exact names only exactly', () => {
+describe('受保护分支匹配模式', () => {
+  it('精确名称仅匹配完全相同的分支名', () => {
     expect(branchMatches('develop', 'develop')).toBe(true);
     expect(branchMatches('develop', 'develop2')).toBe(false);
     expect(branchMatches('develop', 'feature/develop')).toBe(false);
     expect(branchMatches('release/1.2', 'release/1x2')).toBe(false);
   });
 
-  it('* matches within one path segment', () => {
+  it('* 仅匹配单个路径段内的内容', () => {
     expect(branchMatches('release/*', 'release/1.2')).toBe(true);
     expect(branchMatches('release/*', 'release/')).toBe(true);
     expect(branchMatches('release/*', 'release/1/hotfix')).toBe(false);
@@ -27,7 +28,7 @@ describe('protected branch patterns', () => {
     expect(branchMatches('*/stable', 'team/stable')).toBe(true);
   });
 
-  it('** matches across segments', () => {
+  it('** 可跨路径段匹配', () => {
     expect(branchMatches('hotfix/**', 'hotfix/a')).toBe(true);
     expect(branchMatches('hotfix/**', 'hotfix/a/b/c')).toBe(true);
     expect(branchMatches('hotfix/**', 'hotfixes/a')).toBe(false);
@@ -39,14 +40,14 @@ describe('protected branch patterns', () => {
     expect(branchMatches('**', 'any/thing')).toBe(true);
   });
 
-  it('treats regular expression characters literally', () => {
+  it('将正则表达式特殊字符按字面处理', () => {
     expect(branchMatches('v1.0', 'v1x0')).toBe(false);
     expect(branchMatches('v1.0+(x)', 'v1.0+(x)')).toBe(true);
     expect(branchMatches('rel.*', 'rel.5')).toBe(true);
     expect(branchMatches('rel.*', 'relx5')).toBe(false);
   });
 
-  it('finds the first pattern a branch matches', () => {
+  it('找到分支匹配的第一个模式', () => {
     expect(protectedBy(['develop', 'release/*'], 'release/9')).toBe(
       'release/*'
     );
@@ -54,7 +55,7 @@ describe('protected branch patterns', () => {
     expect(protectedBy(null, 'develop')).toBeNull();
   });
 
-  it('validates and normalizes a list', () => {
+  it('校验并规范化模式列表', () => {
     expect(invalidProtectedPatterns(['release/*', 'develop'])).toBeNull();
     expect(invalidProtectedPatterns([''])).toMatch(/empty/);
     expect(invalidProtectedPatterns(['a b'])).toMatch(/whitespace/);
@@ -84,8 +85,8 @@ const patch = (
   json: unknown
 ) => call(t, '/api/repos/octocat/app', { cookie, method: 'PATCH', json });
 
-describe('protected branches in repository settings', () => {
-  it('starts empty, and a repository admin sets, replaces and clears the list', async () => {
+describe('仓库设置中的受保护分支', () => {
+  it('初始列表为空，仓库管理员可以设置、替换和清空', async () => {
     const { t, admin } = await withRepo();
     const repo = async () =>
       (await (
@@ -118,7 +119,7 @@ describe('protected branches in repository settings', () => {
     expect((await repo()).protectedBranches).toEqual([]);
   });
 
-  it('is for repository admins only', async () => {
+  it('仅允许仓库管理员操作', async () => {
     const { t, admin } = await withRepo();
     const ada = await addMember(t, admin, 'ada');
     const res = await patch(t, ada, { protectedBranches: ['develop'] });
@@ -133,7 +134,7 @@ describe('protected branches in repository settings', () => {
     ).toBe(403);
   });
 
-  it('rejects invalid patterns and keeps the old list', async () => {
+  it('拒绝无效模式并保留原列表', async () => {
     const { t, admin } = await withRepo();
     await patch(t, admin, { protectedBranches: ['develop'] });
     for (const protectedBranches of [

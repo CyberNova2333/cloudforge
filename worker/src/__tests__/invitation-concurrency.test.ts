@@ -25,8 +25,8 @@ async function invitation(role: 'admin' | 'user' = 'user') {
   return { t, admin, id: invitation.id, token, json };
 }
 
-describe('invitation redemption races', () => {
-  it('rejects expiry exactly at the current time without consuming the invitation', async () => {
+describe('邀请兑换竞争', () => {
+  it('过期时间恰好为当前时间时拒绝，且不消耗邀请', async () => {
     const s = await invitation();
     const now = Math.floor(Date.now() / 1000) * 1000;
     await s.t.env.DB.prepare(
@@ -60,7 +60,7 @@ describe('invitation redemption races', () => {
     }
   });
 
-  it('denies invitation management to anonymous, ordinary, and banned admin callers', async () => {
+  it('拒绝匿名用户、普通用户及被封禁管理员管理邀请', async () => {
     const s = await invitation();
     const member = await addMember(s.t, s.admin, 'member');
     await s.t.env.DB.prepare(
@@ -97,7 +97,7 @@ describe('invitation redemption races', () => {
     ).toBeNull();
   });
 
-  it('fails closed if releasing a definitively failed claim also fails', async () => {
+  it('释放明确失败的认领也失败时，保持拒绝状态', async () => {
     const s = await invitation();
     await s.t.env.DB.prepare(
       `CREATE TRIGGER fail_invited_creation BEFORE INSERT ON users
@@ -130,7 +130,7 @@ describe('invitation redemption races', () => {
     ).toBe(400);
   });
 
-  it('allows exactly one of two accepts that both read the same valid invitation', async () => {
+  it('两次接受请求均读取到同一有效邀请时，仅允许其中一次成功', async () => {
     const s = await invitation('admin');
     const original = namespaces.namespaceTaken;
     let arrivals = 0;
@@ -180,7 +180,7 @@ describe('invitation redemption races', () => {
   });
 
   it.each(['admin', 'user'] as const)(
-    'grants only the stored %s role and email',
+    '仅授予存储的 %s 角色和邮箱',
     async (role) => {
       const s = await invitation(role);
       expect(
@@ -206,7 +206,7 @@ describe('invitation redemption races', () => {
   );
 
   it.each([false, true])(
-    'does not recreate an invitation revoked after its claim (creation fails: %s)',
+    '认领后邀请被撤销时，不重新创建邀请（创建失败：%s）',
     async (fails) => {
       const s = await invitation('admin');
       if (fails)
@@ -265,7 +265,7 @@ describe('invitation redemption races', () => {
     }
   );
 
-  it('does not replace, elevate, or unban an account created after the invitation was issued', async () => {
+  it('不替换、提权或解禁在邀请发出后创建的账户', async () => {
     const s = await invitation('admin');
     await addMember(s.t, s.admin, 'invited');
     await s.t.env.DB.prepare('UPDATE users SET banned = 1 WHERE email = ?')
@@ -291,7 +291,7 @@ describe('invitation redemption races', () => {
     expect((await call(s.t, `/api/invites/token/${s.token}`)).status).toBe(404);
   });
 
-  it('keeps the invitation consumed if credential creation fails after the user was inserted', async () => {
+  it('插入用户后凭据创建失败时，保持邀请已消耗', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const created = await call(t, '/api/invites', {
@@ -350,7 +350,7 @@ describe('invitation redemption races', () => {
     ).toHaveLength(0);
   });
 
-  it('allows retry after a definite account creation failure without creating two accounts', async () => {
+  it('明确的账户创建失败后允许重试，且不创建两个账户', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const created = await call(t, '/api/invites', {
@@ -387,66 +387,63 @@ describe('invitation redemption races', () => {
     'role-changed',
     'email-changed',
     'token-changed',
-  ])(
-    'refuses an invitation %s after the initial token lookup',
-    async (change) => {
-      const t = makeEnv();
-      const admin = await bootstrapAdmin(t);
-      const created = await call(t, '/api/invites', {
-        cookie: admin,
-        json: { email: 'invited@example.com', role: 'admin' },
+  ])('初次令牌查询后邀请发生 %s 时拒绝', async (change) => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const created = await call(t, '/api/invites', {
+      cookie: admin,
+      json: { email: 'invited@example.com', role: 'admin' },
+    });
+    const { invitation, inviteUrl } = (await created.json()) as {
+      invitation: { id: string };
+      inviteUrl: string;
+    };
+    const original = namespaces.namespaceTaken;
+    const gate = vi
+      .spyOn(namespaces, 'namespaceTaken')
+      .mockImplementationOnce(async (...args) => {
+        if (change === 'revoked') {
+          expect(
+            (
+              await call(t, `/api/invites/manage/${invitation.id}`, {
+                cookie: admin,
+                method: 'DELETE',
+              })
+            ).status
+          ).toBe(200);
+        } else {
+          const updates: Record<string, string> = {
+            expired: 'expires_at = 1',
+            consumed: 'accepted_at = 1',
+            'role-changed': "role = 'user'",
+            'email-changed': "email = 'changed@example.com'",
+            'token-changed': "token_hash = 'changed-token-hash'",
+          };
+          await t.env.DB.prepare(
+            `UPDATE invitations SET ${updates[change]} WHERE id = ?`
+          )
+            .bind(invitation.id)
+            .run();
+        }
+        return original(...args);
       });
-      const { invitation, inviteUrl } = (await created.json()) as {
-        invitation: { id: string };
-        inviteUrl: string;
-      };
-      const original = namespaces.namespaceTaken;
-      const gate = vi
-        .spyOn(namespaces, 'namespaceTaken')
-        .mockImplementationOnce(async (...args) => {
-          if (change === 'revoked') {
-            expect(
-              (
-                await call(t, `/api/invites/manage/${invitation.id}`, {
-                  cookie: admin,
-                  method: 'DELETE',
-                })
-              ).status
-            ).toBe(200);
-          } else {
-            const updates: Record<string, string> = {
-              expired: 'expires_at = 1',
-              consumed: 'accepted_at = 1',
-              'role-changed': "role = 'user'",
-              'email-changed': "email = 'changed@example.com'",
-              'token-changed': "token_hash = 'changed-token-hash'",
-            };
-            await t.env.DB.prepare(
-              `UPDATE invitations SET ${updates[change]} WHERE id = ?`
-            )
-              .bind(invitation.id)
-              .run();
-          }
-          return original(...args);
-        });
-      try {
-        const res = await call(t, '/api/invites/accept', {
-          json: {
-            token: inviteUrl.split('/invite/')[1],
-            name: 'Invited',
-            username: 'invited',
-            password: 'password123',
-          },
-        });
-        expect(res.status).toBe(400);
-        expect(
-          await t.env.DB.prepare('SELECT id FROM users WHERE email = ?')
-            .bind('invited@example.com')
-            .first()
-        ).toBeNull();
-      } finally {
-        gate.mockRestore();
-      }
+    try {
+      const res = await call(t, '/api/invites/accept', {
+        json: {
+          token: inviteUrl.split('/invite/')[1],
+          name: 'Invited',
+          username: 'invited',
+          password: 'password123',
+        },
+      });
+      expect(res.status).toBe(400);
+      expect(
+        await t.env.DB.prepare('SELECT id FROM users WHERE email = ?')
+          .bind('invited@example.com')
+          .first()
+      ).toBeNull();
+    } finally {
+      gate.mockRestore();
     }
-  );
+  });
 });

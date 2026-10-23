@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { handleGitRequest } from '../git-http';
 import {
@@ -46,8 +47,8 @@ async function setup() {
   return { t, admin };
 }
 
-describe('git smart-HTTP proxy', () => {
-  it('challenges for credentials when none are sent', async () => {
+describe('Git smart-HTTP 代理', () => {
+  it('未提供凭据时发起认证质询', async () => {
     const { t } = await setup();
     const res = await git(
       t,
@@ -57,7 +58,7 @@ describe('git smart-HTTP proxy', () => {
     expect(res.headers.get('WWW-Authenticate')).toContain('Basic');
   });
 
-  it('rejects an unknown token', async () => {
+  it('拒绝未知令牌', async () => {
     const { t } = await setup();
     const res = await git(
       t,
@@ -67,7 +68,7 @@ describe('git smart-HTTP proxy', () => {
     expect(res.status).toBe(401);
   });
 
-  it('serves the ref advertisement to any member with a valid token', async () => {
+  it('向所有持有效令牌的成员提供引用公告', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     const res = await git(
@@ -79,7 +80,7 @@ describe('git smart-HTTP proxy', () => {
     expect(await res.text()).toContain('refs/heads/main');
   });
 
-  it('returns 404 for a repo that does not exist', async () => {
+  it('仓库不存在时返回 404', async () => {
     const { t, admin } = await setup();
     const res = await git(
       t,
@@ -89,7 +90,7 @@ describe('git smart-HTTP proxy', () => {
     expect(res.status).toBe(404);
   });
 
-  it('denies push to members who are not collaborators', async () => {
+  it('拒绝非协作者成员推送', async () => {
     const { t, admin } = await setup();
     const bob = await addMember(t, admin, 'bob');
     const token = await pat(t, bob);
@@ -121,7 +122,7 @@ describe('git smart-HTTP proxy', () => {
     ).toBe(200);
   });
 
-  it('rejects expired tokens', async () => {
+  it('拒绝过期令牌', async () => {
     const { t, admin } = await setup();
     const token = await pat(t, admin);
     await t.env.DB.prepare(
@@ -138,7 +139,7 @@ describe('git smart-HTTP proxy', () => {
     ).toBe(401);
   });
 
-  it('only allows GET for the ref advertisement and POST for pack exchanges', async () => {
+  it('引用公告仅允许 GET，pack 交换仅允许 POST', async () => {
     const { t, admin } = await setup();
     const token = await pat(t, admin);
     expect(

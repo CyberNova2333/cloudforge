@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 // Stacking: discovery, the stack API, and must-account-for re-checks. Fixtures: helpers/stacking.ts.
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
@@ -31,8 +32,8 @@ import {
   MUST,
 } from './helpers/stacking';
 
-describe('stacking discovery', () => {
-  it('finds that #2 must account for #1 (the #28/#29 case)', async () => {
+describe('发现堆叠关系', () => {
+  it('发现 #2 必须处理 #1 的变更（#28/#29 场景）', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -59,7 +60,7 @@ describe('stacking discovery', () => {
     expect(calls.related.at(-1)!.a.diffs).toContain('export const checks');
   });
 
-  it('treats a textual conflict as related even when Clef says unrelated', async () => {
+  it('即使 Clef 判断无关，也将文本冲突视为相关', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = stackModels();
     await open('one', { 'notes.txt': 'one\nTWO\nthree\n' }, 'One');
@@ -80,7 +81,7 @@ describe('stacking discovery', () => {
     instructions: null,
   };
 
-  it('keeps Clef’s confident decision; the reasoning model only writes the reason', async () => {
+  it('保留 Clef 的高置信度决策，推理模型只撰写理由', async () => {
     const sure = await repoWithAgent();
     const confident = stackModels({
       related: () => true,
@@ -99,7 +100,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('lets the reasoning model decide only when Clef is unsure', async () => {
+  it('仅在 Clef 不确定时交由推理模型决策', async () => {
     const unsure = await repoWithAgent();
     const hesitant = stackModels({
       related: () => true,
@@ -116,7 +117,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('records unrelated pairs as independent without a deep dive', async () => {
+  it('将无关请求对记录为独立，不进行深入分析', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = stackModels();
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -128,7 +129,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('re-checks a pair only when a head moves', async () => {
+  it('仅在分支头变化时重新检查请求对', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels();
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -155,7 +156,7 @@ describe('stacking discovery', () => {
     expect(calls.triaged.length).toBe(before + 1);
   });
 
-  it('never lets a stale run overwrite a pair a newer run re-claimed', async () => {
+  it('不允许旧运行覆盖被新运行重新认领的请求对', async () => {
     const { t, open } = await repoWithAgent();
     const db = drizzle(t.env.DB, { schema });
     const newer = 'f'.repeat(40);
@@ -195,7 +196,7 @@ describe('stacking discovery', () => {
     });
   });
 
-  it('marks a pair failed when a model fails, and never blocks others', async () => {
+  it('模型失败时将请求对标记为失败，不阻塞其他请求对', async () => {
     const { t, open } = await repoWithAgent();
     const { models } = stackModels({ failTriage: true });
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -204,7 +205,7 @@ describe('stacking discovery', () => {
     expect(await edges(t)).toMatchObject([{ a: 1, b: 2, stage: 'failed' }]);
   });
 
-  it('finds a dependency on a PR that already landed', async () => {
+  it('发现对已合入拉取请求的依赖', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -229,7 +230,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('loads with a retry budget that outlasts a several-minute Artifacts outage', async () => {
+  it('加载重试预算能够覆盖持续数分钟的 Artifacts 故障', async () => {
     const { t, open } = await repoWithAgent();
     const db = drizzle(t.env.DB, { schema });
     const { models } = stackModels();
@@ -260,7 +261,7 @@ describe('stacking discovery', () => {
     expect(total).toBeGreaterThan(15 * 60);
   });
 
-  it('never lets a run that loaded before a landing undo the landed orientation', async () => {
+  it('不允许合入前加载的运行撤销已合入关系的方向', async () => {
     const { t, open } = await repoWithAgent();
     const db = drizzle(t.env.DB, { schema });
     const { models } = stackModels();
@@ -295,7 +296,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('keeps one row per pair when the higher-numbered PR lands first', async () => {
+  it('编号较大的拉取请求先合入时，每对请求仍只保留一行', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -317,7 +318,7 @@ describe('stacking discovery', () => {
     expect(await edges(t)).toHaveLength(1);
   });
 
-  it('keeps each side small enough for a Workflow step result', async () => {
+  it('将每侧内容限制在工作流步骤结果允许的大小内', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = stackModels();
     const many: Record<string, string> = {};
@@ -358,7 +359,7 @@ describe('stacking discovery', () => {
     ]);
   });
 
-  it('skips closed PRs and missing branches', async () => {
+  it('跳过已关闭请求和已删除分支', async () => {
     const { t, admin, open, repo } = await repoWithAgent();
     const { models, calls } = stackModels();
     await open('one', { 'a.txt': 'a\n' }, 'One');
@@ -375,7 +376,7 @@ describe('stacking discovery', () => {
     expect(await edges(t)).toEqual([]);
   });
 
-  it('caps triage at max_open, newest first, but still checks pairs that share a file', async () => {
+  it('按从新到旧顺序将初筛限制在 max_open，仍检查存在共同文件的请求对', async () => {
     const { t, open } = await repoWithAgent();
     const { models, calls } = stackModels();
     await open('p1', { 'shared.txt': 'one\n' }, 'P1');
@@ -391,7 +392,7 @@ describe('stacking discovery', () => {
     );
   });
 
-  it('runs without an agent, on paths, from the PR opens', async () => {
+  it('未邀请代理时，也在拉取请求创建后依据路径分析', async () => {
     const { t, open } = await repoWithAgent(false);
     const { models, calls } = stackModels({
       related: () => true,
@@ -417,8 +418,8 @@ describe('stacking discovery', () => {
   });
 });
 
-describe('stack API', () => {
-  it('serves the tree and each PR’s place in it', async () => {
+describe('堆叠 API', () => {
+  it('提供依赖树及每个拉取请求在树中的位置', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -451,7 +452,7 @@ describe('stack API', () => {
     expect(detail.stack.parent.number).toBe(1);
   });
 
-  it('does not count a closed, unmerged PR as landed', async () => {
+  it('不将已关闭但未合入的请求视为已合入', async () => {
     const { t, admin, open } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -484,7 +485,7 @@ describe('stack API', () => {
     expect(two.mustAccountFor).toEqual([]);
   });
 
-  it('serves the tree for a repository without an agent', async () => {
+  it('为没有代理的仓库提供依赖树', async () => {
     const { t, admin, open } = await repoWithAgent(false);
     await open('one', { 'a.txt': 'a\n' }, 'One');
     const res = await call(t, '/api/repos/octocat/app/pulls/tree', {
@@ -499,7 +500,7 @@ describe('stack API', () => {
     expect(detail.stack).toMatchObject({ number: 1, parent: null });
   });
 
-  it('serves a PR with more pairs than D1 binds in one statement', async () => {
+  it('支持关系对数量超过 D1 单语句绑定限制的拉取请求', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     const pr = (await t.env.DB.prepare(
@@ -581,7 +582,7 @@ describe('stack API', () => {
     ).toHaveLength(N);
   });
 
-  it('is empty when no pull request is open', async () => {
+  it('没有打开的拉取请求时返回空树', async () => {
     const { t, admin } = await repoWithAgent(false);
     const res = await call(t, '/api/repos/octocat/app/pulls/tree', {
       cookie: admin,
@@ -589,7 +590,7 @@ describe('stack API', () => {
     expect(await res.json()).toEqual({ targets: [] });
   });
 
-  it('reports pairs still being checked instead of calling a PR independent', async () => {
+  it('报告仍在检查的请求对，而不是将请求标为独立', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -614,7 +615,7 @@ describe('stack API', () => {
     expect(await detail(2)).toMatchObject({ checking: false, pending: [1] });
   });
 
-  it('hides a private repository’s tree from non-collaborators', async () => {
+  it('向非协作者隐藏私有仓库的依赖树', async () => {
     const { t, admin } = await repoWithAgent();
     const bob = await addMember(t, admin, 'bob');
     const res = await call(t, '/api/repos/octocat/app/pulls/tree', {
@@ -623,7 +624,7 @@ describe('stack API', () => {
     expect(res.status).toBe(404);
   });
 
-  it('refuses to retry when AI is not configured, and deletes nothing', async () => {
+  it('未配置 AI 时拒绝重试，且不删除任何内容', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -640,7 +641,7 @@ describe('stack API', () => {
     expect(t.actions.resolutions.length).toBe(before);
   });
 
-  it('re-arms a pair whose run died mid-check, once it is stale', async () => {
+  it('检查运行中途终止后，待其过期再重新启用请求对', async () => {
     const { t, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -672,7 +673,7 @@ describe('stack API', () => {
     ]);
   });
 
-  it('Retry resets a pair stuck mid-check', async () => {
+  it('重试会重置检查中卡住的请求对', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -688,7 +689,7 @@ describe('stack API', () => {
     expect(await edges(t)).toEqual([]);
   });
 
-  it('retries failed pairs', async () => {
+  it('重试失败的请求对', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -704,7 +705,7 @@ describe('stack API', () => {
       { stage: 'done', kind: 'independent' },
     ]);
   });
-  it('leaves order rows alone and never reads them as pair verdicts', async () => {
+  it('保留排序记录，且不将其视为请求对关系判定', async () => {
     const { t, admin, open } = await repoWithAgent();
     await open('one', { 'a.txt': 'a\n' }, 'One');
     await open('two', { 'b.txt': 'b\n' }, 'Two');
@@ -790,7 +791,7 @@ describe('stack API', () => {
   });
 });
 
-describe('must account for', () => {
+describe('必须处理前置变更', () => {
   const HAS_CHECK = {
     ...SETUP_CHECKS,
     ...USAGE,
@@ -798,7 +799,7 @@ describe('must account for', () => {
       'export const checks = [check("CF_ANALYTICS_TOKEN")];\n',
   };
 
-  it('tells the dependent what to change, then re-checks only its new head', async () => {
+  it('告诉依赖方需要修改什么，并仅复查其新分支头', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -842,7 +843,7 @@ describe('must account for', () => {
     expect((await events(t, 2)).map((e) => e.kind)).toContain('accounted_for');
   });
 
-  it('re-checks a landed prerequisite after the dependent rebases onto it, then lets it merge', async () => {
+  it('依赖方变基到已合入前置请求后重新检查，随后允许合入', async () => {
     const { t, admin, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -874,7 +875,7 @@ describe('must account for', () => {
     expect((await merge(2)).status).toBe(200);
   });
 
-  it('keeps blocking with new instructions when not accounted for', async () => {
+  it('尚未处理前置变更时继续阻塞，并给出新指令', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -892,7 +893,7 @@ describe('must account for', () => {
     ).toEqual({ at: null, instructions: 'Still add the check.' });
   });
 
-  it('keeps blocking when the re-check fails, and Retry runs it again', async () => {
+  it('复查失败时继续阻塞，重试后再次执行', async () => {
     const { t, admin, open, repo, files } = await repoWithAgent();
     let fail = true;
     const { models, calls } = stackModels({
@@ -946,7 +947,7 @@ describe('must account for', () => {
     ).not.toBeNull();
   });
 
-  it('never re-checks or announces a dismissed edge', async () => {
+  it('不复查或公布已被忽略的依赖边', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -990,7 +991,7 @@ describe('must account for', () => {
     expect(await events(t, 2)).toEqual(before);
   });
 
-  it('records nothing from a run whose claim a newer run superseded', async () => {
+  it('不记录认领权已被新运行取代的旧运行结果', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models } = stackModels({
       related: () => true,
@@ -1017,7 +1018,7 @@ describe('must account for', () => {
     ).toEqual({ at: null });
   });
 
-  it('records an event once however often its step runs', async () => {
+  it('无论步骤执行多少次，事件只记录一次', async () => {
     const { t, open } = await repoWithAgent();
     await open('setup', SETUP_CHECKS, 'Setup checks');
     const pr = (await t.env.DB.prepare(
@@ -1037,7 +1038,7 @@ describe('must account for', () => {
     ]);
   });
 
-  it('records only the re-check when an accounted-for pair is re-decided', async () => {
+  it('已处理的请求对重新判定时，只记录复查事件', async () => {
     const { t, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,
@@ -1066,7 +1067,7 @@ describe('must account for', () => {
     ]);
   });
 
-  it('Retry re-arms a re-check whose run died mid-way', async () => {
+  it('重试会重新启用中途终止的复查', async () => {
     const { t, admin, open, repo, files } = await repoWithAgent();
     const { models, calls } = stackModels({
       related: () => true,

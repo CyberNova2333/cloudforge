@@ -57,8 +57,8 @@ const setDelegations = (t: TestEnv, cookie: string, agents: string[]) =>
 const db = (t: TestEnv) => drizzle(t.env.DB, { schema });
 const after = (t: TestEnv) => (w: Promise<unknown>) => t.ctx.waitUntil(w);
 
-describe('the decider contract', () => {
-  it('reads a decision and a reason, and nothing else', () => {
+describe('决策器约定', () => {
+  it('仅读取决定和原因，不读取其他内容', () => {
     expect(DELEGATE_SCHEMA.required).toEqual(['decision', 'reason']);
     expect(
       parseDelegateAnswer('{"decision":"approve","reason":" Low risk. "}')
@@ -85,8 +85,8 @@ describe('the decider contract', () => {
   });
 });
 
-describe('Let CloudForge AI decide (GET/PUT /api/me/delegations)', () => {
-  it('lists every agent, delegates the ones you pick, and refuses a guarded one', async () => {
+describe('让 CloudForge AI 决定（GET/PUT /api/me/delegations）', () => {
+  it('列出全部智能体，委托选定项，并拒绝受保护智能体', async () => {
     const { t, admin } = await questionedPull();
     await newAgent(t, admin, 'securityagent', 'Security');
     await guard(t, 'securityagent');
@@ -145,8 +145,8 @@ describe('Let CloudForge AI decide (GET/PUT /api/me/delegations)', () => {
   });
 });
 
-describe('deciding one finding (decideFinding)', () => {
-  it('approves as the person, via CloudForge AI, and records it', async () => {
+describe('决定单条审查意见（decideFinding）', () => {
+  it('通过 CloudForge AI 以用户身份批准，并记录结果', async () => {
     const { t, person } = await questionedPull();
     const me = await userId(t);
     const decider = fakeDecider();
@@ -193,7 +193,7 @@ describe('deciding one finding (decideFinding)', () => {
     ]);
   });
 
-  it('requests changes with its reason as the note', async () => {
+  it('请求修改，并将原因作为备注', async () => {
     const { t, person } = await questionedPull();
     const me = await userId(t);
     const decider = fakeDecider(() => ({
@@ -214,7 +214,7 @@ describe('deciding one finding (decideFinding)', () => {
     });
   });
 
-  it('leaves it for the person, with a reason, when it decides to, cannot answer, fails, or has no model', async () => {
+  it('选择交给人工、无法答复、调用失败或缺少模型时，保留人工处理并附原因', async () => {
     const { t, person } = await questionedPull();
     const me = await userId(t);
     const leave = fakeDecider(() => ({
@@ -261,7 +261,7 @@ describe('deciding one finding (decideFinding)', () => {
     expect(rows.every((r) => r.data.decision === 'leave')).toBe(true);
   });
 
-  it("never decides a guarded agent's finding, a change request, or one already decided", async () => {
+  it('不决定受保护智能体的意见、修改请求或已作出决定的意见', async () => {
     const { t, admin, person, change } = await questionedPull({
       guarded: true,
     });
@@ -283,7 +283,7 @@ describe('deciding one finding (decideFinding)', () => {
     expect(decider.calls).toEqual([]);
   });
 
-  it('refuses a finding whose agent was removed from the repository or deleted', async () => {
+  it('拒绝处理所属智能体已从仓库移除或已删除的审查意见', async () => {
     const { t, person } = await questionedPull();
     const me = await userId(t);
     const decider = fakeDecider();
@@ -314,7 +314,7 @@ describe('deciding one finding (decideFinding)', () => {
     expect(await flagState(t, person.id)).toMatchObject({ approved_at: null });
   });
 
-  it('needs the person to have push rights', async () => {
+  it('要求用户具备推送权限', async () => {
     const { t, admin, person } = await questionedPull();
     await addMember(t, admin, 'bob');
     const result = await decideFinding(
@@ -328,8 +328,8 @@ describe('deciding one finding (decideFinding)', () => {
   });
 });
 
-describe('POST .../review/flags/{id}/delegate', () => {
-  it('decides one finding now through the AI binding', async () => {
+describe('POST .../review/flags/{id}/delegate 委托决策', () => {
+  it('通过 AI 绑定立即决定一条审查意见', async () => {
     const { t, admin, person } = await questionedPull();
     const inputs: unknown[] = [];
     (t.env as unknown as { AI: unknown }).AI = {
@@ -370,7 +370,7 @@ describe('POST .../review/flags/{id}/delegate', () => {
     });
   });
 
-  it('leaves the finding when there is no AI binding, and refuses a guarded one or a reader', async () => {
+  it('没有 AI 绑定时保留意见，并拒绝受保护意见或只读用户请求', async () => {
     const { t, admin, person } = await questionedPull();
     const res = await flagCall(t, admin, person.id, 'delegate');
     expect(res.status).toBe(200);
@@ -387,14 +387,14 @@ describe('POST .../review/flags/{id}/delegate', () => {
   });
 });
 
-describe('after a review finishes', () => {
+describe('审查完成之后', () => {
   const delegate =
     (handles: string[]) =>
     async ({ t, admin }: { t: TestEnv; admin: string }) => {
       expect((await setDelegations(t, admin, handles)).status).toBe(200);
     };
 
-  it("decides a delegated agent's findings on the delegating person's pull request", async () => {
+  it('在委托者的拉取请求中决定已委托智能体的审查意见', async () => {
     const decider = fakeDecider();
     const { t, admin, person, change } = await questionedPull({
       beforeReview: delegate(['dataagent']),
@@ -442,14 +442,14 @@ describe('after a review finishes', () => {
     });
   });
 
-  it("leaves a finding alone when its agent isn't delegated", async () => {
+  it('智能体未被委托时不处理其审查意见', async () => {
     const decider = fakeDecider();
     const { t, person } = await questionedPull({ delegate: decider.model });
     expect((await flagState(t, person.id))!.approved_at).toBeNull();
     expect(decider.calls).toEqual([]);
   });
 
-  it("never decides a guarded agent's findings, even when delegated before it was guarded", async () => {
+  it('不决定受保护智能体的意见，即使在启用保护前已委托', async () => {
     const decider = fakeDecider();
     const { t, person } = await questionedPull({
       beforeReview: async (s) => {
@@ -463,7 +463,7 @@ describe('after a review finishes', () => {
     expect(await findingAudit(t)).toEqual([]);
   });
 
-  it("leaves the findings on someone else's pull request alone", async () => {
+  it('不处理他人拉取请求中的审查意见', async () => {
     const decider = fakeDecider();
     // cho delegated the agent, but octocat opened the pull request.
     const { t, person } = await questionedPull({
@@ -477,7 +477,7 @@ describe('after a review finishes', () => {
     expect(decider.calls).toEqual([]);
   });
 
-  it('keeps an AI decision once the pull request merged: undo is refused', async () => {
+  it('拉取请求已合并后保留 AI 决定，拒绝撤销', async () => {
     const { t, admin, person } = await questionedPull({
       review: ONLY_QUESTION,
       beforeReview: delegate(['dataagent']),
@@ -497,7 +497,7 @@ describe('after a review finishes', () => {
     });
   });
 
-  it("lists only today's decisions (since UTC midnight)", async () => {
+  it('仅列出 UTC 零点以来的今日决定', async () => {
     const { t, admin } = await questionedPull({
       beforeReview: delegate(['dataagent']),
       delegate: fakeDecider().model,

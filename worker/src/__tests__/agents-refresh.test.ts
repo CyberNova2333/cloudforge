@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
@@ -53,8 +54,8 @@ async function pushTo(
   return sha;
 }
 
-describe('refreshing an agent from AGENT.md', () => {
-  it('caches a valid AGENT.md pushed to the default branch', async () => {
+describe('从 AGENT.md 刷新智能体', () => {
+  it('缓存推送到默认分支的有效 AGENT.md', async () => {
     const s = await setup();
     const sha = await pushTo(s, 'main', { 'AGENT.md': AGENT('Auth Agent') });
     expect(await agentRow(s.t)).toMatchObject({
@@ -71,7 +72,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('caches the colour, facet and guarded flag, and clears them when AGENT.md drops them', async () => {
+  it('缓存颜色、领域和 guarded 标记，AGENT.md 移除这些字段时清除缓存', async () => {
     const s = await setup();
     const withMeta = AGENT('Auth Agent').replace(
       'engine: pi\n',
@@ -91,7 +92,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('stores the effective guard: every Security or Data agent is guarded, whatever AGENT.md says', async () => {
+  it('存储有效保护状态：所有安全或数据领域智能体均受保护，不受 AGENT.md 声明影响', async () => {
     const s = await setup();
     const withFront = (front: string) =>
       AGENT('Auth Agent').replace('engine: pi\n', `engine: pi\n${front}`);
@@ -120,7 +121,7 @@ describe('refreshing an agent from AGENT.md', () => {
     expect(agents[0].guarded).toBe(true);
   });
 
-  it('points the avatar at the pushed commit when avatar.png is there', async () => {
+  it('存在 avatar.png 时，将头像指向推送的提交', async () => {
     const s = await setup();
     const sha = await pushTo(s, 'main', {
       'AGENT.md': AGENT('Auth Agent'),
@@ -131,7 +132,7 @@ describe('refreshing an agent from AGENT.md', () => {
     );
   });
 
-  it('keeps the last valid fields and records the error', async () => {
+  it('保留最近一次有效字段，并记录错误', async () => {
     const s = await setup();
     const good = await pushTo(s, 'main', { 'AGENT.md': AGENT('Auth Agent') });
     await pushTo(s, 'main', { 'AGENT.md': AGENT('Broken', '1') });
@@ -149,7 +150,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('clears the error when a force-push returns to the last valid commit', async () => {
+  it('强制推送回最近一次有效提交时清除错误', async () => {
     const s = await setup();
     const good = await pushTo(s, 'main', { 'AGENT.md': AGENT('Auth Agent') });
     const bad = await pushTo(s, 'main', { 'AGENT.md': 'no frontmatter' });
@@ -168,14 +169,14 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('ignores pushes to other branches', async () => {
+  it('忽略推送至其他分支的内容', async () => {
     const s = await setup();
     const before = await agentRow(s.t);
     await pushTo(s, 'draft', { 'AGENT.md': AGENT('Draft Agent') });
     expect(await agentRow(s.t)).toEqual(before);
   });
 
-  it('refreshes when a pull request lands on the default branch', async () => {
+  it('拉取请求合并到默认分支时刷新', async () => {
     const s = await setup();
     const main = s.repo.refs.get('refs/heads/main')!;
     await commitFiles(
@@ -201,7 +202,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('leaves deleted agents alone', async () => {
+  it('不处理已删除智能体', async () => {
     const s = await setup();
     await call(s.t, '/api/admin/agents/secagent', {
       cookie: s.admin,
@@ -230,7 +231,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   }
 
-  it('a stale refresh writes nothing once a newer one has recorded its commit', async () => {
+  it('新刷新已记录提交后，过期刷新不写入任何内容', async () => {
     const s = await setup();
     await commitPaths(
       s.repo,
@@ -269,7 +270,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('a refresh that loses the compare-and-swap retries once and converges on the newest head', async () => {
+  it('刷新比较并交换失败后重试一次，最终收敛到最新头提交', async () => {
     const s = await setup();
     await commitPaths(
       s.repo,
@@ -302,7 +303,7 @@ describe('refreshing an agent from AGENT.md', () => {
     });
   });
 
-  it('writes nothing when the default branch moves during the read', async () => {
+  it('读取期间默认分支发生变化时不写入任何内容', async () => {
     const s = await setup();
     const read = await commitPaths(
       s.repo,

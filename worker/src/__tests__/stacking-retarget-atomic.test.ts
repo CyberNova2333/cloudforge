@@ -80,7 +80,7 @@ async function stacked() {
   };
 }
 
-it('rolls back child retargeting when a close cannot record its event, then retries once', async () => {
+it('关闭操作无法记录事件时回滚子请求目标调整，重试后仅执行一次', async () => {
   const f = await stacked();
   const closed = await updatePullWithCloseIntent(f.db, f.parent, {
     state: 'closed',
@@ -105,7 +105,7 @@ it('rolls back child retargeting when a close cannot record its event, then retr
   });
 });
 
-it('recovers a failed close through the scheduled entrypoint without repeating child events', async () => {
+it('通过定时入口恢复失败的关闭操作，不重复产生子请求事件', async () => {
   const f = await stacked();
   await f.failEvents();
   try {
@@ -136,7 +136,7 @@ it('recovers a failed close through the scheduled entrypoint without repeating c
   expect(dispatched).toHaveLength(2);
 });
 
-it('recovers closed pulls even when unrelated log retention fails', async () => {
+it('无关日志保留清理失败时仍恢复已关闭请求', async () => {
   const f = await stacked();
   const closed = await updatePullWithCloseIntent(f.db, f.parent, {
     state: 'closed',
@@ -179,7 +179,7 @@ it('recovers closed pulls even when unrelated log retention fails', async () => 
   }
 });
 
-it('rolls back closing when its durable outbox cannot be written', async () => {
+it('无法写入持久化发件箱时回滚关闭操作', async () => {
   const f = await stacked();
   await f.t.env.DB.exec(
     `CREATE TRIGGER fail_close_intent BEFORE INSERT ON pull_close_intents BEGIN SELECT RAISE(ABORT, 'injected close outbox failure'); END;`
@@ -204,7 +204,7 @@ it('rolls back closing when its durable outbox cannot be written', async () => {
   }
 });
 
-it('cancels a stale close generation on reopen, including when closed again in the same second', async () => {
+it('重新打开时取消旧关闭代次，包括同一秒内再次关闭的情形', async () => {
   const f = await stacked();
   const now = new Date();
   const first = await updatePullWithCloseIntent(f.db, f.parent, {
@@ -228,7 +228,7 @@ it('cancels a stale close generation on reopen, including when closed again in t
   expect(await f.events()).toHaveLength(1);
 });
 
-it('refuses a stale close or reopen after a merge without writing an outbox', async () => {
+it('合入后拒绝旧关闭或重开操作，且不写入发件箱', async () => {
   const f = await stacked();
   await f.db
     .update(pullRequests)
@@ -257,7 +257,7 @@ it('refuses a stale close or reopen after a merge without writing an outbox', as
   expect(await f.db.select().from(pullCloseIntents).all()).toHaveLength(0);
 });
 
-it('returns 409 when a merge finishes while the close API is reading Git', async () => {
+it('关闭 API 读取 Git 期间完成合入时返回 409', async () => {
   const f = await stacked();
   const resolve = GitService.prototype.resolve;
   let injected = false;
@@ -294,7 +294,7 @@ it('returns 409 when a merge finishes while the close API is reading Git', async
   }
 });
 
-it('rejects a stale reopen after another request reopened and closed the same PR again', async () => {
+it('其他请求已将同一拉取请求重开再关闭后，拒绝旧重开操作', async () => {
   const f = await stacked();
   const now = new Date();
   const first = await updatePullWithCloseIntent(f.db, f.parent, {
@@ -352,7 +352,7 @@ it('rejects a stale reopen after another request reopened and closed the same PR
   }
 });
 
-it('rejects a stale close after another request closed and reopened the same PR again', async () => {
+it('其他请求已将同一拉取请求关闭再重开后，拒绝旧关闭操作', async () => {
   const f = await stacked();
   const resolve = GitService.prototype.resolve;
   let injected = false;
@@ -396,7 +396,7 @@ it('rejects a stale close after another request closed and reopened the same PR 
   }
 });
 
-it('retries a lost workflow dispatch response with the same close id after metadata already committed', async () => {
+it('元数据已提交但工作流派发响应丢失时，使用相同关闭标识重试', async () => {
   const f = await stacked();
   const closed = await updatePullWithCloseIntent(f.db, f.parent, {
     state: 'closed',
@@ -440,7 +440,7 @@ it('retries a lost workflow dispatch response with the same close id after metad
   }
 });
 
-it('rolls back maintainer unstacking when its event fails and emits one event on retry', async () => {
+it('维护者解除堆叠时若事件写入失败则回滚，重试后仅发出一个事件', async () => {
   const f = await stacked();
   await f.failEvents();
   try {

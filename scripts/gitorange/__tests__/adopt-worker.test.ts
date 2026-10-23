@@ -203,8 +203,8 @@ const run = (
 const plan = (h: ReturnType<typeof workerHarness>) =>
   planAdoptWorker(h.ctx, { accountId: W_ACCOUNT, worker: 'acme' });
 
-describe('adoptWorker', () => {
-  it('bindings mapped to adopted resources', async () => {
+describe('adoptWorker：接管 Worker', () => {
+  it('将绑定映射到已接管的资源', async () => {
     const h = workerHarness();
     const s = await run(h);
     const id = installationIdOf(W_ACCOUNT, 'acme', 'workers.dev');
@@ -282,7 +282,7 @@ describe('adoptWorker', () => {
     );
   });
 
-  it('missing bound resource stops', async () => {
+  it('缺少绑定资源时停止', async () => {
     const h = workerHarness({ seed: workerSeed({ d1: [] }) });
     await expect(run(h)).rejects.toThrow(
       'Binding DB points to D1 d1-acme, which does not exist. Nothing was changed.'
@@ -310,7 +310,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('a workflow run by another worker stops', async () => {
+  it('工作流由其他 Worker 运行时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({
         workflows: [
@@ -325,7 +325,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('unknown binding stops', async () => {
+  it('遇到未知绑定时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({}, [
         ...BINDINGS,
@@ -360,7 +360,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('unknown durable object class stops', async () => {
+  it('遇到未知 Durable Object 类时停止', async () => {
     const bound = workerHarness({
       seed: workerSeed({}, [
         ...BINDINGS,
@@ -390,7 +390,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('a KV-backed durable object class stops', async () => {
+  it('遇到基于 KV 的 Durable Object 类时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({
         doNamespaces: DO_NAMESPACES.map((n) =>
@@ -404,7 +404,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('unverifiable binding is reported, not a stop', async () => {
+  it('报告无法验证的绑定但不停止', async () => {
     const h = workerHarness();
     h.cf.failNext(
       'listArtifactsNamespaces',
@@ -448,7 +448,7 @@ describe('adoptWorker', () => {
     );
   });
 
-  it('a containers application under another name stops', async () => {
+  it('容器应用使用其他名称时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({
         containerApps: [
@@ -462,7 +462,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('existing secrets untouched', async () => {
+  it('保留现有密钥', async () => {
     const h = workerHarness();
     const s = await run(h);
     expect(h.runner.calls).toHaveLength(0);
@@ -477,7 +477,7 @@ describe('adoptWorker', () => {
     ]);
   });
 
-  it('no docker call', async () => {
+  it('不调用 Docker', async () => {
     const h = workerHarness();
     await run(h);
     await plan(h);
@@ -485,7 +485,7 @@ describe('adoptWorker', () => {
     expect(h.runner.calls).toEqual([]);
   });
 
-  it('bindings the worker lacks get slug-derived names', async () => {
+  it('Worker 缺少的绑定使用根据标识名生成的名称', async () => {
     const h = workerHarness({
       seed: workerSeed(
         {
@@ -522,7 +522,7 @@ describe('adoptWorker', () => {
     );
   });
 
-  it('custom domain sets hostname', async () => {
+  it('自定义域名设置主机名', async () => {
     const h = workerHarness({
       seed: workerSeed(
         {
@@ -545,7 +545,7 @@ describe('adoptWorker', () => {
     expect(config).toContain('"pattern": "git.example.com"');
   });
 
-  it('retired and localhost vars are drops', async () => {
+  it('移除已停用和 localhost 变量', async () => {
     const value = `http://localhost:8080, http://127.0.0.1:8788,http://[::1]:5173`;
     const h = workerHarness({
       seed: workerSeed({}, withVar('TRUSTED_ORIGINS', value)),
@@ -578,7 +578,7 @@ describe('adoptWorker', () => {
     });
   });
 
-  it('tunable vars are kept as found, not stops', async () => {
+  it('原样保留可调变量且不因此停止', async () => {
     const h = workerHarness({
       seed: workerSeed({}, [
         ...without('APP_NAME'),
@@ -616,7 +616,7 @@ describe('adoptWorker', () => {
     expect(err.message).not.toContain('AI_GATEWAY');
   });
 
-  it('confirm declined writes nothing', async () => {
+  it('拒绝确认后不写入任何内容', async () => {
     const h = workerHarness({ confirm: false });
     await expect(run(h, { yes: false })).rejects.toThrow(
       'Nothing was changed.'
@@ -625,7 +625,7 @@ describe('adoptWorker', () => {
     expect(existsSync(home)).toBe(false);
   });
 
-  it('a matching --expect-plan applies without asking; a changed plan stops', async () => {
+  it('--expect-plan 匹配时直接应用，计划变化时停止', async () => {
     const p = await plan(workerHarness());
     const stale = workerHarness();
     await expect(
@@ -639,14 +639,14 @@ describe('adoptWorker', () => {
     expect(existsSync(join(dest(), 'wrangler.jsonc'))).toBe(true);
   });
 
-  it('a destination holding an install stops before writing', async () => {
+  it('目标位置已有安装时在写入前停止', async () => {
     const first = await run(workerHarness());
     const h = workerHarness();
     await expect(run(h)).rejects.toThrow(`${dest()} already has an install`);
     expect(readState(dest(), first.installationId)).toEqual(first);
   });
 
-  it('worker not found stops', async () => {
+  it('找不到 Worker 时停止', async () => {
     const h = workerHarness({ seed: workerSeed({ workers: {} }) });
     await expect(run(h)).rejects.toThrow(
       `No worker named acme on account ${W_ACCOUNT}. Nothing was changed.`
@@ -654,8 +654,8 @@ describe('adoptWorker', () => {
   });
 });
 
-describe('adoptWorker: the report and its stops', () => {
-  it('the running version and its comparison; custom code is reported, not a stop', async () => {
+describe('adoptWorker：报告及停止条件', () => {
+  it('比较运行版本；报告自定义代码但不停止', async () => {
     const h = workerHarness({
       wellKnown: () =>
         Response.json({ installationId: null, version: '1.2.0' }),
@@ -677,7 +677,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('CLOUDFORGE_VERSION is the running version when the site does not say', async () => {
+  it('站点未提供版本时以 CLOUDFORGE_VERSION 为运行版本', async () => {
     const h = workerHarness({
       seed: workerSeed({}, withVar('CLOUDFORGE_VERSION', '1.3.0')),
     });
@@ -686,7 +686,7 @@ describe('adoptWorker: the report and its stops', () => {
     expect(p.report).toContain('Running 1.3.0; this package 1.3.0 (same)');
   });
 
-  it('inputs: sender from FROM_EMAIL, none when empty', async () => {
+  it('输入：从 FROM_EMAIL 读取发件人，空值表示无发件人', async () => {
     const a = await plan(workerHarness());
     expect(a.report).toContain('  Sender         noreply@acme.dev');
     const b = await plan(
@@ -696,7 +696,7 @@ describe('adoptWorker: the report and its stops', () => {
     expect(b.report).toContain('  Sender         (none: email is off)');
   });
 
-  it('BASE_URL on a host that is not the chosen one stops', async () => {
+  it('BASE_URL 的主机与所选主机不一致时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({}, withVar('BASE_URL', 'https://x.example.com')),
     });
@@ -705,7 +705,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('several custom domains with BASE_URL naming none stop', async () => {
+  it('存在多个自定义域名且 BASE_URL 未指定其中任何一个时停止', async () => {
     const h = workerHarness({
       seed: workerSeed({
         workerDomains: [
@@ -719,13 +719,13 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('no DB binding stops', async () => {
+  it('缺少 DB 绑定时停止', async () => {
     await expect(
       plan(workerHarness({ seed: workerSeed({}, without('DB')) }))
     ).rejects.toThrow('The worker has no D1 binding DB');
   });
 
-  it('a worker that already carries CLOUDFORGE_INSTALLATION stops', async () => {
+  it('Worker 已携带 CLOUDFORGE_INSTALLATION 时停止', async () => {
     const h = workerHarness({
       seed: workerSeed(
         {},
@@ -737,7 +737,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('a plain var named like a secret stops, value not shown', async () => {
+  it('普通变量与密钥同名时停止且不显示其值', async () => {
     const h = workerHarness({
       seed: workerSeed({}, [
         ...without('BETTER_AUTH_SECRET'),
@@ -766,7 +766,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('a var the generated config sets to another value stops with both values', async () => {
+  it('变量与生成配置中的值冲突时停止并显示双方的值', async () => {
     const h = workerHarness({
       seed: workerSeed({}, withVar('R2_ACCOUNT_ID', 'c'.repeat(32))),
     });
@@ -775,7 +775,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('TRUSTED_ORIGINS with an origin that is not local stops', async () => {
+  it('TRUSTED_ORIGINS 包含非本地来源时停止', async () => {
     const h = workerHarness({
       seed: workerSeed(
         {},
@@ -790,7 +790,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('a Durable Object namespace var: empty is filled, another id stops', async () => {
+  it('Durable Object 命名空间变量为空时填充，ID 不同时停止', async () => {
     // LIVE_NAMESPACE_ID is empty on the worker: the upgrade fills it in.
     const ok = await plan(workerHarness());
     expect(ok.state.doNamespaceIds.LIVE_NAMESPACE_ID).toBe('ns-LiveHub');
@@ -802,7 +802,7 @@ describe('adoptWorker: the report and its stops', () => {
     );
   });
 
-  it('every such var is listed in one stop, and adopt writes nothing', async () => {
+  it('在同一停止原因中列出所有此类变量，接管不写入任何内容', async () => {
     const h = workerHarness({
       seed: workerSeed({}, [
         ...BINDINGS,
@@ -822,12 +822,12 @@ describe('adoptWorker: the report and its stops', () => {
     expect(h.cf.calls.filter((c) => WRITES.includes(c.method))).toEqual([]);
   });
 
-  it('no custom domain and no workers.dev subdomain stops', async () => {
+  it('没有自定义域名和 workers.dev 子域名时停止', async () => {
     const h = workerHarness({ seed: workerSeed({ subdomain: null }) });
     await expect(plan(h)).rejects.toThrow('no workers.dev subdomain');
   });
 
-  it('the digest is stable across runs and binds the report', async () => {
+  it('摘要在多次运行间保持稳定并绑定报告内容', async () => {
     const a = await plan(workerHarness());
     const b = await plan(workerHarness());
     expect(a.digest).toMatch(/^[0-9a-f]{12}$/);

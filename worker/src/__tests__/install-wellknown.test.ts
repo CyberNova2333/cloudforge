@@ -11,8 +11,8 @@ function withVars(vars: Record<string, string>) {
   return t;
 }
 
-describe('GET /.well-known/cloudforge', () => {
-  it('reports nulls on an instance the installer never touched', async () => {
+describe('GET /.well-known/cloudforge 安装信息', () => {
+  it('安装器从未处理过的实例返回 null 值', async () => {
     const res = await call(makeEnv(), WELL_KNOWN);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
@@ -22,7 +22,7 @@ describe('GET /.well-known/cloudforge', () => {
     });
   });
 
-  it('reports the installation from its var and row', async () => {
+  it('从变量和记录中报告安装信息', async () => {
     await env.DB.prepare(
       'INSERT OR REPLACE INTO install_state (installation_id, ownership_nonce, version, manifest_json, updated_at) VALUES (?, ?, ?, ?, ?)'
     )
@@ -50,7 +50,7 @@ describe('GET /.well-known/cloudforge', () => {
     expect(JSON.stringify(body)).not.toContain('ownershipNonce');
   });
 
-  it('ignores a malformed CLOUDFORGE_INSTALLATION', async () => {
+  it('忽略格式错误的 CLOUDFORGE_INSTALLATION', async () => {
     const res = await call(
       withVars({ CLOUDFORGE_INSTALLATION: 'not json' }),
       WELL_KNOWN
