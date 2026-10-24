@@ -1298,6 +1298,8 @@ export const api = {
     apiFetch<{
       setupRequired: boolean;
       codeRequired: boolean;
+      /** Setup needs a code but SETUP_CODE_HASH isn't set: refused until it is. */
+      codeMissing?: boolean;
       appName: string;
       /** For people who haven't picked a language: auto follows the browser. */
       defaultLanguage: 'auto' | 'zh' | 'en';

@@ -99,6 +99,10 @@ export const shell: Record<string, string> = {
     '开始设置你的实例：先创建第一个管理员账户，进入后再邀请团队里的其他人。',
   'Setup code': '设置码',
   'Printed at the end of {command}.': '在 {command} 运行结束时打印。',
+  'This instance needs a setup code before it can be set up.':
+    '这个实例需要先配置初始化代码才能完成设置。',
+  'It is reachable from the internet, so the first administrator must present a one-time setup code. Set the {secret} secret to the code’s hash ({doc}), then reload this page.':
+    '它可以从互联网访问，因此第一个管理员必须提供一次性初始化代码。请把 {secret} 密钥设置为该代码的哈希（见 {doc}），然后刷新本页。',
   'Full name': '姓名',
   Username: '用户名',
   'Email address': '邮箱地址',

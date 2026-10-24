@@ -358,8 +358,8 @@ export const errors: Record<string, string> = {
     '均已设置。Git LFS 和 Actions 缓存可以签发 R2 URL。',
   'Set: the first admin needs the code from `yarn cloudforge install`.':
     '已设置：首位管理员需要 `yarn cloudforge install` 打印的代码。',
-  'Not set: the first account created becomes the site admin.':
-    '未设置：创建的第一个账户将成为站点管理员。',
+  'Not set: unneeded once the first admin exists; an instance reachable from the internet refuses setup without it.':
+    '未设置：第一个管理员创建后不再需要；可从互联网访问的实例在未设置时拒绝初始化。',
   'Bound.': '已绑定。',
   'Not bound. Nothing works: users, repositories, and pull requests live in D1.':
     '未绑定。什么都用不了：用户、仓库和拉取请求都存放在 D1 中。',
@@ -490,6 +490,10 @@ export const errors: Record<string, string> = {
   'Accounts made by self sign-up must open the link emailed to them before they can sign in. Until outbound email (Email Sending) is set up, self sign-up stays closed while this is on; invited members and the first admin are never asked.':
     '自助注册的账户必须先打开发到邮箱的链接才能登录。开启时，在配置发信（Email Sending）之前自助注册保持关闭；被邀请的成员和第一个管理员不受影响。',
   'Set up the instance first.': '请先完成实例的初始设置。',
+  'This instance is reachable from the internet, so creating the first administrator needs a setup code. Set the SETUP_CODE_HASH secret first (see docs/setup.md).':
+    '这个实例可以从互联网访问，创建第一个管理员需要初始化代码。请先设置 SETUP_CODE_HASH 密钥（见 docs/setup.md）。',
+  'The first administrator is being created. Try again in a minute.':
+    '第一个管理员正在创建中，请一分钟后再试。',
   'Self sign-up is off. Ask an administrator for an invitation.':
     '未开放自助注册，请向管理员索取邀请。',
   "Sign-up needs a confirmed email address, but this instance can't send email yet. Ask an administrator for an invitation.":

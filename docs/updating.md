@@ -65,6 +65,9 @@ The security update adds migration `0040` and changes behaviour; check each poin
   no longer renders `<style>`, `style` attributes, forms and their controls (a task list's checkbox stays, read-only)
   or classes other than code blocks' `language-*`. Scripts added to pages at the zone (Cloudflare Web Analytics'
   automatic setup, Zaraz, a Transform Rule) are blocked unless their source is added to `script-src`.
+- **Setting up a new instance needs a setup code** unless it is served and configured on a local-only name: without
+  `SETUP_CODE_HASH`, the welcome page refuses to create the first admin (see [Setup](setup.md#6-set-the-secrets)).
+  Instances that already have an admin are unaffected.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 

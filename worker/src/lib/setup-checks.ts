@@ -220,7 +220,7 @@ function secretChecks(ctx: Ctx): SetupCheck[] {
     status: 'ok',
     detail: codeSet
       ? 'Set: the first admin needs the code from `yarn cloudforge install`.'
-      : 'Not set: the first account created becomes the site admin.',
+      : 'Not set: unneeded once the first admin exists; an instance reachable from the internet refuses setup without it.',
     fix: [],
   });
   return out;
