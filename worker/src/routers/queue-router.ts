@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { liveFeed } from '../lib/live-feed';
@@ -186,5 +187,10 @@ const liveRoute = createRoute({
   },
 });
 queueRouter.openapi(liveRoute, async (c) =>
-  c.json(await liveFeed(c.env, c.get('db'), c.get('git'), c.get('repo')), 200)
+  c.json(
+    await liveFeed(c.env, c.get('db'), c.get('git'), c.get('repo'), {
+      member: !!c.get('user'),
+    }),
+    200
+  )
 );

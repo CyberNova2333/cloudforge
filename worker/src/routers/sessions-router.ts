@@ -1,5 +1,6 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { repoSessions } from '../lib/sessions';
+import { repoSessions, visitorSession } from '../lib/sessions';
 import { loadRepo, type RepoEnv } from '../lib/repos';
 import {
   json200Response,
@@ -68,12 +69,15 @@ const listRoute = createRoute({
     ...json404Response,
   },
 });
-sessionsRouter.openapi(listRoute, async (c) =>
-  c.json(
-    await repoSessions(c.env, c.get('db'), c.get('git'), c.get('repo')),
-    200
-  )
-);
+sessionsRouter.openapi(listRoute, async (c) => {
+  const sessions = await repoSessions(
+    c.env,
+    c.get('db'),
+    c.get('git'),
+    c.get('repo')
+  );
+  return c.json(c.get('user') ? sessions : sessions.map(visitorSession), 200);
+});
 
 const getRoute = createRoute({
   method: 'get',
@@ -95,5 +99,5 @@ sessionsRouter.openapi(getRoute, async (c) => {
     { id: c.req.valid('param').id }
   );
   if (!session) return c.json({ error: 'Not Found' }, 404);
-  return c.json(session, 200);
+  return c.json(c.get('user') ? session : visitorSession(session), 200);
 });
