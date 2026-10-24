@@ -144,7 +144,12 @@ invitesRouter.openapi(createInviteRoute, async (c) => {
     createdAt: now,
   };
   await db.insert(invitations).values(row);
-  const inviteUrl = `${new URL(c.req.url).origin}/invite/${token}`;
+  // The instance's own address, as in every emailed link: never the Host the request happened to arrive on.
+  const origin = (c.env.BASE_URL || new URL(c.req.url).origin).replace(
+    /\/$/,
+    ''
+  );
+  const inviteUrl = `${origin}/invite/${token}`;
   const inviter = c.get('user')!;
   const emailed = await sendInviteEmail(c.env, c.get('db'), {
     to: normalized,

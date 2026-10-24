@@ -155,6 +155,19 @@ describe('邀请', () => {
     expect(row!.token_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('邀请链接使用 BASE_URL，而不是请求到达的地址', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    (t.env as { BASE_URL: string }).BASE_URL = 'http://git.example.com/';
+    const res = await call(t, '/api/invites', {
+      cookie: admin,
+      json: { email: 'c@example.com' },
+    });
+    const { inviteUrl } = (await res.json()) as { inviteUrl: string };
+    expect(inviteUrl).toMatch(/^http:\/\/git\.example\.com\/invite\/[^/]+$/);
+    expect(t.sent.at(-1)!.text).toContain(inviteUrl);
+  });
+
   it('禁止普通成员发送邀请', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
