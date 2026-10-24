@@ -2,6 +2,7 @@
 import { env } from 'cloudflare:test';
 import { app } from '../../index';
 import { createFakeArtifacts } from './fake-artifacts';
+import { trackBackground } from './background';
 
 /** Recording fakes for the Actions Workflow and JobRunner bindings. */
 function fakeActions() {
@@ -75,8 +76,9 @@ export function makeEnv(opts: { actions?: boolean } = {}) {
     },
     ...(opts.actions ? actions.bindings : {}),
   } as unknown as CloudflareBindings;
-  // ctx.waitUntil work is collected for settle().
+  // ctx.waitUntil work is collected for settle(), and drained after the test (helpers/background.ts).
   const waits: Promise<unknown>[] = [];
+  trackBackground(waits);
   const ctx = {
     waitUntil: (p: Promise<unknown>) => void waits.push(p),
     passThroughOnException: () => {},

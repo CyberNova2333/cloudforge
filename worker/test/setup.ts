@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { applyD1Migrations, env } from 'cloudflare:test';
-import { beforeEach } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
+import { drainBackground } from '../src/__tests__/helpers/background';
 
 // Idempotent: with shared storage only the first test file applies them.
 await applyD1Migrations(env.DB, env.TEST_D1_MIGRATIONS);
@@ -19,6 +20,10 @@ beforeEach(async () => {
     ...TABLES.map((t) => env.DB.prepare(`DELETE FROM "${t}"`)),
   ]);
 });
+
+// A test ends when the work it handed to ctx.waitUntil ends: otherwise that work runs into the next test, after its
+// tables were emptied, or past the worker's last file into its shutdown (helpers/background.ts).
+afterEach(() => drainBackground());
 
 // Tests never reach the internet: a fetch to any host but this machine (GitHub for an action's action.yml,
 // Cloudflare's APIs) fails at once, as an unreachable host would. A real attempt can hang on its TLS handshake on a
