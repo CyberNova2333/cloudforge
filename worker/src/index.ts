@@ -54,6 +54,7 @@ import { sessionsRouter } from './routers/sessions-router';
 import { queueRouter } from './routers/queue-router';
 import { healthRouter } from './routers/health-router';
 import { searchRouter } from './routers/search-router';
+import { redactedLog } from './lib/request-log';
 import { runScheduled } from './cron';
 
 const app = new OpenAPIHono<AppEnv>();
@@ -64,7 +65,7 @@ export const AUTH_BODY_LIMIT = 64 * 1024;
 export const API_BODY_LIMIT = 1024 * 1024;
 
 app.use('*', injectDb);
-app.use('*', logger());
+app.use('*', logger(redactedLog));
 // Every JSON field the API takes is bounded well below these. An oversized body is refused before anything parses it:
 // validating a huge array costs memory per element (zod keeps one issue each), enough to exhaust an isolate.
 const tooLarge = (c: Context) =>
