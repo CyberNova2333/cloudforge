@@ -178,13 +178,13 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   kind `ordered_after`) and retargets `base_ref` (metadata only, CAS); `stackGate` blocks `landPull`, which also refuses a head carrying another
   open PR's commits (`carriedPull`). Tests drive
   `executeReconcile` with fake `StackModels` (`order`, `recheck`).
-- Installer (`scripts/gitorange/`, `yarn cloudforge install|status` from a checkout, `npx @cybernova2333/cloudforge install|upgrade|adopt|status` from the npm package `@cybernova2333/cloudforge`):
+- Installer (`scripts/cloudforge/`, `yarn cloudforge install|status` from a checkout, `npx @cybernova2333/cloudforge install|upgrade|adopt|status` from the npm package `@cybernova2333/cloudforge`):
   pure modules (`names`, `plan`, `config`, `state`) plus ports for Cloudflare (`cloudflare.ts`) and processes (`runner.ts`) and
   the prompts (`collect.ts`), all injected through `Deps`/`Ctx`. Same inputs give the same names, plan digest and generated
   `wrangler.jsonc` (header marker; a hand-written one is never overwritten). State and lock live in `.cloudforge/<id>.json`
   (gitignored): `apply.ts` records each step, so `--resume` continues; resources carry an ownership marker and are never
   touched otherwise. The setup code's hash is the `SETUP_CODE_HASH` secret; `/.well-known/cloudforge` is what verify reads.
-  Tests are Node vitest (`scripts/gitorange/vitest.config.ts`), no workerd. Both entry points run the same code over a
+  Tests are Node vitest (`scripts/cloudforge/vitest.config.ts`), no workerd. Both entry points run the same code over a
   `Source` (`source.ts`: `checkoutSource` or `packageSource`) that says where the built release, migrations and runner
   Dockerfile come from and prints commands (`yarn cloudforge …` vs `npx @cybernova2333/cloudforge@<version> …`); package mode keeps state in
   `~/.cloudforge/<slug>/` (`CLOUDFORGE_HOME`, `home.ts`) and runs its own pinned wrangler from there. `upgrade.ts` plans first

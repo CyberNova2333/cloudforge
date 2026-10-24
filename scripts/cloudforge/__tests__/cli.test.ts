@@ -814,13 +814,13 @@ describe('applyCommand：生成应用命令', () => {
 });
 
 describe('isEntry：判断入口', () => {
-  const url = 'file:///repo/scripts/gitorange/cli.ts';
+  const url = 'file:///repo/scripts/cloudforge/cli.ts';
   it('运行时支持 import.meta.main 时使用它', () => {
     expect(isEntry(true, undefined, url)).toBe(true);
-    expect(isEntry(false, '/repo/scripts/gitorange/cli.ts', url)).toBe(false);
+    expect(isEntry(false, '/repo/scripts/cloudforge/cli.ts', url)).toBe(false);
   });
   it('Node 不支持 import.meta.main 时回退为比较 argv[1]', () => {
-    expect(isEntry(undefined, '/repo/scripts/gitorange/cli.ts', url)).toBe(
+    expect(isEntry(undefined, '/repo/scripts/cloudforge/cli.ts', url)).toBe(
       true
     );
     expect(isEntry(undefined, '/repo/other.ts', url)).toBe(false);

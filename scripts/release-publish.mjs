@@ -23,8 +23,8 @@ import {
   packageSmoke,
   preflight,
   worktreeAddArgs,
-} from './gitorange/release-publish.ts';
-import { processRunner } from './gitorange/runner.ts';
+} from './cloudforge/release-publish.ts';
+import { processRunner } from './cloudforge/runner.ts';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -69,13 +69,13 @@ async function main() {
     step('yarn', ['install', '--frozen-lockfile'], tmp);
     step(
       'yarn',
-      ['vitest', 'run', '--config', 'scripts/gitorange/vitest.config.ts'],
+      ['vitest', 'run', '--config', 'scripts/cloudforge/vitest.config.ts'],
       tmp
     );
     const out = join(tmp, 'build', 'npm');
     step(
       'node',
-      ['scripts/gitorange/pack.mjs', '--out', out, '--version', version],
+      ['scripts/cloudforge/pack.mjs', '--out', out, '--version', version],
       tmp
     );
     const { files, bytes } = walk(out);

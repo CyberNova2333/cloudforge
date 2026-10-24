@@ -124,7 +124,7 @@ describe('packageSmoke：软件包冒烟检查', () => {
       {
         cmd: '/usr/bin/node',
         args: [
-          'scripts/gitorange/smoke-config.ts',
+          'scripts/cloudforge/smoke-config.ts',
           '/wt/build/npm',
           '/s/smoke',
         ],

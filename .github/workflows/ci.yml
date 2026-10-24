@@ -322,7 +322,7 @@ jobs:
           worker/src/__tests__/signup.test.ts
           src/lib/
 
-  # The npm package (scripts/gitorange/pack.mjs): pack it, prove the shipped build deploys from a
+  # The npm package (scripts/cloudforge/pack.mjs): pack it, prove the shipped build deploys from a
   # generated config, then install the tarball like a user would (npm/npx on purpose) and run it.
   # Independent of the build: it builds from a placeholder config of its own.
   package:
@@ -345,7 +345,7 @@ jobs:
           file=$(npm pack ./build/npm --pack-destination "$RUNNER_TEMP/pkg" | tail -n 1)
           echo "TARBALL=$RUNNER_TEMP/pkg/$file" >> "$GITHUB_ENV"
       - name: Generate an install's config for the package
-        run: node scripts/gitorange/smoke-config.ts build/npm "$RUNNER_TEMP/smoke"
+        run: node scripts/cloudforge/smoke-config.ts build/npm "$RUNNER_TEMP/smoke"
       # No Docker here: --containers-rollout=none makes wrangler skip building the runner image.
       - name: The shipped build deploys with the generated config (dry run)
         run: yarn -s wrangler deploy --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/o" --config "$RUNNER_TEMP/smoke/wrangler.jsonc"

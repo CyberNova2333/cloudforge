@@ -8,7 +8,7 @@ import { licenseBanners } from './build/license-banners';
 export default defineConfig({
   server: { host: '::', port: 8080 },
   plugins: [
-    // The npm package is built from a placeholder config (scripts/gitorange/pack.mjs); a normal
+    // The npm package is built from a placeholder config (scripts/cloudforge/pack.mjs); a normal
     // build reads ./wrangler.jsonc.
     cloudflare({ configPath: process.env.CLOUDFORGE_BUILD_CONFIG }),
     react(),

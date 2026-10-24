@@ -8,7 +8,7 @@ export default defineConfig({
     reporters: [new ChineseReporter()],
     environment: 'node',
     include: [
-      'scripts/gitorange/__tests__/**/*.test.ts',
+      'scripts/cloudforge/__tests__/**/*.test.ts',
       'scripts/githooks/__tests__/**/*.test.ts',
     ],
   },

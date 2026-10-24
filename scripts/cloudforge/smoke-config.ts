@@ -1,5 +1,5 @@
 // CI smoke helper: writes the wrangler.jsonc an install of a packed package would deploy with.
-//   node scripts/gitorange/smoke-config.ts <package dir> <out dir>
+//   node scripts/cloudforge/smoke-config.ts <package dir> <out dir>
 // It uses the real generateWranglerConfig and the package's own build paths, so a dry-run deploy
 // of <out dir>/wrangler.jsonc proves the shipped build deploys from a generated config (not the
 // config it was built with). The config keeps its `containers` entry: CI has no Docker, so the
@@ -14,7 +14,7 @@ import { newState } from './state.ts';
 const [pkgArg, outArg] = process.argv.slice(2);
 if (!pkgArg || !outArg) {
   console.error(
-    'Usage: node scripts/gitorange/smoke-config.ts <package dir> <out dir>'
+    'Usage: node scripts/cloudforge/smoke-config.ts <package dir> <out dir>'
   );
   process.exit(2);
 }
