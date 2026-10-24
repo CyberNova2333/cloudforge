@@ -1,7 +1,16 @@
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 # Cloudflare static assets headers. HTML (every SPA route falls back to index.html) must never
 # be cached at the edge: it names the current build's hashed script. Hashed files never change.
+# The policy allows scripts from this origin only, plus the theme boot script in index.html by its hash
+# (src/lib/csp.test.ts checks it: change both). Images may come from anywhere over HTTPS (README badges);
+# styles may be inline (Mermaid's SVG, highlighted code). No plugins, no <base>, no framing, no posting
+# forms elsewhere. Responses from the worker itself (/api, git, MCP) set their own headers.
 /*
   Cache-Control: no-store
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-4MXdjfd/brNLw2uNckYwVvTHQEfOQE6M/cs1qnhTCOc='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
 
 /assets/*
   ! Cache-Control

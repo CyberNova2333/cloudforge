@@ -30,6 +30,8 @@ Binding names are load-bearing — the worker looks them up by exact name. Resou
 
 Cache headers for the app come from [`public/_headers`](../public/_headers), which the build copies next to the built app: every path except `/assets/*` (the SPA's HTML, which names the current build's hashed script) is sent with `Cache-Control: no-store`, so Cloudflare's edge never serves a previous build's page after a deploy. Hashed files under `/assets/` are `public, max-age=31536000, immutable`. If you add a Cache Rule to the zone, leave HTML out of it or set it to respect origin headers.
 
+The same file sets the app's security headers: a Content-Security-Policy (scripts only from the instance itself plus the theme boot script in `index.html`, allowed by its hash; images from anywhere over HTTPS, for README badges; no plugins, `<base>`, framing, or forms posting elsewhere), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`. A zone Transform Rule that adds scripts to pages (an analytics snippet, for example) needs its source added to `script-src`.
+
 Keep `assets.run_worker_first` as shipped (it includes `/mcp` and `/.well-known/*`, which the MCP server and OAuth discovery need): the git endpoint (`/<owner>/<repo>.git/...`) and `/api/*` must reach the worker before static asset handling.
 
 ## Variables

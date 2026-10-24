@@ -30,7 +30,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `components.css`, `pages/*.css`, `legacy.css` (pages not yet redesigned). Themes (`src/lib/theme.ts`, pure): seven HQ
   colourways + GitHub × System/Light/Dark, per browser (localStorage `go-theme-id`, `go-mode`). `<html>` carries
   `data-skin` (`hq` | `dev` = GitHub), `data-theme` (absent = follow the system) and Primer's `data-color-mode`
-  (`rootAttributes`); the boot script in `index.html` mirrors `rootAttributes` before first paint, so change both.
+  (`rootAttributes`); the boot script in `index.html` mirrors `rootAttributes` before first paint, so change both (and its
+  hash in `public/_headers`' Content-Security-Policy: `src/lib/csp.test.ts`). User Markdown (`components/Markdown.tsx`)
+  is sanitized without styles, forms or the app's classes.
 - **D1** holds users, invitations, tokens, repository metadata, pull requests, and comments. **Artifacts**
   holds every git object and ref; nothing about git content is mirrored into D1.
 - Artifacts repos are named `r_<repository id>` (`repositories.artifacts_name`), so renames never touch storage.

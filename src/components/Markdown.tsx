@@ -13,6 +13,43 @@ import { renderMermaid } from '@/lib/mermaid';
 
 marked.setOptions({ gfm: true, breaks: false });
 
+/**
+ * DOMPurify for user Markdown (READMEs, pull requests, comments): on top of its defaults (no scripts), nothing that
+ * can restyle or cover the page or pass for the app's own UI: no `<style>` or `style`, no forms or form controls but
+ * a task list's read-only checkbox, and only the `language-*` classes Markdown gives code blocks (the app's utility
+ * classes could pin a fake page over the real one). Its own instance: the hooks stay off Mermaid's SVG sanitizer.
+ */
+const purify = DOMPurify(window);
+purify.setConfig({
+  FORBID_TAGS: [
+    'style',
+    'form',
+    'button',
+    'textarea',
+    'select',
+    'option',
+    'optgroup',
+    'datalist',
+    'fieldset',
+    'output',
+  ],
+  FORBID_ATTR: ['style', 'action', 'formaction', 'form'],
+});
+purify.addHook('afterSanitizeAttributes', (node) => {
+  if (!(node instanceof Element)) return;
+  if (node.hasAttribute('class')) {
+    const kept = [...node.classList].filter((c) =>
+      /^language-[\w+#.-]+$/.test(c)
+    );
+    if (kept.length) node.setAttribute('class', kept.join(' '));
+    else node.removeAttribute('class');
+  }
+  if (node.tagName === 'INPUT') {
+    node.setAttribute('type', 'checkbox');
+    node.setAttribute('disabled', '');
+  }
+});
+
 /** Renders ```mermaid blocks in `root`; unparseable blocks stay as source with a note. */
 async function renderDiagrams(root: HTMLElement) {
   const blocks = [
@@ -93,7 +130,7 @@ export function Markdown({
   const navigate = useNavigate();
   const { owner, repo: name, ref: gitRef, dir } = repo ?? {};
   const html = useMemo(() => {
-    const clean = DOMPurify.sanitize(
+    const clean = purify.sanitize(
       marked.parse(source, { async: false }) as string
     );
     return owner !== undefined
