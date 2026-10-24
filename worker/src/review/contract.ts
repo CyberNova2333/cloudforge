@@ -207,6 +207,24 @@ export function reviewUserPrompt(
   ].join('\n\n');
 }
 
+/**
+ * The per-file summary call's message: the file's path, counts and diff inside one tag with a per-call random name,
+ * as in the review prompt (the summary feeds Clef, which decides who reviews). `random` is injectable for tests.
+ */
+export function summaryUserPrompt(
+  f: {
+    path: string;
+    status: string;
+    additions: number;
+    deletions: number;
+    diff: string;
+  },
+  random: () => string = randomHex
+): string {
+  const tag = `untrusted-${random()}`;
+  return `<${tag}>\nFile: ${oneLine(f.path)} (${f.status}, +${f.additions} −${f.deletions})\n\n\`\`\`diff\n${f.diff}\n\`\`\`\n</${tag}>`;
+}
+
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
 /**

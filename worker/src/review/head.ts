@@ -35,6 +35,7 @@ import { resolutionConfigured, type StepRunner } from '../merge/resolution';
 import { noteDecision } from '../agent-runs/context';
 import { shortError } from '../agent-runs/record';
 import { readAgentConfig, type AgentEngine } from '../agents/config';
+import { guardedOf } from '../agents/presets';
 import { ensureStacking } from '../stack/discover';
 import { chunks } from '../stack/view';
 import { maybeAutoMerge } from './auto-merge';
@@ -122,6 +123,8 @@ export type InvitedAgent = {
   ask: string | null;
   above: number | null;
   engine: AgentEngine;
+  /** Guarded (AGENT.md `guarded: true`, or a security/data facet): it reviews every head, Clef is never asked. */
+  guarded: boolean;
   /** Why it can't review (repository gone or unreadable, AGENT.md invalid); null when it can. */
   error: string | null;
 };
@@ -164,6 +167,7 @@ export async function invitedAgentsAt(
         ask: null,
         above: null,
         engine: 'pass',
+        guarded: false,
         error: null,
       };
       if (!r.repo)
@@ -186,6 +190,7 @@ export async function invitedAgentsAt(
         ask: config.config.trigger.ask,
         above: config.config.trigger.above,
         engine: config.config.engine,
+        guarded: guardedOf(config.config),
       };
     })
   );
@@ -864,11 +869,13 @@ async function reviewHead(
   // Stopped meanwhile, or started again by a Retry: this run makes no more model calls or writes.
   if (!saved) return;
 
-  // 2. Which agents this concerns: one Clef call over the one-liners, never the diff. Unsure means review.
+  // 2. Which agents this concerns: one Clef call over the one-liners, never the diff. Unsure means review. Guarded
+  // agents always review: what the author wrote (title, description, the files' content behind their one-liners)
+  // never decides whether the agents that guard security and data look at it.
   const invited = await step.do('agents', () =>
     invitedAgentsAt(env, db, pr.repositoryId)
   );
-  const askable = invited.filter((a) => !a.error);
+  const askable = invited.filter((a) => !a.error && !a.guarded);
   const probabilities = askable.length
     ? await step
         .do('trigger', MODEL_RETRIES, () =>
@@ -893,8 +900,9 @@ async function reviewHead(
     if (!(await advance(db, id, job, { status: 'reviewing' }))) return null;
     const now = new Date();
     const rows = invited.map((a) => {
-      const p = a.error ? undefined : probabilities?.[a.handle];
-      const requested = a.error !== null || p === undefined || p >= a.above!;
+      const p = a.error || a.guarded ? undefined : probabilities?.[a.handle];
+      const requested =
+        a.error !== null || a.guarded || p === undefined || p >= a.above!;
       return {
         id: crypto.randomUUID(),
         pullRequestId: pr.id,
@@ -911,9 +919,11 @@ async function reviewHead(
         summary:
           a.error || p !== undefined
             ? null
-            : probabilities
-              ? 'Clef gave no answer for this agent, so it reviews.'
-              : 'Clef could not be reached, so every agent reviews.',
+            : a.guarded
+              ? 'A guarded agent reviews every change, so Clef is not asked.'
+              : probabilities
+                ? 'Clef gave no answer for this agent, so it reviews.'
+                : 'Clef could not be reached, so every agent reviews.',
         error: a.error,
         createdAt: now,
         finishedAt: a.error || !requested ? now : null,

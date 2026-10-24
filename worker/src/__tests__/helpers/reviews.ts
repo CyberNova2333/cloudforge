@@ -42,6 +42,7 @@ export const AGENT_MD = (
     ask?: string;
     above?: number | string;
     engine?: string;
+    guarded?: boolean;
     body?: string;
   } = {}
 ) => `---
@@ -49,7 +50,7 @@ name: ${JSON.stringify(o.name ?? 'Security Agent')}
 trigger:
   ask: ${JSON.stringify(o.ask ?? 'Does this touch authentication?')}
   above: ${o.above ?? 0.5}
-engine: ${o.engine ?? 'pass'}
+engine: ${o.engine ?? 'pass'}${o.guarded !== undefined ? `\nguarded: ${o.guarded}` : ''}
 ---
 ${o.body ?? 'Look for leaked secrets.'}
 `;

@@ -109,7 +109,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   and fences stale close/reopen cycles. Recovery runs before R2 cleanup. Stale edits cannot overwrite a concurrent merge or retarget.
 - Reviews (`worker/src/review/`): reviewer agents invited per repository (`repository_agents`). Per head commit
   (`pr_classifications`, id `<pr id>-<head sha>`): GLM one-liner per file → one Clef call over every agent's
-  `trigger.ask` (`pr_reviewers`, requested iff p ≥ above; unsure = requested) → each requested agent reviews
+  `trigger.ask` (`pr_reviewers`, requested iff p ≥ above; unsure = requested; guarded agents always requested, never asked) → each requested agent reviews
   (`engine: pass`: one GLM-5.3 call) at its repository's default-branch SHA (`agent_sha`; `AGENT.md` + `knowledge/`
   ≤ 20 files / 64 KB) → approve or findings (`pr_review_flags.kind` `needs_person` | `change_requested`).
   Workers AI calls wait out rate limits with jitter (`lib/ai-retry.ts`); a review step still rate limited sleeps and runs

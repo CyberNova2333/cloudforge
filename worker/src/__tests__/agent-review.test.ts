@@ -170,6 +170,36 @@ describe('拉取请求提交的审查者选择', () => {
     });
   });
 
+  it('受保护的智能体总是审查，不询问 Clef', async () => {
+    const { t } = await reviewed([
+      ['secagent', AGENT_MD({ above: 0.5, guarded: true })],
+      ['dataagent', AGENT_MD({ above: 0.5 })],
+    ]);
+    const { models, calls } = agentModels({
+      probabilities: { secagent: 0, dataagent: 0 },
+    });
+    await runReviews(t, models);
+    expect(Object.keys(calls.triggered[0].questions)).toEqual(['dataagent']);
+    expect(calls.reviewed.map((r) => r.handle)).toEqual(['secagent']);
+    expect(await reviewers(t)).toMatchObject([
+      { agent: 'dataagent', status: 'not_needed', requested: 0 },
+      {
+        agent: 'secagent',
+        status: 'approved',
+        requested: 1,
+        probability: null,
+      },
+    ]);
+  });
+
+  it('只有受保护的智能体时不调用 Clef', async () => {
+    const { t } = await reviewed([['secagent', AGENT_MD({ guarded: true })]]);
+    const { models, calls } = agentModels();
+    await runReviews(t, models);
+    expect(calls.triggered).toHaveLength(0);
+    expect(calls.reviewed.map((r) => r.handle)).toEqual(['secagent']);
+  });
+
   it('AGENT.md 无效时以解析错误标记智能体失败，且不就该智能体询问 Clef', async () => {
     const { t } = await reviewed([
       ['secagent', AGENT_MD({ above: 1 })],
