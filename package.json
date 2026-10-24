@@ -10,6 +10,7 @@
     "dev": "node scripts/dev.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "cloudforge": "node scripts/cloudforge/cli.ts",
+    "agents:sync": "node scripts/sync-agents.mjs",
     "pack:npm": "node scripts/cloudforge/pack.mjs",
     "release:publish": "node scripts/release-publish.mjs",
     "build": "vite build",

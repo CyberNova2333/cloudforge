@@ -10,6 +10,7 @@ export default defineConfig({
     include: [
       'scripts/cloudforge/__tests__/**/*.test.ts',
       'scripts/githooks/__tests__/**/*.test.ts',
+      'scripts/__tests__/**/*.test.ts',
     ],
   },
 });
