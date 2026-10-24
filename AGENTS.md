@@ -254,6 +254,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 ## Git Hooks
 
 - Husky runs lint-staged (prettier) on pre-commit. After cloning, run `yarn husky`.
+- Hook commands resolve Yarn through `scripts/githooks/run-yarn.mjs`, falling back to Corepack when Yarn is
+  absent. Codex uses `.codex/hooks.json` and `.codex/hooks/run.mjs` to adapt `apply_patch` events to the shared
+  policies in `.claude/hooks/`; see `docs/development.md` for hook trust and verification.
 
 ## Database
 

@@ -1,20 +1,27 @@
-// Shared helpers for .claude/hooks/* scripts.
-// Dependency-free Node ESM — node: builtins only. Never throws; every failure path
-// degrades to a no-op so a broken hook can never block real work.
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Shared helpers for Claude and the Codex adapter. Failed checks must be reported.
 import { readFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { runYarn } from "../../scripts/githooks/run-yarn.mjs";
 
-/** Read the hook payload from stdin. Returns {} when empty, unparseable, or run from a TTY. */
-export async function readHookInput() {
-  if (process.stdin.isTTY) return {};
+/** Read stdin JSON. Strict adapters reject empty/malformed input; legacy callers get {}. */
+export async function readHookInput({ strict = false } = {}) {
+  if (process.stdin.isTTY) {
+    if (strict) throw new Error("钩子需要通过标准输入接收 JSON 负载。");
+    return {};
+  }
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   const raw = Buffer.concat(chunks).toString("utf8").trim();
-  if (!raw) return {};
+  if (!raw) {
+    if (strict) throw new Error("钩子输入为空。");
+    return {};
+  }
   try {
     return JSON.parse(raw);
   } catch {
+    if (strict) throw new Error("钩子输入不是有效 JSON。");
     return {};
   }
 }
@@ -119,22 +126,31 @@ const MAX_REPORT_LINES = 40;
  *  tests; the shipped hooks (typecheck.mjs, test-on-stop.mjs) always use the default. */
 export const DEFAULT_STOP_GATE_TIMEOUT_MS = 300_000;
 
+/** Commands are argv arrays, or simple whitespace-separated commands for backwards
+ * compatibility. No shell expansion is performed. Use an array for quoted/spaceful args. */
+export function runConfigured(command, extraArgs = [], options = {}) {
+  const parts = Array.isArray(command) ? command : String(command).split(/\s+/).filter(Boolean);
+  if (!parts.length || parts.some((part) => typeof part !== "string" || !part))
+    throw new Error("钩子命令必须是非空字符串参数数组。");
+  const [cmd, ...args] = parts;
+  const opts = { cwd: projectDir(), encoding: "utf8", stdio: "pipe", ...options };
+  return cmd === "yarn"
+    ? runYarn([...args, ...extraArgs], opts)
+    : spawnSync(cmd, [...args, ...extraArgs], opts);
+}
+
 /** Run a Stop-hook gate command. Exits 2 with a stderr report on failure, 0 otherwise.
  *  Exits 0 immediately when stop_hook_active is set, so a persistently failing gate
  *  can never trap the session.
  *  A command that times out is treated as a BLOCK, not a pass: the gate could not verify the
  *  command's outcome, and silently letting an unverified command through is the wrong direction
- *  for a gate whose entire purpose is to catch problems before they ship. Only a genuinely
- *  unspawnable command (e.g. ENOENT — the binary doesn't exist) still exits 0, since that is a
- *  setup problem, not something the gate can meaningfully hold the agent responsible for. */
+ *  for a gate whose entire purpose is to catch problems before they ship. An unspawnable
+ *  command is also a failed verification and must be surfaced, never silently passed. */
 export function runStopGate({ input, command, label, timeoutMs = DEFAULT_STOP_GATE_TIMEOUT_MS }) {
   if (input?.stop_hook_active) process.exit(0);
   if (!command) process.exit(0);
 
-  const [cmd, ...args] = String(command).split(/\s+/).filter(Boolean);
-  if (!cmd) process.exit(0);
-
-  const res = spawnSync(cmd, args, { cwd: projectDir(), encoding: "utf8", timeout: timeoutMs });
+  const res = runConfigured(command, [], { timeout: timeoutMs });
 
   if (res.error?.code === "ETIMEDOUT") {
     const seconds = Math.round((timeoutMs / 1000) * 10) / 10; // one decimal — timeoutMs may be sub-second in tests
@@ -146,7 +162,12 @@ export function runStopGate({ input, command, label, timeoutMs = DEFAULT_STOP_GA
     process.exit(2);
   }
 
-  if (res.error || res.status === 0) process.exit(0); // unspawnable (e.g. ENOENT) or passing
+  if (!res.error && !res.signal && res.status === 0) process.exit(0);
+
+  if (res.error || res.signal) {
+    process.stderr.write(`${label}: 无法完成检查：${res.error?.message ?? res.signal}\n`);
+    process.exit(2);
+  }
 
   const lines = `${res.stdout ?? ""}${res.stderr ?? ""}`.trim().split("\n");
   const shown = lines.slice(0, MAX_REPORT_LINES).join("\n");

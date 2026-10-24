@@ -1,31 +1,28 @@
 {
+  "description": "CloudForge：保护生成文件，编辑后格式化并检查测试标记，结束前执行类型检查。",
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .codex/hooks/probe.mjs SessionStart"
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
+        "matcher": "^apply_patch$",
         "hooks": [
           {
             "type": "command",
-            "command": "node .codex/hooks/probe.mjs PreToolUse"
+            "command": "node -e \"const root=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(require('node:url').pathToFileURL(root+'/.codex/hooks/run.mjs').href)\"",
+            "timeout": 60,
+            "statusMessage": "检查补丁中的生成文件"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
+        "matcher": "^apply_patch$",
         "hooks": [
           {
             "type": "command",
-            "command": "node .codex/hooks/probe.mjs PostToolUse"
+            "command": "node -e \"const root=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(require('node:url').pathToFileURL(root+'/.codex/hooks/run.mjs').href)\"",
+            "timeout": 300,
+            "statusMessage": "格式化改动并检查测试标记"
           }
         ]
       }
@@ -35,7 +32,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .codex/hooks/probe.mjs Stop"
+            "command": "node -e \"const root=require('node:child_process').execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();import(require('node:url').pathToFileURL(root+'/.codex/hooks/run.mjs').href)\"",
+            "timeout": 320,
+            "statusMessage": "执行项目类型检查"
           }
         ]
       }
