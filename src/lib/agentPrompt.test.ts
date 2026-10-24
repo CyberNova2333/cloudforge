@@ -17,7 +17,7 @@ describe('agentPrompt：代理提示词', () => {
     const p = agentPrompt(repo(false), 'https://git.example.com');
     expect(p).toContain('! git clone https://git.example.com/ada/engine.git');
     expect(p).toContain('https://git.example.com/settings/tokens');
-    expect(p).not.toMatch(/gop_[0-9a-f]/);
+    expect(p).not.toMatch(/(cfp|gop)_[0-9a-f]/);
   });
 
   it('配置 Git LFS，并将拉取请求链接到比较页面', () => {
@@ -58,7 +58,7 @@ describe('importFromGitHubPrompt：从 GitHub 导入的提示词', () => {
     expect(p).toContain(
       '! git -C engine-github.git push --all https://git.example.com/ada/engine.git'
     );
-    expect(p).not.toMatch(/gop_[0-9a-f]|ghp_/);
+    expect(p).not.toMatch(/(cfp|gop)_[0-9a-f]|ghp_/);
   });
 
   it('复制标签和 LFS 文件，且从不强制推送', () => {

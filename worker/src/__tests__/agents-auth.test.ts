@@ -41,7 +41,7 @@ async function accountsOf(t: TestEnv, userId: string) {
 
 /** Stores a personal access token for the agent, as if one had slipped in. */
 async function strayToken(t: TestEnv, userId: string) {
-  const token = 'gop_agent_token_that_should_never_exist';
+  const token = 'cfp_agent_token_that_should_never_exist';
   await t.env.DB.prepare(
     'INSERT INTO personal_access_tokens (id, user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?, 0)'
   )
