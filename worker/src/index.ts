@@ -2,6 +2,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { settleStates } from './pulls/settle';
 import { swaggerUI } from '@hono/swagger-ui';
+import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
 import { createAuth } from './auth';
 import { currentUser } from './auth/session';
@@ -57,8 +58,23 @@ import { runScheduled } from './cron';
 
 const app = new OpenAPIHono<AppEnv>();
 
+/** Largest request body better-auth's routes take (sign-in, sign-up, OAuth client registration, …). */
+export const AUTH_BODY_LIMIT = 64 * 1024;
+/** Largest request body of the rest of the API and /mcp: a 64K-character PR body is the biggest field. */
+export const API_BODY_LIMIT = 1024 * 1024;
+
 app.use('*', injectDb);
 app.use('*', logger());
+// Every JSON field the API takes is bounded well below these. An oversized body is refused before anything parses it:
+// validating a huge array costs memory per element (zod keeps one issue each), enough to exhaust an isolate.
+const tooLarge = (c: Context) =>
+  c.json({ error: 'The request body is too large.' }, 413);
+app.use(
+  '/api/auth/*',
+  bodyLimit({ maxSize: AUTH_BODY_LIMIT, onError: tooLarge })
+);
+app.use('/api/*', bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge }));
+app.use('/mcp', bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge }));
 app.use('*', async (c, next) => {
   const auth = createAuth(c.env);
   c.set('auth', auth);
