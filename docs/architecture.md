@@ -116,8 +116,8 @@ container has no Docker.
 **Matrix.** `strategy.matrix` follows GitHub's expansion ([`plan.ts`](../worker/src/actions/plan.ts) `expandMatrix`):
 the axes' cross product, minus the combinations an `exclude` entry matches (objects match field by field), then each
 `include` entry merged into every combination whose original values it doesn't change, or added as its own job.
-Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported. A workflow may expand
-to at most 20 jobs. Expansion rejects oversized products before allocating them; a matrix with exclusions may
+Values may be objects and lists. Matrices built by expressions (`fromJSON`) aren't supported. A job's matrix may expand
+to at most 20 jobs, and a run holds at most 128 jobs in all. Expansion rejects oversized products before allocating them; a matrix with exclusions may
 inspect at most 1,024 combinations, and at most 20 include entries.
 
 **Secrets and variables** ([`secrets.ts`](../worker/src/actions/secrets.ts)): `${{ secrets.X }}` and `${{ vars.X }}`

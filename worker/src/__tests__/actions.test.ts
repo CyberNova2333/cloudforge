@@ -112,6 +112,24 @@ jobs:
     expect(s.t.actions.started).toHaveLength(0);
   });
 
+  it('站点限制最大运行器后，要求更大规格的工作流记录为失败运行', async () => {
+    const s = await setup();
+    const set = await call(s.t, '/api/admin/settings/actions.max_runner_size', {
+      cookie: s.admin,
+      method: 'PUT',
+      json: { value: 'standard-2' },
+    });
+    expect(set.status).toBe(200);
+    await pushFiles(s, 'main', {
+      '.github/workflows/big.yml':
+        'on: push\njobs:\n  a:\n    runs-on: cloudforge-standard-4\n    steps:\n      - run: x\n',
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    expect(run).toMatchObject({ status: 'completed', conclusion: 'failure' });
+    expect(run.errorMessage).toContain('larger than this instance allows');
+    expect(s.t.actions.started).toHaveLength(0);
+  });
+
   it('PR 创建或其分支变化时运行 pull_request 工作流', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });

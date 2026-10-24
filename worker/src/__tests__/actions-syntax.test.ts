@@ -261,6 +261,45 @@ jobs:
     );
     expect(() => planJobs(mac, {})).toThrow(/Linux jobs only/);
   });
+
+  it('一次运行最多 128 个作业（矩阵展开后）', () => {
+    const wf = (n: number) =>
+      parseWorkflow(
+        [
+          'on: push',
+          'jobs:',
+          ...Array.from({ length: n }, (_, i) =>
+            [
+              `  j${i}:`,
+              '    runs-on: ubuntu-latest',
+              '    strategy:',
+              '      matrix:',
+              `        x: [${Array.from({ length: 20 }, (_, k) => k).join(', ')}]`,
+              '    steps:',
+              '      - run: x',
+            ].join('\n')
+          ),
+        ].join('\n')
+      );
+    expect(planJobs(wf(6), {})).toHaveLength(120);
+    expect(() => planJobs(wf(7), {})).toThrow(/the limit is 128 per run/);
+  });
+
+  it('作业要求的运行器大于站点允许的最大规格时工作流无效', () => {
+    const wf = (runsOn: string) =>
+      parseWorkflow(
+        `on: push\njobs:\n  a:\n    runs-on: ${runsOn}\n    steps:\n      - run: x`
+      );
+    expect(() =>
+      planJobs(wf('cloudforge-standard-4'), {}, { maxRunner: 'standard-2' })
+    ).toThrow(/standard-4 is larger than this instance allows \(standard-2/);
+    expect(
+      planJobs(wf('ubuntu-latest'), {}, { maxRunner: 'standard-2' })
+    ).toHaveLength(1);
+    expect(
+      planJobs(wf('cloudforge-standard-4'), {}, { maxRunner: 'standard-4' })
+    ).toHaveLength(1);
+  });
 });
 
 describe('触发器过滤', () => {
