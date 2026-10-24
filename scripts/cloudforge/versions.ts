@@ -3,7 +3,6 @@ export type Comparison =
   | { kind: 'upgrade' | 'same' | 'downgrade' }
   | { kind: 'custom'; reason: string };
 
-const GITHUB_REPO = 'choyiny/gitorange';
 const SEMVER =
   /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const COMMIT = /^[0-9a-f]{7,40}(-dirty)?$/;
@@ -48,11 +47,17 @@ export function compareSemver(a: string, b: string): -1 | 0 | 1 {
   return 0;
 }
 
-export async function compareRunning(
+/**
+ * Where the running version stands against the package's. A release (semver) compares by number. A commit (a worker
+ * deployed from a checkout) is looked up in the commits the package lists (`history`, its `history.txt`, written by
+ * pack.mjs from `git rev-list`): the package's own commit is the same, one it contains is an upgrade. Anything else
+ * is custom code: a newer build or commits that are not in a release, which the list alone cannot tell apart.
+ * Offline: the fork's repository is on CNB, whose API needs a token.
+ */
+export function compareRunning(
   running: string | null,
-  pkg: { version: string; commit: string },
-  fetchImpl: typeof fetch
-): Promise<Comparison> {
+  pkg: { version: string; commit: string; history?: readonly string[] | null }
+): Comparison {
   if (running === null)
     return { kind: 'custom', reason: 'the running version is unknown' };
   if (parse(running) && parse(pkg.version)) {
@@ -66,42 +71,18 @@ export async function compareRunning(
     };
   if (running.endsWith('-dirty'))
     return { kind: 'custom', reason: 'uncommitted changes' };
-  const unchecked: Comparison = {
+  if (!pkg.commit || !pkg.history?.length)
+    return {
+      kind: 'custom',
+      reason: `this package does not list the commits of ${pkg.version}, so commit ${running} cannot be checked`,
+    };
+  if (pkg.commit.startsWith(running)) return { kind: 'same' };
+  if (pkg.history.some((sha) => sha.startsWith(running)))
+    return { kind: 'upgrade' };
+  return {
     kind: 'custom',
-    reason: `could not check commit ${running} against ${GITHUB_REPO}`,
+    reason: `commit ${running} is not in ${pkg.version} (a newer build, or commits that are not in a release)`,
   };
-  if (!pkg.commit) return unchecked;
-  try {
-    const res = await fetchImpl(
-      `https://api.github.com/repos/${GITHUB_REPO}/compare/${running}...${pkg.commit}`,
-      {
-        headers: {
-          Accept: 'application/vnd.github+json',
-          'User-Agent': 'cloudforge-cli',
-        },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
-    if (!res.ok) return unchecked;
-    const body = (await res.json()) as { status?: string };
-    switch (body.status) {
-      case 'ahead':
-        return { kind: 'upgrade' };
-      case 'identical':
-        return { kind: 'same' };
-      case 'behind':
-        return { kind: 'downgrade' };
-      case 'diverged':
-        return {
-          kind: 'custom',
-          reason: 'commits that are not in the release',
-        };
-      default:
-        return unchecked;
-    }
-  } catch {
-    return unchecked;
-  }
 }
 
 /** dist-tags.latest from the npm registry; null on any failure. */

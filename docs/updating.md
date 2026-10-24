@@ -31,6 +31,7 @@ If `npx` offers an older version right after a release, its registry cache is st
 - It never downgrades. If the worker runs a newer version it stops and prints the command for that version.
 - It only adds secrets the worker lacks and never touches `SETUP_CODE_HASH`. The R2 upload keys and the analytics token are asked for in a terminal (leave one empty to skip it); with `--yes` the deploy goes ahead without them and lists them as missing, with the command that adds them later.
 - If the worker runs code that is not a release (a fork, local changes), it stops before changing anything. `--replace-custom-code` replaces it with stock CloudForge. Forks keep deploying from their own checkout.
+- A worker deployed from a checkout reports its commit instead of a version. The package lists every commit its release contains (`history.txt`, written by `pack.mjs`), so a commit in that list is an upgrade and the release's own commit is the same version, checked offline; any other commit (a newer build, or commits that are not in a release) stops as custom code.
 
 A deploy restarts any running Actions jobs (each restarts from the beginning, up to 3 attempts), so deploying when no CI is running avoids that.
 

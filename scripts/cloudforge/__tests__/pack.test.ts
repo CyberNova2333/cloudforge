@@ -32,6 +32,7 @@ describe('npmManifest：软件包清单', () => {
         'migrations',
         'actions',
         'wrangler.jsonc.example',
+        'history.txt',
         'README.md',
         'LICENSE',
         'COPYING',

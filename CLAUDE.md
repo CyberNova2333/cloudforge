@@ -190,7 +190,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   Dockerfile come from and prints commands (`yarn cloudforge …` vs `npx @cybernova2333/cloudforge@<version> …`); package mode keeps state in
   `~/.cloudforge/<slug>/` (`CLOUDFORGE_HOME`, `home.ts`) and runs its own pinned wrangler from there. `upgrade.ts` plans first
   (`--plan`/`--expect-plan`), never downgrades, adds only the secrets the worker lacks (never `SETUP_CODE_HASH`), and stops
-  on code that is not a release unless `--replace-custom-code`; `adopt` (`adopt.ts` from a checkout, `adopt-worker.ts` from a
+  on code that is not a release unless `--replace-custom-code` (a worker reporting a commit is looked up offline in the
+  package's `history.txt`, `git rev-list` written by `pack.mjs`: `versions.ts` `compareRunning`); `adopt` (`adopt.ts` from a checkout, `adopt-worker.ts` from a
   deployed worker, read-only on Cloudflare) records an existing install. `install` and `upgrade` check Docker in preflight.
   Publishing: `yarn release:publish vX.Y.Z` (`scripts/release-publish.mjs`, from a person's own machine; checks the tag is on
   origin and main with git, builds that commit in a fresh worktree, tests, packs, confirms, `npm publish`). Docs:

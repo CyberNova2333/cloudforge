@@ -124,11 +124,11 @@ async function inspect(
   } else if (!(res.status === 404 && firstAfterAdopt(s))) {
     throw new Error(`${url} answered HTTP ${res.status}. Nothing was changed.`);
   }
-  const comparison = await compareRunning(
-    version,
-    { version: to, commit: ctx.source.commit ?? '' },
-    ctx.fetchImpl
-  );
+  const comparison = compareRunning(version, {
+    version: to,
+    commit: ctx.source.commit ?? '',
+    history: ctx.source.history,
+  });
   return { installationId, version, comparison };
 }
 

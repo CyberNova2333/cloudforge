@@ -46,6 +46,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
       'migrations',
       'actions',
       'wrangler.jsonc.example',
+      'history.txt',
       'README.md',
       'LICENSE',
       'COPYING',
@@ -251,6 +252,25 @@ export async function pack(argv) {
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT })
     .toString()
     .trim();
+  // Every commit this release contains, so `upgrade` can tell a worker deployed from a checkout of one of them
+  // (it reports its commit) without asking a remote (versions.ts compareRunning). Its own file: package.json
+  // goes into the registry's metadata for every version. A shallow clone lists only part of it: fine for CI's smoke
+  // pack, wrong for a release (release:publish packs from a full worktree).
+  if (
+    execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: ROOT })
+      .toString()
+      .trim() === 'true'
+  )
+    console.warn(
+      'Warning: shallow clone, so history.txt lists only part of this release.'
+    );
+  writeFileSync(
+    join(out, 'history.txt'),
+    execFileSync('git', ['rev-list', commit], {
+      cwd: ROOT,
+      maxBuffer: 64 * 1024 * 1024,
+    })
+  );
   const wranglerVersion = JSON.parse(
     readFileSync(
       createRequire(join(ROOT, 'package.json')).resolve(
