@@ -263,6 +263,7 @@ export function AgentReview({
                         : serverChangesRequester(f)
                     }
                     canApprove={canAct}
+                    ownPull={d.canApprove === false}
                     investigating={r.status === 'reviewing'}
                     error={acted === f.id ? error : null}
                     onApprove={async (decision: FlagDecision) => {
@@ -574,16 +575,20 @@ export function PersonApprovals({
           <button
             type="button"
             className="btn small"
-            disabled={!d.headSha || busy}
+            disabled={!d.headSha || busy || d.canApprove === false}
             aria-label={t('Approve this commit')}
             title={
-              outstanding
+              d.canApprove === false
                 ? t(
-                    'Approving stands over findings from unguarded agents and failed or unfinished reviews. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                    'You opened this pull request: someone else with push access approves it.'
                   )
-                : t(
-                    'Approve this commit. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
-                  )
+                : outstanding
+                  ? t(
+                      'Approving stands over findings from unguarded agents and failed or unfinished reviews. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                    )
+                  : t(
+                      'Approve this commit. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.'
+                    )
             }
             onClick={() =>
               decide(true, () =>

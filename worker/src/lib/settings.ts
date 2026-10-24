@@ -145,6 +145,14 @@ export const SETTINGS = {
     default: (env) => env.REVIEW_MODEL || '@cf/zai-org/glm-5.3',
     follows: 'ai.review_model',
   } satisfies Definition<string>,
+  'review.allow_self_approval': {
+    label: 'Authors approve their own pull requests',
+    description:
+      "Off: someone other than a pull request's author approves it and decides the findings on it that need a person (approving, dismissing a change request), on the web, through MCP and by Let Claude decide. On: the author may too, as on an instance with one maintainer.",
+    group: 'Reviews',
+    schema: z.boolean(),
+    default: () => false,
+  } satisfies Definition<boolean>,
   'review.pi_minutes': {
     label: 'Deep review time limit (minutes)',
     description: `How long an engine: pi review may run before it fails (Retry runs it again). From 5 to ${PI_MAX_MINUTES} minutes.`,

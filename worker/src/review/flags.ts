@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 import { and, eq, exists, isNull, or } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
 import type { DrizzleDB } from '../db/middleware';
@@ -70,7 +71,8 @@ export type FlagDecisionOpts = {
 };
 
 export type FlagDecisionResult =
-  { ok: true } | { ok: false; status: 400 | 404 | 409 | 422; error: string };
+  | { ok: true }
+  | { ok: false; status: 400 | 403 | 404 | 409 | 422; error: string };
 
 /** One finding of a pull request, with what deciding it needs to know about its agent. */
 async function loadFlag(db: DrizzleDB, pr: PullRequest, flagId: string) {
@@ -202,6 +204,13 @@ export async function decideFlag(
       error:
         "This is the agent's own change request: push the change, or dismiss it",
     };
+  // Approving a finding (or dismissing a change request) is deciding for a person: never the author's own call,
+  // directly or through CloudForge AI, unless the instance allows it. Asking for changes is always open.
+  if (
+    decision.kind === 'approve' &&
+    (await selfApprovalRefused(db, env, pr, userId))
+  )
+    return { ok: false, status: 403, error: SELF_APPROVAL_REFUSED };
   const label = agentLabel(flag);
   if (flag.guarded && opts.ai)
     return { ok: false, status: 422, error: guardedNotForAi(label) };

@@ -180,6 +180,7 @@ jobs:
           worker/src/__tests__/agent-learning-run.test.ts
           worker/src/__tests__/agent-learning-recovery.test.ts
           worker/src/__tests__/pull-approvals.test.ts
+          worker/src/__tests__/self-approval.test.ts
           worker/src/__tests__/approvals.test.ts
           worker/src/__tests__/owner-questions.test.ts
           worker/src/__tests__/delegate.test.ts

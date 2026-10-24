@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 import { and, asc, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prApprovals, type PullRequest } from '../db/app.schema';
@@ -13,7 +15,7 @@ type OpenHead =
   { ok: true; headSha: string } | { ok: false; status: 400; error: string };
 /** Approving can also refuse a head the person didn't see (409); withdrawing can't. */
 export type ApprovalResult =
-  OpenHead | { ok: false; status: 409; error: string };
+  OpenHead | { ok: false; status: 403 | 409; error: string };
 
 /** The people who approved one commit of a pull request, oldest first. */
 export async function approvalsAt(
@@ -92,6 +94,8 @@ export async function approvePull(
 ): Promise<ApprovalResult> {
   const head = await openHead(git, pr);
   if (!head.ok) return head;
+  if (await selfApprovalRefused(db, env, pr, userId))
+    return { ok: false, status: 403, error: SELF_APPROVAL_REFUSED };
   // The person approves the commit they saw, never one pushed since.
   if (opts.expectedHead && opts.expectedHead !== head.headSha)
     return {

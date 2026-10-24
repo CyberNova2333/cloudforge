@@ -101,7 +101,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `recordReview` (`review/outcome.ts`, fenced on status and `created_at`). Limits are Site admin settings
   (`review.pi_*`, `ai.review_pi_model`), read once per review start. No binding → single pass with
   `PI_FALLBACK_NOTE`. Tests use `fakePi` (`helpers/reviews.ts`). `review/gate.ts` (`reviewVerdict`) is the only
-  landing rule for review; a person's `pr_approvals` row satisfies it except over an agent's open `change_requested`
+  landing rule for review; a person's `pr_approvals` row (never the PR author's while `review.allow_self_approval` is off,
+  the default: `review/self-approval.ts`, also for findings, moderator apps and Let Claude decide; `worker/test/setup.ts`
+  turns it on for the suite) satisfies it except over an agent's open `change_requested`
   finding (dismiss it or push) and a **guarded** agent's open `needs_person` findings (approved one at a time, each
   with a reason: `decideFlag` 422s without one), and is recorded as an `approved` event (withdrawing: `withdrawn`).
   `landPull`: pause → stack gate → checks → review. Auto-merge is on iff the repository invites ≥ 1 agent. `.orangeignore` and lockfiles stay

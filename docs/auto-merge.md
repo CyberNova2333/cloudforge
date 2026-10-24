@@ -129,7 +129,8 @@ A finding for a person is decided on the pull request, on the **Approvals** page
 
 An agent is **guarded** when its `AGENT.md` says `guarded: true` or its `facet` is `security` or `data`. Its findings
 always come to a person: approving one needs a written reason (`422` without one), which goes in the audit log with
-your name; they are never approved in bulk, and CloudForge AI never decides them. A person's approval of the commit
+your name; they are never approved in bulk, and CloudForge AI never decides them. The pull request's author decides none of
+its findings for a person and doesn't approve it, unless a site admin allows that (`review.allow_self_approval`). A person's approval of the commit
 doesn't stand over its open findings for a person, or over people's change requests on them.
 
 ### Let Claude decide

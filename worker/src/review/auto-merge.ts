@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -6,7 +7,8 @@ import {
   type PullRequest,
 } from '../db/app.schema';
 import type { GitService } from '../git/service';
-import { findRepoById, gitFor } from '../lib/repos';
+import { users } from '../db/auth.schema';
+import { findRepoById, gitFor, permissionsFor } from '../lib/repos';
 import { landPull, mergingPause } from '../merge/land';
 import { resolutionConfigured } from '../merge/resolution';
 import { rebaseTips, rebaseView } from '../merge/rebase';
@@ -46,6 +48,10 @@ export async function autoMergeStatus(
 
   const waiting: string[] = [];
   const blocked: string[] = [];
+  // Auto-merge lands on its author's behalf: only while they could push it themselves. A removed collaborator's or a
+  // banned member's pull request waits for someone who can merge.
+  if (!(await authorCanPush(db, pr)))
+    blocked.push('Its author can no longer push to this repository');
   // Landing refuses until someone resumes merging (landPull).
   if (await mergingPause(db, pr.repositoryId))
     waiting.push('Merging is paused');
@@ -83,6 +89,19 @@ export async function autoMergeStatus(
   if (blocked.length) return { state: 'blocked', reasons: blocked };
   if (waiting.length) return { state: 'waiting', reasons: waiting };
   return { state: 'ready', reasons: [] };
+}
+
+/** Whether the pull request's author still has push access to its repository (and isn't banned). */
+async function authorCanPush(
+  db: DrizzleDB,
+  pr: Pick<PullRequest, 'authorId' | 'repositoryId'>
+): Promise<boolean> {
+  const [author, found] = await Promise.all([
+    db.select().from(users).where(eq(users.id, pr.authorId)).get(),
+    findRepoById(db, pr.repositoryId),
+  ]);
+  if (!author || !found) return false;
+  return (await permissionsFor(db, found.repo, author)).write;
 }
 
 /** Merges a pull request if ready. Failures are logged; a lost race waits for the next trigger. */

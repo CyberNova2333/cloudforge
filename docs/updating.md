@@ -52,6 +52,10 @@ The security update adds migration `0040` and changes behaviour; check each poin
 - **Pushes to the default branch and protected branches are restricted**: only repository admins push to them, and
   only fast-forwards; nobody deletes or force-pushes them, and nobody pushes `refs/pull/*`. Collaborators who pushed to
   the default branch directly now open a pull request instead.
+- **Authors don't approve their own pull requests** (nor approve or dismiss findings on them, through the web, MCP
+  moderator apps or Let Claude decide). On an instance with one maintainer, turn on Site admin → Settings → Reviews →
+  "Authors approve their own pull requests". Closing, reopening and the version bump of a pull request need push
+  access, and auto-merge waits while the author can't push to the repository.
 
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
