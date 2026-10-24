@@ -1,4 +1,4 @@
-/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). */
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* New repository: the form and its aside. Ported from the upstream design prototype's views.css (.form, .radios) and repo.css
    (.row2, .radios.stack, .checks, .inline-check), scoped under .newrepo so no other form picks them up. Tokens only. */
 

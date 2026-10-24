@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // The stacked-child reproductions (rebase-merging spec, "Problem"): a child stacked on a parent that lands.
 import { describe, expect, it } from 'vitest';
 import type { Relation } from '../stack/models';

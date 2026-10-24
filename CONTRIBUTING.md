@@ -1,4 +1,4 @@
-<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
 # Contributing to CloudForge
 
@@ -6,8 +6,8 @@ Thanks for your interest in contributing.
 
 ## Licensing of contributions
 
-This project is distributed under the **GNU GPL v3 or later** (`COPYING`), on top of the
-Apache-2.0 licensed upstream work (`LICENSE`). There is no CLA.
+This project is distributed under the **GNU GPL v3 or later** (`LICENSE`), on top of the
+Apache-2.0 licensed upstream work (`LICENSES/Apache-2.0.txt`). There is no CLA.
 
 By opening a pull request you agree that your contribution is licensed under GPL-3.0-or-later,
 and that you have the right to license it. Please sign off every commit (`git commit -s`):

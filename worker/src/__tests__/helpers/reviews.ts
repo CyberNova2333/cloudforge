@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Shared fixtures for reviewer-agent reviews: a repository with invited agents, fake models, inline Workflows. */
 import { expect } from 'vitest';
 import { and, eq } from 'drizzle-orm';

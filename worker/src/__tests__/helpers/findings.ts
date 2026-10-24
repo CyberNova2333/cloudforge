@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Finding fixtures: a reviewed pull request with an owner question, guarded agents, flag rows, audit rows, a fake decider. */
 import type { AgentReview } from '../../review/contract';
 import type { DelegateInput, DelegateModel } from '../../review/delegate';

@@ -1,4 +1,4 @@
-<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
 [简体中文](README.md) | **English**
 
@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://cnb.cool/CyberNova2333/cloudforge/-/build/logs"><img alt="CI on CNB" src="https://img.shields.io/badge/CI-CNB-2563eb" /></a>
-  <a href="COPYING"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
+  <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="Runs on Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
 
@@ -18,7 +18,7 @@ CloudForge is a code host deployed in your own Cloudflare account, bringing Git 
 
 > **Fork notice:** This is an independent fork of [choyiny/gitorange](https://github.com/choyiny/gitorange), based on `b3d5b08` on 2026-10-22 (see [.fork-base](.fork-base)). It is not affiliated with or endorsed by the upstream author.
 >
-> Original portions © 2026 GitOrange contributors, under [Apache-2.0](LICENSE). Modifications © 2026 CyberNova; the combined work is distributed under [GPL-3.0-or-later](COPYING). "GitOrange" and its logo remain the upstream project's marks and are not used here as product marks.
+> Original portions © 2026 GitOrange contributors, under [Apache-2.0](LICENSES/Apache-2.0.txt). Modifications © 2026 CyberNova; the combined work is distributed under [GPL-3.0-or-later](LICENSE). "GitOrange" and its logo remain the upstream project's marks and are not used here as product marks.
 
 ## Features
 
@@ -165,7 +165,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [SECURITY
 
 ## License and notices
 
-This fork is distributed under the [GNU GPL v3.0 or later](COPYING). Original upstream portions remain under the [Apache License 2.0](LICENSE), with their license and copyright notices unchanged. Third-party packages and fonts retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+This fork is distributed under the [GNU GPL v3.0 or later](LICENSE). Original upstream portions remain under the [Apache License 2.0](LICENSES/Apache-2.0.txt), with their license and copyright notices unchanged. Third-party packages and fonts retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Files modified from upstream carry a first-line `Modified by CyberNova for the CloudForge fork` notice. Exceptions that cannot carry that comment or are generated include `package.json`, `migrations/meta/_journal.json`, `worker/worker-configuration.d.ts`, and the images `public/logo.png`, `public/favicon.png`, and `public/apple-touch-icon.png`.
 

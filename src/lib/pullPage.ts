@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The pull request page: which tab a URL shows, the merge box's "what happens next" sentence, the queue line and its
  * estimate, the owner question a reviewer is waiting on, Fixer's attempts and the participants. Pure, so the words

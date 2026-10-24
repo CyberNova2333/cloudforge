@@ -1,4 +1,4 @@
-<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
 **简体中文** | [English](README.en.md)
 
@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://cnb.cool/CyberNova2333/cloudforge/-/build/logs"><img alt="CNB 持续集成" src="https://img.shields.io/badge/CI-CNB-2563eb" /></a>
-  <a href="COPYING"><img alt="许可证：GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
+  <a href="LICENSE"><img alt="许可证：GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="运行于 Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
 
@@ -18,7 +18,7 @@ CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Gi
 
 > **分支声明**：本项目是 [choyiny/gitorange](https://github.com/choyiny/gitorange) 的独立分支，基于 2026-10-22 的 `b3d5b08`（见 [.fork-base](.fork-base)），与上游作者无隶属关系，也未获得其背书。
 >
-> 原始部分 © 2026 GitOrange contributors，采用 [Apache-2.0](LICENSE)；修改部分 © 2026 CyberNova，组合后的作品采用 [GPL-3.0-or-later](COPYING)。“GitOrange”及其标志属于上游项目，不作为本项目的产品标识。
+> 原始部分 © 2026 GitOrange contributors，采用 [Apache-2.0](LICENSES/Apache-2.0.txt)；修改部分 © 2026 CyberNova，组合后的作品采用 [GPL-3.0-or-later](LICENSE)。“GitOrange”及其标志属于上游项目，不作为本项目的产品标识。
 
 ## 主要功能
 
@@ -165,7 +165,7 @@ flowchart LR
 
 ## 许可证与声明
 
-本分支采用 [GNU GPL v3.0 或更新版本](COPYING) 发布。上游原始部分继续适用 [Apache License 2.0](LICENSE)，其许可证和版权声明保持不变；第三方包和字体适用各自许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本分支采用 [GNU GPL v3.0 或更新版本](LICENSE) 发布。上游原始部分继续适用 [Apache License 2.0](LICENSES/Apache-2.0.txt)，其许可证和版权声明保持不变；第三方包和字体适用各自许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 相对上游修改的文件保留首行 `Modified by CyberNova for the CloudForge fork` 声明。不能承载此注释或由工具生成的例外包括 `package.json`、`migrations/meta/_journal.json`、`worker/worker-configuration.d.ts`，以及 `public/logo.png`、`public/favicon.png` 和 `public/apple-touch-icon.png`。
 

@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Workflow runs, jobs and steps (Actions): the small decisions the run and job pages make. */
 import type { Tone } from './agentLook';
 import { t } from './i18n';

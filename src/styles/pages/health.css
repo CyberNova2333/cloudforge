@@ -1,4 +1,4 @@
-/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). */
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* Health: the decision waiting, the "did anything get worse?" table, who made things better or worse, and the reviewers. Ported from the upstream design prototype's views.css (decision card, movers, reviewer rows). Tokens
    only; the table, list, chip, spark and coder tile come from components.css. */
 

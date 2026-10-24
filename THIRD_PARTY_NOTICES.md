@@ -1,6 +1,6 @@
 # Third-party notices
 
-CloudForge is distributed under GPL-3.0-or-later (`COPYING`). It is a fork of GitOrange, whose original portions remain under the Apache License 2.0 (`LICENSE`, unchanged, "Copyright 2026 GitOrange contributors").
+CloudForge is distributed under GPL-3.0-or-later (`LICENSE`). It is a fork of GitOrange, whose original portions remain under the Apache License 2.0 (`LICENSES/Apache-2.0.txt`, unchanged, "Copyright 2026 GitOrange contributors").
 
 The built Worker and web app bundle the following 373 packages: everything reachable from `dependencies` in `package.json`, as installed. Each remains under its own license; the build also prepends each bundled package's license and copyright notice to the client files it ends up in (`build/license-banners.ts`). Development tooling (`devDependencies`) is not distributed. The npm installer package (`@cybernova2333/cloudforge`) declares `wrangler` as a dependency, which npm installs with its own dependency tree under their own licenses (among them `sharp`'s platform binaries, LGPL-3.0-or-later AND Apache-2.0).
 

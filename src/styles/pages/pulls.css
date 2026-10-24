@@ -1,4 +1,4 @@
-/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). */
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* Pull requests (board, list, graph) and compare. Ported from the upstream design prototype's views.css (lanes, prcard) and
    repo.css (rows). Tokens only. The board's cards are one link each: the title's ::after covers the card, and
    whatever else on it is interactive (the session chip, the checks badge) sits above it. */

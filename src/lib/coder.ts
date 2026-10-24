@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The coding agent (or person) that opened a pull request, as the crew pages draw it: a monogram tile and a short
  * label such as "Claude·s4". Coding agents write the code and are never drawn as the reviewer robots.

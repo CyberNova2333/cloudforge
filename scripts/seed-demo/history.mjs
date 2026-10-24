@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // What the demo repository's history looks like: the commits on main, the eight pull requests already merged, the six
 // still open, and what the reviewer agents said about each. Pure data: seed-demo.mjs turns it into git commits, pull
 // requests and database rows.

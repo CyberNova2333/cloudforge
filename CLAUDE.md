@@ -1,4 +1,4 @@
-<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
 # CLAUDE.md
 
@@ -212,14 +212,14 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 ## Git Workflow
 
 - CloudForge is an independent fork of GitOrange (`.fork-base`, tag `upstream-baseline`), distributed under
-  GPL-3.0-or-later (`COPYING`) over the Apache-2.0 upstream work (`LICENSE`). Never edit `LICENSE`; never push to the
+  GPL-3.0-or-later (`LICENSE`) over the Apache-2.0 upstream work (`LICENSES/Apache-2.0.txt`, verbatim). Never edit `LICENSES/Apache-2.0.txt`; never push to the
   `upstream` remote (its push URL is disabled); never rewrite published history.
 - `origin` is https://cnb.cool/CyberNova2333/cloudforge (CNB). ALL work happens on a feature branch merged into `main`.
   Sign off every commit (`git commit -s`, see `CONTRIBUTING.md`). Commit messages are in Chinese, the legacy-client
   standard: subject「type(scope): 中文描述」, a `文档:` line in the body, a full `Co-authored-by: Name <email>` trailer
   (CONTRIBUTING.md「提交信息」; enforced by `scripts/githooks/` as husky commit-msg and pre-push hooks).
 - A file changed from upstream carries a first-line notice ("Modified by CyberNova for the CloudForge fork … Originally
-  Apache-2.0 (see LICENSE)"); keep it when editing, and add it to an upstream file you change for the first time.
+  Apache-2.0 (see LICENSES/Apache-2.0.txt)"); keep it when editing, and add it to an upstream file you change for the first time.
 - **Deploy only when a person says so.** `yarn deploy` (or any `wrangler deploy`) and `yarn db:migrate:prod` run only
   when a person directs it in the conversation, or after you ask and they confirm; never on your own initiative, and
   never as part of finishing a task. Apply pending migrations before deploying, and say what you deployed (the commit)

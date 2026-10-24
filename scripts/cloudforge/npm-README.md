@@ -1,4 +1,4 @@
-<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE). -->
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
 # cloudforge
 
@@ -55,4 +55,4 @@ npx @cybernova2333/cloudforge status
 State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `npx @cybernova2333/cloudforge --help` for every option.
 
 Docs: [setup](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md) ·
-[updating](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`COPYING`), over Apache-2.0 upstream work (`LICENSE`).
+[updating](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`LICENSE`), over Apache-2.0 upstream work (`LICENSES/Apache-2.0.txt`).

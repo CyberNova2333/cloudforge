@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { Facet } from '../db/app.schema';
 import { AGENT_PATH, AVATAR_PATH, type AgentEngine } from './config';
 import { identiconPng } from './identicon';

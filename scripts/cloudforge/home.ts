@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Package mode keeps every installation under ~/.cloudforge/<slug>/ (state, lock, generated wrangler.jsonc).
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';

@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Workers AI rate limits (3021 / 429): retried with jittered backoff, and a review that is only rate limited is
 // never marked failed.
 import { describe, expect, it } from 'vitest';

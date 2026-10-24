@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Builds the npm package `@cybernova2333/cloudforge` into a directory (default build/npm):
 //   node scripts/cloudforge/pack.mjs [--out build/npm] [--version <semver>]
 // Plain JavaScript so it runs on any Node 22. Leaves no tracked changes: the build reads a
@@ -49,7 +49,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
       'history.txt',
       'README.md',
       'LICENSE',
-      'COPYING',
+      'LICENSES',
     ],
   };
 }
@@ -212,9 +212,9 @@ export async function pack(argv) {
     join(ROOT, 'wrangler.jsonc.example'),
     join(out, 'wrangler.jsonc.example')
   );
-  // GPL-3.0-or-later (COPYING) over the Apache-2.0 upstream work (LICENSE): both ship.
+  // GPL-3.0-or-later (LICENSE) over the Apache-2.0 upstream work (LICENSES/Apache-2.0.txt): both ship.
   cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
-  cpSync(join(ROOT, 'COPYING'), join(out, 'COPYING'));
+  cpSync(join(ROOT, 'LICENSES'), join(out, 'LICENSES'), { recursive: true });
   cpSync(
     join(ROOT, 'scripts', 'cloudforge', 'npm-README.md'),
     join(out, 'README.md')
