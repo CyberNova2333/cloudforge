@@ -9,11 +9,11 @@ const json = (v: unknown) => text(JSON.stringify(v, null, 2));
 
 const listReleasesTool: ToolModule = {
   definition: {
-    name: 'gitorange_list_releases',
+    name: 'cloudforge_list_releases',
     title: 'List releases',
     description:
       "List a repository's releases (newest version first, each with its tag, title, when it was cut and the pull request numbers it shipped) and what is unreleased: the pull requests merged into the default branch since the latest release, the version they would make (next; null for a first release, which needs a typed version) and the default branch head. " +
-      'Call it before gitorange_create_release and pass its head as head_sha.',
+      'Call it before cloudforge_create_release and pass its head as head_sha.',
     annotations: { readOnlyHint: true, title: 'List releases' },
     inputSchema: {
       type: 'object',
@@ -56,11 +56,11 @@ const listReleasesTool: ToolModule = {
 
 const createRelease: ToolModule = {
   definition: {
-    name: 'gitorange_create_release',
+    name: 'cloudforge_create_release',
     title: 'Create release',
     description:
       'Cut a release: tag the default branch head with the next semantic version (vX.Y.Z) and record the pull requests it ships. ' +
-      'Call gitorange_list_releases first and pass the head it returned as head_sha; if the branch moved since, this is refused with the new head so you can check what it adds. ' +
+      'Call cloudforge_list_releases first and pass the head it returned as head_sha; if the branch moved since, this is refused with the new head so you can check what it adds. ' +
       'The version is computed from the largest bump of the unreleased pull requests; the first release needs version (for example v0.1.0). ' +
       'A release is permanent: it cannot be deleted or its tag moved. Needs push access.',
     annotations: {
@@ -75,7 +75,7 @@ const createRelease: ToolModule = {
         head_sha: {
           type: 'string',
           description:
-            'The default branch head you checked, from gitorange_list_releases.',
+            'The default branch head you checked, from cloudforge_list_releases.',
         },
         version: {
           type: 'string',
@@ -119,7 +119,7 @@ const createRelease: ToolModule = {
     if (!result.ok)
       throw new McpToolError(
         result.status === 409 && result.head
-          ? `${result.message}. The head is now ${result.head}: call gitorange_list_releases and cut with that head_sha.`
+          ? `${result.message}. The head is now ${result.head}: call cloudforge_list_releases and cut with that head_sha.`
           : result.message
       );
     ctx.after(publishChange(ctx.env, repo.id));

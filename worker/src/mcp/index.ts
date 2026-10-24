@@ -61,6 +61,16 @@ const rpcError = (id: unknown, code: number, message: string) => ({
   error: { code, message },
 });
 
+/**
+ * The tools were named gitorange_* before the fork's rename. A call by an old name reaches the same tool, with the
+ * same moderator check; tools/list shows only the cloudforge_* names, so new clients never learn the old ones.
+ */
+const LEGACY_TOOL_PREFIX = 'gitorange_';
+export const currentToolName = (name: string) =>
+  name.startsWith(LEGACY_TOOL_PREFIX)
+    ? `cloudforge_${name.slice(LEGACY_TOOL_PREFIX.length)}`
+    : name;
+
 async function callTool(
   name: string,
   args: Record<string, unknown>,
@@ -121,10 +131,10 @@ mcpRouter.post('/', async (c) => {
       const name = await instanceName(db, c.env);
       const isModerator = Boolean(await moderator());
       const asModerator = isModerator
-        ? ' This connection is a moderator: with gitorange_approve_review_finding, ' +
-          'gitorange_dismiss_change_request and gitorange_approve_pull_request it may approve findings for a ' +
+        ? ' This connection is a moderator: with cloudforge_approve_review_finding, ' +
+          'cloudforge_dismiss_change_request and cloudforge_approve_pull_request it may approve findings for a ' +
           "person, dismiss agents' change requests and approve pull requests as the signed-in user. Read the " +
-          'pull request with gitorange_get_pull_request first and pass the head_sha you reviewed.'
+          'pull request with cloudforge_get_pull_request first and pass the head_sha you reviewed.'
         : '';
       return c.json(
         rpcResult(id, {
@@ -142,20 +152,20 @@ mcpRouter.post('/', async (c) => {
           instructions:
             `${name} is a self-hosted, GitHub-style git server. Use these tools to find and create ` +
             'repositories and to work with pull requests: push a branch with git, open a pull request, then ' +
-            'follow its checks and agent reviews with gitorange_get_pull_request. Merging is always rebase ' +
+            'follow its checks and agent reviews with cloudforge_get_pull_request. Merging is always rebase ' +
             'and merge: CloudForge keeps open pull requests rebased onto their base itself (a rebase_conflict reason or a ' +
             '"Not rebased" note means it stopped: rebase locally, or, where AI failed on a commit, try again with ' +
-            'gitorange_retry_rebase); after it rebases ' +
-            'your branch (gitorange_get_pull_request shows "rebased", with the old head), rebase your local commits ' +
+            'cloudforge_retry_rebase); after it rebases ' +
+            'your branch (cloudforge_get_pull_request shows "rebased", with the old head), rebase your local commits ' +
             'onto origin/<branch> (`git fetch && git rebase --onto origin/<branch> <old head>`) before you push again; ' +
             'a push of the old history is rejected as a non-fast-forward, ' +
             'never force it. Reviewer agents review the repositories that invite them: list them with ' +
-            'gitorange_list_agents, and repository admins invite or remove them. ' +
+            'cloudforge_list_agents, and repository admins invite or remove them. ' +
             (isModerator
               ? ''
               : 'Only a person can approve a review finding. ') +
             'Fix the change requests agents raise (follow_ups) by pushing. When a check_failed reason is not ' +
-            'caused by your change (read gitorange_get_run_logs), re-run it with gitorange_rerun_checks instead of ' +
+            'caused by your change (read cloudforge_get_run_logs), re-run it with cloudforge_rerun_checks instead of ' +
             "pushing an empty commit, which resets a person's approval. Requesting changes on a finding and similar tools act as the signed-in " +
             'user, so only use them when the user explicitly asks, and never to work around a finding. ' +
             'Never ask the user to paste a personal access token into the conversation; have them run ' +
@@ -178,7 +188,9 @@ mcpRouter.post('/', async (c) => {
         })
       );
     case 'tools/call': {
-      const name = typeof params?.name === 'string' ? params.name : '';
+      const name = currentToolName(
+        typeof params?.name === 'string' ? params.name : ''
+      );
       const args =
         params?.arguments && typeof params.arguments === 'object'
           ? (params.arguments as Record<string, unknown>)

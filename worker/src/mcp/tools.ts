@@ -109,12 +109,12 @@ const urls = (baseURL: string, fullName: string) => ({
 
 const listRepositories: ToolModule = {
   definition: {
-    name: 'gitorange_list_repositories',
+    name: 'cloudforge_list_repositories',
     title: 'List repositories',
     description:
       'List the repositories the signed-in user can see on this server, most recently updated first. ' +
       "Returns each repository's full name (owner/name), description, visibility, whether the user can push, " +
-      'and its web and clone URLs. Use this first to find a repository for gitorange_get_repository.',
+      'and its web and clone URLs. Use this first to find a repository for cloudforge_get_repository.',
     annotations: { readOnlyHint: true, title: 'List repositories' },
     inputSchema: {
       type: 'object',
@@ -166,7 +166,7 @@ const listRepositories: ToolModule = {
           text(
             query
               ? `No repositories match "${query}".`
-              : 'No repositories yet. Create one with gitorange_create_repository.'
+              : 'No repositories yet. Create one with cloudforge_create_repository.'
           ),
         ],
       };
@@ -176,10 +176,10 @@ const listRepositories: ToolModule = {
 
 const getRepository: ToolModule = {
   definition: {
-    name: 'gitorange_get_repository',
+    name: 'cloudforge_get_repository',
     title: 'Get repository',
     description:
-      'Get one repository by its full name (owner/name, from gitorange_list_repositories): description, ' +
+      'Get one repository by its full name (owner/name, from cloudforge_list_repositories): description, ' +
       'visibility, default branch, protected branch patterns (never rebased by CloudForge), branches, open pull request count, the latest commit on the default ' +
       'branch, the latest Actions run status, and how to clone it.',
     annotations: { readOnlyHint: true, title: 'Get repository' },
@@ -199,7 +199,7 @@ const getRepository: ToolModule = {
     const [owner, name, ...rest] = fullName.split('/');
     // One answer for "doesn't exist" and "not visible to you", so ids can't be probed.
     const notFound = new McpToolError(
-      `No repository named ${fullName}. Call gitorange_list_repositories to see the ones you can access.`
+      `No repository named ${fullName}. Call cloudforge_list_repositories to see the ones you can access.`
     );
     if (!owner || !name || rest.length) throw notFound;
     const found = await findRepo(ctx.db, owner, name);
@@ -287,7 +287,7 @@ function snakeKeys(v: unknown): unknown {
 
 const getRepositoryInsights: ToolModule = {
   definition: {
-    name: 'gitorange_get_repository_insights',
+    name: 'cloudforge_get_repository_insights',
     title: 'Get repository insights',
     description:
       "KPIs for one repository's pull requests over the last N days (default 30): opened, merged, how many " +
@@ -322,7 +322,7 @@ const getRepositoryInsights: ToolModule = {
     const [owner, name, ...rest] = fullName.split('/');
     // One answer for "doesn't exist" and "not visible to you", so ids can't be probed.
     const notFound = new McpToolError(
-      `No repository named ${fullName}. Call gitorange_list_repositories to see the ones you can access.`
+      `No repository named ${fullName}. Call cloudforge_list_repositories to see the ones you can access.`
     );
     if (!owner || !name || rest.length) throw notFound;
     const found = await findRepo(ctx.db, owner, name);
@@ -350,7 +350,7 @@ const getRepositoryInsights: ToolModule = {
 
 const getUsage: ToolModule = {
   definition: {
-    name: 'gitorange_get_usage',
+    name: 'cloudforge_get_usage',
     title: 'Get usage and cost',
     description:
       "Site admins only. This CloudForge deployment's Cloudflare usage and estimated cost for a calendar month " +
@@ -423,7 +423,7 @@ function cloneHelp(baseURL: string, fullName: string) {
 
 const createRepositoryTool: ToolModule = {
   definition: {
-    name: 'gitorange_create_repository',
+    name: 'cloudforge_create_repository',
     title: 'Create repository',
     description:
       'Create a new repository owned by the signed-in user (or by the shared team). Personal repositories ' +

@@ -133,10 +133,10 @@ describe('拉取请求页面中较早提交的审查', () => {
     expect(earlier.some((e) => e.headSha === second)).toBe(false);
   });
 
-  it('不将较早审查包含在 gitorange_get_pull_request 中', async () => {
+  it('不将较早审查包含在 cloudforge_get_pull_request 中', async () => {
     const { t, admin } = await twoHeads();
     const { access_token } = await connect(t, admin);
-    const res = await tool(t, access_token, 'gitorange_get_pull_request', {
+    const res = await tool(t, access_token, 'cloudforge_get_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });

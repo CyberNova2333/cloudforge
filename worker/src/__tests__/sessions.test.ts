@@ -100,7 +100,7 @@ describe('通过 MCP 创建的拉取请求来源', () => {
     const long = await tool(
       s.t,
       access_token,
-      'gitorange_create_pull_request',
+      'cloudforge_create_pull_request',
       {
         repository: 'octocat/app',
         head: 'feature',
@@ -113,7 +113,7 @@ describe('通过 MCP 创建的拉取请求来源', () => {
     const wordy = await tool(
       s.t,
       access_token,
-      'gitorange_create_pull_request',
+      'cloudforge_create_pull_request',
       {
         repository: 'octocat/app',
         head: 'feature',
@@ -160,7 +160,7 @@ describe('通过 MCP 创建的拉取请求来源', () => {
       };
     };
     const create = list.result.tools.find(
-      (x) => x.name === 'gitorange_create_pull_request'
+      (x) => x.name === 'cloudforge_create_pull_request'
     )!;
     expect(create.inputSchema.properties.session.description).toMatch(
       /short label/i

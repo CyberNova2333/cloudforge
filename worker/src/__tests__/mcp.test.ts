@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
 import { describe, expect, it } from 'vitest';
 import { mcpServerName } from '../lib/app-name';
+import { NOT_MODERATOR } from '../mcp/moderators';
 import {
   addMember,
   bootstrapAdmin,
@@ -190,28 +191,28 @@ describe('MCP 服务器', () => {
     expect(
       list.result.tools.map((x) => [x.name, x.annotations.readOnlyHint])
     ).toEqual([
-      ['gitorange_list_repositories', true],
-      ['gitorange_get_repository', true],
-      ['gitorange_get_repository_insights', true],
-      ['gitorange_create_repository', false],
-      ['gitorange_get_usage', true],
-      ['gitorange_list_pull_requests', true],
-      ['gitorange_get_pull_request', true],
-      ['gitorange_get_pull_tree', true],
-      ['gitorange_create_pull_request', false],
-      ['gitorange_comment_pull_request', false],
-      ['gitorange_merge_pull_request', false],
-      ['gitorange_retry_rebase', false],
-      ['gitorange_rerun_checks', false],
-      ['gitorange_request_changes_on_review_flag', false],
-      ['gitorange_get_run_logs', true],
-      ['gitorange_list_releases', true],
-      ['gitorange_create_release', false],
-      ['gitorange_list_agents', true],
-      ['gitorange_list_repository_agents', true],
-      ['gitorange_invite_agent', false],
-      ['gitorange_remove_agent', false],
-      ['gitorange_create_agent', false],
+      ['cloudforge_list_repositories', true],
+      ['cloudforge_get_repository', true],
+      ['cloudforge_get_repository_insights', true],
+      ['cloudforge_create_repository', false],
+      ['cloudforge_get_usage', true],
+      ['cloudforge_list_pull_requests', true],
+      ['cloudforge_get_pull_request', true],
+      ['cloudforge_get_pull_tree', true],
+      ['cloudforge_create_pull_request', false],
+      ['cloudforge_comment_pull_request', false],
+      ['cloudforge_merge_pull_request', false],
+      ['cloudforge_retry_rebase', false],
+      ['cloudforge_rerun_checks', false],
+      ['cloudforge_request_changes_on_review_flag', false],
+      ['cloudforge_get_run_logs', true],
+      ['cloudforge_list_releases', true],
+      ['cloudforge_create_release', false],
+      ['cloudforge_list_agents', true],
+      ['cloudforge_list_repository_agents', true],
+      ['cloudforge_invite_agent', false],
+      ['cloudforge_remove_agent', false],
+      ['cloudforge_create_agent', false],
     ]);
     const unknown = (await (
       await rpc(t, access_token, 'resources/list')
@@ -225,7 +226,7 @@ describe('MCP 服务器', () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
-    const ok = await tool(t, access_token, 'gitorange_get_usage', {
+    const ok = await tool(t, access_token, 'cloudforge_get_usage', {
       month: '2026-09',
     });
     expect(ok.isError).toBeUndefined();
@@ -237,14 +238,14 @@ describe('MCP 服务器', () => {
       web_url: `${ORIGIN}/admin/usage?month=2026-09`,
     });
     expect(body.lines.length).toBeGreaterThan(5);
-    const bad = await tool(t, access_token, 'gitorange_get_usage', {
+    const bad = await tool(t, access_token, 'cloudforge_get_usage', {
       month: 'September',
     });
     expect(bad.isError).toBe(true);
 
     const bob = await addMember(t, admin, 'bob');
     const { access_token: bobToken } = await connect(t, bob);
-    const denied = await tool(t, bobToken, 'gitorange_get_usage');
+    const denied = await tool(t, bobToken, 'cloudforge_get_usage');
     expect(denied).toMatchObject({ isError: true });
     expect(denied.content[0].text).toContain('site admins');
   });
@@ -252,11 +253,16 @@ describe('MCP 服务器', () => {
   it('以登录用户身份创建仓库并能再次查询到', async () => {
     const t = makeEnv();
     const { access_token } = await connect(t, await bootstrapAdmin(t));
-    const created = await tool(t, access_token, 'gitorange_create_repository', {
-      name: 'from-claude',
-      description: 'Made over MCP',
-      add_readme: true,
-    });
+    const created = await tool(
+      t,
+      access_token,
+      'cloudforge_create_repository',
+      {
+        name: 'from-claude',
+        description: 'Made over MCP',
+        add_readme: true,
+      }
+    );
     expect(created.isError).toBeUndefined();
     expect(JSON.parse(created.content[0].text)).toMatchObject({
       full_name: 'octocat/from-claude',
@@ -264,13 +270,13 @@ describe('MCP 服务器', () => {
       clone_url: `${ORIGIN}/octocat/from-claude.git`,
     });
 
-    const list = await tool(t, access_token, 'gitorange_list_repositories', {
+    const list = await tool(t, access_token, 'cloudforge_list_repositories', {
       query: 'claude',
     });
     expect(JSON.parse(list.content[0].text)).toMatchObject([
       { full_name: 'octocat/from-claude', can_push: true },
     ]);
-    const got = await tool(t, access_token, 'gitorange_get_repository', {
+    const got = await tool(t, access_token, 'cloudforge_get_repository', {
       repository: 'octocat/from-claude',
     });
     expect(JSON.parse(got.content[0].text)).toMatchObject({
@@ -292,23 +298,25 @@ describe('MCP 服务器', () => {
     const missing = await tool(
       t,
       access_token,
-      'gitorange_create_repository',
+      'cloudforge_create_repository',
       {}
     );
     expect(missing).toMatchObject({ isError: true });
     expect(missing.content[0].text).toContain('name is required');
-    await tool(t, access_token, 'gitorange_create_repository', { name: 'dup' });
-    const dup = await tool(t, access_token, 'gitorange_create_repository', {
+    await tool(t, access_token, 'cloudforge_create_repository', {
+      name: 'dup',
+    });
+    const dup = await tool(t, access_token, 'cloudforge_create_repository', {
       name: 'dup',
     });
     expect(dup.content[0].text).toContain(
       'already have a repository named dup'
     );
 
-    const hidden = await tool(t, access_token, 'gitorange_get_repository', {
+    const hidden = await tool(t, access_token, 'cloudforge_get_repository', {
       repository: 'octocat/secret',
     });
-    const absent = await tool(t, access_token, 'gitorange_get_repository', {
+    const absent = await tool(t, access_token, 'cloudforge_get_repository', {
       repository: 'octocat/nope',
     });
     expect(hidden.isError).toBe(true);
@@ -318,7 +326,7 @@ describe('MCP 服务器', () => {
     const unknownTool = await tool(
       t,
       access_token,
-      'gitorange_delete_everything'
+      'cloudforge_delete_everything'
     );
     expect(unknownTool.isError).toBe(true);
   });
@@ -475,7 +483,7 @@ describe('MCP 拉取请求工具', () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
-    await tool(t, access_token, 'gitorange_create_repository', {
+    await tool(t, access_token, 'cloudforge_create_repository', {
       name: 'app',
       visibility: 'internal',
     });
@@ -494,7 +502,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('提示代理将本地提交变基到 CloudForge 已变基的分支', async () => {
     const { t, token, repo } = await repoWithBranch();
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -513,7 +521,7 @@ describe('MCP 拉取请求工具', () => {
     const get = async () =>
       JSON.parse(
         (
-          await tool(t, token, 'gitorange_get_pull_request', {
+          await tool(t, token, 'cloudforge_get_pull_request', {
             repository: 'octocat/app',
             number: 1,
           })
@@ -540,7 +548,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('读取过程中分支头变化时仍返回响应，并说明未能读取的内容', async () => {
     const { t, token, repo } = await repoWithBranch();
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -553,7 +561,7 @@ describe('MCP 拉取请求工具', () => {
         throw new Error('INTERNAL_ERROR: ref moved');
       },
     });
-    const res = await tool(t, token, 'gitorange_get_pull_request', {
+    const res = await tool(t, token, 'cloudforge_get_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -569,7 +577,7 @@ describe('MCP 拉取请求工具', () => {
     repo.handle = handle;
     const after = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -580,7 +588,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('先变基再合入时，提示代理如何保留尚未推送的提交', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -602,7 +610,7 @@ describe('MCP 拉取请求工具', () => {
       },
       'Main moves'
     );
-    const refused = await tool(t, token, 'gitorange_merge_pull_request', {
+    const refused = await tool(t, token, 'cloudforge_merge_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -617,7 +625,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('记录创建拉取请求的应用、会话和用户需求，并在查询中展示', async () => {
     const { t, token, repo } = await repoWithBranch();
-    const opened = await tool(t, token, 'gitorange_create_pull_request', {
+    const opened = await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -630,7 +638,7 @@ describe('MCP 拉取请求工具', () => {
     });
     const got = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -649,14 +657,14 @@ describe('MCP 拉取请求工具', () => {
       { 'README.md': '# app\n', 'b.txt': 'b\n' },
       'B'
     );
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'other',
       title: 'B',
     });
     const plain = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 2,
         })
@@ -671,7 +679,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('说明当前应由谁处理，并列出需要代理处理的事项', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -689,7 +697,7 @@ describe('MCP 拉取请求工具', () => {
       .run();
     const got = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -702,7 +710,7 @@ describe('MCP 拉取请求工具', () => {
     });
     const mine = JSON.parse(
       (
-        await tool(t, token, 'gitorange_list_pull_requests', {
+        await tool(t, token, 'cloudforge_list_pull_requests', {
           repository: 'octocat/app',
           state: 'agent_followup',
         })
@@ -713,14 +721,14 @@ describe('MCP 拉取请求工具', () => {
     ]);
     const ready = JSON.parse(
       (
-        await tool(t, token, 'gitorange_list_pull_requests', {
+        await tool(t, token, 'cloudforge_list_pull_requests', {
           repository: 'octocat/app',
           state: 'ready',
         })
       ).content[0].text
     );
     expect(ready).toEqual([]);
-    const bad = await tool(t, token, 'gitorange_list_pull_requests', {
+    const bad = await tool(t, token, 'cloudforge_list_pull_requests', {
       repository: 'octocat/app',
       state: 'sleepy',
     });
@@ -734,7 +742,7 @@ describe('MCP 拉取请求工具', () => {
         repo.refs.set(`refs/heads/${head}`, repo.refs.get('refs/heads/main')!);
         await commitPaths(repo, head, { [`${head}.txt`]: `${head}\n` }, head);
       }
-      await tool(t, token, 'gitorange_create_pull_request', {
+      await tool(t, token, 'cloudforge_create_pull_request', {
         repository: 'octocat/app',
         head,
         title: head,
@@ -757,7 +765,7 @@ describe('MCP 拉取请求工具', () => {
       (
         JSON.parse(
           (
-            await tool(t, token, 'gitorange_list_pull_requests', {
+            await tool(t, token, 'cloudforge_list_pull_requests', {
               repository: 'octocat/app',
               ...(state ? { state } : {}),
             })
@@ -778,7 +786,7 @@ describe('MCP 拉取请求工具', () => {
 
   it('支持创建、查看、评论和合入拉取请求', async () => {
     const { t, admin, token, repo } = await repoWithBranch();
-    const opened = await tool(t, token, 'gitorange_create_pull_request', {
+    const opened = await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -796,7 +804,7 @@ describe('MCP 拉取请求工具', () => {
     });
     await settle(t);
 
-    const again = await tool(t, token, 'gitorange_create_pull_request', {
+    const again = await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Again',
@@ -806,7 +814,7 @@ describe('MCP 拉取请求工具', () => {
 
     const listed = JSON.parse(
       (
-        await tool(t, token, 'gitorange_list_pull_requests', {
+        await tool(t, token, 'cloudforge_list_pull_requests', {
           repository: 'octocat/app',
         })
       ).content[0].text
@@ -815,7 +823,7 @@ describe('MCP 拉取请求工具', () => {
       { number: 1, state: 'open', author: 'octocat' },
     ]);
 
-    const commented = await tool(t, token, 'gitorange_comment_pull_request', {
+    const commented = await tool(t, token, 'cloudforge_comment_pull_request', {
       repository: 'octocat/app',
       number: 1,
       body: 'Looks good.',
@@ -824,7 +832,7 @@ describe('MCP 拉取请求工具', () => {
 
     const got = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -854,7 +862,7 @@ describe('MCP 拉取请求工具', () => {
       cookie: admin,
       method: 'POST',
     });
-    const merged = await tool(t, token, 'gitorange_merge_pull_request', {
+    const merged = await tool(t, token, 'cloudforge_merge_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -867,7 +875,7 @@ describe('MCP 拉取请求工具', () => {
     expect(repo.parseCommit(tip)!.message).toBe('Add a');
     const after = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -883,7 +891,7 @@ describe('MCP 拉取请求工具', () => {
   async function reviewedPull() {
     const { t, admin, token } = await repoWithBranch();
     await invitedAgent(t, admin, 'secagent', AGENT_MD());
-    await tool(t, token, 'gitorange_create_pull_request', {
+    await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Add a',
@@ -925,7 +933,7 @@ describe('MCP 拉取请求工具', () => {
     const { t, admin, token } = await reviewedPull();
     const got = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -954,7 +962,7 @@ describe('MCP 拉取请求工具', () => {
     expect(got.reasons.map((r: { kind: string }) => r.kind)).toContain(
       'agent_changes_requested'
     );
-    const refused = await tool(t, token, 'gitorange_merge_pull_request', {
+    const refused = await tool(t, token, 'cloudforge_merge_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -968,7 +976,7 @@ describe('MCP 拉取请求工具', () => {
       method: 'POST',
     });
     await settle(t); // the approval's auto-merge attempt finishes (held) before the agent tries
-    const held = await tool(t, token, 'gitorange_merge_pull_request', {
+    const held = await tool(t, token, 'cloudforge_merge_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -983,7 +991,7 @@ describe('MCP 拉取请求工具', () => {
     await settle(t);
     const after = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
@@ -999,26 +1007,26 @@ describe('MCP 拉取请求工具', () => {
     const { t, token } = await reviewedPull();
     const got = JSON.parse(
       (
-        await tool(t, token, 'gitorange_get_pull_request', {
+        await tool(t, token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 1,
         })
       ).content[0].text
     );
     const [person, change] = got.reviewers[0].findings;
-    const approve = await tool(t, token, 'gitorange_approve_review_flag', {
+    const approve = await tool(t, token, 'cloudforge_approve_review_flag', {
       repository: 'octocat/app',
       number: 1,
       flag_id: person.id,
     });
     expect(approve.isError).toBe(true);
     expect(approve.content[0].text).toBe(
-      'Unknown tool: gitorange_approve_review_flag'
+      'Unknown tool: cloudforge_approve_review_flag'
     );
     const ok = await tool(
       t,
       token,
-      'gitorange_request_changes_on_review_flag',
+      'cloudforge_request_changes_on_review_flag',
       {
         repository: 'octocat/app',
         number: 1,
@@ -1030,7 +1038,7 @@ describe('MCP 拉取请求工具', () => {
     const no = await tool(
       t,
       token,
-      'gitorange_request_changes_on_review_flag',
+      'cloudforge_request_changes_on_review_flag',
       {
         repository: 'octocat/app',
         number: 1,
@@ -1051,7 +1059,7 @@ describe('MCP 拉取请求工具', () => {
     const denied = await tool(
       t,
       access_token,
-      'gitorange_request_changes_on_review_flag',
+      'cloudforge_request_changes_on_review_flag',
       { repository: 'octocat/app', number: 1, flag_id: flagId, note: 'no' }
     );
     expect(denied.isError).toBe(true);
@@ -1070,14 +1078,14 @@ describe('MCP 拉取请求工具', () => {
     const { t, admin } = await repoWithBranch();
     const reader = await addMember(t, admin, 'grace');
     const { access_token } = await connect(t, reader);
-    const open = await tool(t, access_token, 'gitorange_create_pull_request', {
+    const open = await tool(t, access_token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'Nope',
     });
     expect(open.isError).toBe(true);
     expect(open.content[0].text).toMatch(/push access/);
-    const missing = await tool(t, access_token, 'gitorange_get_pull_request', {
+    const missing = await tool(t, access_token, 'cloudforge_get_pull_request', {
       repository: 'octocat/nope',
       number: 1,
     });
@@ -1092,7 +1100,7 @@ describe('MCP 运行日志', () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
-    await tool(t, access_token, 'gitorange_create_repository', {
+    await tool(t, access_token, 'cloudforge_create_repository', {
       name: 'app',
       visibility: 'internal',
     });
@@ -1138,7 +1146,7 @@ describe('MCP 运行日志', () => {
 
     const failed = JSON.parse(
       (
-        await tool(t, access_token, 'gitorange_get_run_logs', {
+        await tool(t, access_token, 'cloudforge_get_run_logs', {
           repository: 'octocat/app',
           run_number: 7,
         })
@@ -1161,7 +1169,7 @@ describe('MCP 运行日志', () => {
 
     const chosen = JSON.parse(
       (
-        await tool(t, access_token, 'gitorange_get_run_logs', {
+        await tool(t, access_token, 'cloudforge_get_run_logs', {
           repository: 'octocat/app',
           run_number: 7,
           job: 'test',
@@ -1173,7 +1181,7 @@ describe('MCP 运行日志', () => {
       { step: 2, name: 'Install', log: 'yarn install\nDone in 3s.' },
     ]);
 
-    const missing = await tool(t, access_token, 'gitorange_get_run_logs', {
+    const missing = await tool(t, access_token, 'cloudforge_get_run_logs', {
       repository: 'octocat/app',
       run_number: 99,
     });
@@ -1199,7 +1207,7 @@ describe('堆叠工具', () => {
     });
     await settle(t);
     const { access_token } = await connect(t, admin);
-    const tree = await tool(t, access_token, 'gitorange_get_pull_tree', {
+    const tree = await tool(t, access_token, 'cloudforge_get_pull_tree', {
       repository: 'octocat/app',
     });
     const view = JSON.parse(tree.content[0].text);
@@ -1207,7 +1215,7 @@ describe('堆叠工具', () => {
     expect(view).toMatchObject({
       targets: [{ branch: 'main', pulls: [{ number: 1, parent: null }] }],
     });
-    const pr = await tool(t, access_token, 'gitorange_get_pull_request', {
+    const pr = await tool(t, access_token, 'cloudforge_get_pull_request', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -1223,9 +1231,14 @@ describe('堆叠工具', () => {
     });
     const bob = await addMember(t, admin, 'bob');
     const bobs = await connect(t, bob);
-    const hidden = await tool(t, bobs.access_token, 'gitorange_get_pull_tree', {
-      repository: 'octocat/app',
-    });
+    const hidden = await tool(
+      t,
+      bobs.access_token,
+      'cloudforge_get_pull_tree',
+      {
+        repository: 'octocat/app',
+      }
+    );
     expect(hidden.isError).toBe(true);
   });
   it('报告需处理的依赖、排序及变基目标分支', async () => {
@@ -1280,7 +1293,7 @@ describe('堆叠工具', () => {
     const { access_token } = await connect(t, admin);
     const pr = JSON.parse(
       (
-        await tool(t, access_token, 'gitorange_get_pull_request', {
+        await tool(t, access_token, 'cloudforge_get_pull_request', {
           repository: 'octocat/app',
           number: 3,
         })
@@ -1297,7 +1310,7 @@ describe('堆叠工具', () => {
     ]);
     const tree = JSON.parse(
       (
-        await tool(t, access_token, 'gitorange_get_pull_tree', {
+        await tool(t, access_token, 'cloudforge_get_pull_tree', {
           repository: 'octocat/app',
         })
       ).content[0].text
@@ -1318,7 +1331,7 @@ describe('通过 MCP 重新运行检查', () => {
     const t = makeEnv({ actions: true });
     const admin = await bootstrapAdmin(t);
     const { access_token } = await connect(t, admin);
-    await tool(t, access_token, 'gitorange_create_repository', {
+    await tool(t, access_token, 'cloudforge_create_repository', {
       name: 'app',
       visibility: 'internal',
     });
@@ -1326,12 +1339,12 @@ describe('通过 MCP 重新运行检查', () => {
     const main = await commitPaths(repo, 'main', { 'a.txt': 'a\n' }, 'base');
     repo.refs.set('refs/heads/feature', main);
     const head = await commitPaths(repo, 'feature', { 'a.txt': 'A\n' }, 'A');
-    await tool(t, access_token, 'gitorange_create_pull_request', {
+    await tool(t, access_token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head: 'feature',
       title: 'A',
     });
-    const none = await tool(t, access_token, 'gitorange_rerun_checks', {
+    const none = await tool(t, access_token, 'cloudforge_rerun_checks', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -1352,7 +1365,7 @@ describe('通过 MCP 重新运行检查', () => {
       run('r3', 3, '.github/workflows/lint.yml', 'success'),
     ]);
 
-    const res = await tool(t, access_token, 'gitorange_rerun_checks', {
+    const res = await tool(t, access_token, 'cloudforge_rerun_checks', {
       repository: 'octocat/app',
       number: 1,
     });
@@ -1366,5 +1379,43 @@ describe('通过 MCP 重新运行检查', () => {
     expect(runs.results.map((r) => r.run_number)).toEqual([1, 2, 3, 4]);
     expect(runs.results[3].head_sha).toBe(head);
     expect(repo.refs.get('refs/heads/feature')).toBe(head);
+  });
+});
+
+describe('改名前的工具名', () => {
+  it('工具列表只出现 cloudforge_* 名称，旧的 gitorange_* 名称仍可调用且结果相同', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    await call(t, '/api/repos', {
+      cookie: admin,
+      json: { name: 'app', addReadme: true, visibility: 'internal' },
+    });
+    const { access_token } = await connect(t, admin);
+    const list = (await (await rpc(t, access_token, 'tools/list')).json()) as {
+      result: { tools: { name: string }[] };
+    };
+    expect(list.result.tools.length).toBeGreaterThan(0);
+    expect(
+      list.result.tools.filter((x) => !x.name.startsWith('cloudforge_'))
+    ).toEqual([]);
+    const now = await tool(t, access_token, 'cloudforge_list_repositories');
+    expect(now.isError).toBeFalsy();
+    expect(await tool(t, access_token, 'gitorange_list_repositories')).toEqual(
+      now
+    );
+  });
+
+  it('旧名称的 moderator 工具同样只对 moderator 连接开放', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const { access_token } = await connect(t, admin);
+    const refused = await tool(
+      t,
+      access_token,
+      'gitorange_approve_review_finding',
+      { finding_id: 'nope' }
+    );
+    expect(refused.isError).toBe(true);
+    expect(refused.content[0].text).toBe(NOT_MODERATOR);
   });
 });

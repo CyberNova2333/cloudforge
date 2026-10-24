@@ -28,7 +28,7 @@ CloudForge is a code host deployed in your own Cloudflare account, bringing Git 
 - **Agent learning:** After a PR closes, dismissed change requests and teaching notes can become learning tasks that update an agent's instructions and knowledge files.
 - **PR coordination:** Dependencies, conflicts, and interactions appear in lists, boards, and a relationship graph. The merge queue can be paused, and PR states explain whether an agent, a person, or another task needs to act next.
 - **CI and run history:** CloudForge Actions executes supported GitHub Actions workflows in Cloudflare Containers, with logs, caches, artifacts, variables, and encrypted secrets. AI runs also record steps, model calls, and usage.
-- **MCP access:** Coding agents authorize through OAuth at `/mcp` to read work, create PRs, inspect checks, and perform permitted operations. Tool names retain the `gitorange_*` prefix for existing clients.
+- **MCP access:** Coding agents authorize through OAuth at `/mcp` to read work, create PRs, inspect checks, and perform permitted operations. Tools are named `cloudforge_*`; the earlier `gitorange_*` names still work (they are not listed), so existing clients keep working.
 - **Interface and administration:** Chinese and English UI, themes, live updates, global search, repository health, a review inbox, invitation-based registration, audit logs, and instance settings.
 
 ## How a PR moves through CloudForge

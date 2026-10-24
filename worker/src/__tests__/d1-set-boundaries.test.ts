@@ -62,7 +62,7 @@ describe('超过 100 个成员的 D1 集合查询', () => {
     expect(found.size).toBe(200);
     expect(found.get(rows[199].id)?.namespace.username).toBe('octocat');
     const result = await TOOL_HANDLERS.get(
-      'gitorange_list_repositories'
+      'cloudforge_list_repositories'
     )!.handler(
       {},
       {

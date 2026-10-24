@@ -64,7 +64,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   encryption bound to repository/run/step; large ciphertext spills to the run's R2 retention prefix. Dynamic masks
   and request-scoped credentials persist across steps and replay as encrypted masks. Preparation/save failures return
   durable failure markers instead of restarting completed commands. Pull-request context is snapshotted in `workflow_runs.event_data` for reruns.
-- MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. better-auth's `@better-auth/oauth-provider`
+- MCP (`worker/src/mcp/`): `POST /mcp` is a hand-rolled JSON-RPC MCP server. Tools are named `cloudforge_*`; `tools/call` maps the
+  pre-rename `gitorange_*` names to them (`currentToolName`), and `tools/list` never shows the old names. better-auth's `@better-auth/oauth-provider`
   (+ `jwt()`) is the OAuth 2.1 authorization server; `/mcp` verifies JWT access tokens (audience `<origin>/mcp`) locally
   and requires the user's consent row, so disconnecting an app is immediate. Discovery routes live at the origin root.
   `yarn auth:update` runs `scripts/fix-auth-schema.mjs` to patch a better-auth CLI bug in the generated schema.
@@ -124,7 +125,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,
   `POST …/branches/clean`, `GET …/branches/map`; `lib/branches.ts`), `health-router.ts` (`lib/health.ts`),
   `sessions-router.ts` (`lib/sessions.ts`: a coding session is derived from `pull_requests.created_via`/
-  `session_label`, self-reported with `request` by `gitorange_create_pull_request`, never stored), `search-router.ts`
+  `session_label`, self-reported with `request` by `cloudforge_create_pull_request`, never stored), `search-router.ts`
   (`GET /api/search?q=&repo=`, `lib/search.ts`; matches with `instr` via `lib/text-match.ts`, never LIKE: D1 caps
   patterns at 50 bytes), `me-router.ts`, and `POST …/pulls/{n}/revert` (`lib/revert.ts`: inverse commit on branch
   `revert-<n>` opened as a PR, never pushed to the target; the branch is deleted if opening fails).
@@ -157,7 +158,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `runActionsRetention` (`worker/src/actions/retention.ts`).
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
-  person or `gitorange_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target
+  person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target
   (`landTargetOf`) is the default branch and that sit in no `release_pulls` row. The version is the previous release plus the
   largest `pull_requests.version_bump` among them, or typed; the first release is always typed and records every earlier PR
   without listing them. `cutRelease` checks the head the caller saw, creates the tag only from absent (`GitService.createRef`,

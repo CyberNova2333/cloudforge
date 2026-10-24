@@ -74,7 +74,7 @@ export async function crewRepo(opts: { actions?: boolean } = {}) {
       request?: string;
     } = {}
   ) {
-    const res = await tool(t, token, 'gitorange_create_pull_request', {
+    const res = await tool(t, token, 'cloudforge_create_pull_request', {
       repository: 'octocat/app',
       head,
       title: args.title ?? head,

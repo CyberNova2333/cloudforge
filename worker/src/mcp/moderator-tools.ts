@@ -28,19 +28,19 @@ function moderatorOf(ctx: ToolContext): Moderator {
 const headShaProp = {
   type: 'string',
   description:
-    'The full head commit SHA you reviewed (head_sha from gitorange_get_pull_request). If the pull request has ' +
+    'The full head commit SHA you reviewed (head_sha from cloudforge_get_pull_request). If the pull request has ' +
     'new commits since, nothing is recorded: look again.',
 };
 const findingIdProp = {
   type: 'string',
   description:
-    "The finding's id, from gitorange_get_pull_request's reviewers[].findings.",
+    "The finding's id, from cloudforge_get_pull_request's reviewers[].findings.",
 };
 const reasonProp = {
   type: 'string',
   maxLength: DECISION_REASON_MAX,
   description:
-    "Why. Required for a guarded agent's finding (guarded: true in gitorange_get_pull_request): it goes in the " +
+    "Why. Required for a guarded agent's finding (guarded: true in cloudforge_get_pull_request): it goes in the " +
     "audit log with the user's name. Ask the user for it; never make one up.",
 };
 
@@ -62,7 +62,7 @@ async function moderatedPull(
   // An abbreviation or a branch name is not "the head you reviewed"; say so rather than "new commits".
   if (!/^[0-9a-f]{40}$/.test(headSha))
     throw new McpToolError(
-      'Pass the full 40-character head_sha from gitorange_get_pull_request, not an abbreviation or branch name.'
+      'Pass the full 40-character head_sha from cloudforge_get_pull_request, not an abbreviation or branch name.'
     );
   return { moderator, repo, fullName, git, pr, headSha };
 }
@@ -93,7 +93,7 @@ async function decideFinding(
   if (!result.ok)
     throw new McpToolError(
       result.status === 404
-        ? `#${pr.number} has no finding ${findingId}. Call gitorange_get_pull_request to see its findings.`
+        ? `#${pr.number} has no finding ${findingId}. Call cloudforge_get_pull_request to see its findings.`
         : result.error
     );
   ctx.after(publishChange(ctx.env, repo.id, { approvals: true }));
@@ -102,12 +102,12 @@ async function decideFinding(
 
 const approveReviewFinding: ToolModule = {
   definition: {
-    name: 'gitorange_approve_review_finding',
+    name: 'cloudforge_approve_review_finding',
     title: 'Approve review finding',
     description:
       "Moderator apps only. Approve one of a pull request's findings that needs a person (kind needs_person), " +
       'as the signed-in user, recorded as made via this app — the same as Approve in the web UI. Read the ' +
-      "finding with gitorange_get_pull_request first and pass the head_sha you reviewed. A guarded agent's finding " +
+      "finding with cloudforge_get_pull_request first and pass the head_sha you reviewed. A guarded agent's finding " +
       '(guarded: true) needs a reason from the user. Needs push access.',
     annotations: {
       readOnlyHint: false,
@@ -134,7 +134,7 @@ const approveReviewFinding: ToolModule = {
 
 const dismissChangeRequest: ToolModule = {
   definition: {
-    name: 'gitorange_dismiss_change_request',
+    name: 'cloudforge_dismiss_change_request',
     title: 'Dismiss change request',
     description:
       "Moderator apps only. Dismiss an agent's change request on a pull request (a finding of kind " +
@@ -166,7 +166,7 @@ const dismissChangeRequest: ToolModule = {
 
 const approvePullRequest: ToolModule = {
   definition: {
-    name: 'gitorange_approve_pull_request',
+    name: 'cloudforge_approve_pull_request',
     title: 'Approve pull request',
     description:
       "Moderator apps only. Approve a pull request's head commit as the signed-in user, recorded as made via " +

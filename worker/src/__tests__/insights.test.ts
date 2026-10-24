@@ -377,7 +377,7 @@ describe('仓库洞察', () => {
       .from(users)
       .where(eq(users.username, 'octocat'))
       .get())!;
-    const tool = TOOL_HANDLERS.get('gitorange_get_repository_insights')!;
+    const tool = TOOL_HANDLERS.get('cloudforge_get_repository_insights')!;
     expect(tool.definition.annotations.readOnlyHint).toBe(true);
     const ctx = {
       db,

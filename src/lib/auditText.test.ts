@@ -27,15 +27,15 @@ const ev = (over: Partial<AuditEvent>): AuditEvent => ({
   action: 'merging.paused',
   target: '',
   data: {},
-  repo: 'choyiny/gitorange',
+  repo: 'octocat/cloudforge',
   pull: null,
   ...over,
 });
 
 describe('审计摘要中的句子', () => {
-  it('mahmoud 暂停 choyiny/gitorange 的合并', () => {
+  it('mahmoud 暂停 octocat/cloudforge 的合并', () => {
     expect(auditText(ev({ action: 'merging.paused' }))).toBe(
-      'mahmoud paused merging on choyiny/gitorange'
+      'mahmoud paused merging on octocat/cloudforge'
     );
   });
 
@@ -140,7 +140,7 @@ describe('仓库视图与实例视图', () => {
 
   it('实例日志包含仓库名', () => {
     expect(auditText(merged)).toBe(
-      'mahmoud merged choyiny/gitorange#12 “Fix the queue” into main'
+      'mahmoud merged octocat/cloudforge#12 “Fix the queue” into main'
     );
   });
 
@@ -148,15 +148,15 @@ describe('仓库视图与实例视图', () => {
     const parts = auditParts(merged);
     expect(parts.find((p) => p.kind === 'pull')).toEqual({
       kind: 'pull',
-      text: 'choyiny/gitorange#12',
-      to: '/choyiny/gitorange/pull/12',
+      text: 'octocat/cloudforge#12',
+      to: '/octocat/cloudforge/pull/12',
     });
     expect(parts[0]).toEqual({ kind: 'who', text: 'mahmoud' });
     const paused = auditParts(ev({ action: 'merging.paused' }));
     expect(paused.find((p) => p.kind === 'repo')).toEqual({
       kind: 'repo',
-      text: 'choyiny/gitorange',
-      to: '/choyiny/gitorange',
+      text: 'octocat/cloudforge',
+      to: '/octocat/cloudforge',
     });
   });
 
@@ -176,7 +176,7 @@ describe('仓库视图与实例视图', () => {
   it('显示用户通过何种入口作出变更', () => {
     expect(
       auditText(ev({ action: 'merging.resumed', via: 'Claude Code' }))
-    ).toBe('mahmoud resumed merging on choyiny/gitorange via Claude Code');
+    ).toBe('mahmoud resumed merging on octocat/cloudforge via Claude Code');
   });
 });
 
@@ -186,7 +186,7 @@ describe('每项审计操作都构成一个句子', () => {
       'settings.changed 设置变更',
       {
         action: 'settings.changed',
-        target: 'choyiny/gitorange',
+        target: 'octocat/cloudforge',
         data: {
           changes: {
             defaultBranch: { from: 'main', to: 'trunk' },
@@ -194,32 +194,32 @@ describe('每项审计操作都构成一个句子', () => {
           },
         },
       },
-      'mahmoud changed the default branch and the description on choyiny/gitorange',
+      'mahmoud changed the default branch and the description on octocat/cloudforge',
     ],
     [
       'settings.changed 不包含已知字段',
       { action: 'settings.changed', data: {} },
-      'mahmoud changed settings on choyiny/gitorange',
+      'mahmoud changed settings on octocat/cloudforge',
     ],
     [
       'collaborator.added 添加协作者',
       { action: 'collaborator.added', target: 'cho' },
-      'mahmoud added cho as a collaborator on choyiny/gitorange',
+      'mahmoud added cho as a collaborator on octocat/cloudforge',
     ],
     [
       'collaborator.removed 移除协作者',
       { action: 'collaborator.removed', target: 'cho' },
-      'mahmoud removed cho as a collaborator on choyiny/gitorange',
+      'mahmoud removed cho as a collaborator on octocat/cloudforge',
     ],
     [
       'agent.invited 邀请智能体',
       { action: 'agent.invited', target: 'speedagent' },
-      'mahmoud invited Speed to review choyiny/gitorange',
+      'mahmoud invited Speed to review octocat/cloudforge',
     ],
     [
       'agent.removed 移除智能体',
       { action: 'agent.removed', target: 'speedagent' },
-      'mahmoud removed Speed as a reviewer on choyiny/gitorange',
+      'mahmoud removed Speed as a reviewer on octocat/cloudforge',
     ],
     [
       'agent.created 创建智能体',
@@ -248,7 +248,7 @@ describe('每项审计操作都构成一个句子', () => {
         target: 'NPM_TOKEN',
         data: { scope: 'repository', created: true },
       },
-      'mahmoud added the Actions secret NPM_TOKEN in choyiny/gitorange',
+      'mahmoud added the Actions secret NPM_TOKEN in octocat/cloudforge',
     ],
     [
       'variable.saved 保存实例级变量',
@@ -267,7 +267,7 @@ describe('每项审计操作都构成一个句子', () => {
         target: 'NPM_TOKEN',
         data: { scope: 'repository' },
       },
-      'mahmoud deleted the Actions secret NPM_TOKEN in choyiny/gitorange',
+      'mahmoud deleted the Actions secret NPM_TOKEN in octocat/cloudforge',
     ],
     [
       'variable.deleted 删除实例级变量',
@@ -282,12 +282,12 @@ describe('每项审计操作都构成一个句子', () => {
     [
       'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
-      'mahmoud deleted the artifact dist of run #12 in choyiny/gitorange',
+      'mahmoud deleted the artifact dist of run #12 in octocat/cloudforge',
     ],
     [
       'branch.deleted 由人工删除分支',
       { action: 'branch.deleted', target: 'old-idea', data: { sha: 'abc' } },
-      'mahmoud deleted branch old-idea in choyiny/gitorange',
+      'mahmoud deleted branch old-idea in octocat/cloudforge',
     ],
     [
       'branches.cleaned 清理分支',
@@ -296,17 +296,17 @@ describe('每项审计操作都构成一个句子', () => {
         target: '3 branches',
         data: { branches: ['a', 'b', 'c'], shas: {} },
       },
-      'mahmoud cleaned up 3 merged branches in choyiny/gitorange',
+      'mahmoud cleaned up 3 merged branches in octocat/cloudforge',
     ],
     [
       'merging.paused 暂停合并',
       { action: 'merging.paused' },
-      'mahmoud paused merging on choyiny/gitorange',
+      'mahmoud paused merging on octocat/cloudforge',
     ],
     [
       'merging.resumed 恢复合并',
       { action: 'merging.resumed' },
-      'mahmoud resumed merging on choyiny/gitorange',
+      'mahmoud resumed merging on octocat/cloudforge',
     ],
     [
       'pull.merged 合并拉取请求',
@@ -316,7 +316,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 12,
         data: { title: 'Fix it', into: 'main', automatic: false },
       },
-      'mahmoud merged choyiny/gitorange#12 “Fix it” into main',
+      'mahmoud merged octocat/cloudforge#12 “Fix it” into main',
     ],
     [
       'pull.merged 自动合并',
@@ -327,12 +327,12 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 12,
         data: { title: 'Fix it', into: 'main', automatic: true },
       },
-      'System merged choyiny/gitorange#12 “Fix it” into main',
+      'System merged octocat/cloudforge#12 “Fix it” into main',
     ],
     [
       'pull.reverted 回退拉取请求',
       { action: 'pull.reverted', target: '#12', pull: 12 },
-      'mahmoud reverted choyiny/gitorange#12',
+      'mahmoud reverted octocat/cloudforge#12',
     ],
     [
       'pull.reverted 显示新建的回退拉取请求',
@@ -342,12 +342,12 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 12,
         data: { revert: 13 },
       },
-      'mahmoud reverted choyiny/gitorange#12 with choyiny/gitorange#13',
+      'mahmoud reverted octocat/cloudforge#12 with octocat/cloudforge#13',
     ],
     [
       'pull.approved 批准拉取请求',
       { action: 'pull.approved', target: '#12', pull: 12 },
-      'mahmoud approved choyiny/gitorange#12',
+      'mahmoud approved octocat/cloudforge#12',
     ],
     [
       'finding.approved 批准审查意见',
@@ -357,7 +357,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { finding: 'f', kind: 'needs_person', agent: 'securityagent' },
       },
-      "mahmoud approved Security's finding on choyiny/gitorange#74",
+      "mahmoud approved Security's finding on octocat/cloudforge#74",
     ],
     [
       'finding.approved 在修改请求上表示驳回',
@@ -367,7 +367,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { finding: 'f', kind: 'change_requested', agent: 'speedagent' },
       },
-      "mahmoud dismissed Speed's change request on choyiny/gitorange#74",
+      "mahmoud dismissed Speed's change request on octocat/cloudforge#74",
     ],
     [
       'finding.changes_requested 要求修改',
@@ -377,7 +377,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { finding: 'f', kind: 'needs_person', agent: 'speedagent' },
       },
-      "mahmoud asked for changes on Speed's finding on choyiny/gitorange#74",
+      "mahmoud asked for changes on Speed's finding on octocat/cloudforge#74",
     ],
     [
       'finding.assigned 指派审查意见',
@@ -387,7 +387,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { finding: 'f', agent: 'speedagent', assignee: 'cho' },
       },
-      "mahmoud assigned Speed's finding on choyiny/gitorange#74 to cho",
+      "mahmoud assigned Speed's finding on octocat/cloudforge#74 to cho",
     ],
     [
       'finding.assigned 清除指派',
@@ -397,7 +397,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { finding: 'f', agent: 'speedagent', assignee: null },
       },
-      "mahmoud unassigned Speed's finding on choyiny/gitorange#74",
+      "mahmoud unassigned Speed's finding on octocat/cloudforge#74",
     ],
     [
       'finding.delegated 委托批准',
@@ -412,7 +412,7 @@ describe('每项审计操作都构成一个句子', () => {
           decision: 'approve',
         },
       },
-      "CloudForge AI approved Speed's finding on choyiny/gitorange#74 for cho",
+      "CloudForge AI approved Speed's finding on octocat/cloudforge#74 for cho",
     ],
     [
       'finding.delegated 委托要求修改',
@@ -427,7 +427,7 @@ describe('每项审计操作都构成一个句子', () => {
           decision: 'request_changes',
         },
       },
-      "CloudForge AI asked for changes on Speed's finding on choyiny/gitorange#74 for cho",
+      "CloudForge AI asked for changes on Speed's finding on octocat/cloudforge#74 for cho",
     ],
     [
       'finding.delegated 留待人工处理',
@@ -438,7 +438,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { agent: 'speedagent', decision: 'leave', reason: 'Unsure.' },
       },
-      "CloudForge AI left Speed's finding on choyiny/gitorange#74 for cho to decide",
+      "CloudForge AI left Speed's finding on octocat/cloudforge#74 for cho to decide",
     ],
     [
       'finding.undone 撤销 AI 决定',
@@ -451,7 +451,7 @@ describe('每项审计操作都构成一个句子', () => {
           via: 'CloudForge AI',
         },
       },
-      "mahmoud undid CloudForge AI's decision on Speed's finding on choyiny/gitorange#74",
+      "mahmoud undid CloudForge AI's decision on Speed's finding on octocat/cloudforge#74",
     ],
     [
       'finding.undone 撤销自己的决定',
@@ -460,7 +460,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { agent: 'speedagent', undid: 'changes_requested', via: null },
       },
-      "mahmoud reopened Speed's finding on choyiny/gitorange#74",
+      "mahmoud reopened Speed's finding on octocat/cloudforge#74",
     ],
     [
       'finding.taught 附加指导说明',
@@ -469,7 +469,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 74,
         data: { agent: 'speedagent', teach: 'Never flag test files.' },
       },
-      'mahmoud taught Speed a rule from its finding on choyiny/gitorange#74',
+      'mahmoud taught Speed a rule from its finding on octocat/cloudforge#74',
     ],
     [
       'token.created 创建令牌',
@@ -495,19 +495,19 @@ describe('每项审计操作都构成一个句子', () => {
       'visibility.changed 修改可见性',
       {
         action: 'visibility.changed',
-        target: 'choyiny/gitorange',
+        target: 'octocat/cloudforge',
         data: { from: 'private', to: 'internal' },
       },
-      'mahmoud made choyiny/gitorange internal',
+      'mahmoud made octocat/cloudforge internal',
     ],
     [
       'repository.created 创建仓库',
       {
         action: 'repository.created',
-        target: 'choyiny/gitorange',
+        target: 'octocat/cloudforge',
         data: { visibility: 'private' },
       },
-      'mahmoud created choyiny/gitorange (private)',
+      'mahmoud created octocat/cloudforge (private)',
     ],
     [
       'repository.deleted 删除仓库',
@@ -546,7 +546,7 @@ describe('每项审计操作都构成一个句子', () => {
         target: 'v1.2.0',
         data: { sha: 'abc', pulls: 3 },
       },
-      'mahmoud released v1.2.0 of choyiny/gitorange',
+      'mahmoud released v1.2.0 of octocat/cloudforge',
     ],
     [
       'release.updated 更新发行版本',
@@ -555,7 +555,7 @@ describe('每项审计操作都构成一个句子', () => {
         target: 'v1.2.0',
         data: { fields: ['title', 'notes'] },
       },
-      'mahmoud edited the title and notes of release v1.2.0 in choyiny/gitorange',
+      'mahmoud edited the title and notes of release v1.2.0 in octocat/cloudforge',
     ],
     [
       'release.updated 仅更新发行说明',
@@ -564,7 +564,7 @@ describe('每项审计操作都构成一个句子', () => {
         target: 'v1.2.0',
         data: { fields: ['notes'] },
       },
-      'mahmoud edited the notes of release v1.2.0 in choyiny/gitorange',
+      'mahmoud edited the notes of release v1.2.0 in octocat/cloudforge',
     ],
     [
       'pull.version_bump 设置版本递增级别',
@@ -574,7 +574,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 4,
         data: { from: null, to: 'minor' },
       },
-      'mahmoud set the version bump to minor on choyiny/gitorange#4',
+      'mahmoud set the version bump to minor on octocat/cloudforge#4',
     ],
     [
       'pull.version_bump 修改版本递增级别',
@@ -584,7 +584,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 4,
         data: { from: 'minor', to: 'major' },
       },
-      'mahmoud changed the version bump from minor to major on choyiny/gitorange#4',
+      'mahmoud changed the version bump from minor to major on octocat/cloudforge#4',
     ],
     [
       'pull.version_bump 清除版本递增级别',
@@ -594,7 +594,7 @@ describe('每项审计操作都构成一个句子', () => {
         pull: 4,
         data: { from: 'patch', to: null },
       },
-      'mahmoud cleared the version bump on choyiny/gitorange#4',
+      'mahmoud cleared the version bump on octocat/cloudforge#4',
     ],
   ];
 
@@ -1063,20 +1063,20 @@ describe('第二行详情', () => {
 describe('链接和分类', () => {
   it('优先链接拉取请求，其次仓库，否则无链接', () => {
     expect(auditLink(ev({ action: 'pull.merged', pull: 12 }))).toBe(
-      '/choyiny/gitorange/pull/12'
+      '/octocat/cloudforge/pull/12'
     );
     expect(auditLink(ev({ action: 'merging.paused' }))).toBe(
-      '/choyiny/gitorange'
+      '/octocat/cloudforge'
     );
     expect(auditLink(ev({ action: 'token.created', repo: null }))).toBeNull();
   });
 
   it('将发布事件链接到发行版本', () => {
     expect(auditLink(ev({ action: 'release.created', target: 'v1.2.0' }))).toBe(
-      '/choyiny/gitorange/releases/v1.2.0'
+      '/octocat/cloudforge/releases/v1.2.0'
     );
     expect(auditLink(ev({ action: 'release.updated', target: 'v1.2.0' }))).toBe(
-      '/choyiny/gitorange/releases/v1.2.0'
+      '/octocat/cloudforge/releases/v1.2.0'
     );
   });
 
