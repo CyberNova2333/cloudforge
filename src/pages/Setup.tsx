@@ -27,6 +27,26 @@ export default function Setup() {
   const [busy, setBusy] = useState(false);
   if (status.isPending) return <AuthLoading />;
   if (!status.data?.setupRequired) return <Navigate to="/login" replace />;
+  // Reachable from the internet without a setup code: whoever got here first would own the instance.
+  if (status.data.codeMissing)
+    return (
+      <AuthShell
+        title={t('Welcome to {name}', { name: appName })}
+        docTitle={t('Set up')}
+        lede={t('This instance needs a setup code before it can be set up.')}
+        wide
+      >
+        <p>
+          {tx(
+            'It is reachable from the internet, so the first administrator must present a one-time setup code. Set the {secret} secret to the code’s hash ({doc}), then reload this page.',
+            {
+              secret: <code>SETUP_CODE_HASH</code>,
+              doc: <code>docs/setup.md</code>,
+            }
+          )}
+        </p>
+      </AuthShell>
+    );
 
   const set =
     (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>

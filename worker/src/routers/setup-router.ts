@@ -3,16 +3,22 @@ import { getSettings, signupDomains } from '../lib/settings';
 import { signupOpen, verificationNeeded } from '../auth/signup';
 import { emailConfigured } from '../lib/email';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { sql } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import { users } from '../db/auth.schema';
+import { instanceSettings } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { setupCodeRequired, verifySetupCode } from '../lib/setup-code';
+import {
+  setupCodeMissing,
+  setupCodeRequired,
+  verifySetupCode,
+} from '../lib/setup-code';
 import { USERNAME_RE, isReservedUsername } from '../lib/usernames';
 import type { AppEnv } from '../variables';
 import {
   json200Response,
   json400Response,
   json403Response,
+  json409Response,
   okSchema,
   validationHook,
 } from './openapi-helpers';
@@ -28,6 +34,49 @@ export async function countUsers(db: DrizzleDB) {
     .get();
   return Number(r?.count ?? 0);
 }
+
+// Internal state kept beside the settings: who is creating the first admin right now.
+const SETUP_CLAIM_KEY = 'setup.claim';
+/** A claim older than this (its request died before releasing it) can be taken over. */
+const SETUP_CLAIM_SECONDS = 60;
+
+/**
+ * Claims the creation of the first admin, so two requests racing through an empty instance can't both make one:
+ * one conditional write of the claim row, which a stale claim (older than a minute) gives way to. The nonce
+ * identifies this request's claim, or null when another request holds it.
+ */
+async function claimSetup(db: DrizzleDB): Promise<string | null> {
+  const nonce = crypto.randomUUID();
+  const now = new Date();
+  const res = await db
+    .insert(instanceSettings)
+    .values({ key: SETUP_CLAIM_KEY, value: { nonce }, updatedAt: now })
+    .onConflictDoUpdate({
+      target: instanceSettings.key,
+      set: { value: { nonce }, updatedAt: now },
+      setWhere: lt(
+        instanceSettings.updatedAt,
+        new Date(now.getTime() - SETUP_CLAIM_SECONDS * 1000)
+      ),
+    })
+    .run();
+  return res.meta.changes === 1 ? nonce : null;
+}
+
+/** Gives back this request's claim (creating the admin failed), so setup can be tried again at once. */
+async function releaseSetup(db: DrizzleDB, nonce: string) {
+  await db
+    .delete(instanceSettings)
+    .where(
+      and(
+        eq(instanceSettings.key, SETUP_CLAIM_KEY),
+        sql`json_extract(${instanceSettings.value}, '$.nonce') = ${nonce}`
+      )
+    );
+}
+
+export const SETUP_CODE_MISSING =
+  'This instance is reachable from the internet, so creating the first administrator needs a setup code. Set the SETUP_CODE_HASH secret first (see docs/setup.md).';
 
 export const usernameSchema = z
   .string()
@@ -49,6 +98,8 @@ const statusRoute = createRoute({
         setupRequired: z.boolean(),
         /** The first admin must present the one-time setup code. */
         codeRequired: z.boolean(),
+        /** Setup needs a code, but none is configured (SETUP_CODE_HASH): it is refused until one is. */
+        codeMissing: z.boolean(),
         /** The instance's display name. */
         appName: z.string(),
         /** The interface language for people who haven't picked one: auto follows the browser. */
@@ -82,6 +133,7 @@ setupRouter.openapi(statusRoute, async (c) => {
     {
       setupRequired,
       codeRequired: setupRequired && setupCodeRequired(c.env),
+      codeMissing: setupRequired && setupCodeMissing(c.env, c.req.url),
       appName: s['app.name'],
       defaultLanguage: s['ui.default_language'],
       signup: {
@@ -120,6 +172,7 @@ const createAdminRoute = createRoute({
     ...json200Response(okSchema, 'Admin created'),
     ...json400Response,
     ...json403Response,
+    ...json409Response,
   },
 });
 
@@ -129,8 +182,24 @@ setupRouter.openapi(createAdminRoute, async (c) => {
   if ((await countUsers(db)) > 0)
     return c.json({ error: 'Setup has already been completed' }, 403);
   const { name, username, email, password, code } = c.req.valid('json');
+  if (setupCodeMissing(c.env, c.req.url))
+    return c.json({ error: SETUP_CODE_MISSING }, 403);
   if (!(await verifySetupCode(c.env, code)))
     return c.json({ error: 'The setup code is missing or wrong.' }, 403);
+  const claim = await claimSetup(db);
+  if (!claim)
+    return c.json(
+      {
+        error:
+          'The first administrator is being created. Try again in a minute.',
+      },
+      409
+    );
+  // Checked again under the claim: a request that finished meanwhile made the first admin.
+  if ((await countUsers(db)) > 0) {
+    await releaseSetup(db, claim);
+    return c.json({ error: 'Setup has already been completed' }, 403);
+  }
   try {
     await c.get('auth').api.createUser({
       body: {
@@ -142,6 +211,7 @@ setupRouter.openapi(createAdminRoute, async (c) => {
       },
     });
   } catch (e) {
+    await releaseSetup(db, claim);
     return c.json(
       { error: e instanceof Error ? e.message : 'Could not create user' },
       400

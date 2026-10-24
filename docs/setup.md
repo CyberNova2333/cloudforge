@@ -143,9 +143,11 @@ yarn deploy
 openssl rand -hex 32 | yarn wrangler secret put BETTER_AUTH_SECRET
 yarn wrangler secret put R2_ACCESS_KEY_ID       # paste the R2 token's Access Key ID
 yarn wrangler secret put R2_SECRET_ACCESS_KEY   # paste its Secret Access Key
+CODE=$(openssl rand -hex 12 | tr a-f A-F); echo "Setup code: $CODE"   # keep it for step 7
+printf %s "$CODE" | sha256sum | cut -d' ' -f1 | yarn wrangler secret put SETUP_CODE_HASH
 ```
 
-Setting a secret rolls out a new version of the worker; sign-in fails until `BETTER_AUTH_SECRET` is set, and Git LFS answers "not configured" until both R2 secrets are set.
+Setting a secret rolls out a new version of the worker; sign-in fails until `BETTER_AUTH_SECRET` is set, and Git LFS answers "not configured" until both R2 secrets are set. The welcome page refuses to create the first admin until `SETUP_CODE_HASH` is set (only an instance served and configured on `localhost`, a loopback address, or a `.localhost`/`.local`/`.test` name is set up without a code), so nobody who finds the URL first can claim the instance.
 
 Optionally, for **Site admin → Usage & cost**: create an account API token (**Manage Account → Account API Tokens → Create Token → Custom token**) with the single permission **Account → Account Analytics → Read**, then:
 
@@ -157,7 +159,7 @@ Without it, the page shows only what CloudForge records itself (Actions runner t
 
 ## 7. Create the admin account
 
-Open your `BASE_URL`. The first visit shows **Welcome to CloudForge**; the account you create there becomes the site admin, and setup closes permanently after that. Do this before sharing the URL.
+Open your `BASE_URL`. The first visit shows **Welcome to CloudForge**; enter the setup code from step 6, and the account you create there becomes the site admin. Setup closes permanently after that.
 
 Then:
 

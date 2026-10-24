@@ -1,7 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
-import { setupCodeHash } from '../lib/setup-code';
-import { countUsers } from '../routers/setup-router';
+import { localOnlyHost, setupCodeHash } from '../lib/setup-code';
+import { countUsers, SETUP_CODE_MISSING } from '../routers/setup-router';
+import app from '../index';
 import { drizzle } from 'drizzle-orm/d1';
 import { call, makeEnv, type TestEnv } from './helpers/app';
 
@@ -101,5 +102,123 @@ describe('初始化代码', () => {
     expect(s.setupRequired).toBe(false);
     expect(s.codeRequired).toBe(false);
     expect((await post(t, CODE)).status).toBe(403);
+  });
+});
+
+describe('未设置初始化代码的实例', () => {
+  /** An instance without SETUP_CODE_HASH whose BASE_URL is `base`. */
+  const at = (base: string) => {
+    const t = makeEnv();
+    (t.env as unknown as Record<string, unknown>).BASE_URL = base;
+    return t;
+  };
+  const status = async (t: TestEnv) =>
+    (await (await call(t, '/api/setup/status')).json()) as {
+      codeRequired: boolean;
+      codeMissing: boolean;
+    };
+
+  it('只有本机或保留域名算作仅本地可达', () => {
+    for (const h of [
+      'localhost',
+      '127.0.0.1',
+      '[::1]',
+      'app.localhost',
+      'test.local',
+      'git.test',
+    ])
+      expect(localOnlyHost(h), h).toBe(true);
+    for (const h of [
+      'git.example.com',
+      'cloudforge.workers.dev',
+      '10.0.0.5',
+      'localhost.example.com',
+      '127.0.0.1.nip.io',
+    ])
+      expect(localOnlyHost(h), h).toBe(false);
+  });
+
+  it('BASE_URL 为公网地址时拒绝初始化，并在状态中说明缺少代码', async () => {
+    const t = at('https://git.example.com');
+    expect(await status(t)).toMatchObject({
+      codeRequired: false,
+      codeMissing: true,
+    });
+    const res = await post(t);
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { error: string }).error).toBe(
+      SETUP_CODE_MISSING
+    );
+    expect(await users(t)).toBe(0);
+  });
+
+  it('请求来自公网地址时同样拒绝，即使 BASE_URL 是本机地址', async () => {
+    const t = at('http://localhost:8080');
+    const res = await app.fetch(
+      new Request('https://cloudforge.workers.dev/api/setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://cloudforge.workers.dev',
+        },
+        body: JSON.stringify(admin),
+      }),
+      t.env,
+      t.ctx
+    );
+    expect(res.status).toBe(403);
+    expect(await users(t)).toBe(0);
+  });
+
+  it('本机实例无需代码即可初始化', async () => {
+    const t = makeEnv();
+    expect(await status(t)).toMatchObject({ codeMissing: false });
+    expect((await post(t)).status).toBe(200);
+    expect(await users(t)).toBe(1);
+  });
+
+  it('设置了代码后，公网实例凭代码初始化', async () => {
+    const t = at('https://git.example.com');
+    (t.env as unknown as Record<string, unknown>).SETUP_CODE_HASH =
+      await setupCodeHash(CODE);
+    expect(await status(t)).toMatchObject({
+      codeRequired: true,
+      codeMissing: false,
+    });
+    expect((await post(t, CODE)).status).toBe(200);
+  });
+});
+
+describe('首位管理员的创建是原子的', () => {
+  it('同时提交的两次初始化只有一次成功', async () => {
+    const t = makeEnv();
+    const results = await Promise.all([
+      post(t),
+      call(t, '/api/setup', {
+        json: {
+          ...admin,
+          username: 'mallory',
+          email: 'mallory@example.com',
+        },
+      }),
+    ]);
+    expect(results.filter((r) => r.status === 200)).toHaveLength(1);
+    expect(await users(t)).toBe(1);
+  });
+
+  it('另一个请求正在创建时返回 409，过期的占用可以被接管', async () => {
+    const t = makeEnv();
+    const claim = (at: number) =>
+      t.env.DB.prepare(
+        "INSERT INTO instance_settings (key, value, updated_at) VALUES ('setup.claim', '{}', ?) ON CONFLICT(key) DO UPDATE SET updated_at = excluded.updated_at"
+      )
+        .bind(at)
+        .run();
+    await claim(Math.floor(Date.now() / 1000));
+    expect((await post(t)).status).toBe(409);
+    expect(await users(t)).toBe(0);
+    await claim(Math.floor(Date.now() / 1000) - 120);
+    expect((await post(t)).status).toBe(200);
+    expect(await users(t)).toBe(1);
   });
 });
