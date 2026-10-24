@@ -607,6 +607,8 @@ export type ActionsVariable = {
   createdAt: string;
   updatedAt: string;
   updatedBy: User | null;
+  /** An instance-wide secret only: the repositories whose jobs read it (no others do). */
+  repositories?: { id: string; fullName: string }[];
 };
 export type ActionsVariableList = {
   /** The server has ACTIONS_SECRETS_KEY: secrets can be saved and are read in jobs. */
@@ -1418,6 +1420,12 @@ export const api = {
     apiFetch(`/api/admin/actions/${kind}/${encodeURIComponent(name)}`, {
       method: 'DELETE',
     }),
+  /** Replaces the repositories an instance-wide secret reaches. */
+  setAdminSecretRepositories: (name: string, repositoryIds: string[]) =>
+    apiFetch<{ repositories: { id: string; fullName: string }[] }>(
+      `/api/admin/actions/secrets/${encodeURIComponent(name)}/repositories`,
+      { method: 'PUT', json: { repositoryIds } }
+    ),
   team: () => apiFetch<{ team: Team | null }>('/api/team'),
   saveTeam: (body: { name: string; slug: string }) =>
     apiFetch<{ team: Team }>('/api/team', { method: 'PUT', json: body }),

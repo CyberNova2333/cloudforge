@@ -996,6 +996,7 @@ export const auditActions = [
   'artifact.deleted',
   'secret.saved',
   'secret.deleted',
+  'secret.repositories',
   'variable.saved',
   'variable.deleted',
   'user.password_reset',
@@ -1191,6 +1192,28 @@ export const actionsVariables = sqliteTable(
   ]
 );
 export type ActionsVariable = typeof actionsVariables.$inferSelect;
+
+/**
+ * The repositories an instance-wide secret (an `actions_variables` secret with no repository) reaches: a job reads it
+ * only when its repository is listed, so a new instance secret reaches none until a site admin picks them. Repository
+ * secrets and every variable are not listed here.
+ */
+export const actionsSecretRepositories = sqliteTable(
+  'actions_secret_repositories',
+  {
+    secretId: text('secret_id')
+      .notNull()
+      .references(() => actionsVariables.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.secretId, t.repositoryId] }),
+    index('actions_secret_repositories_repo_idx').on(t.repositoryId),
+  ]
+);
 
 // ── usage & cost ─────────────────────────────────────────────────────────────
 

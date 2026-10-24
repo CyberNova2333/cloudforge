@@ -123,7 +123,10 @@ inspect at most 1,024 combinations, and at most 20 include entries.
 **Secrets and variables** ([`secrets.ts`](../worker/src/actions/secrets.ts)): `${{ secrets.X }}` and `${{ vars.X }}`
 come from one D1 table, `actions_variables`: a repository's own rows (managed by its admins, Settings → Secrets and
 variables) and instance-wide ones (repository null, managed by site admins, Site admin → Actions secrets and
-variables); a repository's row of the same kind and name wins. Names are upper-cased, GitHub's rules, never
+variables); a repository's row of the same kind and name wins. An instance-wide secret reaches only the repositories a
+site admin chose for it (`actions_secret_repositories`, `PUT /api/admin/actions/secrets/{name}/repositories`, audited as
+`secret.repositories`); a new one reaches none. Any member can create a repository and run a workflow in it, so a
+secret for every repository would be readable by every member. Instance-wide variables reach every repository. Names are upper-cased, GitHub's rules, never
 `GITHUB_`/`CLOUDFORGE_`; values up to 48 KB. A secret is stored as AES-256-GCM ciphertext under a key derived (HKDF)
 from the `ACTIONS_SECRETS_KEY` Worker secret, with the row's scope and name as associated data; no route returns it.
 A job reads and decrypts them when it starts, outside any durable Workflow step (step results are persisted), and

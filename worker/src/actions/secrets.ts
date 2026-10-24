@@ -1,11 +1,19 @@
-import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
-import { actionsVariables, type ActionsVariable } from '../db/app.schema';
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import {
+  actionsSecretRepositories,
+  actionsVariables,
+  type ActionsVariable,
+} from '../db/app.schema';
+import { inJsonArray } from '../lib/sql-set';
 import type { DrizzleDB } from '../db/middleware';
 import { maskValues } from './commands';
 
 /**
  * Actions secrets and variables (`${{ secrets.X }}`, `${{ vars.X }}`): one `actions_variables` row each, per
- * repository or instance-wide (repository null; a repository's own row of the same kind and name wins).
+ * repository or instance-wide (repository null; a repository's own row of the same kind and name wins). An
+ * instance-wide secret reaches only the repositories a site admin listed for it (`actions_secret_repositories`): any
+ * member can create a repository and run a workflow in it, so a secret for every repository would be one for every
+ * member. Instance-wide variables reach every repository.
  *
  * A secret's value is stored as AES-256-GCM ciphertext under a key derived (HKDF-SHA-256) from the
  * ACTIONS_SECRETS_KEY Worker secret, with the row's scope and name as associated data so a ciphertext can't be
@@ -275,13 +283,26 @@ export async function jobValues(
   db: DrizzleDB,
   repositoryId: string
 ): Promise<JobValues> {
+  // The repository's own rows, every instance-wide variable, and the instance-wide secrets listed for it.
   const rows = await db
     .select()
     .from(actionsVariables)
     .where(
       or(
-        isNull(actionsVariables.repositoryId),
-        eq(actionsVariables.repositoryId, repositoryId)
+        eq(actionsVariables.repositoryId, repositoryId),
+        and(
+          isNull(actionsVariables.repositoryId),
+          or(
+            eq(actionsVariables.kind, 'variable'),
+            inArray(
+              actionsVariables.id,
+              db
+                .select({ id: actionsSecretRepositories.secretId })
+                .from(actionsSecretRepositories)
+                .where(eq(actionsSecretRepositories.repositoryId, repositoryId))
+            )
+          )
+        )
       )
     )
     .all();
@@ -316,6 +337,89 @@ export async function jobValues(
       'This server has no ACTIONS_SECRETS_KEY, so every secret is empty in this run.'
     );
   return out;
+}
+
+// ── instance-wide secrets: which repositories they reach ─────────────────────
+
+/** Repositories one instance-wide secret may list: the whole allow-list is replaced in one request. */
+export const MAX_SECRET_REPOSITORIES = 500;
+
+/** For each of `secretIds`, the repositories it reaches (ids). */
+export async function secretRepositories(
+  db: DrizzleDB,
+  secretIds: string[]
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>(secretIds.map((id) => [id, []]));
+  if (!secretIds.length) return out;
+  const rows = await db
+    .select()
+    .from(actionsSecretRepositories)
+    .where(inJsonArray(actionsSecretRepositories.secretId, secretIds))
+    .all();
+  for (const r of rows) out.get(r.secretId)?.push(r.repositoryId);
+  return out;
+}
+
+/** The instance-wide secret `name`, or undefined. */
+export function instanceSecret(db: DrizzleDB, name: string) {
+  return db
+    .select()
+    .from(actionsVariables)
+    .where(
+      and(
+        isNull(actionsVariables.repositoryId),
+        eq(actionsVariables.kind, 'secret'),
+        eq(actionsVariables.name, name)
+      )
+    )
+    .get();
+}
+
+/**
+ * Replaces the repositories instance-wide secret `secretId` reaches with `repositoryIds` (existing repositories only;
+ * the caller checked them). One D1 batch, so a job never reads a half-written list. Returns what was added and removed.
+ */
+export async function setSecretRepositories(
+  db: DrizzleDB,
+  secretId: string,
+  repositoryIds: string[]
+): Promise<{ added: string[]; removed: string[] }> {
+  const wanted = [...new Set(repositoryIds)];
+  const before = (await secretRepositories(db, [secretId])).get(secretId)!;
+  const added = wanted.filter((id) => !before.includes(id));
+  const removed = before.filter((id) => !wanted.includes(id));
+  const now = new Date();
+  // 3 columns a row: 33 rows stay under D1's 100 bound parameters.
+  const inserts = [];
+  for (let i = 0; i < added.length; i += 33)
+    inserts.push(
+      db
+        .insert(actionsSecretRepositories)
+        .values(
+          added
+            .slice(i, i + 33)
+            .map((repositoryId) => ({ secretId, repositoryId, createdAt: now }))
+        )
+        .onConflictDoNothing()
+    );
+  const deletes = removed.length
+    ? [
+        db
+          .delete(actionsSecretRepositories)
+          .where(
+            and(
+              eq(actionsSecretRepositories.secretId, secretId),
+              inJsonArray(actionsSecretRepositories.repositoryId, removed)
+            )
+          ),
+      ]
+    : [];
+  const statements = [...deletes, ...inserts];
+  if (statements.length)
+    await db.batch(
+      statements as [(typeof statements)[0], ...typeof statements]
+    );
+  return { added, removed };
 }
 
 /** What job logs hide: each secret, and each line of a multi-line one that could be secret alone (`maskValues`). */

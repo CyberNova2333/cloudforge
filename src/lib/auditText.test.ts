@@ -261,6 +261,29 @@ describe('每项审计操作都构成一个句子', () => {
       'mahmoud updated the Actions variable REGION for every repository',
     ],
     [
+      'secret.saved 保存实例级密钥',
+      {
+        action: 'secret.saved',
+        repo: null,
+        target: 'DEPLOY_KEY',
+        data: { scope: 'instance', created: true },
+      },
+      'mahmoud added the Actions secret DEPLOY_KEY for the instance',
+    ],
+    [
+      'secret.repositories 调整实例级密钥的可用仓库',
+      {
+        action: 'secret.repositories',
+        repo: null,
+        target: 'DEPLOY_KEY',
+        data: {
+          added: ['octocat/api', 'octocat/web'],
+          removed: ['octocat/old'],
+        },
+      },
+      'mahmoud changed which repositories the instance secret DEPLOY_KEY reaches: added octocat/api and octocat/web; removed octocat/old',
+    ],
+    [
       'secret.deleted 删除密钥',
       {
         action: 'secret.deleted',
@@ -659,6 +682,7 @@ describe('每项审计操作都构成一个句子', () => {
         'artifact.deleted',
         'secret.saved',
         'secret.deleted',
+        'secret.repositories',
         'variable.saved',
         'variable.deleted',
         'user.password_reset',

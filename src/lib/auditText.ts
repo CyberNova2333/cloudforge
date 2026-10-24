@@ -58,6 +58,7 @@ export const AUDIT_ACTIONS = [
   'artifact.deleted',
   'secret.saved',
   'secret.deleted',
+  'secret.repositories',
   'variable.saved',
   'variable.deleted',
   'user.password_reset',
@@ -375,8 +376,32 @@ export function auditParts(
       return say(
         verb,
         e.target,
-        d.scope === 'instance' ? t(' for every repository') : false,
+        // An instance-wide secret reaches only the repositories listed for it; a variable reaches all of them.
+        d.scope === 'instance'
+          ? secret
+            ? t(' for the instance')
+            : t(' for every repository')
+          : false,
         ...(d.scope === 'instance' ? [] : tail('in')),
+        via()
+      );
+    }
+    case 'secret.repositories': {
+      const names = (v: unknown) =>
+        Array.isArray(v)
+          ? v.filter((x): x is string => typeof x === 'string')
+          : [];
+      const added = names(d.added);
+      const removed = names(d.removed);
+      return say(
+        t(' changed which repositories the instance secret '),
+        e.target,
+        t(' reaches'),
+        added.length > 0 && t(': added {repos}', { repos: list(added) }),
+        removed.length > 0 &&
+          (added.length > 0
+            ? t('; removed {repos}', { repos: list(removed) })
+            : t(': removed {repos}', { repos: list(removed) })),
         via()
       );
     }
@@ -838,6 +863,7 @@ export function auditCategory(action: string): AuditCategory {
     case 'artifact.deleted':
     case 'secret.saved':
     case 'secret.deleted':
+    case 'secret.repositories':
     case 'variable.saved':
     case 'variable.deleted':
       return 'settings';

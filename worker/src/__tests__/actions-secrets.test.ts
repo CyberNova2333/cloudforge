@@ -22,9 +22,29 @@ const get = async <T = Record<string, unknown>>(
 ) => (await (await call(s.t, path, { cookie })).json()) as T;
 type List = {
   configured: boolean;
-  items: { name: string; value: string | null; updatedBy: unknown }[];
+  items: {
+    name: string;
+    value: string | null;
+    updatedBy: unknown;
+    repositories?: { id: string; fullName: string }[];
+  }[];
   inherited: { name: string; value: string | null }[];
 };
+/** The id of octocat/app. */
+const appId = async (s: Setup) =>
+  (await get<{ id: string }>(s, s.admin, '/api/repos/octocat/app')).id;
+/** Lets the instance-wide secret `name` reach exactly `repositoryIds`. */
+const reach = (
+  s: Setup,
+  cookie: string,
+  name: string,
+  repositoryIds: string[]
+) =>
+  call(s.t, `/api/admin/actions/secrets/${name}/repositories`, {
+    cookie,
+    method: 'PUT',
+    json: { repositoryIds },
+  });
 
 async function runOnce(
   s: Setup,
@@ -210,6 +230,17 @@ describe('Actions 密钥与变量 API', () => {
         (i) => [i.name, i.value]
       )
     ).toEqual([['SHARED', null]]);
+    // A new instance-wide secret reaches no repository until a site admin chooses them.
+    expect((await get<List>(s, s.admin, `${base}/secrets`)).inherited).toEqual(
+      []
+    );
+    expect((await reach(s, s.admin, 'SHARED', [await appId(s)])).status).toBe(
+      200
+    );
+    expect(
+      (await get<List>(s, s.admin, '/api/admin/actions/secrets')).items[0]
+        .repositories
+    ).toEqual([{ id: await appId(s), fullName: 'octocat/app' }]);
     const repoSecrets = await get<List>(s, s.admin, `${base}/secrets`);
     expect(repoSecrets.items).toEqual([]);
     expect(repoSecrets.inherited).toEqual([{ name: 'SHARED', value: null }]);
@@ -245,6 +276,8 @@ describe('作业中的密钥与变量', () => {
     );
     await put(s, s.admin, `${base}/secrets/NPM_TOKEN`, 'repo-npm-999');
     await put(s, s.admin, `${base}/variables/region`, 'eu-west-1');
+    for (const name of ['DEPLOY_KEY', 'NPM_TOKEN'])
+      await reach(s, s.admin, name, [await appId(s)]);
     const { result, h, log } = await runOnce(
       s,
       `on: push
@@ -348,5 +381,81 @@ jobs:
     expect(await log('build', 1)).toContain(
       'Secret TOKEN could not be decrypted (was ACTIONS_SECRETS_KEY changed?)'
     );
+  });
+});
+
+describe('实例级密钥的可用仓库', () => {
+  it('只下发给列出的仓库，其他成员新建的仓库读不到', async () => {
+    const s = await setup();
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-1234');
+    const mallory = await addMember(s.t, s.admin, 'mallory');
+    const created = await call(s.t, '/api/repos', {
+      cookie: mallory,
+      json: { name: 'scratch', visibility: 'private' },
+    });
+    const scratch = ((await created.json()) as { id: string }).id;
+    await reach(s, s.admin, 'PROD_KEY', [await appId(s)]);
+    const { drizzle } = await import('drizzle-orm/d1');
+    const { schema } = await import('../db/schema');
+    const { jobValues } = await import('../actions/secrets');
+    const db = drizzle(s.t.env.DB, { schema });
+    expect((await jobValues(s.t.env, db, await appId(s))).secrets).toEqual({
+      PROD_KEY: 'prod-1234',
+    });
+    expect((await jobValues(s.t.env, db, scratch)).secrets).toEqual({});
+    // Taking the repository off the list takes the secret away from its jobs.
+    await reach(s, s.admin, 'PROD_KEY', []);
+    expect((await jobValues(s.t.env, db, await appId(s))).secrets).toEqual({});
+  });
+
+  it('只有站点管理员能修改，未知密钥 404、未知仓库 400，并记入审计日志', async () => {
+    const s = await setup();
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-1234');
+    const bob = await addMember(s.t, s.admin, 'bob');
+    expect((await reach(s, bob, 'PROD_KEY', [await appId(s)])).status).toBe(
+      403
+    );
+    expect((await reach(s, s.admin, 'NOPE', [await appId(s)])).status).toBe(
+      404
+    );
+    expect((await reach(s, s.admin, 'PROD_KEY', ['missing'])).status).toBe(400);
+    // A repository's own secret of that name is not an instance-wide secret.
+    await put(s, s.admin, `${base}/secrets/OWN`, 'own-1234');
+    expect((await reach(s, s.admin, 'OWN', [await appId(s)])).status).toBe(404);
+
+    expect((await reach(s, s.admin, 'prod_key', [await appId(s)])).status).toBe(
+      200
+    );
+    const audit = await s.t.env.DB.prepare(
+      "SELECT target, data FROM audit_events WHERE action = 'secret.repositories'"
+    ).all<{ target: string; data: string }>();
+    expect(audit.results.map((a) => [a.target, JSON.parse(a.data)])).toEqual([
+      ['PROD_KEY', { added: ['octocat/app'], removed: [] }],
+    ]);
+    // Saving the same list again changes nothing and records nothing.
+    await reach(s, s.admin, 'PROD_KEY', [await appId(s)]);
+    expect(
+      (await s.t.env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM audit_events WHERE action = 'secret.repositories'"
+      ).first<{ n: number }>())!.n
+    ).toBe(1);
+  });
+
+  it('删除后重建同名密钥不会沿用原来的可用仓库', async () => {
+    const s = await setup();
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-1234');
+    await reach(s, s.admin, 'PROD_KEY', [await appId(s)]);
+    // Updating the value keeps the list.
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-5678');
+    const listed = async () =>
+      (await get<List>(s, s.admin, '/api/admin/actions/secrets')).items[0]
+        .repositories;
+    expect(await listed()).toHaveLength(1);
+    await call(s.t, '/api/admin/actions/secrets/PROD_KEY', {
+      cookie: s.admin,
+      method: 'DELETE',
+    });
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-0000');
+    expect(await listed()).toEqual([]);
   });
 });

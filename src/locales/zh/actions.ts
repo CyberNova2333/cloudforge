@@ -248,6 +248,14 @@ export const actions: Record<string, string> = {
   'Delete variable': '删除变量',
   'Also available, from the instance (site admins manage these; one of this repository with the same name wins):':
     '另外还可以使用实例级的（由站点管理员管理；本仓库有同名的时以本仓库为准）：',
+  'An instance-wide secret reaches only the repositories chosen for it: a new one reaches none until you choose them. Variables reach every repository.':
+    '实例级密钥只会下发给为它选定的仓库：新建的密钥在选定仓库之前不会下发给任何仓库。变量对所有仓库可用。',
+  'Repositories ({n})': '可用仓库（{n}）',
+  'Choose the repositories whose jobs read {name}.':
+    '选择哪些仓库的作业可以读取 {name}。',
+  'Filter repositories': '筛选仓库',
+  'No repositories match.': '没有匹配的仓库。',
+  'Save repositories': '保存仓库',
   NAME: '名称，例如 NPM_TOKEN',
   Value: '值',
   'Value (never shown again once saved)': '值（保存后不再显示）',

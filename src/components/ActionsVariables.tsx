@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyIcon, LockIcon } from '@primer/octicons-react';
 import {
@@ -56,6 +56,8 @@ function VariableList({
   const q = useQuery<ActionsVariableList>({ queryKey: c.key, queryFn: c.list });
   // The name being updated; null while adding a new one.
   const [editing, setEditing] = useState<string | null>(null);
+  // The instance-wide secret whose repositories are being chosen.
+  const [reach, setReach] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,13 @@ function VariableList({
               { expr: <code>{expr}</code> }
             )}
       </p>
+      {!scope && secret && (
+        <p className="f6 color-fg-muted mb-2">
+          {t(
+            'An instance-wide secret reaches only the repositories chosen for it: a new one reaches none until you choose them. Variables reach every repository.'
+          )}
+        </p>
+      )}
       {off && (
         <div className="flash flash-warn mb-2">
           {t(
@@ -121,54 +130,75 @@ function VariableList({
             </div>
           ) : (
             data!.items.map((item) => (
-              <div
-                key={item.name}
-                className="Box-row d-flex flex-items-center flex-wrap"
-                style={{ gap: 12 }}
-              >
-                <code className="text-bold">{item.name}</code>
-                <span
-                  className="flex-1 color-fg-muted f6 text-mono"
-                  style={{ minWidth: 0, overflowWrap: 'anywhere' }}
+              <Fragment key={item.name}>
+                <div
+                  className="Box-row d-flex flex-items-center flex-wrap"
+                  style={{ gap: 12 }}
                 >
-                  {item.value}
-                </span>
-                <span className="color-fg-muted f6">
-                  {item.updatedBy
-                    ? t('Updated {when} by {who}', {
-                        when: timeAgo(item.updatedAt),
-                        who: item.updatedBy.username,
-                      })
-                    : t('Updated {when}', { when: timeAgo(item.updatedAt) })}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => {
-                    setEditing(item.name);
-                    setName('');
-                    setValue(secret ? '' : (item.value ?? ''));
-                    setError(null);
-                  }}
-                >
-                  {t('Update')}
-                </button>
-                <InlineConfirm
-                  label={t('Delete')}
-                  confirmLabel={
-                    secret ? t('Delete secret') : t('Delete variable')
-                  }
-                  pendingLabel={t('Deleting…')}
-                  accessibleName={t('Delete {name}', { name: item.name })}
-                  pending={remove.isPending && remove.variables === item.name}
-                  error={
-                    remove.isError && remove.variables === item.name
-                      ? errorMessage(remove.error)
-                      : null
-                  }
-                  onConfirm={() => remove.mutate(item.name)}
-                />
-              </div>
+                  <code className="text-bold">{item.name}</code>
+                  <span
+                    className="flex-1 color-fg-muted f6 text-mono"
+                    style={{ minWidth: 0, overflowWrap: 'anywhere' }}
+                  >
+                    {item.value}
+                  </span>
+                  <span className="color-fg-muted f6">
+                    {item.updatedBy
+                      ? t('Updated {when} by {who}', {
+                          when: timeAgo(item.updatedAt),
+                          who: item.updatedBy.username,
+                        })
+                      : t('Updated {when}', { when: timeAgo(item.updatedAt) })}
+                  </span>
+                  {item.repositories && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      aria-expanded={reach === item.name}
+                      onClick={() =>
+                        setReach(reach === item.name ? null : item.name)
+                      }
+                    >
+                      {t('Repositories ({n})', { n: item.repositories.length })}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setEditing(item.name);
+                      setName('');
+                      setValue(secret ? '' : (item.value ?? ''));
+                      setError(null);
+                    }}
+                  >
+                    {t('Update')}
+                  </button>
+                  <InlineConfirm
+                    label={t('Delete')}
+                    confirmLabel={
+                      secret ? t('Delete secret') : t('Delete variable')
+                    }
+                    pendingLabel={t('Deleting…')}
+                    accessibleName={t('Delete {name}', { name: item.name })}
+                    pending={remove.isPending && remove.variables === item.name}
+                    error={
+                      remove.isError && remove.variables === item.name
+                        ? errorMessage(remove.error)
+                        : null
+                    }
+                    onConfirm={() => remove.mutate(item.name)}
+                  />
+                </div>
+                {reach === item.name && item.repositories && (
+                  <SecretReach
+                    name={item.name}
+                    chosen={item.repositories}
+                    listKey={c.key}
+                    onDone={() => setReach(null)}
+                  />
+                )}
+              </Fragment>
             ))
           )}
         </div>
@@ -244,5 +274,95 @@ function VariableList({
         {error && <div className="flash flash-error">{error}</div>}
       </form>
     </section>
+  );
+}
+
+/** Site admin: the repositories whose jobs read one instance-wide secret. */
+function SecretReach({
+  name,
+  chosen,
+  listKey,
+  onDone,
+}: {
+  name: string;
+  chosen: { id: string }[];
+  listKey: readonly unknown[];
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const repos = useQuery({ queryKey: qk.repos, queryFn: api.repos });
+  const [picked, setPicked] = useState(() => new Set(chosen.map((r) => r.id)));
+  const [filter, setFilter] = useState('');
+  const save = useMutation({
+    mutationFn: () => api.setAdminSecretRepositories(name, [...picked]),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: listKey });
+      onDone();
+    },
+  });
+  const needle = filter.trim().toLowerCase();
+  const shown = (repos.data ?? []).filter((r) =>
+    r.fullName.toLowerCase().includes(needle)
+  );
+  const toggle = (id: string) =>
+    setPicked((before) => {
+      const next = new Set(before);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  return (
+    <div className="Box-row color-bg-subtle">
+      <p className="f6 mb-2">
+        {t('Choose the repositories whose jobs read {name}.', { name })}
+      </p>
+      <input
+        className="form-control input-sm mb-2"
+        aria-label={t('Filter repositories')}
+        placeholder={t('Filter repositories')}
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      {repos.isError ? (
+        <div className="flash flash-error mb-2">
+          {errorMessage(repos.error)}
+        </div>
+      ) : repos.isPending ? (
+        <div className="color-fg-muted f6 mb-2">{t('Loading…')}</div>
+      ) : shown.length === 0 ? (
+        <div className="color-fg-muted f6 mb-2">
+          {t('No repositories match.')}
+        </div>
+      ) : (
+        <div className="mb-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
+          {shown.map((r) => (
+            <label key={r.id} className="d-flex flex-items-center f6 py-1">
+              <input
+                type="checkbox"
+                className="mr-2"
+                checked={picked.has(r.id)}
+                onChange={() => toggle(r.id)}
+              />
+              <code>{r.fullName}</code>
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="d-flex" style={{ gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? t('Saving…') : t('Save repositories')}
+        </button>
+        <button type="button" className="btn btn-sm" onClick={onDone}>
+          {t('Cancel')}
+        </button>
+      </div>
+      {save.isError && (
+        <div className="flash flash-error mt-2">{errorMessage(save.error)}</div>
+      )}
+    </div>
   );
 }
