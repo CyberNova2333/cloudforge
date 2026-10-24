@@ -12,7 +12,7 @@
   <a href="https://workers.cloudflare.com/"><img alt="Runs on Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
 
-# CloudForge
+<h1 align="center">CloudForge</h1>
 
 CloudForge is a code host deployed in your own Cloudflare account, bringing Git repositories, pull requests (PRs), CI, and AI review into one application. It supports teams of people and coding agents: agents submit code and address checks and review feedback, while people use the review inbox to decide questions that need human judgment.
 
@@ -111,10 +111,39 @@ CloudForge reads `.github/workflows/` and implements a subset of GitHub Actions 
 
 ## Architecture and costs
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
-  <img alt="CloudForge architecture: a Worker serves the web app, API, Git, and MCP; D1 stores metadata, Artifacts stores Git repositories, Workflows and Durable Objects coordinate tasks, Containers run CI, and R2 stores files and logs." src="docs/diagrams/architecture.png">
-</picture>
+```mermaid
+flowchart LR
+  browser["Browser<br/>web app"]
+  gitc["git client<br/>clone · push"]
+  agent["Coding agent<br/>MCP client"]
+
+  subgraph cf["Your Cloudflare account"]
+    worker["CloudForge Worker<br/>web · API · Git · MCP"]
+    d1[("D1<br/>users · tokens · PRs · reviews")]
+    artifacts[("Artifacts<br/>one git repo per repository")]
+    r2[("R2<br/>LFS · logs · cache · artifacts")]
+    email["Email Sending<br/>invitations and verification"]
+    workflows["Workflows<br/>Actions · reviews · rebases · stacking"]
+    dos["Durable Objects<br/>job queue · live updates"]
+    containers["Containers<br/>one Linux container per job"]
+    ai["Workers AI<br/>reviews and conflict resolution"]
+  end
+
+  browser -- web · API --> worker
+  agent -- MCP · OAuth --> worker
+  gitc -- Git · token --> worker
+  gitc -. LFS pre-signed URLs .-> r2
+  worker -- SQL --> d1
+  worker -- read · push --> artifacts
+  worker -- sign · verify --> r2
+  worker -- send --> email
+  worker -- start runs --> workflows
+  worker -- live pings --> dos
+  workflows -- model calls --> ai
+  workflows -- queue · run jobs --> dos
+  dos -- start --> containers
+  containers -- step logs --> r2
+```
 
 | Component                                    | Purpose                                                                                       |
 | -------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -138,6 +167,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [SECURITY
 
 This fork is distributed under the [GNU GPL v3.0 or later](COPYING). Original upstream portions remain under the [Apache License 2.0](LICENSE), with their license and copyright notices unchanged. Third-party packages and fonts retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Files modified from upstream carry a first-line `Modified by CyberNova for the CloudForge fork` notice. Exceptions that cannot carry that comment or are generated include `package.json`, `migrations/meta/_journal.json`, `worker/worker-configuration.d.ts`, and the images `public/logo.png`, `public/favicon.png`, `public/apple-touch-icon.png`, `docs/diagrams/architecture.png`, `docs/diagrams/architecture-dark.png`, and `docs/images/how-it-works.png`.
+Files modified from upstream carry a first-line `Modified by CyberNova for the CloudForge fork` notice. Exceptions that cannot carry that comment or are generated include `package.json`, `migrations/meta/_journal.json`, `worker/worker-configuration.d.ts`, and the images `public/logo.png`, `public/favicon.png`, and `public/apple-touch-icon.png`.
 
 CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. Please replace the name and logo when distributing a derivative as a separate branded product, to avoid confusion.
