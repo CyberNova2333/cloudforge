@@ -18,6 +18,12 @@ beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare('PRAGMA defer_foreign_keys = on'),
     ...TABLES.map((t) => env.DB.prepare(`DELETE FROM "${t}"`)),
+    // Most tests have one person open a pull request and approve it, so they run with authors allowed to decide
+    // their own (`review.allow_self_approval`, off on a real instance). self-approval.test.ts removes this row to
+    // test the default.
+    env.DB.prepare(
+      "INSERT INTO instance_settings (key, value, updated_at) VALUES ('review.allow_self_approval', 'true', 0)"
+    ),
   ]);
 });
 

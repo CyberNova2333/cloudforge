@@ -144,6 +144,10 @@ export const review: Record<string, string> = {
     '批准不会覆盖 Agent 的更改请求：请驳回该请求，或推送修复。',
   'Withdraw approval': '撤回批准',
   'Approve this commit': '批准此提交',
+  'You opened this pull request: someone else with push access approves it.':
+    '这是你发起的拉取请求：需由其他有推送权限的人批准。',
+  'You opened this pull request: someone else decides this finding.':
+    '这是你发起的拉取请求：此意见需由其他人决定。',
   'Approving stands over findings from unguarded agents and failed or unfinished reviews. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.':
     '批准会覆盖未受保护 Agent 的评审意见，以及失败或未完成的评审。受保护的评审意见仍需填写理由后再决定；Agent 的更改请求需要新的提交或驳回。',
   'Approve this commit. Guarded findings still need a decision with a reason; an agent’s change request needs a new commit or a Dismiss.':

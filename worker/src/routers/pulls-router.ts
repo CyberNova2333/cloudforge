@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { selfApprovalRefused } from '../review/self-approval';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -795,6 +796,8 @@ const getPullRoute = createRoute({
         /** The head commit's review by agents and people; null when the branches are gone. */
         review: reviewSchema.nullable(),
         canMerge: z.boolean(),
+        /** The viewer may approve it and decide its findings for a person (not its author, unless allowed). */
+        canApprove: z.boolean(),
         /** People who approved the head commit, oldest first (a new commit needs a new approval). */
         approvals: z.array(
           z.object({
@@ -897,6 +900,9 @@ pullsRouter.openapi(getPullRoute, async (c) => {
       rebase,
       review,
       canMerge: c.get('perms').write,
+      canApprove:
+        c.get('perms').write &&
+        !(await selfApprovalRefused(db, c.env, pr, c.get('user')?.id ?? '')),
       approvals: approvals.map((a) => ({
         user: people.get(a.userId) ?? ghost,
         createdAt: a.createdAt.toISOString(),
@@ -951,6 +957,19 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
   if (!c.get('perms').write && pr.authorId !== user.id)
     return c.json({ error: 'Forbidden' }, 403);
   const body = c.req.valid('json');
+  // Its author may still edit the title and description; closing, reopening and the version bump take push access
+  // (a reopened pull request is rebased, reviewed and may auto-merge).
+  if (
+    !c.get('perms').write &&
+    (body.state !== undefined || body.versionBump !== undefined)
+  )
+    return c.json(
+      {
+        error:
+          'Only people with push access can close, reopen or set the version bump of a pull request',
+      },
+      403
+    );
   if (pr.state === 'merged' && (body.state || body.versionBump !== undefined))
     return c.json({ error: 'This pull request is already merged' }, 400);
   const now = new Date();

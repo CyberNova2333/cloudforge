@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 /**
  * "Let Claude decide": CloudForge AI answers a reviewer agent's findings for a person, as that person, with the
  * instance's reasoning model (Site admin → AI models → Agent review model) over the AI binding. It never decides a
@@ -317,6 +318,9 @@ export async function decideFinding(
       status: 409,
       error: 'Someone already decided this finding',
     };
+  // CloudForge AI decides as the person: on their own pull request only where authors may decide (before any model call).
+  if (await selfApprovalRefused(db, env, pr, userId))
+    return { ok: false, status: 403, error: SELF_APPROVAL_REFUSED };
   if (
     deps.requireDelegation &&
     (!flag.agentId ||
@@ -461,6 +465,8 @@ export async function decideDelegated(
       .get();
     if (!review || review.pr.state !== 'open') return done;
     const pr = review.pr;
+    // It decides as the author, on the author's own pull request: only where authors may decide their findings.
+    if (await selfApprovalRefused(db, env, pr, pr.authorId)) return done;
     const rows = await db
       .select({ id: prReviewFlags.id })
       .from(prReviewFlags)

@@ -300,6 +300,13 @@ export const errors: Record<string, string> = {
   'Runs reviewer agents with `engine: pi`, which read the repository with tools. It must support tool calling. Follows the agent review model until set here.':
     '运行使用 `engine: pi`、可用工具读取仓库的评审 Agent。必须支持工具调用。在另行设置之前，跟随 Agent 评审模型。',
   'Deep review time limit (minutes)': '深度评审时限（分钟）',
+  'Authors approve their own pull requests': '作者可批准自己的拉取请求',
+  "Off: someone other than a pull request's author approves it and decides the findings on it that need a person (approving, dismissing a change request), on the web, through MCP and by Let Claude decide. On: the author may too, as on an instance with one maintainer.":
+    '关闭：拉取请求由作者以外的人批准，其上需要人工确认的意见（批准、驳回修改要求）也由他人决定，网页、MCP 和“让 Claude 决定”都一样。开启：作者本人也可以，适合只有一位维护者的实例。',
+  'You opened this pull request: someone else with push access approves it and decides its findings. A site admin can let authors do it (Site admin → Settings → Reviews).':
+    '这是你发起的拉取请求：需由其他有推送权限的人批准并决定其上的意见。站点管理员可以允许作者这样做（站点管理 → 设置 → 评审）。',
+  'Only people with push access can close, reopen or set the version bump of a pull request':
+    '只有拥有推送权限的人才能关闭、重新打开拉取请求或设置版本号升级',
   'How long an engine: pi review may run before it fails (Retry runs it again). From 5 to 60 minutes.':
     'engine: pi 评审在失败前最多可运行多久（重试会再次运行）。5 到 60 分钟。',
   'Deep review tool calls': '深度评审工具调用次数',

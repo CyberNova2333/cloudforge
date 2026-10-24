@@ -292,6 +292,8 @@ export type PullDetail = {
   /** The head commit's review by agents and people. */
   review: PullReview | null;
   canMerge: boolean;
+  /** The viewer may approve it and decide its findings for a person: false for its author unless the instance allows it. */
+  canApprove?: boolean;
   /** People who approved the head commit, oldest first. */
   approvals: { user: User; createdAt: string; via: string | null }[];
   /** How this pull request stacks with other open ones; null once it isn't open. */

@@ -193,6 +193,7 @@ export function Flag({
   approver,
   changesRequester,
   canApprove,
+  ownPull = false,
   investigating,
   error,
   filesHref,
@@ -209,6 +210,8 @@ export function Flag({
   /** Who asked for changes instead (only while unapproved), with their note. */
   changesRequester: ChangesRequester | null;
   canApprove: boolean;
+  /** The viewer opened the pull request and the instance doesn't let authors decide its findings: they may only ask for changes. */
+  ownPull?: boolean;
   /** The agent is still reviewing, so a finding may not have its detail yet. */
   investigating: boolean;
   /** The last decision on this finding failed, in words. */
@@ -410,7 +413,13 @@ export function Flag({
                   {t('Request changes')}
                 </button>
               )}
-              {f.guarded ? (
+              {ownPull ? (
+                <span className="muted small">
+                  {t(
+                    'You opened this pull request: someone else decides this finding.'
+                  )}
+                </span>
+              ) : f.guarded ? (
                 <button
                   type="button"
                   className="btn small"
