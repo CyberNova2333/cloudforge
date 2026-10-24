@@ -11,7 +11,7 @@ Deploy a production CloudForge instance to **the user's own Cloudflare account**
 
 ## Before you start
 
-The deployment itself is `npx @cybernova2333/cloudforge install` (`scripts/gitorange/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `yarn cloudforge install` instead, and everywhere below read `npx @cybernova2333/cloudforge` as `yarn cloudforge`. If npx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
+The deployment itself is `npx @cybernova2333/cloudforge install` (`scripts/cloudforge/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `yarn cloudforge install` instead, and everywhere below read `npx @cybernova2333/cloudforge` as `yarn cloudforge`. If npx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
 
 ## What the user is signing up for
 

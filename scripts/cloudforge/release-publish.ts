@@ -107,7 +107,7 @@ export function packageSmoke(o: {
       },
       {
         cmd: o.node,
-        args: ['scripts/gitorange/smoke-config.ts', o.pkgDir, smoke],
+        args: ['scripts/cloudforge/smoke-config.ts', o.pkgDir, smoke],
         cwd: wt,
       },
       {
