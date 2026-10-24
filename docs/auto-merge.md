@@ -54,8 +54,10 @@ AI), so every commit lands with its author and message and history stays linear.
 2. **Trigger.** One Clef call asks every invited agent's `trigger.ask` over those summaries (never the diff). An
    agent is **requested** when Clef's probability is at or above its `trigger.above`; otherwise it is **not
    needed**, with the probability shown. If Clef fails or doesn't answer for an agent, that agent is requested
-   (unsure means review). An agent whose `AGENT.md` is invalid on its default branch fails at once, with the parse
-   error.
+   (unsure means review). A guarded agent (`guarded: true`, or the security or data facet) is always requested and
+   never asked about, so nothing the author writes decides whether it looks. An agent whose `AGENT.md` is invalid
+   on its default branch fails at once, with the parse error. Each file's diff goes to the summary model inside a
+   tag with a random name, as data.
 3. **Review.** Each requested agent reviews at its repository's current default-branch commit (shown as a link
    on its review). An `engine: pass` agent makes one GLM-5.3 call with its `AGENT.md` instructions, its
    `knowledge/*.md` (at most 20 files and 64 KB, in path order; the rest are listed by path), the summaries, and the diff (24 KB per file, 120 KB in all;
