@@ -4,12 +4,41 @@
 
 CloudForge is one Cloudflare Worker backed by D1, Artifacts, and R2, with Actions jobs running on Cloudflare Workflows and Containers.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/architecture-dark.png">
-  <img alt="Browsers and git clients talk to one CloudForge Cloudflare Worker, which keeps metadata in D1, stores repositories in Cloudflare Artifacts, and sends invitations through Email Sending. Pushes queue CloudForge Actions runs on Cloudflare Workflows, which run each job in a Cloudflare Container and keep step logs in R2." src="diagrams/architecture.png">
-</picture>
+```mermaid
+flowchart LR
+  browser["Browser<br/>web app"]
+  gitc["git client<br/>clone · push"]
+  agent["Coding agent<br/>MCP client"]
 
-The diagram's source is [`diagrams/architecture.html`](diagrams/architecture.html) (light) and [`diagrams/architecture-dark.html`](diagrams/architecture-dark.html) (dark); the PNGs are 2× screenshots of them.
+  subgraph cf["Your Cloudflare account"]
+    worker["CloudForge Worker<br/>web · API · Git · MCP"]
+    d1[("D1<br/>users · tokens · PRs · reviews")]
+    artifacts[("Artifacts<br/>one git repo per repository")]
+    r2[("R2<br/>LFS · logs · cache · artifacts")]
+    email["Email Sending<br/>invitations and verification"]
+    workflows["Workflows<br/>Actions · reviews · rebases · stacking"]
+    dos["Durable Objects<br/>job queue · live updates"]
+    containers["Containers<br/>one Linux container per job"]
+    ai["Workers AI<br/>reviews and conflict resolution"]
+  end
+
+  browser -- web · API --> worker
+  agent -- MCP · OAuth --> worker
+  gitc -- Git · token --> worker
+  gitc -. LFS pre-signed URLs .-> r2
+  worker -- SQL --> d1
+  worker -- read · push --> artifacts
+  worker -- sign · verify --> r2
+  worker -- send --> email
+  worker -- start runs --> workflows
+  worker -- live pings --> dos
+  workflows -- model calls --> ai
+  workflows -- queue · run jobs --> dos
+  dos -- start --> containers
+  containers -- step logs --> r2
+```
+
+The diagram is Mermaid: CNB, GitHub and CloudForge render it, and it is edited as text in this file, README.md and README.en.md.
 
 | Concern                                                                                   | Where it lives                                                                                                                                                                                                                                                                  |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

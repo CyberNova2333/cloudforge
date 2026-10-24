@@ -12,7 +12,7 @@
   <a href="https://workers.cloudflare.com/"><img alt="运行于 Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
 
-# CloudForge
+<h1 align="center">CloudForge</h1>
 
 CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Git 仓库、合并请求（PR）、持续集成和 AI 审查放在同一个应用中。它面向人与编程代理共同开发的团队：代理提交代码、处理检查和审查意见，人通过审查收件箱决定需要人工判断的问题。
 
@@ -111,10 +111,39 @@ CloudForge 读取 `.github/workflows/`，实现其中一部分 GitHub Actions �
 
 ## 架构与费用
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
-  <img alt="CloudForge 架构：Worker 提供网页、API、Git 和 MCP 服务，D1 保存元数据，Artifacts 保存 Git 仓库，Workflows 与 Durable Objects 编排任务，Containers 执行 CI，R2 保存文件与日志。" src="docs/diagrams/architecture.png">
-</picture>
+```mermaid
+flowchart LR
+  browser["浏览器<br/>网页界面"]
+  gitc["git 客户端<br/>clone · push"]
+  agent["编程代理<br/>MCP 客户端"]
+
+  subgraph cf["你的 Cloudflare 账户"]
+    worker["CloudForge Worker<br/>网页 · API · Git · MCP"]
+    d1[("D1<br/>用户 · 令牌 · PR · 审查")]
+    artifacts[("Artifacts<br/>每个仓库一个 Git 仓库")]
+    r2[("R2<br/>LFS · 日志 · 缓存 · 产物")]
+    email["Email Sending<br/>邀请与验证邮件"]
+    workflows["Workflows<br/>Actions · 审查 · 变基 · 堆叠"]
+    dos["Durable Objects<br/>作业队列 · 实时推送"]
+    containers["Containers<br/>每个作业一个 Linux 容器"]
+    ai["Workers AI<br/>审查与冲突解决"]
+  end
+
+  browser -- 网页 · API --> worker
+  agent -- MCP · OAuth --> worker
+  gitc -- Git · 令牌 --> worker
+  gitc -. LFS 预签名 URL .-> r2
+  worker -- SQL --> d1
+  worker -- 读取 · 推送 --> artifacts
+  worker -- 签名 · 校验 --> r2
+  worker -- 发送 --> email
+  worker -- 启动运行 --> workflows
+  worker -- 实时推送 --> dos
+  workflows -- 调用模型 --> ai
+  workflows -- 排队 · 运行作业 --> dos
+  dos -- 启动 --> containers
+  containers -- 步骤日志 --> r2
+```
 
 | 组件                                         | 用途                                                 |
 | -------------------------------------------- | ---------------------------------------------------- |
@@ -138,6 +167,6 @@ CloudForge 读取 `.github/workflows/`，实现其中一部分 GitHub Actions �
 
 本分支采用 [GNU GPL v3.0 或更新版本](COPYING) 发布。上游原始部分继续适用 [Apache License 2.0](LICENSE)，其许可证和版权声明保持不变；第三方包和字体适用各自许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-相对上游修改的文件保留首行 `Modified by CyberNova for the CloudForge fork` 声明。不能承载此注释或由工具生成的例外包括 `package.json`、`migrations/meta/_journal.json`、`worker/worker-configuration.d.ts`，以及 `public/logo.png`、`public/favicon.png`、`public/apple-touch-icon.png`、`docs/diagrams/architecture.png`、`docs/diagrams/architecture-dark.png` 和 `docs/images/how-it-works.png`。
+相对上游修改的文件保留首行 `Modified by CyberNova for the CloudForge fork` 声明。不能承载此注释或由工具生成的例外包括 `package.json`、`migrations/meta/_journal.json`、`worker/worker-configuration.d.ts`，以及 `public/logo.png`、`public/favicon.png` 和 `public/apple-touch-icon.png`。
 
 CloudForge 与 GitHub 无隶属关系，也未获得其背书；“GitHub”是 GitHub, Inc. 的商标。以独立品牌发布衍生产品时，请更换名称和标志，避免混淆。
