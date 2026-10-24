@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq } from 'drizzle-orm';
 import { pullRequests, type Repository } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
@@ -217,3 +218,12 @@ export async function repoSessions(
     }))
     .sort((a, b) => b.lastActivity - a.lastActivity || (a.id < b.id ? -1 : 1));
 }
+
+/**
+ * A session as someone without an account sees it (a public repository): without what the person asked for, which
+ * is their own words to a coding agent, not repository content.
+ */
+export const visitorSession = (s: SessionSummary): SessionSummary => ({
+  ...s,
+  requests: [],
+});

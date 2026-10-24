@@ -10,6 +10,7 @@ import {
   makeEnv,
   type TestEnv,
 } from './helpers/app';
+import { commitPaths } from './helpers/seed';
 
 const ctx = {
   waitUntil: () => {},
@@ -115,6 +116,47 @@ describe('未登录时访问公开仓库', () => {
     expect((await call(t, '/api/repos/octocat/inside/contents')).status).toBe(
       404
     );
+  });
+
+  it('Live 与会话页面不向未登录访客展示审计日志和原始需求', async () => {
+    const { t, admin } = await setup();
+    // An audit event and a pull request that carries what its author asked their agent for.
+    await call(t, '/api/repos/octocat/open', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { description: 'Now with a description' },
+    });
+    const repo = [...t.fake.repos.values()][0];
+    const main = repo.refs.get('refs/heads/main')!;
+    repo.refs.set('refs/heads/feature', main);
+    await commitPaths(repo, 'feature', { 'b.txt': 'b\n' }, 'B');
+    await call(t, '/api/repos/octocat/open/pulls', {
+      cookie: admin,
+      json: { title: 'B', body: '', base: 'main', head: 'feature' },
+    });
+    await t.env.DB.prepare(
+      "UPDATE pull_requests SET request = 'my private plan'"
+    ).run();
+    type Live = {
+      events: unknown[];
+      floor: { requests: unknown[] }[];
+    };
+    const live = async (cookie?: string) =>
+      (await (
+        await call(t, '/api/repos/octocat/open/live', { cookie })
+      ).json()) as Live;
+    const visitor = await live();
+    expect(visitor.events).toEqual([]);
+    expect(visitor.floor.flatMap((s) => s.requests)).toEqual([]);
+    const member = await live(admin);
+    expect(member.events.length).toBeGreaterThan(0);
+    expect(member.floor.flatMap((s) => s.requests)).toHaveLength(1);
+    const sessions = async (cookie?: string) =>
+      (await (
+        await call(t, '/api/repos/octocat/open/sessions', { cookie })
+      ).json()) as { requests: unknown[] }[];
+    expect((await sessions()).flatMap((s) => s.requests)).toEqual([]);
+    expect((await sessions(admin)).flatMap((s) => s.requests)).toHaveLength(1);
   });
 
   it('写操作和成员专属页面仍要求登录', async () => {
