@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // PostToolUse (Write|Edit): block leftover focused/skipped tests.
 // Config: testGlobs ([ "**/*.test.ts", … ]).
 import { readFileSync } from "node:fs";
@@ -17,32 +17,10 @@ try {
   process.exit(0);
 }
 
-// Detect focused/skipped tests as calls, not property reads:
-//   - a test root (describe/it/test/suite/bench) followed by a chain of member
-//     segments (each optionally invoked, e.g. `.each([1, 2])`) ending in `.only` or
-//     `.skip` — this covers `it.only(`, `it.only.each([...])(`, `test.concurrent.only(`,
-//     `describe.each([...]).only(`, and `.only`/`.skip` split across a line break
-//     (matched over the whole source, not per line, so a newline inside the chain
-//     doesn't hide it).
-//   - the bare legacy aliases used as calls: fit(, fdescribe(, xit(, xtest(, xdescribe(
-// The root anchor (describe|it|test|suite|bench, or the alias itself) is what keeps
-// innocent property reads like `config.only` or `readonly.skip` from matching — neither
-// string contains one of those roots at a word boundary — so we don't need to require a
-// trailing `(` after `only`/`skip` to stay safe, and dropping that requirement is what
-// lets `.only.each(` and `.each([...]).only(` match.
-const IDENT = "[A-Za-z_$][\\w$]*";
-const CALL_ARGS = "\\([^()]*\\)";
-const SEG = `\\s*\\.\\s*${IDENT}\\s*(?:${CALL_ARGS})?`;
-const CHAIN = `\\b(?:describe|it|test|suite|bench)\\b(?:${SEG})*\\s*\\.\\s*(?:only|skip)\\b`;
-const ALIAS = `\\b(?:fit|fdescribe|xit|xtest|xdescribe)\\b\\s*\\(`;
-const FOCUSED = new RegExp(`${CHAIN}|${ALIAS}`, "g");
-
-const hits = [];
-for (const m of source.matchAll(FOCUSED)) {
-  const line = source.slice(0, m.index).split("\n").length;
-  const snippet = m[0].replace(/\s+/g, "").replace(/\($/, "");
-  hits.push(`  ${file}:${line}  ${snippet}`);
-}
+const { findFocusedTests } = await import("./_focused-tests.mjs");
+const hits = findFocusedTests(source, file).map(
+  ({ line, snippet }) => `  ${file}:${line}  ${snippet}`,
+);
 
 if (hits.length === 0) process.exit(0);
 

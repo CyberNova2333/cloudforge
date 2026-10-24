@@ -39,6 +39,31 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
 | `yarn agents:sync`                  | Regenerate `AGENTS.md` (CLAUDE.md behind a preamble) and `.agents/skills/` (a copy of `.claude/skills/`) for Codex and other agents                                          |
 
+## Codex 与 Git 钩子
+
+Git 的 `pre-commit` 使用 `scripts/githooks/run-yarn.mjs` 运行 lint-staged。优先使用已有 Yarn，
+找不到时通过 Corepack 运行 Yarn；Windows 的标准 `.cmd` 启动器会解析为 Node 入口，文件名等参数
+直接传递，不经过 shell 拼接。Yarn 执行失败会原样失败，不重试或跳过检查。只装了 Corepack 的环境
+也可以用 `corepack yarn install`、`corepack yarn husky` 和 `corepack yarn typecheck`。
+
+Codex 从 `.codex/hooks.json` 加载以下检查，与 Claude 共用 `.claude/hooks/hooks.config.json`：
+
+- `PreToolUse`：解析 `apply_patch` 的所有路径（含删除与重命名两端），阻止直接编辑生成文件。
+- `PostToolUse`：逐个格式化补丁触及的现存文件，并检查真实的集中运行或跳过测试调用。
+- `Stop`：运行类型检查；启动失败、超时或检查失败都会反馈，`stop_hook_active` 避免重复阻止结束。
+
+入口通过 Git 定位仓库，支持从子目录启动及路径中的空格。配置命令支持参数数组；参数包含空格时
+应使用数组，不要依赖 shell 引号或变量展开。钩子不读取会话记录，也不保存工具负载。
+Shell 或其他工具写入文件不会触发这组 `apply_patch` 编辑检查；提交前仍需运行格式化、类型检查和测试。
+
+按 [Codex 官方钩子文档](https://learn.chatgpt.com/docs/hooks)，新增或修改的项目钩子需要在 `/hooks`
+中审阅并信任后才会运行；仓库配置不会替用户修改全局信任设置。接入或升级后可执行下列回归检查：
+
+```bash
+yarn vitest run --config scripts/cloudforge/vitest.config.ts scripts/__tests__ scripts/githooks/__tests__
+yarn agents:sync --check
+```
+
 ## Layout
 
 ```

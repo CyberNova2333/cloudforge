@@ -19,6 +19,3 @@ wrangler.jsonc
 # yarn pack:npm output (the npm package and its build). build/ also holds tracked build code.
 /build/*
 !/build/license-banners.ts
-
-# Codex hook probe output (.codex/hooks/probe.mjs)
-.codex/hook-probe.log
