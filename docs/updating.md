@@ -44,6 +44,12 @@ The MCP tools are named `cloudforge_*` (they were `gitorange_*`). `tools/list` s
 an old name still reaches the same tool with the same permission checks, so connected agents keep working; update
 prompts, skills and tool allowlists to the new names when convenient.
 
+The security update adds migration `0040` and changes behaviour; check each point after upgrading:
+
+- **Instance-wide Actions secrets reach only the repositories chosen for them** (Site admin → Actions secrets and
+  variables → Repositories). Existing ones reach none after the upgrade: choose their repositories, or jobs read them
+  as empty. Instance-wide variables still reach every repository.
+
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
 

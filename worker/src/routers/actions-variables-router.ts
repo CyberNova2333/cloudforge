@@ -2,17 +2,26 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { requireAdmin } from '../auth/guards';
 import {
   deleteVariable,
+  instanceSecret,
   listVariables,
+  MAX_SECRET_REPOSITORIES,
   nameError,
   normalizeName,
   saveVariable,
+  secretRepositories,
   secretsConfigured,
+  setSecretRepositories,
   valueError,
   VariableError,
   type VariableKind,
 } from '../actions/secrets';
 import { recordAudit } from '../lib/audit';
-import { loadRepo, type RepoEnv } from '../lib/repos';
+import {
+  findReposByIds,
+  loadRepo,
+  type FoundRepo,
+  type RepoEnv,
+} from '../lib/repos';
 import { usersById } from '../lib/users';
 import type { DrizzleDB } from '../db/middleware';
 import type { AppEnv } from '../variables';
@@ -42,6 +51,10 @@ const itemSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     updatedBy: publicUserSchema.nullable(),
+    /** An instance-wide secret only: the repositories it reaches (no others read it). */
+    repositories: z
+      .array(z.object({ id: z.string(), fullName: z.string() }))
+      .optional(),
   })
   .openapi('ActionsVariable');
 
@@ -56,6 +69,8 @@ const listSchema = z.object({
 });
 
 const saveBody = z.object({ value: z.string() });
+
+const repoFullName = (r: FoundRepo) => `${r.namespace.username}/${r.repo.name}`;
 const nameParam = z.object({ name: z.string().min(1) });
 
 async function listBody(
@@ -70,15 +85,38 @@ async function listBody(
     rows.map((r) => r.updatedById ?? '')
   );
   const own = new Set(rows.map((r) => r.name));
-  const inherited =
-    repositoryId === null
-      ? []
-      : (await listVariables(db, null, kind))
-          .filter((r) => !own.has(r.name))
-          .map((r) => ({
-            name: r.name,
-            value: kind === 'variable' ? r.value : null,
-          }));
+  let inherited: { name: string; value: string | null }[] = [];
+  if (repositoryId !== null) {
+    const instance = await listVariables(db, null, kind);
+    // An instance-wide secret is inherited only where a site admin let it reach.
+    const reaches =
+      kind === 'secret'
+        ? await secretRepositories(
+            db,
+            instance.map((r) => r.id)
+          )
+        : null;
+    inherited = instance
+      .filter(
+        (r) =>
+          !own.has(r.name) &&
+          (!reaches || reaches.get(r.id)!.includes(repositoryId))
+      )
+      .map((r) => ({
+        name: r.name,
+        value: kind === 'variable' ? r.value : null,
+      }));
+  }
+  const reach =
+    repositoryId === null && kind === 'secret'
+      ? await secretRepositories(
+          db,
+          rows.map((r) => r.id)
+        )
+      : null;
+  const repos = reach
+    ? await findReposByIds(db, [...reach.values()].flat())
+    : null;
   return {
     configured: secretsConfigured(env),
     items: rows.map((r) => ({
@@ -87,6 +125,17 @@ async function listBody(
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       updatedBy: r.updatedById ? (people.get(r.updatedById) ?? null) : null,
+      ...(reach && repos
+        ? {
+            repositories: reach
+              .get(r.id)!
+              .flatMap((id) => {
+                const found = repos.get(id);
+                return found ? [{ id, fullName: repoFullName(found) }] : [];
+              })
+              .sort((a, b) => a.fullName.localeCompare(b.fullName)),
+          }
+        : {}),
     })),
     inherited,
   };
@@ -326,3 +375,77 @@ for (const [path, kind] of KINDS) {
     }
   );
 }
+
+// ── /api/admin/actions/secrets/{name}/repositories ───────────────────────────
+
+const reachSchema = z.object({
+  repositories: z.array(z.object({ id: z.string(), fullName: z.string() })),
+});
+
+adminActionsVariablesRouter.openapi(
+  createRoute({
+    method: 'put',
+    path: '/secrets/{name}/repositories',
+    tags: ['Admin'],
+    summary: 'Choose the repositories an instance-wide secret reaches',
+    description:
+      'Replaces the list: jobs of these repositories read the secret, and no others do. An empty list keeps it from every repository.',
+    request: {
+      params: nameParam,
+      body: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              repositoryIds: z
+                .array(z.string().min(1).max(100))
+                .max(MAX_SECRET_REPOSITORIES),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      ...json200Response(reachSchema, 'The repositories it now reaches'),
+      ...json400Response,
+      ...json403Response,
+      ...json404Response,
+    },
+  }),
+  async (c) => {
+    const db = c.get('db');
+    const name = normalizeName(c.req.valid('param').name);
+    const secret = await instanceSecret(db, name);
+    if (!secret) return c.json({ error: 'Not Found' }, 404);
+    const ids = [...new Set(c.req.valid('json').repositoryIds)];
+    const found = await findReposByIds(db, ids);
+    const missing = ids.find((id) => !found.has(id));
+    if (missing) return c.json({ error: `No repository ${missing}` }, 400);
+    const before = await findReposByIds(
+      db,
+      (await secretRepositories(db, [secret.id])).get(secret.id)!
+    );
+    const { added, removed } = await setSecretRepositories(db, secret.id, ids);
+    if (added.length || removed.length)
+      await recordAudit(db, {
+        repositoryId: null,
+        actorId: c.get('user')!.id,
+        action: 'secret.repositories',
+        target: name,
+        data: {
+          added: added.map((id) => repoFullName(found.get(id)!)),
+          removed: removed.flatMap((id) => {
+            const r = before.get(id);
+            return r ? [repoFullName(r)] : [];
+          }),
+        },
+      });
+    return c.json(
+      {
+        repositories: ids
+          .map((id) => ({ id, fullName: repoFullName(found.get(id)!) }))
+          .sort((a, b) => a.fullName.localeCompare(b.fullName)),
+      },
+      200
+    );
+  }
+);

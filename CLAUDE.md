@@ -58,7 +58,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   GitHub (`action.yml` fetched by the Worker, code downloaded by the runner) or `./path`; every GitHub or local action gets a Post
   slot (`hasPostStep`), skipped when it has none. Artifacts (`actions/artifacts.ts`): zips in `ACTIONS_CACHE` under
   `actions-artifacts/<repo>/<run>/`, no table, deleted with the run. Matrix include/exclude: `plan.ts` `expandMatrix`.
-  Secrets and variables (`actions/secrets.ts`, D1 `actions_variables`, repository or instance-wide): secrets are
+  Secrets and variables (`actions/secrets.ts`, D1 `actions_variables`, repository or instance-wide; an instance-wide
+  secret reaches only the repositories in `actions_secret_repositories`, chosen by a site admin): secrets are
   AES-GCM under `ACTIONS_SECRETS_KEY`, decrypted only in `runJob` outside durable steps, masked by `maskingRunner`
   and `putLog`; routes in `routers/actions-variables-router.ts`. Secret-bearing durable results use `actions/state.ts`
   encryption bound to repository/run/step; large ciphertext spills to the run's R2 retention prefix. Dynamic masks
