@@ -236,7 +236,9 @@ export function createFakeArtifacts() {
       );
       if (url.origin !== HOST) return realFetch(input, init);
       const name = url.pathname.match(/\/git\/test\/(.+?)\.git/)![1];
-      const repo = repos.get(name)!;
+      const repo = repos.get(name);
+      // As the real remote answers for a repository it doesn't have.
+      if (!repo) return new Response('repository not found', { status: 404 });
       if (url.pathname.endsWith('/info/refs')) {
         return new Response(repo.advertisement(), {
           headers: {
