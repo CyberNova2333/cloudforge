@@ -61,6 +61,10 @@ The security update adds migration `0040` and changes behaviour; check each poin
   email refuses sign-ups (the sign-in page shows sign-up as closed). Accounts that signed up unconfirmed while email
   was missing can't sign in until they confirm: set up Email Sending (they request a new link from the sign-in
   page), or turn off verification and clear the domain list.
+- **Pages carry a Content-Security-Policy** (`public/_headers`), and Markdown in READMEs, pull requests and comments
+  no longer renders `<style>`, `style` attributes, forms and their controls (a task list's checkbox stays, read-only)
+  or classes other than code blocks' `language-*`. Scripts added to pages at the zone (Cloudflare Web Analytics'
+  automatic setup, Zaraz, a Transform Rule) are blocked unless their source is added to `script-src`.
 
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
