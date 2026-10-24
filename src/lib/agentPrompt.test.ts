@@ -71,3 +71,68 @@ describe('importFromGitHubPrompt：从 GitHub 导入的提示词', () => {
     expect(p).toContain('Never force-push');
   });
 });
+
+describe('提示词跟随界面语言', () => {
+  const en = (p: string) => /You're helping me/.test(p);
+
+  it('中文界面给出中文提示词，命令、地址与安全要求不变', () => {
+    const p = agentPrompt(
+      repo(true),
+      'https://git.example.com',
+      'Orange',
+      'zh'
+    );
+    expect(en(p)).toBe(false);
+    expect(p).toContain('用通俗的中文解释');
+    expect(p).toContain('! git clone https://git.example.com/ada/engine.git');
+    expect(p).toContain('https://git.example.com/settings/tokens');
+    expect(p).toContain('git lfs track');
+    expect(p).toContain('这个仓库是空的');
+    expect(p).toContain('`main` 分支');
+    expect(p).toContain(
+      'https://git.example.com/ada/engine/compare/main...<分支名>'
+    );
+    expect(p).toContain('cloudforge_create_pull_request');
+    expect(p).toContain('`request`');
+    expect(p).toContain('`session`');
+    expect(p).toContain('Orange 的工具');
+    expect(p).toContain('不要强制推送');
+    expect(p).not.toMatch(/(cfp|gop)_[0-9a-f]|ghp_/);
+    expect(
+      agentPrompt(repo(false), 'https://git.example.com', 'Orange', 'zh')
+    ).toContain('告诉我仓库里有什么');
+  });
+
+  it('从 GitHub 导入的中文提示词同样只让用户运行需要密码的命令', () => {
+    const p = importFromGitHubPrompt(
+      repo(true),
+      'https://git.example.com',
+      'Orange',
+      'zh'
+    );
+    expect(en(p)).toBe(false);
+    expect(p).toContain('! git clone --mirror <GitHub 地址> engine-github.git');
+    expect(p).toContain(
+      '! git -C engine-github.git push --all https://git.example.com/ada/engine.git'
+    );
+    expect(p).toContain(
+      'lfs push --all https://git.example.com/ada/engine.git'
+    );
+    expect(p).toContain('sync-from-github');
+    expect(p).not.toMatch(/--force|(cfp|gop)_[0-9a-f]|ghp_/);
+  });
+
+  it('英文界面保持英文提示词', () => {
+    expect(
+      en(agentPrompt(repo(true), 'https://git.example.com', 'Orange', 'en'))
+    ).toBe(true);
+    expect(
+      importFromGitHubPrompt(
+        repo(true),
+        'https://git.example.com',
+        'Orange',
+        'en'
+      )
+    ).toContain('Never force-push');
+  });
+});
