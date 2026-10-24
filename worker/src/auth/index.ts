@@ -395,4 +395,17 @@ function createAuth(env?: CloudflareBindings) {
 // For `yarn auth:generate`.
 export const auth = createAuth();
 
+/**
+ * The better-auth instance for `env`, made once per isolate: building one costs about 5 ms of CPU, on every request
+ * otherwise. Sharing it is safe: creating it does no I/O (its schema check compares objects in memory), each request
+ * gets its own endpoint context, and its closures read `env` when they run.
+ */
+type Auth = ReturnType<typeof createAuth>;
+const instances = new WeakMap<CloudflareBindings, Auth>();
+export function authFor(env: CloudflareBindings): Auth {
+  let instance = instances.get(env);
+  if (!instance) instances.set(env, (instance = createAuth(env)));
+  return instance;
+}
+
 export { createAuth };

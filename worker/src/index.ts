@@ -4,7 +4,7 @@ import { settleStates } from './pulls/settle';
 import { swaggerUI } from '@hono/swagger-ui';
 import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
-import { createAuth } from './auth';
+import { authFor } from './auth';
 import { currentUser } from './auth/session';
 import {
   requireAdmin,
@@ -77,7 +77,7 @@ app.use(
 app.use('/api/*', bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge }));
 app.use('/mcp', bodyLimit({ maxSize: API_BODY_LIMIT, onError: tooLarge }));
 app.use('*', async (c, next) => {
-  const auth = createAuth(c.env);
+  const auth = authFor(c.env);
   c.set('auth', auth);
   // /mcp and OAuth discovery use bearer tokens, never cookies.
   const p = c.req.path;

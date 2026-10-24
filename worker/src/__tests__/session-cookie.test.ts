@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { authFor } from '../auth';
 import { bootstrapAdmin, call, makeEnv } from './helpers/app';
 
 const COOKIE = 'cloudforge.session_token';
@@ -70,4 +71,16 @@ it('临近续期的会话由 get-session 同时延长数据库记录并重新下
     /cloudforge\.session_token=[^;]+;.*Max-Age=604800/
   );
   expect(await expiresAt()).toBeGreaterThan(due);
+});
+
+it('同一 isolate 内每个环境只创建一个 better-auth 实例', async () => {
+  const a = makeEnv();
+  const b = makeEnv();
+  expect(authFor(a.env)).toBe(authFor(a.env));
+  expect(authFor(a.env)).not.toBe(authFor(b.env));
+  // Requests keep working through the shared instance.
+  const cookie = await bootstrapAdmin(a);
+  const res = await call(a, '/api/auth/get-session', { cookie });
+  expect(res.status).toBe(200);
+  expect(await res.json()).toMatchObject({ user: { username: 'octocat' } });
 });
