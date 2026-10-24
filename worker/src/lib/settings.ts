@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { DrizzleDB } from '../db/middleware';
 import { instanceSettings } from '../db/app.schema';
 import { DEFAULT_APP_NAME } from './app-name';
+import { SIZES, type InstanceType } from '../actions/runner-sizes';
 
 /**
  * Instance settings a site admin changes in Site admin, without a deploy. Each has a default:
@@ -231,6 +232,14 @@ export const SETTINGS = {
     schema: z.number().int().min(1).max(500),
     default: () => 10,
   } satisfies Definition<number>,
+  'actions.max_runner_size': {
+    label: 'Largest runner',
+    description:
+      'The largest container a job may ask for with runs-on (cloudforge-standard-N). A workflow whose job asks for a larger one is invalid and does not run; ubuntu-latest is standard-2.',
+    group: 'Actions',
+    schema: z.enum(SIZES),
+    default: () => 'standard-4' as InstanceType,
+  } satisfies Definition<InstanceType>,
 } as const;
 
 export type SettingKey = keyof typeof SETTINGS;

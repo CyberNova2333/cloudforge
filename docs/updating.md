@@ -68,6 +68,8 @@ The security update adds migration `0040` and changes behaviour; check each poin
 - **Setting up a new instance needs a setup code** unless it is served and configured on a local-only name: without
   `SETUP_CODE_HASH`, the welcome page refuses to create the first admin (see [Setup](setup.md#6-set-the-secrets)).
   Instances that already have an admin are unaffected.
+- **A workflow run holds at most 128 jobs** (matrices expanded); a workflow with more is invalid. Site admin → Settings
+  → Actions → Largest runner (default `standard-4`, as before) caps the size `runs-on` may ask for.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 

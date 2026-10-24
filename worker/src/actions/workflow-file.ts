@@ -75,6 +75,11 @@ export class WorkflowFileError extends Error {}
 export const MAX_JOB_MINUTES = 120;
 /** Matrix expansion cap per job. */
 export const MAX_MATRIX_JOBS = 20;
+/**
+ * Jobs per run, matrices expanded: one run is one Workflow instance (10,000 steps), and each job takes about two
+ * steps per workflow step, so 128 jobs of a few dozen steps each still fit.
+ */
+export const MAX_RUN_JOBS = 128;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj =>

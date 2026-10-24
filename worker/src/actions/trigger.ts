@@ -27,6 +27,7 @@ import {
   type WorkflowDef,
 } from './workflow-file';
 import { landTargetOf } from '../lib/land-target';
+import { getSetting } from '../lib/settings';
 import type { Value } from './expressions';
 
 type Db = DrizzleD1Database<typeof schema>;
@@ -188,6 +189,7 @@ export async function queueRuns(
     }
   );
 
+  const maxRunner = await getSetting(db, env, 'actions.max_runner_size');
   const created: string[] = [];
   for (const file of files) {
     let wf: WorkflowDef | null = null;
@@ -210,7 +212,11 @@ export async function queueRuns(
               filter.paths || filter.pathsIgnore ? await changes() : null
             );
       if (!matches) continue;
-      jobs = planJobs(wf, { ...github, workflow: wf.name ?? file.path });
+      jobs = planJobs(
+        wf,
+        { ...github, workflow: wf.name ?? file.path },
+        { maxRunner }
+      );
     } catch (e) {
       if (!(e instanceof WorkflowFileError)) throw e;
       error = `Invalid workflow file: ${file.path}\n${e.message}`;
@@ -305,10 +311,14 @@ export async function rerun(
     try {
       const wf = parseWorkflow(file.text);
       name = wf.name ?? file.path;
-      jobs = planJobs(wf, {
-        ...githubContext(repoFullName, run, run.eventData ?? {}),
-        workflow: name,
-      });
+      jobs = planJobs(
+        wf,
+        {
+          ...githubContext(repoFullName, run, run.eventData ?? {}),
+          workflow: name,
+        },
+        { maxRunner: await getSetting(db, env, 'actions.max_runner_size') }
+      );
     } catch (e) {
       if (!(e instanceof WorkflowFileError)) throw e;
       error = `Invalid workflow file: ${run.workflowPath}\n${e.message}`;

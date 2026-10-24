@@ -2,6 +2,7 @@
 import { interpolate, type Value } from './expressions';
 import {
   MAX_MATRIX_JOBS,
+  MAX_RUN_JOBS,
   WorkflowFileError,
   stepDisplayName,
   type BranchFilter,
@@ -11,6 +12,7 @@ import {
   type StepDef,
 } from './workflow-file';
 import { parseUses } from './remote';
+import { SIZES, type InstanceType } from './runner-sizes';
 
 // ── filters ──────────────────────────────────────────────────────────────────
 
@@ -102,16 +104,7 @@ export function pullRequestMatches(
 
 // ── runners ──────────────────────────────────────────────────────────────────
 
-export type InstanceType =
-  'lite' | 'standard-1' | 'standard-2' | 'standard-3' | 'standard-4';
-
-const SIZES: InstanceType[] = [
-  'lite',
-  'standard-1',
-  'standard-2',
-  'standard-3',
-  'standard-4',
-];
+export { SIZES, type InstanceType };
 
 /**
  * `runs-on` → container instance type. GitHub's Linux labels get `standard-2` (12 GB disk: a cold
@@ -121,7 +114,8 @@ export function instanceTypeFor(runsOn: string): InstanceType {
   const labels = runsOn.split(',').map((l) => l.trim().toLowerCase());
   for (const l of labels) {
     const size = l.replace(/^cloudforge-/, '');
-    if ((SIZES as string[]).includes(size)) return size as InstanceType;
+    if ((SIZES as readonly string[]).includes(size))
+      return size as InstanceType;
   }
   if (labels.some((l) => /^(windows|macos)/.test(l)))
     throw new WorkflowFileError(
@@ -228,9 +222,15 @@ function safeInterpolate(text: string, ctx: Record<string, Value>): string {
 }
 
 /** Expands jobs by matrix; adds "Set up job"/"Complete job" so step numbers match GitHub. */
+/**
+ * A run's jobs, matrices expanded. `maxRunner` is the largest runner the instance allows
+ * (`actions.max_runner_size`): a job asking for a larger one makes the workflow invalid, as does a run of more
+ * than MAX_RUN_JOBS jobs.
+ */
 export function planJobs(
   wf: WorkflowDef,
-  github: Record<string, Value>
+  github: Record<string, Value>,
+  opts: { maxRunner?: InstanceType } = {}
 ): PlannedJob[] {
   const out: PlannedJob[] = [];
   for (const job of wf.jobs) {
@@ -243,7 +243,12 @@ export function planJobs(
       throw new WorkflowFileError(
         `jobs.${job.key}.strategy.matrix expands to ${combos.length} jobs; the limit is ${MAX_MATRIX_JOBS}`
       );
-    for (const combo of combos) out.push(planJob(job, combo, github));
+    if (out.length + combos.length > MAX_RUN_JOBS)
+      throw new WorkflowFileError(
+        `The workflow has more than ${MAX_RUN_JOBS} jobs (matrices expanded); the limit is ${MAX_RUN_JOBS} per run`
+      );
+    for (const combo of combos)
+      out.push(planJob(job, combo, github, opts.maxRunner));
   }
   return out;
 }
@@ -251,7 +256,8 @@ export function planJobs(
 function planJob(
   job: JobDef,
   combo: Record<string, Value> | null,
-  github: Record<string, Value>
+  github: Record<string, Value>,
+  maxRunner: InstanceType | undefined
 ): PlannedJob {
   const ctx: Record<string, Value> = {
     github,
@@ -274,7 +280,11 @@ function planJob(
       `jobs.${job.key}.runs-on: ${e instanceof Error ? e.message : String(e)}`
     );
   }
-  instanceTypeFor(runsOn);
+  const size = instanceTypeFor(runsOn);
+  if (maxRunner && SIZES.indexOf(size) > SIZES.indexOf(maxRunner))
+    throw new WorkflowFileError(
+      `jobs.${job.key}.runs-on: ${size} is larger than this instance allows (${maxRunner}, Site admin → Settings → Largest runner)`
+    );
   const posts = postStepIndexes(job.steps);
   const steps: PlannedStep[] = [
     { number: 1, name: 'Set up job' },
