@@ -27,7 +27,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   with compare-and-swap on the base ref.
 - Access (`worker/src/lib/repos.ts` — `permissionsFor` and the list filter `visibleTo` must agree): personal repos are
   private (owner, collaborators, site admins) or internal; team repos (`repositories.team_id`, one shared `teams` row) are
-  always internal. Owner/creator, site admins, and collaborators push and merge. Usernames and the team slug share the URL
+  always internal. Owner/creator, site admins, and collaborators push and merge; the default and protected branches take
+  only an admin's fast-forward push, never a delete or force-push, and `refs/pull/*` takes none (`git/push-protection.ts`). Usernames and the team slug share the URL
   namespace (`worker/src/lib/namespaces.ts`).
 - Commit attribution (`worker/src/lib/commit-authors.ts`): every API commit's author/committer carries `user` — the member
   whose verified account email or verified alternate (`user_emails`, Settings → Emails, verified by an emailed link) it is.

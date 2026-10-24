@@ -22,7 +22,23 @@ import {
   type RepoPermissions,
 } from './lib/repos';
 import { hashToken } from './lib/tokens';
-import { actionsConfigured, diffRefs, onRefsUpdated } from './actions/trigger';
+import {
+  actionsConfigured,
+  onRefsUpdated,
+  type RefUpdate,
+} from './actions/trigger';
+import {
+  decidePush,
+  needsEmptyCheck,
+  readReceiveRequest,
+  refusalReport,
+  reportsStatus,
+  rewriteReport,
+  type PushCommand,
+  type ReceiveRequest,
+} from './git/push-protection';
+import { ZERO_SHA } from './git/remote';
+import type { GitService } from './git/service';
 import { startSweep } from './merge/auto';
 import { carryApprovalsOnSameTree } from './review/carry';
 import { resolutionConfigured } from './merge/resolution';
@@ -188,23 +204,61 @@ export async function handleGitRequest(
     if (v) headers.set(h, v);
   }
   const git = gitFor(env, repo);
-  // Snapshot refs so afterPush can tell which moved.
-  const refsBefore =
-    isPush &&
-    request.method === 'POST' &&
-    (actionsConfigured(env) || resolutionConfigured(env))
-      ? await git.client
-          .listRefs()
-          .then((ad) => ad.refs)
-          .catch(() => null)
+  let body: ReadableStream<Uint8Array> | null =
+    request.method === 'POST' ? request.body : null;
+  // A push's commands, read before anything is forwarded: branch protection decides on them, and afterPush tells
+  // from them which refs moved.
+  let push: ReceiveRequest | null = null;
+  let fastForwardOnly: PushCommand[] = [];
+  if (isPush && endpoint === 'git-receive-pack') {
+    const gzip = request.headers.get('Content-Encoding') === 'gzip';
+    if (gzip) headers.delete('Content-Encoding');
+    push = body
+      ? await readReceiveRequest(
+          gzip ? body.pipeThrough(new DecompressionStream('gzip')) : body
+        )
       : null;
+    if (!push) return new Response('Malformed push request\n', { status: 400 });
+    const rules = {
+      defaultBranch: repo.defaultBranch,
+      protectedPatterns: repo.protectedBranches,
+      admin: perms.admin,
+      empty: false,
+    };
+    if (needsEmptyCheck(push.commands, rules))
+      rules.empty = (await git.branches()).length === 0;
+    const decision = decidePush(push.commands, rules);
+    if (decision.refused.size) {
+      // The pack is never forwarded; read it to the end so the client gets the reply.
+      await push.body.pipeTo(new WritableStream()).catch(() => {});
+      if (!reportsStatus(push.capabilities))
+        return new Response(
+          `Push refused: ${[...decision.refused.values()][0]}\n`,
+          { status: 403 }
+        );
+      return new Response(
+        refusalReport(push.commands, decision.refused, push.capabilities),
+        {
+          headers: {
+            'Content-Type': 'application/x-git-receive-pack-result',
+            'Cache-Control': 'no-cache',
+          },
+        }
+      );
+    }
+    fastForwardOnly = decision.fastForwardOnly;
+    body = push.body;
+    // Forwarded with the length the client declared, as the request itself would have been.
+    const length = Number(request.headers.get('Content-Length'));
+    if (!gzip && Number.isSafeInteger(length) && length > 0) {
+      const fixed = new FixedLengthStream(length);
+      body.pipeTo(fixed.writable).catch(() => {});
+      body = fixed.readable;
+    }
+  }
   const upstream = await git.client.forward(
     `/${endpoint}${url.search}`,
-    {
-      method: request.method,
-      headers,
-      body: request.method === 'POST' ? request.body : null,
-    },
+    { method: request.method, headers, body },
     isPush ? 'write' : 'read'
   );
   const respHeaders = new Headers();
@@ -213,11 +267,22 @@ export async function handleGitRequest(
     if (v) respHeaders.set(h, v);
   }
 
-  if (isPush && user && request.method === 'POST' && upstream.ok) {
+  if (isPush && user && push && upstream.ok) {
     // Receive-pack responses are small; buffer to sync metadata after the push lands.
-    const body = await upstream.arrayBuffer();
-    ctx.waitUntil(afterPush(env, repo.id, user.id, refsBefore, fullName));
-    return new Response(body, {
+    let reply: Uint8Array = new Uint8Array(await upstream.arrayBuffer());
+    const undone = await undoForcedUpdates(git, fastForwardOnly);
+    if (undone.size)
+      reply = rewriteReport(reply, push.capabilities, undone) ?? reply;
+    ctx.waitUntil(
+      afterPush(
+        env,
+        repo.id,
+        user.id,
+        push.commands.filter((c) => !undone.has(c.ref)),
+        fullName
+      )
+    );
+    return new Response(reply, {
       status: upstream.status,
       headers: respHeaders,
     });
@@ -229,6 +294,39 @@ export async function handleGitRequest(
 }
 
 /**
+ * An admin's push may move a protected branch only forward. Its objects are in once receive-pack answers, so each
+ * such update that landed is checked; one that rewrote history is put back (compare-and-swap on what was pushed).
+ * Returns the refs that were refused this way, with the reason the client is told.
+ */
+async function undoForcedUpdates(
+  git: GitService,
+  commands: PushCommand[]
+): Promise<Map<string, string>> {
+  const undone = new Map<string, string>();
+  if (!commands.length) return undone;
+  const refs = (await git.client.listRefs()).refs;
+  for (const c of commands) {
+    if (refs.get(c.ref) !== c.new) continue;
+    const forward = await git.isAncestor(c.old, c.new);
+    if (forward) continue;
+    const branch = c.ref.slice('refs/heads/'.length);
+    try {
+      await git.client.push([{ ref: c.ref, old: c.new, new: c.old }], []);
+    } catch (e) {
+      console.error('[git] could not undo a forced update', c.ref, e);
+      continue;
+    }
+    undone.set(
+      c.ref,
+      forward === null
+        ? `${branch} is a protected branch: this push is too large to check as a fast-forward; push it in smaller steps`
+        : `${branch} is a protected branch: only fast-forward pushes are allowed`
+    );
+  }
+  return undone;
+}
+
+/**
  * Bumps `updated_at`, adopts the first pushed branch as default if missing, queues Actions runs,
  * and starts AI resolution for newly conflicting pull requests.
  */
@@ -236,7 +334,7 @@ async function afterPush(
   env: CloudflareBindings,
   repoId: string,
   actorId: string,
-  refsBefore: Map<string, string> | null,
+  commands: PushCommand[],
   fullName: string
 ) {
   const db = drizzle(env.DB, { schema });
@@ -265,8 +363,14 @@ async function afterPush(
     console.error('[git] post-push sync failed', e);
   }
   await db.update(repositories).set(patch).where(eq(repositories.id, repoId));
-  if (refsBefore && refsAfter) {
-    const updates = diffRefs(refsBefore, refsAfter);
+  if (refsAfter && (actionsConfigured(env) || resolutionConfigured(env))) {
+    // The commands that took effect: their refs are where the push put them. A ref moved again since is that
+    // push's to report.
+    const updates: RefUpdate[] = commands.filter((c) =>
+      c.new === ZERO_SHA
+        ? !refsAfter.has(c.ref)
+        : refsAfter.get(c.ref) === c.new
+    );
     await onRefsUpdated(env, db, repo, fullName, updates, actorId);
     // Before the sweep and the state settling below: they read approvals of the new head.
     await carryApprovalsOnSameTree(

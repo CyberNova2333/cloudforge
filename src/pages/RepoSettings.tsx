@@ -241,7 +241,7 @@ export default function RepoSettings() {
           </label>
           <p className="note mt-0 mb-1">
             {t(
-              'CloudForge never rebases these branches. The default branch is always protected.'
+              'CloudForge never rebases these branches, and they change only by merging a pull request or by a repository admin’s fast-forward push: nobody deletes or force-pushes them. The default branch is always protected.'
             )}
           </p>
           <textarea

@@ -320,8 +320,8 @@ export const repo: Record<string, string> = {
   Collaborators: '协作者',
   'Default branch': '默认分支',
   'Protected branches': '受保护分支',
-  'CloudForge never rebases these branches. The default branch is always protected.':
-    'CloudForge 从不对这些分支执行变基。默认分支始终受保护。',
+  'CloudForge never rebases these branches, and they change only by merging a pull request or by a repository admin’s fast-forward push: nobody deletes or force-pushes them. The default branch is always protected.':
+    'CloudForge 从不对这些分支执行变基，它们只能通过合并拉取请求或仓库管理员的快进推送来更新：任何人都不能删除或强制推送。默认分支始终受保护。',
   'Collaborators can see this private repository, push branches, and merge pull requests.':
     '协作者可以看到这个私有仓库、推送分支并合并拉取请求。',
   'Every member can read this repository. Collaborators can also push branches and merge pull requests.':
