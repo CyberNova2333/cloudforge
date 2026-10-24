@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // `cloudforge adopt --worker <name>` (spec §7): takes over a CloudForge deployed by hand (no state
 // file, no ownership markers) from the deployed worker's settings. Read-only up to the confirmed
 // report; then writes the state and the generated wrangler.jsonc under <home>/<worker>/. Never

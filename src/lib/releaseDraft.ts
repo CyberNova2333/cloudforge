@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The cut-release form's version and notes: what the page suggests, and what survives a refetch (after a 409 the
  * suggestion moves to the new head, but whatever the person typed stays theirs).

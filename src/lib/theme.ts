@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Themes: seven HQ colourways and GitHub, each shown in System, Light or Dark appearance. The preference is per
  * browser (localStorage). `index.html` applies it before the first paint with an inline script that mirrors

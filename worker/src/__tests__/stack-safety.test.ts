@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { expect, it } from 'vitest';
 import { buildTree, type EdgeInput } from '../stack/tree';
 import { gateFor } from '../stack/gate';

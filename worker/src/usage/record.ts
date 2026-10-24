@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Usage CloudForge attributes itself, as it happens: Actions runner containers (boot to destroy)
  * and Workers AI calls with their token counts. Recording never fails the work it describes.

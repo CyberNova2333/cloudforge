@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The rules behind a repository's Health page: how a row's numbers are charted and named, the one decision that
  * waits on the owner, who is credited with what got better or worse, and how each reviewer is described. Pure, so

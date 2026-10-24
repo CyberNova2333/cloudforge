@@ -1,4 +1,4 @@
-# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 BETTER_AUTH_SECRET=change-me-to-a-long-random-string
 # Git LFS: an R2 API token with Object Read & Write on the LFS bucket (S3-compatible credentials).
 R2_ACCESS_KEY_ID=

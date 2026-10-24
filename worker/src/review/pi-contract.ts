@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * What the Pi review's Durable Object (agent-reviewer.ts) and the review Workflow (pi.ts) share: the DO's API, its
  * names, its limits, and the pure decisions it makes (prompts, the untrusted fence, the tool guard, whether an

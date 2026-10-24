@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { DrizzleDB } from '../db/middleware';
 import type { LandingIntent, PullRequest } from '../db/app.schema';
 import { d1Of } from '../pulls/events';

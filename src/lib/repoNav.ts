@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Repository navigation: which tab a repository URL belongs to, the tabs a repository shows, and the top band's
  * default trail for a repository page that doesn't name itself (pages redesigned later publish their own through

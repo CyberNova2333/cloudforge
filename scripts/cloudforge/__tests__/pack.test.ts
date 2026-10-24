@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import { npmManifest } from '../pack.mjs';
 
@@ -35,7 +35,7 @@ describe('npmManifest：软件包清单', () => {
         'history.txt',
         'README.md',
         'LICENSE',
-        'COPYING',
+        'LICENSES',
       ],
     });
   });

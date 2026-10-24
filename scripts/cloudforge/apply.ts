@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Apply (spec §6): creates what the plan says, step by step, recording each idempotency key in the
 // state file so a rerun (`--resume`) continues from the first unrecorded step. Step helpers live
 // in apply-steps.ts.

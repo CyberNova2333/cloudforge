@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // `cloudforge status` (spec §6): prints the recorded state and asks the deployed worker who it
 // is, once. Read-only: no Cloudflare API call, no subprocess, no file written.
 import type { Io } from './collect.ts';

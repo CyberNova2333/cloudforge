@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The Pull requests board: open pull requests in lanes by whose move it is, each card with who is reviewing it,
  * what holds it back and when it should land. Built from the pull request list (`pullState`) and the merge queue

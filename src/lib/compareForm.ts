@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The compare page (`/:o/:r/compare/<base>...<head>` or `compare/<head>`, which compares against the default
  * branch): reading its address, the title it pre-fills, and what a comparison means for opening a pull request.

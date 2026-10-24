@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Parses `$GITHUB_ENV`/`$GITHUB_OUTPUT`: `NAME=value` lines or `NAME<<EOF` … `EOF` heredocs. */
 export function parseKeyValueFile(text: string): Record<string, string> {
   const out: Record<string, string> = {};

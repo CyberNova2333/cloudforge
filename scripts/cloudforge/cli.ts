@@ -1,4 +1,4 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // `cloudforge <command>`: the user-facing installer (spec §2–§6). Every outside effect comes in
 // through `Deps`, so tests drive `main` with fakes; the real wiring is at the bottom.
 import { realpathSync } from 'node:fs';
