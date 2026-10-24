@@ -17,11 +17,12 @@ import type { SessionUser } from '../variables';
 
 /**
  * better-auth's session cookie, signed (`<token>.<base64 HMAC-SHA256 of the token>`). Over HTTPS (a
- * `https://` BASE_URL) better-auth names it with the `__Secure-` prefix and reads that name first, then
- * the plain one: so does this.
+ * `https://` BASE_URL) better-auth names it with the `__Secure-` prefix and its `get-session` reads only that
+ * name: so does this, so a plain-named cookie (which any page on the same site could set) never signs anyone in.
  */
 const COOKIE = 'cloudforge.session_token';
-const NAMES = [`__Secure-${COOKIE}`, COOKIE];
+const cookieName = (env: CloudflareBindings) =>
+  env.BASE_URL?.startsWith('https://') ? `__Secure-${COOKIE}` : COOKIE;
 
 /** Whether `signature` is `base64(hmacSHA256(secret, value))`, as better-call signs cookies; constant time. */
 async function verifies(secret: string, value: string, signature: string) {
@@ -46,16 +47,15 @@ async function verifies(secret: string, value: string, signature: string) {
   );
 }
 
-/** The raw signed cookie, if the request carries one. */
-function signedCookie(headers: Headers) {
+/** The raw signed cookie under `name`, if the request carries one. */
+function signedCookie(headers: Headers, name: string) {
   const cookie = headers.get('cookie');
-  if (!cookie?.includes(`${COOKIE}=`)) return null;
-  const parts = cookie.split(';').map((s) => s.trim());
-  for (const name of NAMES) {
-    const part = parts.find((s) => s.startsWith(`${name}=`));
-    if (part) return part.slice(name.length + 1);
-  }
-  return null;
+  if (!cookie?.includes(`${name}=`)) return null;
+  const part = cookie
+    .split(';')
+    .map((s) => s.trim())
+    .find((s) => s.startsWith(`${name}=`));
+  return part ? part.slice(name.length + 1) : null;
 }
 
 /**
@@ -95,7 +95,7 @@ export async function currentUser(
   env: CloudflareBindings,
   headers: Headers
 ): Promise<SessionUser | null> {
-  const cookie = signedCookie(headers);
+  const cookie = signedCookie(headers, cookieName(env));
   if (!cookie) return null;
   const token = await sessionToken(env.BETTER_AUTH_SECRET, cookie);
   if (!token) return null;
