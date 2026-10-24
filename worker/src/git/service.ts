@@ -17,7 +17,63 @@ export type Commit = ArtifactsCommitMetadata;
 export type Entry = ArtifactsTreeEntry;
 
 const SHA_RE = /^[0-9a-f]{40}$/;
-const MAX_WALK = 2000;
+/** Commits one history walk visits before it gives up (cached commits cost no read). */
+const MAX_WALK = 10_000;
+/** Artifacts reads one walk makes past the first-parent chains it starts from, a log page each. */
+const MAX_WALK_READS = 200;
+/** First-parent commits read with each end of a walk, and with each later read. */
+const SEED_PAGE = 1000;
+const WALK_PAGE = 100;
+/** Commits `commitsBetween` walks after only uninteresting ones are queued (git's SLOP). */
+const WALK_SLOP = 5;
+
+type WalkBudget = { reads: number; truncated: boolean };
+
+/** Commits by committer time, newest first (ties by hash, so walks are deterministic): a binary heap. */
+class DateQueue {
+  private heap: Commit[] = [];
+  get size() {
+    return this.heap.length;
+  }
+  private before(x: Commit, y: Commit) {
+    return (
+      x.committedAt > y.committedAt ||
+      (x.committedAt === y.committedAt && x.hash < y.hash)
+    );
+  }
+  push(c: Commit) {
+    const h = this.heap;
+    h.push(c);
+    for (let i = h.length - 1; i > 0;) {
+      const parent = (i - 1) >> 1;
+      if (!this.before(h[i], h[parent])) break;
+      [h[i], h[parent]] = [h[parent], h[i]];
+      i = parent;
+    }
+  }
+  pop(): Commit | undefined {
+    const h = this.heap;
+    const top = h[0];
+    const last = h.pop();
+    if (h.length && last) {
+      h[0] = last;
+      for (let i = 0; ;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < h.length && this.before(h[l], h[m])) m = l;
+        if (r < h.length && this.before(h[r], h[m])) m = r;
+        if (m === i) break;
+        [h[i], h[m]] = [h[m], h[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+  some(pred: (c: Commit) => boolean) {
+    return this.heap.some(pred);
+  }
+}
 const MAX_DIFF_FILES = 300;
 const MAX_DIFF_BYTES = 512 * 1024;
 
@@ -239,46 +295,171 @@ export class GitService {
 
   // ── ancestry ───────────────────────────────────────────────────────────────
 
-  /** First-parent chain of `sha` (up to 1000 commits), seeded into the commit cache. */
-  private async firstParentChain(sha: string): Promise<Set<string>> {
-    return new Set((await this.log(sha, 1000)).map((c) => c.hash));
+  // History walks follow every parent, newest commit first (by committer time), as git does: a merge commit's second
+  // parent is history like its first. The first-parent chains of both ends are read up front, one log page each;
+  // anything else is read a page at a time, within WalkBudget.
+
+  /** `sha` for a walk: from the cache, else with its next first-parent commits in one read. Null past the budget. */
+  private async walkCommit(
+    sha: string,
+    budget: WalkBudget
+  ): Promise<Commit | null> {
+    const hit = this.commits.get(sha);
+    if (hit) return hit;
+    if (budget.reads >= MAX_WALK_READS) {
+      budget.truncated = true;
+      return null;
+    }
+    budget.reads++;
+    await this.log(sha, WALK_PAGE);
+    return this.commits.get(sha) ?? (await this.commit(sha));
   }
 
-  /** Best common ancestor: BFS from `head` until it meets `base`'s history. */
+  /** Reads the first-parent chains a walk starts from, and the walk's starting commits (null when one is missing). */
+  private async walkStart(shas: string[], budget: WalkBudget) {
+    await Promise.all(shas.map((sha) => this.log(sha, SEED_PAGE)));
+    return Promise.all(shas.map((sha) => this.walkCommit(sha, budget)));
+  }
+
+  /**
+   * The best common ancestors of `a` and `b`, newest first, and whether the walk finished (it gives up past
+   * MAX_WALK commits or MAX_WALK_READS reads). git's paint_down_to_common: each commit is painted with the sides it is
+   * reached from; one reached from both is a merge base, and its ancestors are stale (never a better base).
+   */
+  private async mergeBases(
+    a: string,
+    b: string
+  ): Promise<{ bases: string[]; complete: boolean }> {
+    const A = 1;
+    const B = 2;
+    const STALE = 4;
+    const budget: WalkBudget = { reads: 0, truncated: false };
+    const [ca, cb] = await this.walkStart([a, b], budget);
+    if (!ca || !cb) return { bases: [], complete: !budget.truncated };
+    const flags = new Map<string, number>([
+      [a, A],
+      [b, B],
+    ]);
+    const queue = new DateQueue();
+    queue.push(ca);
+    queue.push(cb);
+    const bases: string[] = [];
+    let visited = 0;
+    while (queue.some((c) => !(flags.get(c.hash)! & STALE))) {
+      if (++visited > MAX_WALK) return { bases, complete: false };
+      const c = queue.pop()!;
+      let f = flags.get(c.hash)! & (A | B | STALE);
+      if ((f & (A | B)) === (A | B)) {
+        if (!(f & STALE) && !bases.includes(c.hash)) bases.push(c.hash);
+        f |= STALE;
+      }
+      for (const p of c.parents) {
+        const pf = flags.get(p) ?? 0;
+        if ((pf & f) === f) continue;
+        const pc = await this.walkCommit(p, budget);
+        if (!pc) continue;
+        flags.set(p, pf | f);
+        queue.push(pc);
+      }
+    }
+    return { bases, complete: !budget.truncated };
+  }
+
+  /** Best common ancestor of `base` and `head`; null when they share no history (or it is too far to find). */
   async mergeBase(base: string, head: string): Promise<string | null> {
     if (base === head) return base;
-    const baseChain = await this.firstParentChain(base);
-    await this.log(head, 1000);
-    const seen = new Set<string>();
-    const queue = [head];
-    while (queue.length && seen.size < MAX_WALK) {
-      const sha = queue.shift()!;
-      if (seen.has(sha)) continue;
-      seen.add(sha);
-      if (baseChain.has(sha)) return sha;
-      const c = await this.commit(sha);
-      if (c) queue.push(...c.parents);
-    }
-    return null;
+    return (await this.mergeBases(base, head)).bases[0] ?? null;
   }
 
-  /** Commits in `head` but not `base`, parents before children. */
+  /** Whether `ancestor` is in `descendant`'s history (itself included); null when the walk gave up first. */
+  async isAncestor(
+    ancestor: string,
+    descendant: string
+  ): Promise<boolean | null> {
+    if (ancestor === descendant) return true;
+    const { bases, complete } = await this.mergeBases(ancestor, descendant);
+    if (bases.includes(ancestor)) return true;
+    return complete ? false : null;
+  }
+
+  /**
+   * Commits in `head`'s history but not in `base`'s (git's `base..head`), parents before children. Walks newest first,
+   * marking `base`'s history uninteresting, and stops a few commits after only uninteresting ones are left (git's slop,
+   * for clocks that disagree).
+   */
   async commitsBetween(base: string, head: string): Promise<Commit[]> {
-    const baseChain = await this.firstParentChain(base);
-    await this.log(head, 1000);
-    const out: Commit[] = [];
-    const seen = new Set<string>();
-    const queue = [head];
-    while (queue.length && seen.size < MAX_WALK) {
-      const sha = queue.shift()!;
-      if (seen.has(sha) || baseChain.has(sha)) continue;
-      seen.add(sha);
-      const c = await this.commit(sha);
-      if (!c) continue;
-      out.push(c);
-      queue.push(...c.parents);
+    if (base === head) return [];
+    const OUT = 1;
+    const SEEN = 2;
+    const budget: WalkBudget = { reads: 0, truncated: false };
+    const [cb, ch] = await this.walkStart([base, head], budget);
+    if (!ch) return [];
+    const flags = new Map<string, number>();
+    const queue = new DateQueue();
+    if (cb) {
+      flags.set(base, OUT | SEEN);
+      queue.push(cb);
     }
-    return out.reverse();
+    flags.set(head, (flags.get(head) ?? 0) | SEEN);
+    queue.push(ch);
+    const done = new Set<string>();
+    /** Marks `sha` and what it reaches as uninteresting, including commits already walked as interesting. */
+    const markOut = async (sha: string) => {
+      const stack = [sha];
+      while (stack.length) {
+        const s = stack.pop()!;
+        const f = flags.get(s) ?? 0;
+        if (f & OUT) continue;
+        flags.set(s, f | OUT | SEEN);
+        if (done.has(s)) stack.push(...(this.commits.get(s)?.parents ?? []));
+        else if (!(f & SEEN)) {
+          const c = await this.walkCommit(s, budget);
+          if (c) queue.push(c);
+        }
+      }
+    };
+    let slop = WALK_SLOP;
+    let visited = 0;
+    while (queue.size && ++visited <= MAX_WALK) {
+      if (queue.some((c) => !(flags.get(c.hash)! & OUT))) slop = WALK_SLOP;
+      else if (--slop < 0) break;
+      const c = queue.pop()!;
+      if (done.has(c.hash)) continue;
+      done.add(c.hash);
+      const out = flags.get(c.hash)! & OUT;
+      for (const p of c.parents) {
+        if (out) {
+          await markOut(p);
+          continue;
+        }
+        const pf = flags.get(p) ?? 0;
+        if (pf & SEEN) continue;
+        const pc = await this.walkCommit(p, budget);
+        if (!pc) continue;
+        flags.set(p, pf | SEEN);
+        queue.push(pc);
+      }
+    }
+    const keep = new Set([...done].filter((sha) => !(flags.get(sha)! & OUT)));
+    // Parents before children: a depth-first walk from the head, each commit after its parents (first parent first).
+    const order: Commit[] = [];
+    const placed = new Set<string>([head]);
+    const stack: [string, number][] = [[head, 0]];
+    while (stack.length) {
+      const top = stack[stack.length - 1];
+      const c = this.commits.get(top[0])!;
+      const next = c.parents[top[1]++];
+      if (next !== undefined) {
+        if (keep.has(next) && !placed.has(next)) {
+          placed.add(next);
+          stack.push([next, 0]);
+        }
+        continue;
+      }
+      stack.pop();
+      order.push(c);
+    }
+    return keep.has(head) ? order : [];
   }
 
   // ── diffs ──────────────────────────────────────────────────────────────────
