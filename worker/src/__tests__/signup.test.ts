@@ -186,6 +186,82 @@ describe('自主注册', () => {
   });
 });
 
+describe('未配置发信时的自主注册', () => {
+  /** An instance that can't send email (no Email Sending binding), with sign-up on. */
+  async function noEmail() {
+    const { t, admin } = await setup();
+    (t.env as { EMAIL?: unknown }).EMAIL = undefined;
+    await setting(t, admin, 'signup.enabled', true);
+    return { t, admin };
+  }
+  const status = async (t: TestEnv) =>
+    (
+      (await (await call(t, '/api/setup/status')).json()) as {
+        signup: { enabled: boolean; verification: boolean };
+      }
+    ).signup;
+  const closed =
+    "Sign-up needs a confirmed email address, but this instance can't send email yet. Ask an administrator for an invitation.";
+
+  it('要求验证邮箱时拒绝注册，登录页显示注册关闭', async () => {
+    const { t } = await noEmail();
+    const res = await signUp(t, { username: 'eve', email: 'eve@example.com' });
+    expect(res.status).toBe(403);
+    expect((await errorOf(res)).message).toBe(closed);
+    await expect(signIn(t, 'eve', 'password123')).rejects.toThrow();
+    expect(await status(t)).toMatchObject({
+      enabled: false,
+      verification: true,
+    });
+  });
+
+  it('限定邮箱域名时即使关闭验证也拒绝注册（地址无法确认）', async () => {
+    const { t, admin } = await noEmail();
+    await setting(t, admin, 'signup.require_verification', false);
+    await setting(t, admin, 'signup.allowed_domains', 'example.org');
+    const res = await signUp(t, { username: 'eve', email: 'eve@example.org' });
+    expect(res.status).toBe(403);
+    expect((await errorOf(res)).message).toBe(closed);
+    expect(await status(t)).toMatchObject({
+      enabled: false,
+      verification: true,
+    });
+  });
+
+  it('关闭验证且不限域名时可注册并立即登录', async () => {
+    const { t, admin } = await noEmail();
+    await setting(t, admin, 'signup.require_verification', false);
+    expect(await status(t)).toMatchObject({
+      enabled: true,
+      verification: false,
+    });
+    expect(
+      (await signUp(t, { username: 'eve', email: 'eve@example.com' })).status
+    ).toBe(200);
+    await expect(signIn(t, 'eve', 'password123')).resolves.toContain(
+      'cloudforge'
+    );
+  });
+
+  it('发信失效后，尚未验证的注册账户仍不能登录，也不能重发链接', async () => {
+    const { t, admin } = await setup();
+    await setting(t, admin, 'signup.enabled', true);
+    expect(
+      (await signUp(t, { username: 'eve', email: 'eve@example.com' })).status
+    ).toBe(200);
+    (t.env as { EMAIL?: unknown }).EMAIL = undefined;
+    const blocked = await call(t, '/api/auth/sign-in/username', {
+      json: { username: 'eve', password: 'password123' },
+    });
+    expect(blocked.status).toBe(403);
+    expect((await errorOf(blocked)).code).toBe('EMAIL_NOT_VERIFIED');
+    const resend = await call(t, '/api/auth/send-verification-email', {
+      json: { email: 'eve@example.com', callbackURL: '/' },
+    });
+    expect(resend.status).toBe(400);
+  });
+});
+
 describe('已验证邮箱', () => {
   const verified = async (t: TestEnv, username: string) =>
     (await t.env.DB.prepare(

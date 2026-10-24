@@ -56,6 +56,11 @@ The security update adds migration `0040` and changes behaviour; check each poin
   moderator apps or Let Claude decide). On an instance with one maintainer, turn on Site admin → Settings → Reviews →
   "Authors approve their own pull requests". Closing, reopening and the version bump of a pull request need push
   access, and auto-merge waits while the author can't push to the repository.
+- **Self sign-up confirms addresses or stays closed**: a sign-up email domain list now also requires confirming the
+  address by email, and while "Verify email on sign-up" is on or a domain list is set, an instance without outbound
+  email refuses sign-ups (the sign-in page shows sign-up as closed). Accounts that signed up unconfirmed while email
+  was missing can't sign in until they confirm: set up Email Sending (they request a new link from the sign-in
+  page), or turn off verification and clear the domain list.
 
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.

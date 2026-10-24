@@ -32,6 +32,12 @@ export async function checkSignup(
     throw new APIError('FORBIDDEN', {
       message: 'Self sign-up is off. Ask an administrator for an invitation.',
     });
+  // Without outbound email nobody could confirm an address, so an address (and its allowed domain) would be taken on
+  // trust: sign-up that requires confirming one stays closed instead.
+  if ((await verificationNeeded(db, env)) && !emailConfigured(env))
+    throw new APIError('FORBIDDEN', {
+      message: SIGNUP_NEEDS_EMAIL,
+    });
   const domains = signupDomains(s['signup.allowed_domains']);
   const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
   const domain = email.slice(email.lastIndexOf('@') + 1);
@@ -48,14 +54,43 @@ export async function checkSignup(
     });
 }
 
-/** Whether verification emails go out: Site admin requires them and outbound email is set up. */
+export const SIGNUP_NEEDS_EMAIL =
+  "Sign-up needs a confirmed email address, but this instance can't send email yet. Ask an administrator for an invitation.";
+
+/**
+ * Whether a self sign-up must confirm its email address before it signs in: Site admin requires it, or limits sign-up
+ * to some domains (an address at a domain says nothing until its mailbox answers). Whether email can be sent doesn't
+ * change it: without email, such sign-ups are refused (`checkSignup`).
+ */
+export async function verificationNeeded(
+  db: DrizzleDB,
+  env: CloudflareBindings
+): Promise<boolean> {
+  const s = await getSettings(db, env, [
+    'signup.require_verification',
+    'signup.allowed_domains',
+  ]);
+  return (
+    s['signup.require_verification'] ||
+    signupDomains(s['signup.allowed_domains']).length > 0
+  );
+}
+
+/** Whether verification emails go out: a confirmed address is needed and outbound email is set up. */
 export async function verificationRequired(
   db: DrizzleDB,
   env: CloudflareBindings
 ): Promise<boolean> {
-  // Without outbound email nobody could ever verify, so nobody is asked to.
-  if (!emailConfigured(env)) return false;
-  return getSetting(db, env, 'signup.require_verification');
+  return emailConfigured(env) && (await verificationNeeded(db, env));
+}
+
+/** Whether self sign-up is open right now: on, and able to confirm addresses when it must. */
+export async function signupOpen(
+  db: DrizzleDB,
+  env: CloudflareBindings
+): Promise<boolean> {
+  if (!(await getSetting(db, env, 'signup.enabled'))) return false;
+  return emailConfigured(env) || !(await verificationNeeded(db, env));
 }
 
 /**
@@ -77,7 +112,11 @@ export async function checkResend(
           .where(eq(users.email, email.trim().toLowerCase()))
           .get()
       : undefined;
-  if (!user || !(await mustVerifyEmail(db, env, user.id)))
+  if (
+    !user ||
+    !emailConfigured(env) ||
+    !(await mustVerifyEmail(db, env, user.id))
+  )
     throw new APIError('BAD_REQUEST', {
       message: 'No sign-up is waiting for this email to be confirmed.',
     });
@@ -101,5 +140,6 @@ export async function mustVerifyEmail(
     .get();
   if (!row || row.verified) return false;
   if (await isAgentUser(db, userId)) return false;
-  return verificationRequired(db, env);
+  // Not only while email works: an unconfirmed self sign-up never signs in while a confirmed address is needed.
+  return verificationNeeded(db, env);
 }
