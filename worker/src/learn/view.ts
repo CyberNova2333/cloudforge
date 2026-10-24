@@ -104,7 +104,7 @@ export async function recentLessons(
   return (await views(db, rows)).map((v) => v.view);
 }
 
-/** Each agent's latest `perAgent` lessons that `viewer` can see, newest first, batched (gitorange_list_agents). */
+/** Each agent's latest `perAgent` lessons that `viewer` can see, newest first, batched (cloudforge_list_agents). */
 export async function latestLessons(
   db: DrizzleDB,
   agentIds: string[],

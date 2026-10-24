@@ -39,6 +39,10 @@ context, and a PR state revision that rejects stale close/reopen requests. Apply
 Actions runs first: this update does not retroactively encrypt old durable results, and the new decoder cannot
 read their plaintext format. Existing-instance version handling across deployment has not been verified for
 this update. Start a fresh run if one cannot resume.
+The MCP tools are named `cloudforge_*` (they were `gitorange_*`). `tools/list` shows only the new names, but a call by
+an old name still reaches the same tool with the same permission checks, so connected agents keep working; update
+prompts, skills and tool allowlists to the new names when convenient.
+
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
 
@@ -76,7 +80,7 @@ If you run a fork or prefer a clone, the original flow works: `git pull && yarn 
 
 Releases come from the CloudForge instance that hosts the repository, and are published to npm from your own machine. npm asks for a one-time code, so this is never automated.
 
-1. Cut a release in CloudForge (the Releases tab, or `gitorange_create_release`) from `main`. The Releases tab cuts from the default branch; `release:publish` refuses a tag that is not on `main`.
+1. Cut a release in CloudForge (the Releases tab, or `cloudforge_create_release`) from `main`. The Releases tab cuts from the default branch; `release:publish` refuses a tag that is not on `main`.
 2. From a clone with `origin` and `main` up to date, run:
 
    ```bash

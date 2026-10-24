@@ -534,9 +534,9 @@ describe('通过审核应用调用网页决策路径', () => {
 });
 
 const MOD_TOOLS = [
-  'gitorange_approve_review_finding',
-  'gitorange_dismiss_change_request',
-  'gitorange_approve_pull_request',
+  'cloudforge_approve_review_finding',
+  'cloudforge_dismiss_change_request',
+  'cloudforge_approve_pull_request',
 ];
 const toolNames = async (t: TestEnv, token: string) =>
   (
@@ -551,7 +551,7 @@ const pullArgs = (extra: Record<string, unknown> = {}) => ({
 });
 const getPull = async (t: TestEnv, token: string) =>
   JSON.parse(
-    (await tool(t, token, 'gitorange_get_pull_request', pullArgs())).content[0]
+    (await tool(t, token, 'cloudforge_get_pull_request', pullArgs())).content[0]
       .text
   ) as {
     state: string;
@@ -597,7 +597,7 @@ describe('审核工具', () => {
     expect(modTools).toEqual(expect.arrayContaining(MOD_TOOLS));
     for (const name of MOD_TOOLS) expect(coderTools).not.toContain(name);
     // Requesting changes stays open to every connection.
-    expect(coderTools).toContain('gitorange_request_changes_on_review_flag');
+    expect(coderTools).toContain('cloudforge_request_changes_on_review_flag');
     expect(modTools.length).toBe(coderTools.length + 3);
 
     const instructions = async (token: string) =>
@@ -622,9 +622,9 @@ describe('审核工具', () => {
   it('拒绝其他连接调用且不写入记录', async () => {
     const { t, coder, head, person, change } = await moderated();
     for (const [name, extra] of [
-      ['gitorange_approve_review_finding', { finding_id: person.id }],
-      ['gitorange_dismiss_change_request', { finding_id: change.id }],
-      ['gitorange_approve_pull_request', {}],
+      ['cloudforge_approve_review_finding', { finding_id: person.id }],
+      ['cloudforge_dismiss_change_request', { finding_id: change.id }],
+      ['cloudforge_approve_pull_request', {}],
     ] as const) {
       const res = await tool(
         t,
@@ -648,7 +648,7 @@ describe('审核工具', () => {
     const refused = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: person.id, head_sha: head })
     );
     expect(refused.content[0].text).toBe(NOT_MODERATOR);
@@ -658,7 +658,7 @@ describe('审核工具', () => {
     const ok = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: person.id, head_sha: head })
     );
     expect(ok.isError).toBeFalsy();
@@ -679,7 +679,7 @@ describe('审核工具', () => {
     const refused = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: person.id, head_sha: head })
     );
     expect(refused.isError).toBe(true);
@@ -688,7 +688,7 @@ describe('审核工具', () => {
     const ok = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({
         finding_id: person.id,
         head_sha: head,
@@ -713,7 +713,7 @@ describe('审核工具', () => {
     const res = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: person.id, head_sha: head })
     );
     expect(res.isError).toBeFalsy();
@@ -740,8 +740,8 @@ describe('审核工具', () => {
   it('驳回代理的修改请求后，拉取请求按网页操作相同的规则合入', async () => {
     const { t, mod, head, person, change } = await moderated();
     for (const [name, id] of [
-      ['gitorange_approve_review_finding', person.id],
-      ['gitorange_dismiss_change_request', change.id],
+      ['cloudforge_approve_review_finding', person.id],
+      ['cloudforge_dismiss_change_request', change.id],
     ] as const) {
       const res = await tool(
         t,
@@ -765,7 +765,7 @@ describe('审核工具', () => {
     const res = await tool(
       t,
       mod,
-      'gitorange_approve_pull_request',
+      'cloudforge_approve_pull_request',
       pullArgs({ head_sha: head })
     );
     expect(res.isError).toBeFalsy();
@@ -786,7 +786,7 @@ describe('审核工具', () => {
     await tool(
       t,
       mod,
-      'gitorange_dismiss_change_request',
+      'cloudforge_dismiss_change_request',
       pullArgs({ finding_id: change.id, head_sha: head })
     );
     await settle(t);
@@ -806,9 +806,9 @@ describe('审核工具', () => {
       'Rename'
     );
     for (const [name, extra] of [
-      ['gitorange_approve_review_finding', { finding_id: person.id }],
-      ['gitorange_dismiss_change_request', { finding_id: change.id }],
-      ['gitorange_approve_pull_request', {}],
+      ['cloudforge_approve_review_finding', { finding_id: person.id }],
+      ['cloudforge_dismiss_change_request', { finding_id: change.id }],
+      ['cloudforge_approve_pull_request', {}],
     ] as const) {
       const res = await tool(
         t,
@@ -828,7 +828,7 @@ describe('审核工具', () => {
       const res = await tool(
         t,
         mod,
-        'gitorange_approve_review_finding',
+        'cloudforge_approve_review_finding',
         pullArgs({ finding_id: person.id, head_sha: sha })
       );
       expect(res.isError).toBe(true);
@@ -838,7 +838,7 @@ describe('审核工具', () => {
     const missing = await tool(
       t,
       mod,
-      'gitorange_approve_pull_request',
+      'cloudforge_approve_pull_request',
       pullArgs()
     );
     expect(missing.content[0].text).toBe('head_sha is required.');
@@ -850,7 +850,7 @@ describe('审核工具', () => {
     const approveChange = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: change.id, head_sha: head })
     );
     expect(approveChange.isError).toBe(true);
@@ -858,7 +858,7 @@ describe('审核工具', () => {
     const dismissPerson = await tool(
       t,
       mod,
-      'gitorange_dismiss_change_request',
+      'cloudforge_dismiss_change_request',
       pullArgs({ finding_id: person.id, head_sha: head })
     );
     expect(dismissPerson.isError).toBe(true);
@@ -866,7 +866,7 @@ describe('审核工具', () => {
     const unknown = await tool(
       t,
       mod,
-      'gitorange_approve_review_finding',
+      'cloudforge_approve_review_finding',
       pullArgs({ finding_id: 'nope', head_sha: head })
     );
     expect(unknown.content[0].text).toMatch(/has no finding nope/);
@@ -883,9 +883,9 @@ describe('审核工具', () => {
       expect.arrayContaining(MOD_TOOLS)
     );
     for (const [name, extra] of [
-      ['gitorange_approve_review_finding', { finding_id: person.id }],
-      ['gitorange_dismiss_change_request', { finding_id: change.id }],
-      ['gitorange_approve_pull_request', {}],
+      ['cloudforge_approve_review_finding', { finding_id: person.id }],
+      ['cloudforge_dismiss_change_request', { finding_id: change.id }],
+      ['cloudforge_approve_pull_request', {}],
     ] as const) {
       const res = await tool(
         t,

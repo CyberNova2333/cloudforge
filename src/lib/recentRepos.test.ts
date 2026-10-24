@@ -94,7 +94,7 @@ describe('removeRecent：移除最近访问', () => {
 describe('parseRecent：解析最近访问', () => {
   it('读回写入的内容', () => {
     const list = [
-      repo('choyiny/gitorange'),
+      repo('octocat/cloudforge'),
       repo('dataagent/dataagent', { handle: 'dataagent', color: null }),
     ];
     expect(parseRecent(JSON.stringify(list))).toEqual(list);

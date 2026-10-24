@@ -3,7 +3,7 @@ import type { AuditEvent } from './uiApi';
 import { lang, t, tn } from './i18n';
 import { reasonText } from './pullState';
 
-// The audit log in words: every event as one sentence ("mahmoud paused merging on choyiny/gitorange"), a second
+// The audit log in words: every event as one sentence ("mahmoud paused merging on octocat/cloudforge"), a second
 // line for the facts that matter (the reason, the note, what a setting was), a link and a category. Pure, so the
 // instance-wide log (Site admin → Audit log), a repository's own log and the Live page all say it the same way.
 
@@ -652,7 +652,7 @@ export function auditParts(
   return say(` ${words(e.action).join(' ')}`, e.target ? ` ${e.target}` : '');
 }
 
-/** One event as a sentence: "mahmoud paused merging on choyiny/gitorange". */
+/** One event as a sentence: "mahmoud paused merging on octocat/cloudforge". */
 export function auditText(e: AuditEvent, opts: AuditOptions = {}): string {
   return auditParts(e, opts)
     .map((p) => p.text)

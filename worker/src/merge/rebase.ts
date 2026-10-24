@@ -396,7 +396,7 @@ export type RetryRebase =
   | { ok: false; error: string };
 
 /**
- * A person tries a stopped rebase again (the page's "Try the rebase again", MCP gitorange_retry_rebase): the stop at
+ * A person tries a stopped rebase again (the page's "Try the rebase again", MCP cloudforge_retry_rebase): the stop at
  * the current tips (failed rows: AI failing on a commit, too many commits for AI, a conflict AI never took) is set
  * aside as `rejected`, so it no longer reads as the pull request's outcome (rebase_conflict, rebaseView, ensureRebase),
  * then a rebase run starts. The run reuses those rows: it claims a set-aside commit afresh, asking AI again with a new

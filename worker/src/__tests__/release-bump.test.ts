@@ -132,7 +132,7 @@ describe('拉取请求的版本升级级别', () => {
     const created = await tool(
       s.t,
       access_token,
-      'gitorange_create_pull_request',
+      'cloudforge_create_pull_request',
       {
         repository: 'octocat/app',
         head: 'feature',
@@ -145,7 +145,7 @@ describe('拉取请求的版本升级级别', () => {
       number: number;
     };
     await settle(s.t);
-    const got = await tool(s.t, access_token, 'gitorange_get_pull_request', {
+    const got = await tool(s.t, access_token, 'cloudforge_get_pull_request', {
       repository: 'octocat/app',
       number,
     });
@@ -161,12 +161,17 @@ describe('拉取请求的版本升级级别', () => {
     const s = await crewRepo();
     await s.branch('feature');
     const { access_token } = await connect(s.t, s.admin, 'Claude Code');
-    const res = await tool(s.t, access_token, 'gitorange_create_pull_request', {
-      repository: 'octocat/app',
-      head: 'feature',
-      title: 'Add',
-      version_bump: 'huge',
-    });
+    const res = await tool(
+      s.t,
+      access_token,
+      'cloudforge_create_pull_request',
+      {
+        repository: 'octocat/app',
+        head: 'feature',
+        title: 'Add',
+        version_bump: 'huge',
+      }
+    );
     expect(res.isError).toBe(true);
     const n = await s.t.env.DB.prepare(
       'SELECT COUNT(*) AS n FROM pull_requests'

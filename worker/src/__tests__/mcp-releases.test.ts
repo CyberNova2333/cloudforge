@@ -26,7 +26,7 @@ describe('发布版本的 MCP 工具', () => {
     await landed(s, 1, 'minor');
     await landed(s, 2, null);
 
-    const listed = await tool(s.t, access_token, 'gitorange_list_releases', {
+    const listed = await tool(s.t, access_token, 'cloudforge_list_releases', {
       repository: 'octocat/app',
     });
     const l = parse(listed);
@@ -38,14 +38,14 @@ describe('发布版本的 MCP 工具', () => {
     ]);
     expect(l.releases).toEqual([]);
 
-    const first = await tool(s.t, access_token, 'gitorange_create_release', {
+    const first = await tool(s.t, access_token, 'cloudforge_create_release', {
       repository: 'octocat/app',
       head_sha: l.unreleased.head,
     });
     expect(first.isError).toBe(true);
     expect(first.content[0].text).toContain('first release needs a version');
 
-    const cut = await tool(s.t, access_token, 'gitorange_create_release', {
+    const cut = await tool(s.t, access_token, 'cloudforge_create_release', {
       repository: 'octocat/app',
       head_sha: l.unreleased.head,
       version: 'v0.1.0',
@@ -58,7 +58,7 @@ describe('发布版本的 MCP 工具', () => {
     expect(s.repo.refs.get('refs/tags/v0.1.0')).toBe(head(s));
 
     const after = parse(
-      await tool(s.t, access_token, 'gitorange_list_releases', {
+      await tool(s.t, access_token, 'cloudforge_list_releases', {
         repository: 'octocat/app',
       })
     );
@@ -80,7 +80,7 @@ describe('发布版本的 MCP 工具', () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin);
     await landed(s, 1, 'patch');
-    const res = await tool(s.t, access_token, 'gitorange_create_release', {
+    const res = await tool(s.t, access_token, 'cloudforge_create_release', {
       repository: 'octocat/app',
       head_sha: 'a'.repeat(40),
       version: 'v0.1.0',
@@ -94,7 +94,7 @@ describe('发布版本的 MCP 工具', () => {
     await landed(s, 1, 'patch');
     const member = await addMember(s.t, s.admin, 'bob');
     const { access_token } = await connect(s.t, member);
-    const res = await tool(s.t, access_token, 'gitorange_create_release', {
+    const res = await tool(s.t, access_token, 'cloudforge_create_release', {
       repository: 'octocat/app',
       head_sha: head(s),
       version: 'v0.1.0',

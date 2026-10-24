@@ -31,7 +31,7 @@ describe('agentPrompt：代理提示词', () => {
 
   it('代理自行创建拉取请求时传入用户请求和会话标签', () => {
     const p = agentPrompt(repo(false), 'https://git.example.com', 'Orange');
-    expect(p).toContain('gitorange_create_pull_request');
+    expect(p).toContain('cloudforge_create_pull_request');
     expect(p).toContain('`request`');
     expect(p).toContain('what I originally asked you for');
     expect(p).toContain('`session`');

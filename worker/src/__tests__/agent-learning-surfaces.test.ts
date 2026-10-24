@@ -77,10 +77,10 @@ describe('供用户查看的智能体学习记录', () => {
     expect(event.actor?.username).toBe('secagent');
   });
 
-  it('gitorange_list_agents 包含各智能体最新的学习记录', async () => {
+  it('cloudforge_list_agents 包含各智能体最新的学习记录', async () => {
     const { t, admin, lesson } = await learned();
     const token = (await connect(t, admin)).access_token as string;
-    const listed = await tool(t, token, 'gitorange_list_agents');
+    const listed = await tool(t, token, 'cloudforge_list_agents');
     const [agent] = JSON.parse(listed.content[0].text) as {
       handle: string;
       lessons: unknown[];

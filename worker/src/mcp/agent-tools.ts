@@ -20,7 +20,7 @@ const json = (v: unknown) => text(JSON.stringify(v, null, 2));
 const handleProp = {
   type: 'string',
   description:
-    'The agent\'s handle, e.g. "securityagent" (from gitorange_list_agents).',
+    'The agent\'s handle, e.g. "securityagent" (from cloudforge_list_agents).',
 };
 
 function agentJson(ctx: ToolContext, v: AgentView, lessons?: LessonView[]) {
@@ -67,7 +67,7 @@ async function administeredRepo(
 
 const listAgentsTool: ToolModule = {
   definition: {
-    name: 'gitorange_list_agents',
+    name: 'cloudforge_list_agents',
     title: 'List reviewer agents',
     description:
       'List the reviewer agents on this server: each one reviews pull requests in the repositories that invite ' +
@@ -101,7 +101,7 @@ const listAgentsTool: ToolModule = {
 
 const listRepositoryAgents: ToolModule = {
   definition: {
-    name: 'gitorange_list_repository_agents',
+    name: 'cloudforge_list_repository_agents',
     title: "List a repository's agents",
     description:
       'List the reviewer agents a repository has invited. With none, a person approves each pull request commit.',
@@ -137,7 +137,7 @@ const listRepositoryAgents: ToolModule = {
 
 const inviteAgentTool: ToolModule = {
   definition: {
-    name: 'gitorange_invite_agent',
+    name: 'cloudforge_invite_agent',
     title: 'Invite an agent',
     description:
       'Invite a reviewer agent to review pull requests in a repository. Inviting it again does nothing. Needs ' +
@@ -156,7 +156,7 @@ const inviteAgentTool: ToolModule = {
     if (!result.ok)
       throw new McpToolError(
         result.status === 404
-          ? `No agent named ${handle}. Call gitorange_list_agents to see them.`
+          ? `No agent named ${handle}. Call cloudforge_list_agents to see them.`
           : result.error
       );
     ctx.after(publishChange(ctx.env, repo.id));
@@ -172,7 +172,7 @@ const inviteAgentTool: ToolModule = {
 
 const removeAgentTool: ToolModule = {
   definition: {
-    name: 'gitorange_remove_agent',
+    name: 'cloudforge_remove_agent',
     title: 'Remove an agent',
     description:
       'Stop a reviewer agent from reviewing a repository: its running reviews there are cancelled and its ' +
@@ -201,7 +201,7 @@ const removeAgentTool: ToolModule = {
     );
     if (!result.ok)
       throw new McpToolError(
-        `No agent named ${handle}. Call gitorange_list_repository_agents to see the ones ${fullName} invited.`
+        `No agent named ${handle}. Call cloudforge_list_repository_agents to see the ones ${fullName} invited.`
       );
     ctx.after(publishChange(ctx.env, repo.id, { approvals: true }));
     return {
@@ -214,12 +214,12 @@ const removeAgentTool: ToolModule = {
 
 const createAgentTool: ToolModule = {
   definition: {
-    name: 'gitorange_create_agent',
+    name: 'cloudforge_create_agent',
     title: 'Create a reviewer agent',
     description:
       'Create a reviewer agent (site admins only). It gets a starter AGENT.md in its own repository, ' +
       '<handle>/<handle>: change what it reviews for, its trigger and its knowledge/ by pushing there with git. ' +
-      'Then invite it to repositories with gitorange_invite_agent.',
+      'Then invite it to repositories with cloudforge_invite_agent.',
     annotations: { readOnlyHint: false, title: 'Create a reviewer agent' },
     inputSchema: {
       type: 'object',

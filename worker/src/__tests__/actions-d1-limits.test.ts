@@ -55,7 +55,7 @@ describe('多个矩阵下的 Actions D1 限制', () => {
   it('通过 MCP 日志返回所有步骤摘要', async () => {
     const s = await largeRun();
     const user = (await s.db.query.users.findFirst())!;
-    const result = await TOOL_HANDLERS.get('gitorange_get_run_logs')!.handler(
+    const result = await TOOL_HANDLERS.get('cloudforge_get_run_logs')!.handler(
       { repository: 'octocat/app', run_number: 1 },
       {
         db: s.db,

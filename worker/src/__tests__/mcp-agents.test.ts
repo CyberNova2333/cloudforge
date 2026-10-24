@@ -75,18 +75,18 @@ describe('MCP 代理工具', () => {
     ).result.tools.map((x) => x.name);
     expect(names).toEqual(
       expect.arrayContaining([
-        'gitorange_list_agents',
-        'gitorange_list_repository_agents',
-        'gitorange_invite_agent',
-        'gitorange_remove_agent',
-        'gitorange_create_agent',
+        'cloudforge_list_agents',
+        'cloudforge_list_repository_agents',
+        'cloudforge_invite_agent',
+        'cloudforge_remove_agent',
+        'cloudforge_create_agent',
       ])
     );
   });
 
   it('向任何成员列出代理及其仓库', async () => {
     const { t, memberToken } = await setup();
-    const r = await tool(t, memberToken, 'gitorange_list_agents');
+    const r = await tool(t, memberToken, 'cloudforge_list_agents');
     expect(r.isError).toBeFalsy();
     const [agent] =
       parsed<{ handle: string; name: string; repository: string | null }[]>(r);
@@ -100,18 +100,18 @@ describe('MCP 代理工具', () => {
   it('允许仓库管理员邀请和移除代理，与网页路由一致', async () => {
     const { t, admin, adminToken } = await setup();
     const args = { repository: 'octocat/app', handle: 'SecAgent' };
-    const first = await tool(t, adminToken, 'gitorange_invite_agent', args);
+    const first = await tool(t, adminToken, 'cloudforge_invite_agent', args);
     expect(first.isError).toBeFalsy();
     expect(textOf(first)).toContain('@secagent now reviews');
     // Inviting again does nothing.
     expect(
-      (await tool(t, adminToken, 'gitorange_invite_agent', args)).isError
+      (await tool(t, adminToken, 'cloudforge_invite_agent', args)).isError
     ).toBeFalsy();
     expect(await invited(t, admin)).toEqual(['secagent']);
     const listed = await tool(
       t,
       adminToken,
-      'gitorange_list_repository_agents',
+      'cloudforge_list_repository_agents',
       {
         repository: 'octocat/app',
       }
@@ -120,12 +120,12 @@ describe('MCP 代理工具', () => {
       'secagent',
     ]);
 
-    const removed = await tool(t, adminToken, 'gitorange_remove_agent', args);
+    const removed = await tool(t, adminToken, 'cloudforge_remove_agent', args);
     expect(removed.isError).toBeFalsy();
     expect(await invited(t, admin)).toEqual([]);
     expect(
       textOf(
-        await tool(t, adminToken, 'gitorange_list_repository_agents', {
+        await tool(t, adminToken, 'cloudforge_list_repository_agents', {
           repository: 'octocat/app',
         })
       )
@@ -135,21 +135,21 @@ describe('MCP 代理工具', () => {
   it('拒绝非仓库管理员邀请或移除代理', async () => {
     const { t, admin, memberToken } = await setup();
     const args = { repository: 'octocat/app', handle: 'secagent' };
-    const invite = await tool(t, memberToken, 'gitorange_invite_agent', args);
+    const invite = await tool(t, memberToken, 'cloudforge_invite_agent', args);
     expect(invite.isError).toBe(true);
     expect(textOf(invite)).toContain('Only an admin of octocat/app');
     await call(t, '/api/repos/octocat/app/agents/secagent', {
       cookie: admin,
       method: 'PUT',
     });
-    const remove = await tool(t, memberToken, 'gitorange_remove_agent', args);
+    const remove = await tool(t, memberToken, 'cloudforge_remove_agent', args);
     expect(remove.isError).toBe(true);
     expect(await invited(t, admin)).toEqual(['secagent']);
   });
 
   it('代理或仓库缺失时返回错误且不泄露仓库是否存在', async () => {
     const { t, adminToken, memberToken } = await setup();
-    const missing = await tool(t, adminToken, 'gitorange_invite_agent', {
+    const missing = await tool(t, adminToken, 'cloudforge_invite_agent', {
       repository: 'octocat/app',
       handle: 'nobody',
     });
@@ -158,7 +158,7 @@ describe('MCP 代理工具', () => {
     const hidden = await tool(
       t,
       memberToken,
-      'gitorange_list_repository_agents',
+      'cloudforge_list_repository_agents',
       {
         repository: 'octocat/secret',
       }
@@ -176,7 +176,7 @@ describe('MCP 代理工具', () => {
         method: 'PUT',
       });
     }
-    const over = await tool(t, adminToken, 'gitorange_invite_agent', {
+    const over = await tool(t, adminToken, 'cloudforge_invite_agent', {
       repository: 'octocat/app',
       handle: 'secagent',
     });
@@ -188,14 +188,14 @@ describe('MCP 代理工具', () => {
 
   it('仅允许站点管理员创建代理，并返回仓库与配置方法', async () => {
     const { t, admin, adminToken, memberToken } = await setup();
-    const refused = await tool(t, memberToken, 'gitorange_create_agent', {
+    const refused = await tool(t, memberToken, 'cloudforge_create_agent', {
       handle: 'dataagent',
       name: 'Data Agent',
     });
     expect(refused.isError).toBe(true);
     expect(textOf(refused)).toContain('Only a site admin');
 
-    const created = await tool(t, adminToken, 'gitorange_create_agent', {
+    const created = await tool(t, adminToken, 'cloudforge_create_agent', {
       handle: 'dataagent',
       name: 'Data Agent',
     });
@@ -214,7 +214,7 @@ describe('MCP 代理工具', () => {
     }[];
     expect(all.map((a) => a.username)).toContain('dataagent');
 
-    const taken = await tool(t, adminToken, 'gitorange_create_agent', {
+    const taken = await tool(t, adminToken, 'cloudforge_create_agent', {
       handle: 'dataagent',
       name: 'Again',
     });
@@ -239,7 +239,7 @@ describe('MCP 代理工具', () => {
       )?.status;
     expect(await status()).toBe('reviewing');
     const token = (await connect(t, admin)).access_token as string;
-    const removed = await tool(t, token, 'gitorange_remove_agent', {
+    const removed = await tool(t, token, 'cloudforge_remove_agent', {
       repository: 'octocat/app',
       handle: 'secagent',
     });

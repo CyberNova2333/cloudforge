@@ -196,18 +196,18 @@ describe('重试已中止的变基', () => {
     const denied = await tool(
       t,
       (await connect(t, ada)).access_token,
-      'gitorange_retry_rebase',
+      'cloudforge_retry_rebase',
       args
     );
     expect(denied.isError).toBe(true);
     expect(denied.content[0].text).toMatch(/permission/);
 
     const token = (await connect(t, admin)).access_token;
-    const got = await tool(t, token, 'gitorange_get_pull_request', args);
+    const got = await tool(t, token, 'cloudforge_get_pull_request', args);
     expect(JSON.parse(got.content[0].text).merge.rebase_conflict).toMatchObject(
       { commit: f2, error: MODEL_UNREACHABLE }
     );
-    const ok = await tool(t, token, 'gitorange_retry_rebase', args);
+    const ok = await tool(t, token, 'cloudforge_retry_rebase', args);
     expect(ok.isError).toBeFalsy();
     expect(ok.content[0].text).toMatch(/^Rebasing #1 onto main again/);
     await settle(t);
@@ -217,7 +217,7 @@ describe('重试已中止的变基', () => {
     await runRebases(t, { resolver });
     expect((await detail(t, admin)).rebase!.status).toBe('up_to_date');
 
-    const again = await tool(t, token, 'gitorange_retry_rebase', args);
+    const again = await tool(t, token, 'cloudforge_retry_rebase', args);
     expect(again.isError).toBe(true);
     expect(again.content[0].text).toBe(
       'Nothing to retry: it is up to date with main.'
