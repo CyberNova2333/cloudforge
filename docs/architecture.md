@@ -70,7 +70,7 @@ Each repository row has an immutable `artifacts_name` (`r_<id>`). The Artifacts 
 
 1. The client sends Basic auth with a personal access token (stored in D1 as a SHA-256 hash).
 2. The worker checks the user's permission on the repository: read for `git-upload-pack` (clone/fetch), write for `git-receive-pack` (push).
-3. It mints a 5-minute Artifacts token scoped to that one repository (read or write) and streams the request to the Artifacts remote.
+3. It mints a 5-minute Artifacts token scoped to that one repository (read or write) and streams the request to the Artifacts remote. Each isolate keeps a repository's remote URL and its tokens for 4 minutes ([`remote.ts`](../worker/src/git/remote.ts)), so later requests make no Artifacts control-plane calls (2,000 per 10 seconds for the whole namespace); what Artifacts refuses (401, 403, 404) is forgotten and the request sent once more after a fresh lookup, and `actions/checkout` always gets a new token.
 
 Artifacts credentials never leave the worker.
 

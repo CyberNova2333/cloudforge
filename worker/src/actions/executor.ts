@@ -1563,7 +1563,7 @@ async function buildCommand(
       const client = new ArtifactsRepoClient(env.ARTIFACTS, ctx.artifactsName);
       const [remote, token] = await Promise.all([
         client.remote(),
-        client.token('read'),
+        client.token('read', { fresh: true }),
       ]);
       const depth = Number(withArgs['fetch-depth'] ?? '1');
       const target = withArgs.ref || ctx.headSha;

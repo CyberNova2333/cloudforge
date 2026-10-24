@@ -14,6 +14,38 @@ export const ZERO_SHA = '0000000000000000000000000000000000000000';
 
 export class GitPushError extends Error {}
 
+type Scope = 'read' | 'write';
+
+/** Seconds a minted Artifacts token lives. */
+const TOKEN_TTL = 300;
+/** A cached token is used until this long before it expires, so a request it starts never outlives it. */
+const TOKEN_MARGIN_MS = 60_000;
+/** Repositories remembered per isolate; the oldest is forgotten first. */
+const MAX_CACHED_REPOS = 1000;
+
+/**
+ * What each request would otherwise ask Artifacts' control plane again (`get`, `info`, `createToken`: 2,000 calls per
+ * 10 s for the whole namespace), remembered per isolate and binding: a repository's remote URL, and its tokens until
+ * shortly before they expire. Only plain strings: the binding's objects belong to the request that made them.
+ */
+type CachedRepo = {
+  remote?: string;
+  tokens: Partial<Record<Scope, { plaintext: string; until: number }>>;
+};
+const cached = new WeakMap<Artifacts, Map<string, CachedRepo>>();
+
+function cacheFor(artifacts: Artifacts, name: string): CachedRepo {
+  let repos = cached.get(artifacts);
+  if (!repos) cached.set(artifacts, (repos = new Map()));
+  let entry = repos.get(name);
+  if (!entry) {
+    if (repos.size >= MAX_CACHED_REPOS)
+      repos.delete(repos.keys().next().value!);
+    repos.set(name, (entry = { tokens: {} }));
+  }
+  return entry;
+}
+
 /** One Artifacts repo: the binding for object reads, smart HTTP for refs and pushes. */
 export class ArtifactsRepoClient {
   private handle?: Promise<ArtifactsRepo>;
@@ -30,13 +62,42 @@ export class ArtifactsRepoClient {
   }
 
   remote(): Promise<string> {
-    this.remoteUrl ??= this.repo().then(async (r) => (await r.info()).remote);
+    const entry = cacheFor(this.artifacts, this.name);
+    if (entry.remote) return Promise.resolve(entry.remote);
+    this.remoteUrl ??= this.repo().then(async (r) => {
+      const { remote } = await r.info();
+      entry.remote = remote;
+      return remote;
+    });
     return this.remoteUrl;
   }
 
-  async token(scope: 'read' | 'write'): Promise<string> {
-    const t = await (await this.repo()).createToken(scope, 300);
+  /**
+   * A token for this repository, reused within the isolate until shortly before it expires. `fresh` mints a new one
+   * that lives its whole TTL (one handed to a runner, which uses it later and elsewhere).
+   */
+  async token(scope: Scope, opts: { fresh?: boolean } = {}): Promise<string> {
+    const entry = cacheFor(this.artifacts, this.name);
+    const hit = entry.tokens[scope];
+    if (!opts.fresh && hit && hit.until > Date.now()) return hit.plaintext;
+    const minted = Date.now();
+    const t = await (await this.repo()).createToken(scope, TOKEN_TTL);
+    const expires = Date.parse(t.expiresAt);
+    entry.tokens[scope] = {
+      plaintext: t.plaintext,
+      until:
+        Math.min(
+          minted + TOKEN_TTL * 1000,
+          Number.isFinite(expires) ? expires : Infinity
+        ) - TOKEN_MARGIN_MS,
+    };
     return t.plaintext;
+  }
+
+  /** Forgets this repository's cached remote and tokens (Artifacts refused them, or no longer has it there). */
+  private forget() {
+    cached.get(this.artifacts)?.delete(this.name);
+    this.remoteUrl = undefined;
   }
 
   /** Forwards a smart-HTTP request (path relative to the .git remote) with a minted token. */
@@ -47,15 +108,28 @@ export class ArtifactsRepoClient {
       headers: Headers;
       body?: ReadableStream | Uint8Array | null;
     },
-    scope: 'read' | 'write'
+    scope: Scope
   ): Promise<Response> {
-    const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${await this.token(scope)}`);
-    return fetch((await this.remote()) + path, {
-      method: init.method,
-      headers,
-      body: init.body ?? undefined,
-    });
+    const send = async (fresh: boolean) => {
+      const headers = new Headers(init.headers);
+      headers.set(
+        'Authorization',
+        `Bearer ${await this.token(scope, { fresh })}`
+      );
+      return fetch((await this.remote()) + path, {
+        method: init.method,
+        headers,
+        body: init.body ?? undefined,
+      });
+    };
+    const res = await send(false);
+    if (![401, 403, 404].includes(res.status)) return res;
+    // Cached values Artifacts no longer takes (a refused token, a repository gone from that address): forget them,
+    // and send again when the body can be, looking the repository up afresh (so a deleted one fails as NOT_FOUND).
+    this.forget();
+    if (init.body instanceof ReadableStream) return res;
+    await res.body?.cancel();
+    return send(true);
   }
 
   async listRefs(): Promise<RefAdvertisement> {

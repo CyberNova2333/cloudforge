@@ -245,6 +245,7 @@ jobs:
           worker/src/__tests__/cron.test.ts
           worker/src/__tests__/git-http.test.ts
           worker/src/__tests__/push-protection.test.ts
+          worker/src/__tests__/artifacts-cache.test.ts
           worker/src/__tests__/git-objects.test.ts
           worker/src/__tests__/git-blob-limits.test.ts
           worker/src/__tests__/lfs.test.ts
