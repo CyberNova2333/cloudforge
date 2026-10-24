@@ -41,8 +41,10 @@ export const validationHook = (
   c: any
 ) => {
   if (!result.success) {
+    // The first few issues are enough to fix a request; an oversized one must not make a huge reply.
     const message = result
-      .error!.issues.map((i) =>
+      .error!.issues.slice(0, 10)
+      .map((i) =>
         i.path.length
           ? `${String(i.path[i.path.length - 1])}: ${i.message}`
           : i.message

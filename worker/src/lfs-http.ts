@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { inJsonArray } from './lib/sql-set';
 import { lfsObjects } from './db/app.schema';
 import { authenticateRepoRequest, type GitAccess } from './git-http';
+import { concat } from './git/bytes';
 import {
   LFS_MAX_OBJECT_SIZE,
   LFS_NOT_CONFIGURED,
@@ -44,9 +45,28 @@ const lfsError = (status: number, message: string) =>
 
 type BatchObject = { oid: string; size: number };
 
+/** A batch of the 1000 objects allowed is about 100 KB; anything much larger is not a batch request. */
+const MAX_LFS_JSON_BYTES = 1024 * 1024;
+
+/** The request's JSON, or null when it is missing, malformed or larger than MAX_LFS_JSON_BYTES. */
 async function readJson<T>(request: Request): Promise<T | null> {
+  const declared = Number(request.headers.get('Content-Length') ?? 0);
+  if (declared > MAX_LFS_JSON_BYTES || !request.body) return null;
+  const reader = request.body.getReader();
+  const parts: Uint8Array[] = [];
+  let size = 0;
   try {
-    return (await request.json()) as T;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_LFS_JSON_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      parts.push(value);
+    }
+    return JSON.parse(new TextDecoder().decode(concat(parts))) as T;
   } catch {
     return null;
   }

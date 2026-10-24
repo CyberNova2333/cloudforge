@@ -35,6 +35,8 @@ import { createRepository, nameTaken } from '../lib/repo-create';
 import { repoStats } from '../lib/repo-stats';
 import {
   invalidProtectedPatterns,
+  MAX_PROTECTED_PATTERN_LENGTH,
+  MAX_PROTECTED_PATTERNS,
   normalizeProtectedPatterns,
   protectedBy,
 } from '../lib/protected-branches';
@@ -272,7 +274,8 @@ const updateRepoRoute = createRoute({
             visibility: z.enum(['private', 'internal', 'public']).optional(),
             // Replaces the list; [] or null clears it.
             protectedBranches: z
-              .array(z.string())
+              .array(z.string().max(MAX_PROTECTED_PATTERN_LENGTH))
+              .max(MAX_PROTECTED_PATTERNS)
               .nullable()
               .optional()
               .openapi({
