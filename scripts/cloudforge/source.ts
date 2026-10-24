@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSE).
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import type { Runner } from './runner.ts';
@@ -23,6 +23,9 @@ export type Source = {
   version(runner: Runner): Promise<string>;
   /** Package only: the commit the package was built from (package.json `cloudforgeCommit`). */
   commit: string | null;
+  /** Package only: every commit `commit` contains, from its `history.txt` (pack.mjs); null in a checkout or an older
+   * package without one. versions.ts `compareRunning` looks a worker's deployed commit up in it. */
+  history: readonly string[] | null;
   /** Package only: absolute paths written into the generated config. */
   build: BuildPaths | null;
   /** How to run wrangler with `args`, for a config in `configDir`. */
@@ -66,6 +69,7 @@ export function checkoutSource(root: string): Source {
       return status.trim() ? `${sha}-dirty` : sha;
     },
     commit: null,
+    history: null,
     build: null,
     wrangler: (args) => ({ cmd: 'yarn', args: ['-s', 'wrangler', ...args] }),
     wranglerBare: (args) => ({
@@ -88,6 +92,17 @@ export function checkoutSource(root: string): Source {
 // Path-valued keys (base_dir) never ship: pack.mjs refuses them (they would resolve against the
 // user's config, not the package).
 const MODULE_KEYS = ['no_bundle', 'rules', 'find_additional_modules'];
+
+/** The package's `history.txt`: one full commit per line, newest first. Null when the package has none. */
+function readHistory(root: string): string[] | null {
+  const path = join(root, 'history.txt');
+  if (!existsSync(path)) return null;
+  const shas = readFileSync(path, 'utf8')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^[0-9a-f]{40}$/.test(l));
+  return shas.length ? shas : null;
+}
 
 export function packageSource(root: string): Source {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
@@ -126,6 +141,7 @@ export function packageSource(root: string): Source {
     migrationsDir: join(root, 'migrations'),
     version: async () => pkg.version,
     commit: pkg.cloudforgeCommit ?? null,
+    history: readHistory(root),
     build: {
       main: join(root, 'worker', 'index.js'),
       assetsDir: join(root, 'client'),

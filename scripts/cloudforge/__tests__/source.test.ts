@@ -139,6 +139,17 @@ describe.each(['nested', 'hoisted'] as const)(
       const s = packageSource(root);
       expect(s.build?.moduleConfig).toEqual({ no_bundle: true });
     });
+    it('读取 history.txt 中的提交，忽略空行与非提交行；旧版软件包没有该文件时为 null', () => {
+      const { root, s } = setup();
+      expect(s.history).toBeNull();
+      const a = 'a'.repeat(40);
+      const b = '0123456789abcdef0123456789abcdef01234567';
+      writeFileSync(
+        join(root, 'history.txt'),
+        `${a}\n\n  ${b}  \nnot-a-commit\n${'c'.repeat(12)}\n`
+      );
+      expect(packageSource(root).history).toEqual([a, b]);
+    });
     it('命令', () => {
       expect(setup().s.command('install --resume --name acme')).toBe(
         'npx @cybernova2333/cloudforge@1.2.0 install --resume --name acme'

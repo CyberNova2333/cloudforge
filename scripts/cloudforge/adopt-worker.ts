@@ -347,8 +347,7 @@ const NOT_VERIFIED = '(bound, not verified)';
 
 /**
  * What adopting `worker` would record, as a report and its digest. Read-only: Cloudflare reads,
- * one GET of `/.well-known/cloudforge` (and the GitHub compare `compareRunning` makes), nothing
- * written. Throws (with what was found) on anything it cannot map.
+ * one GET of `/.well-known/cloudforge` (`compareRunning` itself is offline), nothing written. Throws (with what was found) on anything it cannot map.
  */
 export async function planAdoptWorker(
   ctx: Ctx,
@@ -570,11 +569,11 @@ export async function planAdoptWorker(
   const running =
     (await wellKnownVersion(ctx, baseUrl)) ?? (vars.CLOUDFORGE_VERSION || null);
   if (running !== null) s.deployedVersion = running;
-  const cmp = await compareRunning(
-    running,
-    { version: to, commit: ctx.source.commit ?? '' },
-    ctx.fetchImpl
-  );
+  const cmp = compareRunning(running, {
+    version: to,
+    commit: ctx.source.commit ?? '',
+    history: ctx.source.history,
+  });
 
   const list = (xs: string[]) => (xs.length > 0 ? xs.join(', ') : 'none');
   const present = shape.classes.filter((c) => ownClasses.includes(c));
