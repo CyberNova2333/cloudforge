@@ -136,6 +136,13 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 - Audit log (`worker/src/lib/audit.ts`, D1 `audit_events`): `recordAudit` writes a row next to each mutation (actions
   in `auditActions`, `app.schema.ts`; never secrets, prompts or diffs) and never throws; `listAudit` pages it merged
   with `pr_events`. `GET /api/repos/{o}/{r}/audit`, `GET /api/admin/audit` (site admins). Add new mutations to it.
+- Passwords: forgot-password is better-auth's own flow (`sendResetPassword` in `auth/index.ts`, 60 minutes, offered
+  only when email works: `/api/setup/status` `passwordReset`); a site admin's link (`lib/password-reset.ts`,
+  `POST /api/admin/users/{username}/password-reset`, 24 hours) writes the same `reset-password:<token>` verification
+  row, so the SPA's `/reset-password` page consumes both alike, and a reset signs out the member's other sessions.
+  When nobody can sign in, `cloudforge reset-password` (`scripts/cloudforge/reset-password.ts`) writes better-auth's
+  hash straight into D1 over the Cloudflare API and deletes the sessions. Audited as `user.password_reset`,
+  `user.password_reset_link`, `user.password_set`; agents are refused everywhere.
 - Crew pages' backends (`worker/src/routers/`, libs in `worker/src/lib/`): `queue-router.ts` (`GET …/queue` merge
   queue + ETA, `lib/queue.ts`; `POST`/`DELETE …/merging/pause` → `setMergingPaused`, audited, resume tries auto-merge;
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,

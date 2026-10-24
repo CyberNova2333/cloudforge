@@ -73,6 +73,19 @@ npx @cybernova2333/cloudforge status
 
 Shows a recorded installation and asks the deployed worker whether it matches. `--from <checkout>` reads one that is still in a checkout.
 
+## Reset a password
+
+```bash
+npx @cybernova2333/cloudforge reset-password <username or email>
+```
+
+For when nobody can sign in to make a reset link (the only site admin forgot their password, or the instance cannot
+send email): sets a new password straight in the installation's D1 database over the Cloudflare API, signs out every
+session of that member, and records it in the audit log. It asks for the password twice in the terminal, so it never
+appears in your shell history. `--name <name>` picks a recorded installation; for one made without this CLI, pass
+`--database <D1 database name>` (and `--account <id|name>` when the login sees several accounts). Agents have no
+password and are refused.
+
 ## Forks and checkouts
 
 If you run a fork or prefer a clone, the original flow works: `git pull && yarn install && yarn db:migrate:prod && yarn deploy` from your checkout, or `yarn cloudforge install|status` there. Run the migrations before the deploy: new code may read new tables.

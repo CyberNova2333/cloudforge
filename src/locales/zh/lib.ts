@@ -120,6 +120,10 @@ export const lib: Record<string, string> = {
   ' taught a reviewer a rule from a finding':
     ' 从一条评审意见中教会了评审 Agent 一条规则',
   ' created the access token “': ' 创建了访问令牌 “',
+  ' set a new password with a reset link': ' 通过重置链接设置了新密码',
+  ' created a password reset link for ': ' 生成了密码重置链接，对象为 ',
+  ' and emailed it': '，并已发送邮件',
+  ' set a new password for ': ' 设置了新密码，对象为 ',
   ' deleted the access token “': ' 删除了访问令牌 “',
   ' created ': ' 创建了 ',
   ' deleted ': ' 删除了 ',

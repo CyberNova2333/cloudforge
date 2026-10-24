@@ -25,6 +25,8 @@ import { PageHeadProvider, useCurrentPageHead } from '@/components/ui/PageHead';
 import Setup from './pages/Setup';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AcceptInvite from './pages/AcceptInvite';
 import Home from './pages/Home';
 import PublicHome from './pages/PublicHome';
@@ -144,6 +146,8 @@ const App = () => (
           <Route path="/setup" element={<Setup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/invite/:token" element={<AcceptInvite />} />
           <Route
             element={

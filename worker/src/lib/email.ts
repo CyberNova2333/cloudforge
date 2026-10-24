@@ -100,3 +100,30 @@ export async function sendEmailVerification(
 `),
   });
 }
+
+/**
+ * A one-time link to choose a new password: asked for on the sign-in page (forgot password), or created by a site
+ * admin for the member (`by`). The link alone resets the password, so it says how long it lasts and what to do if
+ * nobody asked.
+ */
+export async function sendPasswordReset(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  opts: { to: string; name: string; url: string; expires: string; by?: string }
+): Promise<boolean> {
+  const { app, from } = await identity(db, env);
+  const why = opts.by
+    ? `@${opts.by}, a site admin, created a link for you to choose a new password for ${app}.`
+    : `Someone asked to reset the password of your ${app} account.`;
+  return send(env, { email: from, name: app }, 'password-reset', {
+    to: opts.to,
+    subject: `Reset your ${app} password`,
+    text: `Hi ${opts.name},\n\n${why}\n\nChoose a new password:\n${opts.url}\n\nThis link works once and expires in ${opts.expires}. Your other sessions are signed out when the password changes. If you did not ask for this, you can ignore this email: your password stays the same.`,
+    html: shell(`
+  <h2 style="font-weight:400">Reset your password for <strong>${escapeHtml(app)}</strong></h2>
+  <p>Hi ${escapeHtml(opts.name)}, ${escapeHtml(why)}</p>
+  ${button(opts.url, 'Choose a new password')}
+  <p style="color:#59636e;font-size:12px">This link works once and expires in ${escapeHtml(opts.expires)}. Your other sessions are signed out when the password changes. If you did not ask for this, you can ignore this email: your password stays the same.</p>
+`),
+  });
+}

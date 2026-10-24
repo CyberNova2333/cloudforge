@@ -13,11 +13,13 @@ import {
 } from '../lib/settings';
 import type { RetentionStatus } from '../actions/retention';
 import { recordAudit } from '../lib/audit';
+import { createResetLink } from '../lib/password-reset';
 import {
   json200Response,
   json400Response,
   json403Response,
   json404Response,
+  json422Response,
 } from './openapi-helpers';
 
 /** Site admin: instance settings (worker/src/lib/settings.ts). Site admins only. */
@@ -171,4 +173,45 @@ adminRouter.openapi(resetRoute, async (c) => {
     data: { reset: true },
   });
   return c.json({ ok: true as const }, 200);
+});
+
+const passwordResetRoute = createRoute({
+  method: 'post',
+  path: '/users/{username}/password-reset',
+  tags: ['Admin'],
+  summary: 'Create a one-time link for a member to choose a new password',
+  description:
+    'For a member who forgot their password. The link works once, for 24 hours, and signs out their other sessions ' +
+    'when used; it is emailed to them when email is set up, and returned for the admin to hand over either way.',
+  request: { params: z.object({ username: z.string() }) },
+  responses: {
+    ...json200Response(
+      z.object({
+        url: z.string(),
+        expiresAt: z.string(),
+        emailed: z.boolean(),
+      }),
+      'The reset link'
+    ),
+    ...json403Response,
+    ...json404Response,
+    ...json422Response,
+  },
+});
+adminRouter.openapi(passwordResetRoute, async (c) => {
+  const me = c.get('user')!;
+  const result = await createResetLink(c.env, c.get('db'), c.get('auth'), {
+    username: c.req.valid('param').username,
+    by: { id: me.id, username: me.username ?? me.name },
+    origin: c.env.BASE_URL || new URL(c.req.url).origin,
+  });
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(
+    {
+      url: result.url,
+      expiresAt: result.expiresAt.toISOString(),
+      emailed: result.emailed,
+    },
+    200
+  );
 });

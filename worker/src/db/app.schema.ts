@@ -998,6 +998,9 @@ export const auditActions = [
   'secret.deleted',
   'variable.saved',
   'variable.deleted',
+  'user.password_reset',
+  'user.password_reset_link',
+  'user.password_set',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
 /** person: a member. agent: a reviewer agent. ai: CloudForge AI deciding for `actor_id`. system: CloudForge itself. */

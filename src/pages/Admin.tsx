@@ -10,7 +10,7 @@ import {
 } from '@primer/octicons-react';
 import { api, qk } from '@/lib/uiApi';
 import { errorMessage } from '@/lib/api';
-import { timeAgo } from '@/lib/format';
+import { fullDate, timeAgo } from '@/lib/format';
 import { t, tx } from '@/lib/i18n';
 import { PageHead } from '@/components/ui/PageHead';
 import { Chip } from '@/components/ui/Chip';
@@ -73,6 +73,25 @@ export default function Admin() {
   const revoke = useMutation({
     mutationFn: (id: string) => api.revokeInvite(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.invitations }),
+  });
+  // A member who forgot their password: a one-time link to hand over (emailed too when email is set up).
+  const [resetFor, setResetFor] = useState<{
+    username: string;
+    url: string;
+    emailed: boolean;
+    expiresAt: string;
+  } | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const resetLink = useMutation({
+    mutationFn: (username: string) => api.passwordResetLink(username),
+    onSuccess: (r, username) => {
+      setResetError(null);
+      setResetFor({ username, ...r });
+    },
+    onError: (e) => {
+      setResetFor(null);
+      setResetError(errorMessage(e));
+    },
   });
 
   const [teamForm, setTeamForm] = useState<{
@@ -395,30 +414,76 @@ export default function Admin() {
                   />
                 </div>
               ) : (
-                <ul className="rowlist">
-                  {members.data.map((m) => (
-                    <li key={m.id}>
-                      <Avatar user={m} size={32} />
-                      <div className="grow">
-                        <span className="wrap">
-                          <Link to={`/${m.username}`}>
-                            <b>{m.username}</b>
-                          </Link>{' '}
-                          <span className="muted">{m.name}</span>
-                        </span>
-                        <span className="muted small wrap">{m.email}</span>
+                <>
+                  {resetError && <Notice tone="warn">{resetError}</Notice>}
+                  {resetFor && (
+                    <Notice tone="ok">
+                      <p>
+                        {resetFor.emailed
+                          ? t(
+                              'A one-time link to choose a new password was emailed to @{username}. You can also hand it over directly:',
+                              { username: resetFor.username }
+                            )
+                          : t(
+                              'Hand this one-time link to @{username} to choose a new password:',
+                              { username: resetFor.username }
+                            )}
+                      </p>
+                      <div className="copyrow">
+                        <input
+                          className="form-control mono"
+                          readOnly
+                          value={resetFor.url}
+                          aria-label={t('Password reset link')}
+                          onFocus={(e) => e.currentTarget.select()}
+                        />
+                        <CopyButton
+                          text={resetFor.url}
+                          className="btn small"
+                          label={t('Copy the password reset link')}
+                        />
                       </div>
-                      <div className="ctl stack">
-                        {m.role === 'admin' && (
-                          <Chip tone="info">{t('Site admin')}</Chip>
+                      <p className="muted small">
+                        {t(
+                          'It works once, until {date}. Using it signs out their other sessions.',
+                          { date: fullDate(resetFor.expiresAt) }
                         )}
-                        <span className="when">
-                          {t('Joined {when}', { when: timeAgo(m.createdAt) })}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </p>
+                    </Notice>
+                  )}
+                  <ul className="rowlist">
+                    {members.data.map((m) => (
+                      <li key={m.id}>
+                        <Avatar user={m} size={32} />
+                        <div className="grow">
+                          <span className="wrap">
+                            <Link to={`/${m.username}`}>
+                              <b>{m.username}</b>
+                            </Link>{' '}
+                            <span className="muted">{m.name}</span>
+                          </span>
+                          <span className="muted small wrap">{m.email}</span>
+                        </div>
+                        <div className="ctl stack">
+                          {m.role === 'admin' && (
+                            <Chip tone="info">{t('Site admin')}</Chip>
+                          )}
+                          <button
+                            type="button"
+                            className="btn small"
+                            disabled={resetLink.isPending}
+                            onClick={() => resetLink.mutate(m.username)}
+                          >
+                            {t('Reset password')}
+                          </button>
+                          <span className="when">
+                            {t('Joined {when}', { when: timeAgo(m.createdAt) })}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           </Section>

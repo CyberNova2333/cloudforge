@@ -278,15 +278,16 @@ describe('智能体与认证层', () => {
     });
   });
 
-  it('不提供密码重置、魔法链接或邮箱验证码', async () => {
+  it('密码重置对智能体无效（与未知邮箱同样应答），也不提供魔法链接或邮箱验证码', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const agent = await newAgent(t, admin);
     const email = `${agent.id}@agents.invalid`;
+    // Answered like any address (no account enumeration), but no token is made and nothing is sent.
     const reset = await call(t, '/api/auth/request-password-reset', {
-      json: { email, redirectTo: '/reset' },
+      json: { email, redirectTo: '/reset-password' },
     });
-    expect(reset.ok).toBe(false);
+    expect(reset.status).toBe(200);
     for (const path of [
       '/api/auth/sign-in/magic-link',
       '/api/auth/email-otp/send-verification-otp',

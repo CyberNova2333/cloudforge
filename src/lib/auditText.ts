@@ -60,6 +60,9 @@ export const AUDIT_ACTIONS = [
   'secret.deleted',
   'variable.saved',
   'variable.deleted',
+  'user.password_reset',
+  'user.password_reset_link',
+  'user.password_set',
 ] as const;
 
 type Data = Record<string, unknown>;
@@ -493,6 +496,17 @@ export function auditParts(
         ...on(),
         via()
       );
+    case 'user.password_reset':
+      return say(t(' set a new password with a reset link'), via());
+    case 'user.password_set':
+      return say(t(' set a new password for '), e.target, via());
+    case 'user.password_reset_link':
+      return say(
+        t(' created a password reset link for '),
+        e.target,
+        d.emailed === true && t(' and emailed it'),
+        via()
+      );
     case 'token.created':
       return say(t(' created the access token “'), e.target, '”', via());
     case 'token.deleted':
@@ -813,6 +827,9 @@ export function auditCategory(action: string): AuditCategory {
     case 'token.created':
     case 'token.deleted':
     case 'visibility.changed':
+    case 'user.password_reset':
+    case 'user.password_reset_link':
+    case 'user.password_set':
       return 'access';
     case 'settings.changed':
     case 'instance.settings':

@@ -280,6 +280,48 @@ describe('每项审计操作都构成一个句子', () => {
       'mahmoud deleted the Actions variable REGION for every repository',
     ],
     [
+      'user.password_reset 通过重置链接设置新密码',
+      {
+        action: 'user.password_reset',
+        repo: null,
+        target: '@mahmoud',
+        data: {},
+      },
+      'mahmoud set a new password with a reset link',
+    ],
+    [
+      'user.password_reset_link 管理员生成并发送重置链接',
+      {
+        action: 'user.password_reset_link',
+        repo: null,
+        target: '@bob',
+        data: { emailed: true },
+      },
+      'mahmoud created a password reset link for @bob and emailed it',
+    ],
+    [
+      'user.password_reset_link 未发送邮件',
+      {
+        action: 'user.password_reset_link',
+        repo: null,
+        target: '@bob',
+        data: { emailed: false },
+      },
+      'mahmoud created a password reset link for @bob',
+    ],
+    [
+      'user.password_set 安装器直接设置新密码',
+      {
+        actor: { kind: 'system', login: null, name: null },
+        action: 'user.password_set',
+        repo: null,
+        target: '@bob',
+        via: 'cloudforge reset-password',
+        data: {},
+      },
+      'System set a new password for @bob via cloudforge reset-password',
+    ],
+    [
       'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in octocat/cloudforge',
@@ -619,6 +661,9 @@ describe('每项审计操作都构成一个句子', () => {
         'secret.deleted',
         'variable.saved',
         'variable.deleted',
+        'user.password_reset',
+        'user.password_reset_link',
+        'user.password_set',
         'branch.deleted',
         'branches.cleaned',
         'merging.paused',

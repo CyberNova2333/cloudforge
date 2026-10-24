@@ -12,7 +12,12 @@ import { namespaceTaken } from '../lib/namespaces';
 import { isAgentUser } from '../agents/identity';
 import { eq } from 'drizzle-orm';
 import { mcpModerators } from '../db/app.schema';
-import { sendSignupVerification } from '../lib/email';
+import {
+  emailConfigured,
+  sendPasswordReset,
+  sendSignupVerification,
+} from '../lib/email';
+import { recordAudit } from '../lib/audit';
 import { emailClaimedByOther } from '../lib/email-claims';
 import {
   checkResend,
@@ -23,6 +28,9 @@ import {
 
 /** How long a sign-up verification link works. */
 const VERIFY_HOURS = 24;
+
+/** How long a forgot-password link from the sign-in page works (an admin's link: lib/password-reset.ts). */
+export const RESET_MINUTES = 60;
 
 /** The /mcp URL: the OAuth protected resource and token audience (RFC 8707). */
 export const mcpResource = (baseURL: string) =>
@@ -152,6 +160,32 @@ function createAuth(env?: CloudflareBindings) {
       disableSignUp: false,
       autoSignIn: false,
       minPasswordLength: 8,
+      // Forgot password (the sign-in page) and a site admin's reset link (lib/password-reset.ts) share the
+      // token store and POST /reset-password. A new password signs out every other session of that person.
+      resetPasswordTokenExpiresIn: RESET_MINUTES * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => {
+        // Agents have no password to reset; without email set up the sign-in page hides the link.
+        if (!env || !emailConfigured(env) || (await isAgentUser(db, user.id)))
+          return;
+        await sendPasswordReset(env, db, {
+          to: user.email,
+          name: user.name,
+          url,
+          expires: `${RESET_MINUTES} minutes`,
+        });
+      },
+      onPasswordReset: async ({ user }) => {
+        if (!env) return;
+        const name = (user as { username?: string | null }).username;
+        await recordAudit(db, {
+          repositoryId: null,
+          actorId: user.id,
+          action: 'user.password_reset',
+          target: `@${name ?? user.name}`,
+          data: {},
+        });
+      },
     },
     emailVerification: {
       sendOnSignUp: true,
@@ -254,6 +288,20 @@ function createAuth(env?: CloudflareBindings) {
                 message: 'Agents can’t have a password.',
               });
             return { data: account };
+          },
+        },
+      },
+      verification: {
+        create: {
+          // Nor a password reset token: forgot-password answers for an agent's address as for an unknown one.
+          before: async (verification) => {
+            if (
+              env &&
+              verification.identifier.startsWith('reset-password:') &&
+              (await isAgentUser(db, verification.value))
+            )
+              return false;
+            return { data: verification };
           },
         },
       },

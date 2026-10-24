@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { getSettings, signupDomains } from '../lib/settings';
 import { verificationRequired } from '../auth/signup';
+import { emailConfigured } from '../lib/email';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { sql } from 'drizzle-orm';
 import { users } from '../db/auth.schema';
@@ -60,6 +61,8 @@ const statusRoute = createRoute({
           /** New accounts confirm their email before their first sign-in. */
           verification: z.boolean(),
         }),
+        /** Email is set up, so the sign-in page offers "Forgot password?" (a reset link by email). */
+        passwordReset: z.boolean(),
       }),
       'Setup status'
     ),
@@ -86,6 +89,7 @@ setupRouter.openapi(statusRoute, async (c) => {
         domains: signupDomains(s['signup.allowed_domains']),
         verification: await verificationRequired(db, c.env),
       },
+      passwordReset: !setupRequired && emailConfigured(c.env),
     },
     200
   );

@@ -175,6 +175,19 @@ Then:
 
 Commits link to a member's profile when their author email matches the member's account email or a verified alternate. Each member adds the addresses they commit with under **avatar → Settings → Emails** and clicks the verification link they're sent.
 
+## Forgotten passwords
+
+- **Forgot password?** on the sign-in page emails a one-time link (valid for an hour) when the instance can send email
+  (the `EMAIL` binding and a verified `FROM_EMAIL`); the link is hidden otherwise.
+- A site admin can make a link for anyone: **Site admin → Members → Reset password**. It works once within 24 hours,
+  is emailed to the member when email works, and is shown to the admin to hand over either way.
+- When nobody can sign in (the only site admin forgot theirs), set one straight in the database from your machine:
+  `npx @cybernova2333/cloudforge reset-password <username>` (from a checkout: `yarn cloudforge reset-password …`;
+  for an installation made without the CLI, add `--database <D1 database name>`). It asks for the new password
+  in the terminal.
+
+A new password signs out the member's other sessions; each reset is in the audit log.
+
 ## Actions and reviews
 
 - **Actions:** workflow files in `.github/workflows/` (GitHub Actions syntax) run on pushes and pull requests, each job in its own container. See the repository's **Actions** tab.
@@ -218,6 +231,7 @@ Start with **Site admin → Setup**: it shows what's misconfigured and how to fi
 - **Invitation emails never arrive** — `FROM_EMAIL`'s domain isn't verified in Email Sending. The admin page always shows the invite link too, so you can share it directly in the meantime.
 - **`git push` returns 403** — you aren't the repository owner, a site admin, or a collaborator. The owner can add you under the repository's **Settings → Collaborators**.
 - **`git clone` keeps asking for a password** — use a personal access token, not your account password.
+- **Locked out of the only admin account** — see [Forgotten passwords](#forgotten-passwords).
 - **`git lfs push` says LFS isn't configured** — set `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` (step 6).
 - **LFS uploads fail with `403 SignatureDoesNotMatch` or `AccessDenied`** — the R2 token doesn't have Object Read & Write on the bucket named in `LFS_BUCKET_NAME`, or `R2_ACCOUNT_ID` is wrong.
 - **`wrangler deploy` says it "could not finish applying its Durable Object-managed Container application settings"** — the Worker deployed; run `yarn deploy` again to finish.
