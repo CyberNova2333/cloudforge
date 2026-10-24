@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, desc, eq } from 'drizzle-orm';
 import { personalAccessTokens } from '../db/app.schema';
@@ -79,7 +80,9 @@ const createTokenRoute = createRoute({
 });
 tokensRouter.openapi(createTokenRoute, async (c) => {
   const { name, expiresInDays } = c.req.valid('json');
-  const plaintext = randomToken('gop_');
+  // cfp_ = CloudForge personal access token. Tokens are looked up by hash, so ones issued before the rename
+  // (gop_, from GitOrange) keep working.
+  const plaintext = randomToken('cfp_');
   const now = new Date();
   const row = {
     id: crypto.randomUUID(),

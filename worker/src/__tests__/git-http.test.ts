@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import { handleGitRequest } from '../git-http';
+import { hashToken } from '../lib/tokens';
 import {
   addMember,
   bootstrapAdmin,
@@ -63,7 +64,7 @@ describe('Git smart-HTTP 代理', () => {
     const res = await git(
       t,
       '/octocat/app.git/info/refs?service=git-upload-pack',
-      'gop_nope'
+      'cfp_nope'
     );
     expect(res.status).toBe(401);
   });
@@ -78,6 +79,27 @@ describe('Git smart-HTTP 代理', () => {
     );
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('refs/heads/main');
+  });
+
+  it('新令牌以 cfp_ 开头；改名前发出的 gop_ 令牌仍然有效', async () => {
+    const { t, admin } = await setup();
+    expect(await pat(t, admin)).toMatch(/^cfp_[0-9a-f]{40}$/);
+    // Issued before the rename: only the hash is stored, so the prefix never mattered.
+    const legacy = `gop_${'ab'.repeat(20)}`;
+    await t.env.DB.prepare(
+      "INSERT INTO personal_access_tokens (id, user_id, name, token_hash, created_at) SELECT 'legacy', id, 'old', ?, ? FROM users WHERE username = 'octocat'"
+    )
+      .bind(await hashToken(legacy), Date.now())
+      .run();
+    expect(
+      (
+        await git(
+          t,
+          '/octocat/app.git/info/refs?service=git-upload-pack',
+          legacy
+        )
+      ).status
+    ).toBe(200);
   });
 
   it('仓库不存在时返回 404', async () => {
