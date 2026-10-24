@@ -8,9 +8,11 @@ import type { SessionUser } from '../variables';
  * Who a request is signed in as, read straight from `sessions`: every request of every page needs it,
  * so it is read here instead of through better-auth's `getSession`, whose endpoint machinery (context,
  * cookie parsing, validation, a signed-cookie crypto key per call) costs several times the two D1
- * reads. What must not drift from better-auth is the signed cookie, the row and its expiry, and the
- * sliding refresh, each noted below. better-auth's rate limiting only covers its own routes
- * (`/api/auth/*`), which still go through it.
+ * reads. What must not drift from better-auth is the signed cookie and the row and its expiry, each noted
+ * below. The sliding refresh stays better-auth's: its `get-session` (which the SPA calls on load and focus)
+ * extends the row and sends the cookie again with a new Max-Age, together. Extending the row here would make it
+ * see nothing to refresh, and the cookie would still expire 7 days after sign-in. better-auth's rate limiting only
+ * covers its own routes (`/api/auth/*`), which still go through it.
  */
 
 /**
@@ -106,17 +108,6 @@ export async function currentUser(
   if (!row) return null;
   const { session, user } = row;
   if (session.expiresAt <= new Date()) return null;
-  // better-auth's sliding session: rewritten once it is within its update age of expiring.
-  const expiresIn = 7 * 24 * 3600_000;
-  const updateAge = 24 * 3600_000;
-  if (session.expiresAt.getTime() - expiresIn + updateAge <= Date.now())
-    await db
-      .update(sessions)
-      .set({
-        expiresAt: new Date(Date.now() + expiresIn),
-        updatedAt: new Date(),
-      })
-      .where(eq(sessions.id, session.id));
   return {
     id: user.id,
     name: user.name,
