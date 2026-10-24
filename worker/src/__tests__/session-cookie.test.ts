@@ -17,17 +17,20 @@ async function signedIn(name: string) {
 const me = (t: ReturnType<typeof makeEnv>, cookie: string) =>
   call(t, '/api/me/preferences', { cookie });
 
-it('HTTPS 下按 better-auth 使用的 __Secure- 名读取会话 cookie', async () => {
-  const { t, cookie } = await signedIn(`__Secure-${COOKIE}`);
-  expect((await me(t, cookie)).status).toBe(200);
-});
-
-it('仍可读取普通名，两者同时存在时优先 __Secure- 名', async () => {
-  const { t, value, cookie } = await signedIn(COOKIE);
-  expect((await me(t, cookie)).status).toBe(200);
+it('HTTPS 下只按 better-auth 使用的 __Secure- 名读取会话 cookie，不回退到普通名', async () => {
+  const { t, value } = await signedIn(COOKIE);
+  (t.env as { BASE_URL: string }).BASE_URL = 'https://test.local';
+  expect((await me(t, `__Secure-${COOKIE}=${value}`)).status).toBe(200);
+  expect((await me(t, `${COOKIE}=${value}`)).status).toBe(401);
   expect(
     (await me(t, `${COOKIE}=${value}; __Secure-${COOKIE}=forged.AAAA`)).status
   ).toBe(401);
+});
+
+it('HTTP 下按普通名读取，与 better-auth 一致', async () => {
+  const { t, value, cookie } = await signedIn(COOKIE);
+  expect((await me(t, cookie)).status).toBe(200);
+  expect((await me(t, `__Secure-${COOKIE}=${value}`)).status).toBe(401);
 });
 
 it('签名与令牌不符的 cookie 一律拒绝', async () => {
