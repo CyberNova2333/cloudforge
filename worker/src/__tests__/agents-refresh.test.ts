@@ -150,11 +150,12 @@ describe('从 AGENT.md 刷新智能体', () => {
     });
   });
 
-  it('强制推送回最近一次有效提交时清除错误', async () => {
+  it('默认分支不接受强制推送回旧提交；推送恢复有效内容的新提交后清除错误', async () => {
     const s = await setup();
     const good = await pushTo(s, 'main', { 'AGENT.md': AGENT('Auth Agent') });
     const bad = await pushTo(s, 'main', { 'AGENT.md': 'no frontmatter' });
     expect((await agentRow(s.t))!.config_error).not.toBeNull();
+    // Rewinding main is a force push: undone, so main and the error stay.
     await push(
       s.t,
       s.token,
@@ -163,8 +164,11 @@ describe('从 AGENT.md 刷新智能体', () => {
       bad,
       good
     );
+    expect(s.repo.refs.get('refs/heads/main')).toBe(bad);
+    expect((await agentRow(s.t))!.config_error).not.toBeNull();
+    const fixed = await pushTo(s, 'main', { 'AGENT.md': AGENT('Auth Agent') });
     expect(await agentRow(s.t)).toMatchObject({
-      config_sha: good,
+      config_sha: fixed,
       config_error: null,
     });
   });

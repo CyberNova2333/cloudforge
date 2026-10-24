@@ -206,7 +206,12 @@ with another open pull request into a different base ("Not rebased: ..."). Prote
 (`repositories.protected_branches`, Settings → General, `PATCH /api/repos/{owner}/{repo}` `protectedBranches`): exact
 names or globs, `*` within one path segment and `**` across (`release/*`, `develop`, `hotfix/**`;
 [`lib/protected-branches.ts`](../worker/src/lib/protected-branches.ts)); "Not rebased: release/x is a protected
-branch; bring it up to date yourself." A pull request opened against another's branch (hand-stacked) doesn't hold that branch back: the parent
+branch; bring it up to date yourself." The default branch and protected branches are also protected from pushes
+([`git/push-protection.ts`](../worker/src/git/push-protection.ts), read from the receive-pack command list before
+anything is forwarded): only a repository admin pushes to them, and only fast-forwards (checked once the objects are in;
+a rewrite is put back with compare-and-swap and reported as rejected); nobody deletes them; nobody pushes `refs/pull/*`;
+the first push into an empty repository may create the default branch. CloudForge's own landings and rebases write to
+Artifacts directly and are not affected. A pull request opened against another's branch (hand-stacked) doesn't hold that branch back: the parent
 rebases and lands, and the child rebases onto it in turn. A protected branch whose target moved lands only once
 someone brings it up to date themselves. Landing rebases inline when the target moved since, and lands in the same
 request only if no checks run on the new head and its review carried over; otherwise it stops: "rebased, waiting for checks" (409 `reason: checks`), or "review

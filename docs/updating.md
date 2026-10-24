@@ -49,6 +49,9 @@ The security update adds migration `0040` and changes behaviour; check each poin
 - **Instance-wide Actions secrets reach only the repositories chosen for them** (Site admin → Actions secrets and
   variables → Repositories). Existing ones reach none after the upgrade: choose their repositories, or jobs read them
   as empty. Instance-wide variables still reach every repository.
+- **Pushes to the default branch and protected branches are restricted**: only repository admins push to them, and
+  only fast-forwards; nobody deletes or force-pushes them, and nobody pushes `refs/pull/*`. Collaborators who pushed to
+  the default branch directly now open a pull request instead.
 
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.

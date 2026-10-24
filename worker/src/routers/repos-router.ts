@@ -280,7 +280,7 @@ const updateRepoRoute = createRoute({
               .optional()
               .openapi({
                 description:
-                  'Branch name patterns CloudForge never rebases: exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace.',
+                  'Branch name patterns CloudForge never rebases and that only change by merging a pull request or a repository admin’s fast-forward push (never deleted or force-pushed): exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace. The default branch is always protected.',
                 example: ['release/*', 'develop'],
               }),
             deleteMergedBranches: z.boolean().optional().openapi({
