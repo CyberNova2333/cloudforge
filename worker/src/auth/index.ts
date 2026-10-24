@@ -191,16 +191,17 @@ function createAuth(env?: CloudflareBindings) {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       expiresIn: VERIFY_HOURS * 3600,
-      // Only to a self sign-up that must confirm its email (Site admin requires it, and email is set up). During
-      // the sign-up request itself the account isn't marked as a self sign-up yet (user.create.after runs once the
-      // request is done), so there the requirement alone decides; a resend is already limited by checkResend.
+      // Only to a self sign-up that must confirm its email (Site admin requires it or limits domains, and email is
+      // set up). During the sign-up request itself the account isn't marked as a self sign-up yet (user.create.after
+      // runs once the request is done), so there the requirement alone decides; a resend is already limited by
+      // checkResend.
       sendVerificationEmail: async ({ user, url }, request) => {
         if (!env) return;
         const signingUp =
           !!request && new URL(request.url).pathname.endsWith('/sign-up/email');
         const send = signingUp
           ? await verificationRequired(db, env)
-          : await mustVerifyEmail(db, env, user.id);
+          : emailConfigured(env) && (await mustVerifyEmail(db, env, user.id));
         if (!send) return;
         await sendSignupVerification(env, db, {
           to: user.email,

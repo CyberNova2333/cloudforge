@@ -87,7 +87,7 @@ export const SETTINGS = {
   'signup.allowed_domains': {
     label: 'Sign-up email domains',
     description:
-      'Only email addresses at these domains can sign up, separated by commas (for example: example.com, example.org). Empty allows any address.',
+      'Only email addresses at these domains can sign up, separated by commas (for example: example.com, example.org). Empty allows any address. A list also makes sign-ups confirm their address by email, so self sign-up stays closed until outbound email (Email Sending) is set up.',
     group: 'Accounts',
     schema: z
       .string()
@@ -99,7 +99,7 @@ export const SETTINGS = {
   'signup.require_verification': {
     label: 'Verify email on sign-up',
     description:
-      'Accounts made by self sign-up must open the link emailed to them before they can sign in. It needs outbound email (Email Sending); invited members and the first admin are never asked.',
+      'Accounts made by self sign-up must open the link emailed to them before they can sign in. Until outbound email (Email Sending) is set up, self sign-up stays closed while this is on; invited members and the first admin are never asked.',
     group: 'Accounts',
     schema: z.boolean(),
     default: () => true,

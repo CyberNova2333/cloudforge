@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { getSettings, signupDomains } from '../lib/settings';
-import { verificationRequired } from '../auth/signup';
+import { signupOpen, verificationNeeded } from '../auth/signup';
 import { emailConfigured } from '../lib/email';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { sql } from 'drizzle-orm';
@@ -85,9 +85,10 @@ setupRouter.openapi(statusRoute, async (c) => {
       appName: s['app.name'],
       defaultLanguage: s['ui.default_language'],
       signup: {
-        enabled: !setupRequired && s['signup.enabled'],
+        // Closed while it would need email that can't be sent (checkSignup refuses then).
+        enabled: !setupRequired && (await signupOpen(db, c.env)),
         domains: signupDomains(s['signup.allowed_domains']),
-        verification: await verificationRequired(db, c.env),
+        verification: await verificationNeeded(db, c.env),
       },
       passwordReset: !setupRequired && emailConfigured(c.env),
     },
