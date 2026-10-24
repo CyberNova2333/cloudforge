@@ -1299,6 +1299,8 @@ export const api = {
       defaultLanguage: 'auto' | 'zh' | 'en';
       /** Self sign-up: open, limited to `domains` (empty: any), confirming the email first (`verification`). */
       signup: { enabled: boolean; domains: string[]; verification: boolean };
+      /** Email is set up: the sign-in page offers "Forgot password?". */
+      passwordReset: boolean;
     }>('/api/setup/status'),
   setup: (body: {
     name: string;
@@ -1330,6 +1332,12 @@ export const api = {
     ),
   revokeInvite: (id: string) =>
     apiFetch(`/api/invites/manage/${id}`, { method: 'DELETE' }),
+  /** Site admin: a one-time link for a member to choose a new password (emailed too when email is set up). */
+  passwordResetLink: (username: string) =>
+    apiFetch<{ url: string; expiresAt: string; emailed: boolean }>(
+      `/api/admin/users/${encodeURIComponent(username)}/password-reset`,
+      { method: 'POST' }
+    ),
 
   members: () => apiFetch<Member[]>('/api/users'),
   agents: () => apiFetch<Agent[]>('/api/agents'),

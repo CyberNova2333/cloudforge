@@ -30,6 +30,15 @@ export const admin: Record<string, string> = {
     '无法向 {email} 发送邮件。请改为把此链接分享给对方：',
   'Invitation link': '邀请链接',
   'Copy the invitation link': '复制邀请链接',
+  'Reset password': '重置密码',
+  'A one-time link to choose a new password was emailed to @{username}. You can also hand it over directly:':
+    '设置新密码的一次性链接已发到 @{username} 的邮箱。你也可以直接把它交给对方：',
+  'Hand this one-time link to @{username} to choose a new password:':
+    '把这个一次性链接交给 @{username}，用来设置新密码：',
+  'Password reset link': '密码重置链接',
+  'Copy the password reset link': '复制密码重置链接',
+  'It works once, until {date}. Using it signs out their other sessions.':
+    '仅可使用一次，有效期至 {date}。使用后对方的其他会话会被登出。',
   Role: '角色',
   Member: '成员',
   'Sending…': '发送中…',

@@ -169,4 +169,27 @@ export const shell: Record<string, string> = {
     '如需重新发送确认链接，请用邮箱地址登录。',
   'New to this instance?': '第一次使用这个实例？',
   'Create an account': '创建账户',
+
+  // Forgot and reset password
+  'Forgot password?': '忘记密码？',
+  'Your password was changed. Sign in with the new one.':
+    '密码已修改，请用新密码登录。',
+  'Reset your password': '重置密码',
+  'This instance cannot send email. Ask a site admin for a password reset link.':
+    '这个实例无法发送邮件。请向站点管理员索取密码重置链接。',
+  'If an account uses that address, a link to choose a new password is on its way. It works once, for an hour.':
+    '如果有账户使用这个邮箱，设置新密码的链接已在路上。链接仅可使用一次，1 小时内有效。',
+  "Enter your account's email address": '输入账户的邮箱地址',
+  'Send the reset link': '发送重置链接',
+  'Back to sign in': '返回登录',
+  'Choose a new password': '设置新密码',
+  'This link is invalid or has expired, or it was already used. Ask for a new one.':
+    '这个链接无效、已过期或已被使用。请重新获取。',
+  'New password': '新密码',
+  'Confirm the new password': '确认新密码',
+  'Change password': '修改密码',
+  'Ask for a new link': '重新获取链接',
+  'Use at least {n} characters.': '至少需要 {n} 个字符。',
+  'The two passwords do not match.': '两次输入的密码不一致。',
+  'Could not change the password. Try again': '修改密码失败，请重试',
 };

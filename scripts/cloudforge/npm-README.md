@@ -52,6 +52,15 @@ npx @cybernova2333/cloudforge adopt --worker <worker name>
 npx @cybernova2333/cloudforge status
 ```
 
+## Reset a password
+
+```bash
+npx @cybernova2333/cloudforge reset-password <username or email>
+```
+
+Sets a new password straight in the database, for when nobody can sign in to make a reset link. Asks for it in the
+terminal; `--database <D1 database name>` for an installation made without this CLI.
+
 State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `npx @cybernova2333/cloudforge --help` for every option.
 
 Docs: [setup](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md) ·

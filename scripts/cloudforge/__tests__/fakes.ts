@@ -69,6 +69,12 @@ export interface FakeCloudflareSeed {
   d1Migrations?: Record<string, string[]>;
   /** D1 uuid -> its other table names, answered to `SELECT name FROM sqlite_master …`. */
   d1Tables?: Record<string, string[]>;
+  /** Answers any other D1 query first; undefined falls through to the defaults (no rows). */
+  d1Query?: (
+    id: string,
+    sql: string,
+    params: unknown[]
+  ) => Record<string, unknown>[] | undefined;
 }
 
 export type FakeCloudflare = Cloudflare & {
@@ -172,7 +178,7 @@ export function fakeCloudflare(seed: FakeCloudflareSeed = {}): FakeCloudflare {
       if (/^SELECT name FROM sqlite_master/.test(sql)) {
         return (seed.d1Tables?.[id] ?? []).map((name) => ({ name }));
       }
-      return [];
+      return seed.d1Query?.(id, sql, params ?? []) ?? [];
     },
     async listR2(a) {
       await enter('listR2', [a]);

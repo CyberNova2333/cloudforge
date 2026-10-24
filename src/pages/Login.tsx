@@ -69,6 +69,11 @@ export default function Login() {
       docTitle={t('Sign in')}
     >
       <FlashError message={error} />
+      {params.get('reset') === '1' && !error && (
+        <Notice tone="ok">
+          {t('Your password was changed. Sign in with the new one.')}
+        </Notice>
+      )}
       {unverified && (
         <Notice tone="info">
           {login.includes('@') ? (
@@ -132,6 +137,11 @@ export default function Login() {
           {t('Sign in')}
         </PendingButton>
       </form>
+      {status.data?.passwordReset && (
+        <p className="auth-foot">
+          <Link to="/forgot-password">{t('Forgot password?')}</Link>
+        </p>
+      )}
       <p className="auth-foot">
         {status.data?.signup.enabled ? (
           <>

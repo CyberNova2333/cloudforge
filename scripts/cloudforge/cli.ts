@@ -22,6 +22,7 @@ import { installationIdOf, resourceNames, validateName } from './names.ts';
 import { observe } from './observe.ts';
 import { computePlan, formatPlan } from './plan.ts';
 import { preflight } from './preflight.ts';
+import { findDatabase, resetPassword } from './reset-password.ts';
 import { processRunner, type Runner } from './runner.ts';
 import { checkoutSource, packageSource, type Source } from './source.ts';
 import {
@@ -49,6 +50,9 @@ Commands:
   status     Show a recorded installation and check that it answers
   upgrade    Move an installation to this package's version (npx only)
   adopt      Take over an installation made from a checkout or by hand (npx only)
+  reset-password <username|email>
+             Set a new password for a member, straight in the database (when nobody can
+             sign in to create a reset link)
 
 install options:
   --name <name>          Installation name (default: cloudforge)
@@ -89,6 +93,12 @@ adopt options:
   --plan                 With --worker: only show what would be recorded
   --expect-plan <digest> With --worker: adopt only if the plan still has this digest
   --yes                  Adopt without asking (required when not in a terminal)
+
+reset-password options (asks for the new password, so it runs in a terminal):
+  --name <name>          Which installation (default: the only one recorded)
+  --database <name|id>   Or: the D1 database of an installation made without this CLI
+  --account <id|name>    With --database: its Cloudflare account
+  --yes                  Skip the confirmation (the password is still typed twice)
 `;
 
 const DEFAULT_NAME = 'cloudforge';
@@ -165,6 +175,20 @@ const ADOPT_OPTIONS = {
   account: { type: 'string' },
   plan: { type: 'boolean' },
   'expect-plan': { type: 'string' },
+  yes: { type: 'boolean' },
+} as const;
+
+type ResetFlags = {
+  name?: string;
+  database?: string;
+  account?: string;
+  yes?: boolean;
+};
+
+const RESET_OPTIONS = {
+  name: { type: 'string' },
+  database: { type: 'string' },
+  account: { type: 'string' },
   yes: { type: 'boolean' },
 } as const;
 
@@ -291,6 +315,15 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
         allowPositionals: false,
       });
       return await runAdopt(values, deps);
+    }
+    if (command === 'reset-password') {
+      const { values, positionals } = parseArgs({
+        args: rest,
+        options: RESET_OPTIONS,
+        strict: true,
+        allowPositionals: true,
+      });
+      return await runResetPassword(values, positionals, deps);
     }
   } catch (e) {
     if (e instanceof UsageError || isParseArgsError(e)) {
@@ -973,6 +1006,84 @@ async function runUpgrade(f: UpgradeFlags, deps: Deps): Promise<number> {
     });
     return 0;
   } catch (e) {
+    io.print((e as Error).message);
+    return 1;
+  }
+}
+
+/**
+ * `reset-password <username|email>`: a recorded installation's D1 database (`--name`), or any D1 database the
+ * login can reach (`--database`, for an installation made without this CLI). Terminal only: the password is typed.
+ */
+async function runResetPassword(
+  f: ResetFlags,
+  positionals: string[],
+  deps: Deps
+): Promise<number> {
+  const { io, home } = deps;
+  if (positionals.length !== 1) {
+    throw new UsageError('reset-password needs one username or email address.');
+  }
+  if (f.database !== undefined && f.name !== undefined) {
+    throw new UsageError('Pass either --name or --database, not both.');
+  }
+  if (f.database === undefined && f.account !== undefined) {
+    throw new UsageError('--account is only for reset-password --database.');
+  }
+  if (!io.tty) {
+    io.print('reset-password asks for the new password: run it in a terminal.');
+    return 2;
+  }
+  let recorded: InstallState | null = null;
+  if (f.database === undefined) {
+    recorded =
+      home !== null
+        ? pickInstall(home, f.name).state
+        : findState(deps.dir, f.name);
+    if (!recorded) {
+      io.print(
+        `No installation ${f.name === undefined ? '' : `named ${f.name} `}is recorded in ${deps.dir}. ` +
+          'For one made without this CLI, pass --database <D1 database name> (and --account).'
+      );
+      return 1;
+    }
+    if (recorded.movedTo !== undefined) {
+      io.print(movedMessage(recorded.movedTo));
+      return 1;
+    }
+  }
+  let token: string;
+  try {
+    token = await deps.token();
+  } catch (e) {
+    io.print((e as Error).message);
+    return 1;
+  }
+  const cf = deps.cloudflare(token);
+  try {
+    const accountId =
+      recorded?.accountId ?? (await resolveAccount(cf, io, f.account));
+    const name = f.database ?? recorded!.names.d1;
+    const recordedId = recorded?.resources.find((r) => r.kind === 'd1')?.id;
+    const database = recordedId
+      ? { uuid: recordedId, name }
+      : await findDatabase(cf, accountId, name);
+    if (!database) {
+      io.print(`No D1 database ${name} in account ${accountId}.`);
+      return 1;
+    }
+    return await resetPassword(
+      { cf, io, now: deps.now },
+      {
+        accountId,
+        database,
+        who: positionals[0]!,
+        baseUrl: recorded?.baseUrl || undefined,
+        yes: Boolean(f.yes),
+      }
+    );
+  } catch (e) {
+    if (e instanceof UsageError) throw e;
     io.print((e as Error).message);
     return 1;
   }

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { z } from '@hono/zod-openapi';
 
 export const errorSchema = z.object({ error: z.string() });
@@ -26,6 +27,7 @@ export const json401Response = { 401: err('Unauthorized') };
 export const json403Response = { 403: err('Forbidden') };
 export const json404Response = { 404: err('Not Found') };
 export const json409Response = { 409: err('Conflict') };
+export const json422Response = { 422: err('Unprocessable') };
 export const json429Response = { 429: err('Too Many Requests') };
 
 export const okSchema = z.object({ ok: z.literal(true) });
