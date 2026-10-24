@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { structuredPatch } from 'diff';
 import { mergeDiff3 } from 'node-diff3';
-import { decoder } from './bytes';
+import { decoder, exactUtf8, fromBinaryString, toBinaryString } from './bytes';
 import {
   makeBlob,
   makeCommit,
@@ -485,7 +485,11 @@ export class GitService {
       state.conflicts.push(path);
       return null;
     }
-    const text = [bb, ob, tb].map((x) => decoder.decode(x));
+    // Merged line by line on the exact bytes: UTF-8 (BOM kept) as text, any other encoding one character per byte, so
+    // a clean merge never rewrites a byte neither side changed.
+    const utf8 = [bb, ob, tb].map(exactUtf8);
+    const isUtf8 = utf8.every((t) => t !== null);
+    const text = isUtf8 ? (utf8 as string[]) : [bb, ob, tb].map(toBinaryString);
     const merged = mergeDiff3(
       text[1].split('\n'),
       text[0].split('\n'),
@@ -496,16 +500,20 @@ export class GitService {
     const mode = be && oe!.mode === be.mode ? te!.mode : oe!.mode;
     if (merged.conflict) {
       state.conflicts.push(path);
-      state.conflictFiles?.push({
-        path,
-        base: be ? text[0] : null,
-        ours: text[1],
-        theirs: text[2],
-        withMarkers: merged.result.join('\n'),
-      });
+      // Only UTF-8 conflicts are shown and resolved as text (resolutions come back as UTF-8); another encoding stops
+      // the rebase like a binary file does.
+      if (isUtf8)
+        state.conflictFiles?.push({
+          path,
+          base: be ? text[0] : null,
+          ours: text[1],
+          theirs: text[2],
+          withMarkers: merged.result.join('\n'),
+        });
       return null;
     }
-    const blob = await makeBlob(merged.result.join('\n'));
+    const result = merged.result.join('\n');
+    const blob = await makeBlob(isUtf8 ? result : fromBinaryString(result));
     state.created.push(blob);
     return { mode, hash: blob.sha };
   }

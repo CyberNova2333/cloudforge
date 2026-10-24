@@ -1,5 +1,6 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { structuredPatch } from 'diff';
-import { decoder, encoder, sha1, toHex } from './bytes';
+import { encoder, exactUtf8, sha1, toBinaryString, toHex } from './bytes';
 import type { FileChange, GitService } from './service';
 
 /** Above this (both sides together) a file's change counts by its blob ids, not its lines. */
@@ -43,11 +44,14 @@ export async function changesPatchId(
       parts.push(`${ch.oldHash} ${ch.newHash}`);
       continue;
     }
+    // Exact UTF-8 (a BOM counts), else the bytes themselves: two changes that differ in any byte never share an identity.
+    const [ta, tb] = [a, b].map((x) => (x ? exactUtf8(x) : ''));
+    const isUtf8 = ta !== null && tb !== null;
     const patch = structuredPatch(
       ch.path,
       ch.path,
-      a ? decoder.decode(a) : '',
-      b ? decoder.decode(b) : '',
+      isUtf8 ? ta! : a ? toBinaryString(a) : '',
+      isUtf8 ? tb! : b ? toBinaryString(b) : '',
       '',
       '',
       { context: 0 }
@@ -55,7 +59,8 @@ export async function changesPatchId(
     for (const h of patch.hunks)
       for (const l of h.lines)
         if (l[0] === '+' || l[0] === '-')
-          parts.push(l[0] + normalise(l.slice(1)));
+          // Whitespace is only normalised in real text: in a byte string, 0x85 and 0xA0 are parts of characters.
+          parts.push(l[0] + (isUtf8 ? normalise(l.slice(1)) : l.slice(1)));
   }
   return toHex(await sha1(encoder.encode(parts.join('\n'))));
 }
