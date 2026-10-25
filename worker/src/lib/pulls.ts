@@ -18,7 +18,17 @@ import { publishChange } from '../live/publish';
 import { ensureStacking } from '../stack/discover';
 import { landTargetIs, landTargetOf } from './land-target';
 import { linkPullToIssues } from './issue-links';
+import { notify, type Thread } from './notifications';
 import type { Bump } from './semver';
+
+/** A pull request as a notification thread. */
+export const pullThread = (
+  pr: Pick<PullRequest, 'id' | 'repositoryId'>
+): Thread => ({
+  kind: 'pull',
+  id: pr.id,
+  repositoryId: pr.repositoryId,
+});
 
 /**
  * The commits a PR compares: live branches while open; once merged, the landed commits (or, for a squash-era merge,
@@ -167,6 +177,16 @@ export async function openPull(opts: {
   await linkPullToIssues(db, pr, opts.author.id).catch((e) =>
     console.error('[pulls] could not link issues', pr.id, e)
   );
+  await notify(
+    { env, db, after: opts.after },
+    {
+      thread: pullThread(pr),
+      event: 'opened',
+      actorId: opts.author.id,
+      text: `${pr.title}\n${pr.body}`,
+      joins: 'author',
+    }
+  );
   // A new PR's base is its land target, so these are also its land shas.
   const shas = { base: baseSha, head: headSha };
   opts.after(
@@ -203,7 +223,9 @@ export async function addComment(
   db: DrizzleDB,
   pr: PullRequest,
   authorId: string,
-  body: string
+  body: string,
+  /** Runs follow-up work after the response (the notification emails); absent: awaited. */
+  after?: (work: Promise<unknown>) => void
 ) {
   const now = new Date();
   const row = {
@@ -222,5 +244,15 @@ export async function addComment(
       .where(eq(pullRequests.id, pr.id)),
   ]);
   await publishChange(env, pr.repositoryId);
+  await notify(
+    { env, db, after },
+    {
+      thread: pullThread(pr),
+      event: 'commented',
+      actorId: authorId,
+      text: body,
+      joins: 'participating',
+    }
+  );
   return row;
 }

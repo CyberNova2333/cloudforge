@@ -382,7 +382,10 @@ describe('偏好设置', () => {
       (await (await call(t, '/api/me/preferences', { cookie })).json()) as {
         language: string | null;
       };
-    expect(await get(bob)).toEqual({ language: null });
+    expect(await get(bob)).toEqual({
+      language: null,
+      notificationEmail: 'participating',
+    });
     const put = (cookie: string, language: unknown) =>
       call(t, '/api/me/preferences', {
         cookie,
@@ -390,11 +393,20 @@ describe('偏好设置', () => {
         json: { language },
       });
     expect((await put(bob, 'zh')).status).toBe(200);
-    expect(await get(bob)).toEqual({ language: 'zh' });
+    expect(await get(bob)).toEqual({
+      language: 'zh',
+      notificationEmail: 'participating',
+    });
     // Someone else's choice is their own.
-    expect(await get(admin)).toEqual({ language: null });
+    expect(await get(admin)).toEqual({
+      language: null,
+      notificationEmail: 'participating',
+    });
     expect((await put(bob, null)).status).toBe(200);
-    expect(await get(bob)).toEqual({ language: null });
+    expect(await get(bob)).toEqual({
+      language: null,
+      notificationEmail: 'participating',
+    });
     expect((await put(bob, 'fr')).status).toBe(400);
     expect((await call(t, '/api/me/preferences')).status).toBe(401);
   });
@@ -412,7 +424,10 @@ describe('偏好设置', () => {
     await put({ language: 'en' });
     expect(await rows()).toEqual([{ key: 'language', value: '"en"' }]);
     // A body without a key leaves that preference alone.
-    expect(await (await put({})).json()).toEqual({ language: 'en' });
+    expect(await (await put({})).json()).toEqual({
+      language: 'en',
+      notificationEmail: 'participating',
+    });
     await put({ language: null });
     expect(await rows()).toEqual([]);
   });

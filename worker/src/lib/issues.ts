@@ -20,6 +20,7 @@ import {
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { d1Of } from '../pulls/events';
+import { notify, type NotifyCtx, type Thread } from './notifications';
 import { searchTerms } from './pull-search';
 import { inJsonArray } from './sql-set';
 import { contains, startsWith } from './text-match';
@@ -38,6 +39,15 @@ export type Refused = {
   status: 400 | 404 | 409 | 422;
   error: string;
 };
+
+/** An issue as a notification thread. */
+export const issueThread = (
+  issue: Pick<Issue, 'id' | 'repositoryId'>
+): Thread => ({
+  kind: 'issue',
+  id: issue.id,
+  repositoryId: issue.repositoryId,
+});
 
 export function getIssue(
   db: DrizzleDB,
@@ -175,6 +185,8 @@ export async function openIssue(opts: {
   body: string;
   labels?: Label[];
   assigneeIds?: string[];
+  /** Notifies watchers and whoever it names or assigns. */
+  notify?: NotifyCtx;
 }): Promise<Issue> {
   const { db, repo } = opts;
   const id = crypto.randomUUID();
@@ -217,7 +229,21 @@ export async function openIssue(opts: {
         ]
       : []),
   ]);
-  return (await db.select().from(issues).where(eq(issues.id, id)).get())!;
+  const issue = (await db
+    .select()
+    .from(issues)
+    .where(eq(issues.id, id))
+    .get())!;
+  if (opts.notify)
+    await notify(opts.notify, {
+      thread: issueThread(issue),
+      event: 'opened',
+      actorId: opts.authorId,
+      text: `${issue.title}\n${issue.body}`,
+      assigned: opts.assigneeIds,
+      joins: 'author',
+    });
+  return issue;
 }
 
 /** Changes the title and description; a new title is a `renamed` event. */
@@ -292,18 +318,19 @@ async function transition(
  * Closes `issue` if it is open, as `actorId` or, with `pull`, by that pull request's landing. False when it was
  * already closed.
  */
-export function closeIssue(
+export async function closeIssue(
   db: DrizzleDB,
-  issue: Pick<Issue, 'id'>,
+  issue: Pick<Issue, 'id' | 'repositoryId'>,
   opts: {
     actorId: string | null;
     reason: IssueStateReason;
     pull?: { id: string; number: number };
+    notify?: NotifyCtx;
   }
 ): Promise<boolean> {
   const now = Date.now();
   const at = Math.floor(now / 1000);
-  return transition(
+  const closed = await transition(
     db,
     d1Of(db)
       .prepare(
@@ -319,16 +346,24 @@ export function closeIssue(
       now
     )
   );
+  if (closed && opts.notify)
+    await notify(opts.notify, {
+      thread: issueThread(issue),
+      event: 'closed',
+      actorId: opts.actorId,
+    });
+  return closed;
 }
 
 /** Reopens `issue` if it is closed. False when it was already open. */
-export function reopenIssue(
+export async function reopenIssue(
   db: DrizzleDB,
-  issue: Pick<Issue, 'id'>,
-  actorId: string
+  issue: Pick<Issue, 'id' | 'repositoryId'>,
+  actorId: string,
+  notifyCtx?: NotifyCtx
 ): Promise<boolean> {
   const now = Date.now();
-  return transition(
+  const reopened = await transition(
     db,
     d1Of(db)
       .prepare(
@@ -338,6 +373,13 @@ export function reopenIssue(
       .bind(Math.floor(now / 1000), issue.id),
     event(issue.id, 'reopened', {}, actorId, now)
   );
+  if (reopened && notifyCtx)
+    await notify(notifyCtx, {
+      thread: issueThread(issue),
+      event: 'reopened',
+      actorId,
+    });
+  return reopened;
 }
 
 /** Makes `issue`'s labels exactly `next`, recording what was added and removed. */
@@ -413,9 +455,10 @@ export async function setIssueLabels(
 /** Makes `issue`'s assignees exactly `next`, recording who was assigned and unassigned. */
 export async function setIssueAssignees(
   db: DrizzleDB,
-  issue: Pick<Issue, 'id'>,
+  issue: Pick<Issue, 'id' | 'repositoryId'>,
   next: { id: string; username: string }[],
-  actorId: string
+  actorId: string,
+  notifyCtx?: NotifyCtx
 ) {
   const current = await db
     .select({ id: users.id, username: users.username })
@@ -466,13 +509,21 @@ export async function setIssueAssignees(
         ),
       ]),
   ]);
+  if (added.length && notifyCtx)
+    await notify(notifyCtx, {
+      thread: issueThread(issue),
+      event: 'assigned',
+      actorId,
+      assigned: added.map((u) => u.id),
+    });
 }
 
 export async function addIssueComment(
   db: DrizzleDB,
-  issue: Pick<Issue, 'id'>,
+  issue: Pick<Issue, 'id' | 'repositoryId'>,
   authorId: string,
-  body: string
+  body: string,
+  notifyCtx?: NotifyCtx
 ) {
   const now = new Date();
   const row = {
@@ -487,6 +538,14 @@ export async function addIssueComment(
     db.insert(issueComments).values(row),
     db.update(issues).set({ updatedAt: now }).where(eq(issues.id, issue.id)),
   ]);
+  if (notifyCtx)
+    await notify(notifyCtx, {
+      thread: issueThread(issue),
+      event: 'commented',
+      actorId: authorId,
+      text: body,
+      joins: 'participating',
+    });
   return row;
 }
 

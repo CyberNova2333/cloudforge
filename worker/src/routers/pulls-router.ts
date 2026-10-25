@@ -46,7 +46,8 @@ import {
 import { compareShas } from './repos-router';
 import { attributeCommits } from '../lib/commit-authors';
 import { landPull, pullRef } from '../merge/land';
-import { addComment, openPull, pullShas } from '../lib/pulls';
+import { addComment, openPull, pullShas, pullThread } from '../lib/pulls';
+import { notify } from '../lib/notifications';
 import { revertPull } from '../lib/revert';
 import { pullSessionId, pullSessionIds } from '../lib/sessions';
 import { reviewConfigured } from '../review/head';
@@ -1046,6 +1047,19 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
     c.executionCtx.waitUntil(
       finishPullClose(c.env, c.get('db'), updated.closeId)
     );
+  if (patch.state)
+    await notify(
+      {
+        env: c.env,
+        db: c.get('db'),
+        after: (work) => c.executionCtx.waitUntil(work),
+      },
+      {
+        thread: pullThread(pr),
+        event: patch.state === 'closed' ? 'closed' : 'reopened',
+        actorId: user.id,
+      }
+    );
   if (patch.state === 'open') {
     // A reopened PR rebases onto everything that landed while it was closed.
     const shas = await landShas(c.get('git'), pr);
@@ -1912,7 +1926,8 @@ pullsRouter.openapi(createCommentRoute, async (c) => {
     c.get('db'),
     pr,
     user.id,
-    c.req.valid('json').body
+    c.req.valid('json').body,
+    (work) => c.executionCtx.waitUntil(work)
   );
   const now = row.createdAt;
   const people = await usersById(c.get('db'), [user.id]);

@@ -199,6 +199,15 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   extension); the UI says 标记 for labels (标签 is a git tag).
   Drizzle pitfall: a single-table select drops table names from columns inside its `sql` fields, so a correlated subquery
   there names the outer table literally (`… WHERE c.issue_id = issues.id`).
+- Notifications (`docs/notifications.md`, `worker/src/lib/notifications.ts`, `notification-email.ts`, `mentions.ts`,
+  `routers/notifications-router.ts`): `notify(ctx, event)` runs where issues and pull requests change (the issue libs take an
+  optional `NotifyCtx`; `openPull`, `addComment`, the PR close route, the `notify` and `issues` landing follow-ups) and never
+  throws. Recipients: `notification_subscriptions` of the thread (`issue:<id>` / `pull:<id>`; participants are subscribed,
+  a stronger reason is never replaced), `repository_watches` (watching / ignoring; no row = participating), and people
+  `@mentioned` or assigned; minus the actor, unsubscribed (unless named), ignoring, agents, banned, and anyone who cannot read
+  the repository (`readersAmong`, permissionsFor's rule). One `INSERT … SELECT FROM json_each` upserts every recipient's row
+  (one per person and thread). Email: `email_pending_at` is cleared before sending (never twice), after the response and in
+  daily retention (≤ 24 h late); personal setting `notificationEmail` (`lib/user-settings.ts`). Live: `user:<id>` channel.
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
   person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target

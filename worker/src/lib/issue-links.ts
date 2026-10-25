@@ -11,21 +11,13 @@ import {
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { closeIssue } from './issues';
+import { withoutCode } from './markdown-text';
+import type { NotifyCtx } from './notifications';
 
 /** References read from one pull request; more are ignored. */
 const MAX_REFS = 50;
 
 const KEYWORD = /^(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)$/i;
-
-/** Fenced code blocks and inline code: a `#12` inside them is code, not a reference. */
-function withoutCode(text: string): string {
-  return text
-    .replace(
-      /^ {0,3}(```|~~~)[^\n]*\n[\s\S]*?(?:^ {0,3}\1[^\n]*$|(?![\s\S]))/gm,
-      ' '
-    )
-    .replace(/(`+)[\s\S]*?\1/g, ' ');
-}
 
 /**
  * The issue numbers `text` names, in order, each once: `closes` when a closing keyword (close, closes, closed, fix,
@@ -122,10 +114,11 @@ export async function linkPullToIssues(
 export async function closeLinkedIssues(
   db: DrizzleDB,
   pr: Pick<PullRequest, 'id' | 'number'>,
-  actorId: string | null
+  actorId: string | null,
+  notifyCtx?: NotifyCtx
 ): Promise<number> {
   const open = await db
-    .select({ id: issues.id })
+    .select({ id: issues.id, repositoryId: issues.repositoryId })
     .from(issueLinks)
     .innerJoin(issues, eq(issues.id, issueLinks.issueId))
     .where(
@@ -143,6 +136,7 @@ export async function closeLinkedIssues(
         actorId,
         reason: 'completed',
         pull: { id: pr.id, number: pr.number },
+        notify: notifyCtx,
       })
     )
       closed++;

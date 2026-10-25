@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { Handler } from 'hono';
 import type { AppEnv } from '../variables';
 import { findRepo, permissionsFor } from '../lib/repos';
@@ -6,6 +7,7 @@ import {
   connectLive,
   liveConfigured,
   repoChannel,
+  userChannel,
 } from './publish';
 
 /** `GET /api/live[?repo=<owner>/<name>]` WebSocket: `approvals`, plus the repo if readable. */
@@ -15,6 +17,9 @@ export const liveSocket: Handler<AppEnv> = async (c) => {
   if (!liveConfigured(c.env))
     return c.json({ error: 'Live updates are not set up on this server' }, 404);
   const channels = [APPROVALS_CHANNEL];
+  // Their own notifications: requireAuth put a member here.
+  const user = c.get('user');
+  if (user) channels.push(userChannel(user.id));
   const repo = c.req.query('repo');
   if (repo) {
     const [owner, name] = repo.split('/');

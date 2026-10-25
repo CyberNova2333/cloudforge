@@ -98,6 +98,8 @@ const preferencesSchema = z
   .object({
     /** Interface language; null follows the instance default (Site admin → Settings), then the browser. */
     language: z.enum(['zh', 'en']).nullable(),
+    /** Which notifications also arrive by email: participating (the default), all, or off. */
+    notificationEmail: z.enum(['participating', 'all', 'off']),
   })
   .openapi('Preferences');
 

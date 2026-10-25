@@ -659,6 +659,125 @@ export const issueLinks = sqliteTable(
   ]
 );
 
+// ── Notifications (docs/notifications.md) ───────────────────────────────────
+// A thread is an issue or a pull request: `issue:<id>` or `pull:<id>`.
+
+/** Why a person hears about a thread, strongest first. */
+export const notificationReasons = [
+  'mention',
+  'assign',
+  'author',
+  'participating',
+  'watching',
+] as const;
+export type NotificationReason = (typeof notificationReasons)[number];
+
+export const notificationEvents = [
+  'opened',
+  'commented',
+  'closed',
+  'reopened',
+  'merged',
+  'assigned',
+] as const;
+export type NotificationEvent = (typeof notificationEvents)[number];
+
+// One row per person and thread, brought back to unread by each new event on it.
+export const notifications = sqliteTable(
+  'notifications',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    thread: text('thread').notNull(),
+    issueId: text('issue_id').references(() => issues.id, {
+      onDelete: 'cascade',
+    }),
+    pullRequestId: text('pull_request_id').references(() => pullRequests.id, {
+      onDelete: 'cascade',
+    }),
+    reason: text('reason', { enum: notificationReasons }).notNull(),
+    // The latest event, who made it and a short excerpt of its text.
+    event: text('event', { enum: notificationEvents }).notNull(),
+    actorId: text('actor_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    excerpt: text('excerpt'),
+    unread: integer('unread', { mode: 'boolean' }).notNull().default(true),
+    // Set: an email is owed for it; the sender clears it before sending (lib/notification-email.ts).
+    emailPendingAt: integer('email_pending_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('notifications_user_thread_uq').on(t.userId, t.thread),
+    index('notifications_user_inbox_idx').on(t.userId, t.unread, t.updatedAt),
+    index('notifications_email_idx').on(t.emailPendingAt),
+    index('notifications_updated_idx').on(t.updatedAt),
+  ]
+);
+export type Notification = typeof notifications.$inferSelect;
+
+/** Why a person is subscribed to a thread; a stronger reason is never replaced by a weaker one. */
+export const subscriptionReasons = [
+  'author',
+  'assign',
+  'mention',
+  'participating',
+  'manual',
+] as const;
+export type SubscriptionReason = (typeof subscriptionReasons)[number];
+
+// Who follows a thread. `subscribed` false: they unsubscribed, and hear about it again only when named in it.
+export const notificationSubscriptions = sqliteTable(
+  'notification_subscriptions',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    thread: text('thread').notNull(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    issueId: text('issue_id').references(() => issues.id, {
+      onDelete: 'cascade',
+    }),
+    pullRequestId: text('pull_request_id').references(() => pullRequests.id, {
+      onDelete: 'cascade',
+    }),
+    subscribed: integer('subscribed', { mode: 'boolean' }).notNull(),
+    reason: text('reason', { enum: subscriptionReasons }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.thread] }),
+    index('notification_subscriptions_thread_idx').on(t.thread),
+  ]
+);
+
+// A person's choice for a whole repository; no row: participating only.
+export const repositoryWatches = sqliteTable(
+  'repository_watches',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    level: text('level', { enum: ['watching', 'ignoring'] }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.repositoryId] }),
+    index('repository_watches_repo_idx').on(t.repositoryId, t.level),
+  ]
+);
+
 // Git LFS objects: `r2_key` is a bare key, never a URL; a row exists only once the upload is in R2.
 export const lfsObjects = sqliteTable(
   'lfs_objects',

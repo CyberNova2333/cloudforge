@@ -1,8 +1,11 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Channels (pings carry no data): `repo:<id>` for any change in a repository; `approvals` for
- * anything that may change an approvals inbox.
+ * anything that may change an approvals inbox; `user:<id>` for a change in that person's notifications.
  */
 export const repoChannel = (repositoryId: string) => `repo:${repositoryId}`;
+/** One person's own channel: their notifications changed. */
+export const userChannel = (userId: string) => `user:${userId}`;
 export const APPROVALS_CHANNEL = 'approvals';
 
 export function liveConfigured(env: CloudflareBindings): boolean {
@@ -26,6 +29,22 @@ export async function publishChange(
     );
     if (opts.approvals)
       await h.publish(APPROVALS_CHANNEL, JSON.stringify({ type: 'approvals' }));
+  } catch (e) {
+    console.warn('[live] publish failed', e);
+  }
+}
+
+/** Pings each person's own channel (their notifications changed), in one call. Never throws. */
+export async function publishToUsers(
+  env: CloudflareBindings,
+  userIds: string[]
+): Promise<void> {
+  if (!liveConfigured(env) || !userIds.length) return;
+  try {
+    await hub(env).publishMany(
+      userIds.map(userChannel),
+      JSON.stringify({ type: 'notifications' })
+    );
   } catch (e) {
     console.warn('[live] publish failed', e);
   }
