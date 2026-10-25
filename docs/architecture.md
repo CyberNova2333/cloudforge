@@ -81,6 +81,11 @@ seconds after the response, so an event left unfinished runs again from the next
 the daily retention (at most 5 attempts, each under a 2-minute lease). Running one twice is harmless: the Actions runs
 it queues are unique per event.
 
+Deleting a repository stops its Actions runs that are still going, then deletes its row (everything in D1 cascades)
+in one batch with a `repository_deletions` record. Its storage (the Artifacts repo, LFS bytes, Actions logs, caches
+and artifacts) is cleaned step by step, each step recorded once done; the daily retention runs the steps that failed
+([`repo-deletion.ts`](../worker/src/lib/repo-deletion.ts)).
+
 ## Reads
 
 The repository UI uses the Artifacts binding directly: `readTree`, `readCommit`, `readBlob`, `readFile`, and `log`. Branch lists come from the git smart-HTTP ref advertisement. See [`worker/src/git/service.ts`](../worker/src/git/service.ts).

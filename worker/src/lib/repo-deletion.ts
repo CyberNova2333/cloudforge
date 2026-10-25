@@ -1,0 +1,185 @@
+// Deleting a repository. Its D1 row goes in one batch with a `repository_deletions` row; its storage (the Artifacts
+// repo, LFS bytes in R2, Actions logs, caches and artifacts) is then removed step by step, each step recorded once
+// done, so a step that fails is run again by the daily retention instead of leaving the bytes behind for good.
+import { and, eq, isNotNull, isNull, lt, ne } from 'drizzle-orm';
+import { actionsConfigured, deleteRepositoryLogs } from '../actions/trigger';
+import { dropRun } from '../actions/queue';
+import {
+  repositories,
+  repositoryDeletions,
+  workflowJobs,
+  workflowRuns,
+  type Repository,
+} from '../db/app.schema';
+import type { DrizzleDB } from '../db/middleware';
+import { recordAudit } from './audit';
+import { deleteRepositoryObjects } from './lfs';
+import { inJsonArray } from './sql-set';
+
+/** Attempts at a deletion's cleanup before it is left alone (each failure is logged). */
+export const MAX_DELETION_ATTEMPTS = 10;
+/** Finished deletions are kept this long, then forgotten. */
+const KEEP_MS = 30 * 86_400_000;
+
+type Step = (env: CloudflareBindings, row: Deletion) => Promise<void>;
+type Deletion = typeof repositoryDeletions.$inferSelect;
+
+/** The cleanup, in order; each is safe to run again. */
+const STEPS: [string, Step][] = [
+  [
+    'artifacts',
+    async (env, row) => {
+      try {
+        await env.ARTIFACTS.delete(row.artifactsName);
+      } catch (e) {
+        // Already gone: the step is done.
+        if (!/not.?found/i.test(String(e))) throw e;
+      }
+    },
+  ],
+  // LFS rows went with the repository; their R2 bytes have to go explicitly.
+  ['lfs', (env, row) => deleteRepositoryObjects(env, row.id)],
+  ['actions', (env, row) => deleteRepositoryLogs(env, row.id)],
+];
+
+/**
+ * Deletes `repo`: stops its Actions runs that are still going, deletes its row (everything in D1 cascades) together
+ * with a deletion record, audits it, then cleans its storage up (finishRepositoryDeletion).
+ */
+export async function deleteRepository(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  repo: Repository,
+  actorId: string,
+  fullName: string
+) {
+  // Read before the rows go with the repository.
+  const active = actionsConfigured(env)
+    ? await db
+        .select({ id: workflowRuns.id })
+        .from(workflowRuns)
+        .where(
+          and(
+            eq(workflowRuns.repositoryId, repo.id),
+            ne(workflowRuns.status, 'completed')
+          )
+        )
+        .all()
+    : [];
+  const jobs = active.length
+    ? await db
+        .select({ id: workflowJobs.id })
+        .from(workflowJobs)
+        .where(
+          inJsonArray(
+            workflowJobs.runId,
+            active.map((r) => r.id)
+          )
+        )
+        .all()
+    : [];
+  await db.batch([
+    db
+      .insert(repositoryDeletions)
+      .values({
+        id: repo.id,
+        artifactsName: repo.artifactsName,
+        fullName,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing(),
+    db.delete(repositories).where(eq(repositories.id, repo.id)),
+  ]);
+  // An instance event: the repository's own log went with it.
+  await recordAudit(db, {
+    repositoryId: null,
+    actorId,
+    action: 'repository.deleted',
+    target: fullName,
+    data: { repository: repo.id },
+  });
+  // As cancelling a run does; best effort, as a runner whose run is gone also destroys itself.
+  await Promise.allSettled([
+    ...active.map(async (r) => {
+      await (await env.ACTIONS_RUN.get(r.id)).terminate();
+    }),
+    ...jobs.map((j) => env.JOB_RUNNER.getByName(j.id).destroy()),
+    ...active.map((r) => dropRun(env, r.id)),
+  ]);
+  await finishRepositoryDeletion(env, db, repo.id);
+}
+
+/**
+ * Runs deletion `id`'s cleanup steps not done yet, recording each one done. Never throws: a failed step stays for
+ * the next run. True when every step is done.
+ */
+export async function finishRepositoryDeletion(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  id: string
+): Promise<boolean> {
+  const row = await db
+    .select()
+    .from(repositoryDeletions)
+    .where(eq(repositoryDeletions.id, id))
+    .get();
+  if (!row) return false;
+  if (row.finishedAt) return true;
+  const completed = { ...row.completed };
+  let failed = false;
+  for (const [name, step] of STEPS) {
+    if (completed[name]) continue;
+    try {
+      await step(env, row);
+      completed[name] = true;
+    } catch (e) {
+      console.error('[repos] deletion cleanup failed; it runs again later', {
+        repository: id,
+        step: name,
+        error: String(e),
+      });
+      failed = true;
+    }
+  }
+  await db
+    .update(repositoryDeletions)
+    .set({
+      completed,
+      attempts: row.attempts + 1,
+      finishedAt: failed ? null : new Date(),
+    })
+    .where(eq(repositoryDeletions.id, id));
+  return !failed;
+}
+
+/** Runs the cleanup of deletions left unfinished, then forgets finished ones past KEEP_MS. Returns those finished. */
+export async function recoverRepositoryDeletions(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  opts: { now?: Date; limit?: number } = {}
+): Promise<number> {
+  const now = opts.now ?? new Date();
+  const pending = await db
+    .select({ id: repositoryDeletions.id })
+    .from(repositoryDeletions)
+    .where(
+      and(
+        isNull(repositoryDeletions.finishedAt),
+        lt(repositoryDeletions.attempts, MAX_DELETION_ATTEMPTS)
+      )
+    )
+    .limit(opts.limit ?? 20)
+    .all();
+  let finished = 0;
+  for (const { id } of pending)
+    if (await finishRepositoryDeletion(env, db, id)) finished++;
+  await db
+    .delete(repositoryDeletions)
+    .where(
+      and(
+        isNotNull(repositoryDeletions.finishedAt),
+        lt(repositoryDeletions.finishedAt, new Date(now.getTime() - KEEP_MS))
+      )
+    );
+  return finished;
+}
