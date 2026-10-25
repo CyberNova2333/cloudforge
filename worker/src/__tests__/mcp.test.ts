@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { authFor } from '../auth';
 import { mcpServerName } from '../lib/app-name';
 import { NOT_MODERATOR } from '../mcp/moderators';
 import {
@@ -130,6 +131,20 @@ describe('OAuth 2.1 流程', () => {
     );
     expect(payload.aud).toContain(`${ORIGIN}/mcp`);
     expect(tokens.refresh_token).toBeTruthy();
+  });
+
+  it('同一 isolate 内复用签名公钥，不必每个请求都读取 JWKS', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    const { access_token } = await connect(t, admin);
+    const getJwks = vi.spyOn(authFor(t.env).api, 'getJwks');
+    try {
+      for (let i = 0; i < 3; i++)
+        expect((await rpc(t, access_token, 'tools/list')).status).toBe(200);
+      expect(getJwks.mock.calls.length).toBeLessThanOrEqual(1);
+    } finally {
+      getJwks.mockRestore();
+    }
   });
 
   it('拒绝未获同意的授权', async () => {
