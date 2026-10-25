@@ -16,6 +16,7 @@ import {
 import { ReviewersSidebar } from '@/components/ReviewersBox';
 import { PullStateLabel, PullStateReasons } from '@/components/PullStateLabel';
 import { VersionPanel } from './VersionPanel';
+import { IssueStateIcon } from '@/components/issue/IssueParts';
 
 /** The head commit's checks in one line, with a link to the Checks tab. */
 function ChecksPanel({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
@@ -102,6 +103,31 @@ export function PullSide({
       )}
       {open && <ChecksPanel repo={repo} d={d} />}
       <VersionPanel repo={repo} pr={pr} onSaved={refresh} />
+      {!!d.issues?.length && (
+        <section className="panel pad" aria-labelledby="pr-issues-title">
+          <h2 id="pr-issues-title">{t('Issues')}</h2>
+          <ul className="issue-pulls">
+            {d.issues.map((i) => (
+              <li key={i.number}>
+                <IssueStateIcon
+                  issue={{
+                    state: i.state === 'open' ? 'open' : 'closed',
+                    stateReason: null,
+                  }}
+                />
+                <Link to={`${base}/issues/${i.number}`}>
+                  #{i.number} {i.title}
+                </Link>
+                {i.closes && (
+                  <span className="chip off">
+                    {pr.state === 'merged' ? t('Closed') : t('Closes on merge')}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="panel pad" aria-labelledby="pr-branch-title">
         <h2 id="pr-branch-title">{t('Branch')}</h2>
         <p className="pr-branches">

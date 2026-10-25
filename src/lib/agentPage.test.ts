@@ -204,6 +204,7 @@ const repo = (
     defaultBranch: 'main',
     protectedBranches: [],
     deleteMergedBranches: false,
+    hasIssues: true,
     createdAt: '2026-10-01T00:00:00Z',
     updatedAt: '2026-10-01T00:00:00Z',
     ...rest,

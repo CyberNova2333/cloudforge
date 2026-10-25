@@ -10,6 +10,7 @@ import {
 } from '@/lib/repoUrls';
 import { t } from '@/lib/i18n';
 import { renderMermaid } from '@/lib/mermaid';
+import { markedWithRefs } from '@/lib/issueRefs';
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -120,23 +121,28 @@ export function Markdown({
   source,
   className = '',
   repo,
+  refs,
 }: {
   source: string;
   className?: string;
   /** Set for a Markdown file in a repository: resolves its relative links and images. */
   repo?: RepoMarkdownContext;
+  /** Set where `#12` means an issue or pull request of this repository (`/owner/repo`): links them. */
+  refs?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { owner, repo: name, ref: gitRef, dir } = repo ?? {};
   const html = useMemo(() => {
     const clean = purify.sanitize(
-      marked.parse(source, { async: false }) as string
+      (refs ? markedWithRefs(refs) : marked).parse(source, {
+        async: false,
+      }) as string
     );
     return owner !== undefined
       ? rewriteRepoUrls(clean, { owner, repo: name!, ref: gitRef!, dir: dir! })
       : clean;
-  }, [source, owner, name, gitRef, dir]);
+  }, [source, owner, name, gitRef, dir, refs]);
   useEffect(() => {
     if (!ref.current) return;
     colorDiffs(ref.current);

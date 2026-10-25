@@ -52,6 +52,7 @@ export default function RepoSettings() {
   const [protectedBranches, setProtectedBranches] = useState(
     (repo.protectedBranches ?? []).join('\n')
   );
+  const [hasIssues, setHasIssues] = useState(repo.hasIssues);
   const [flash, setFlash] = useState<{
     kind: 'success' | 'error';
     text: string;
@@ -77,6 +78,7 @@ export default function RepoSettings() {
         description,
         defaultBranch,
         protectedBranches: protectedPatterns(protectedBranches),
+        hasIssues,
       }),
     onSuccess: async (r) => {
       setFlash({ kind: 'success', text: t('Repository settings saved.') });
@@ -253,6 +255,21 @@ export default function RepoSettings() {
             onChange={(e) => setProtectedBranches(e.target.value)}
             style={{ minHeight: 0 }}
           />
+          <div className="form-checkbox mt-0 mb-3">
+            <label>
+              <input
+                type="checkbox"
+                checked={hasIssues}
+                onChange={(e) => setHasIssues(e.target.checked)}
+              />{' '}
+              {t('Issues')}
+            </label>
+            <p className="note">
+              {t(
+                'Track bugs, ideas and work to do in this repository. Turning issues off hides them and keeps them; turning them back on shows them again.'
+              )}
+            </p>
+          </div>
           <div>
             <button className="btn" disabled={save.isPending}>
               {t('Save changes')}

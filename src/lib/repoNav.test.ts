@@ -35,6 +35,16 @@ describe('repoTabOf：仓库当前标签', () => {
       expect(repoTabOf(rest, false)).toBe('releases');
   });
 
+  it('在议题列表、单个议题和标记页面标记议题标签', () => {
+    for (const rest of [
+      ['issues'],
+      ['issues', '4'],
+      ['issues', 'new'],
+      ['labels'],
+    ])
+      expect(repoTabOf(rest, false)).toBe('issues');
+  });
+
   it('在健康页面标记健康标签', () => {
     expect(repoTabOf(['health'], false)).toBe('health');
   });
@@ -69,6 +79,7 @@ describe('repoTabs：仓库标签集合', () => {
     expect(repoTabs(false, true).map((t) => t.id)).toEqual([
       'code',
       'health',
+      'issues',
       'pulls',
       'releases',
       'actions',
@@ -78,11 +89,18 @@ describe('repoTabs：仓库标签集合', () => {
     expect(repoTabs(false, false).map((t) => t.id)).toEqual([
       'code',
       'health',
+      'issues',
       'pulls',
       'releases',
       'actions',
       'insights',
     ]);
+  });
+
+  it('仓库关闭议题时不显示议题标签', () => {
+    expect(repoTabs(false, true, false).map((t) => t.id)).not.toContain(
+      'issues'
+    );
   });
 
   it('将发行标签放在拉取请求之后，并使用标签图标', () => {
@@ -125,6 +143,18 @@ describe('repoBand：仓库页面默认导航路径', () => {
       crumbs: [{ label: 'Health' }],
       title: 'Health',
     });
+  });
+
+  it('议题页面的导航路径', () => {
+    expect(repoBand(['issues'], base, false).title).toBe('Issues');
+    expect(repoBand(['issues', '7'], base, false)).toEqual({
+      tab: 'issues',
+      icon: 'issue',
+      crumbs: [{ label: 'Issues', to: '/o/r/issues' }, { label: '#7' }],
+      title: '#7',
+    });
+    expect(repoBand(['issues', 'new'], base, false).title).toBe('New issue');
+    expect(repoBand(['labels'], base, false).title).toBe('Labels');
   });
 
   it('使用最后一个路径分段命名文件夹或文件', () => {
