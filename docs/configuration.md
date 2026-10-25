@@ -104,3 +104,5 @@ The top level of `wrangler.jsonc` is production (`yarn deploy`). The `env.dev` b
 ## Cron Triggers
 
 `triggers.crons` (`"17 4 * * *"`, daily) runs housekeeping: it deletes Actions runs that finished more than **Site admin → Settings → Keep Actions runs for** days ago (default 90, or keep forever), with their jobs, steps, and step logs in R2. Queued and running runs are never touched. Site admin shows when it last ran and how much it deleted.
+
+`"*/5 * * * *"` (every five minutes) retries webhook deliveries that failed (see [Webhooks](webhooks.md)) and sends notification emails a request was cut off before. It does nothing when there is nothing due.

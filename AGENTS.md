@@ -210,6 +210,14 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   daily retention (≤ 24 h late); personal setting `notificationEmail` (`lib/user-settings.ts`). Live: `user:<id>` channel.
   SPA: the bell (`components/notifications/NotificationParts.tsx`, also the subscribe button and the repository's watch
   choice), `pages/Notifications.tsx` (`lib/notificationsView.ts`), `pages/SettingsNotifications.tsx`.
+- Webhooks and commit statuses (`docs/webhooks.md`, `lib/commit-statuses.ts`, `routers/statuses-router.ts`, `lib/webhooks.ts`,
+  `lib/webhook-events.ts`, `routers/webhooks-router.ts`): external CI posts `commit_statuses`; the latest per context joins
+  the Actions verdict (`statusVerdict` + `combineVerdicts`, `review/checks.ts`) wherever checks gate (`checksAt`,
+  `pullStates`). Only the status endpoints accept a PAT (`auth/token-auth.ts` `acceptsToken`; read scope downgrades
+  `loadRepo` perms). Webhooks (repository admins, ≤ 20 per repository) are an outbox: `webhook_deliveries` rows written with
+  the event (push follow-ups use stable ids, `onConflictDoNothing`), sent after the response under a claim, retried by the
+  five-minute cron (`runFrequentJobs`, which also sends unsent notification emails), pruned after 14 days. Thread events come
+  from `notify` (`emitThreadEvent`). Secrets AES-GCM sealed; `webhookUrlError` refuses private hosts; no redirects.
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
   person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target

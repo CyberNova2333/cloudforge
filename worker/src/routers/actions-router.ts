@@ -2,12 +2,14 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import {
+  commitStatusStates,
   workflowJobs,
   workflowRuns,
   workflowSteps,
   type WorkflowRun,
 } from '../db/app.schema';
 import { actionsConfigured, rerun } from '../actions/trigger';
+import { combinedState, latestStatuses } from '../lib/commit-statuses';
 import { loadRepo, type RepoEnv } from '../lib/repos';
 import type { DrizzleDB } from '../db/middleware';
 import { usersById, type PublicUser } from '../lib/users';
@@ -565,6 +567,22 @@ actionsRouter.openapi(rerunRoute, async (c) => {
 
 // ── commit status ────────────────────────────────────────────────────────────
 
+/** A status a CI server reported: its context's latest. */
+const reportedSchema = z.object({
+  context: z.string(),
+  state: z.enum(commitStatusStates),
+  description: z.string().nullable(),
+  targetUrl: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+const checksSchema = z.object({
+  state: z.enum(['success', 'failure', 'pending']).nullable(),
+  runs: z.array(runSchema),
+  /** Statuses CI servers reported (docs/webhooks.md); they count in `state`. */
+  statuses: z.array(reportedSchema),
+});
+
 const checksRoute = createRoute({
   method: 'get',
   path: '/{owner}/{repo}/commits/{sha}/runs',
@@ -574,11 +592,8 @@ const checksRoute = createRoute({
   },
   responses: {
     ...json200Response(
-      z.object({
-        state: z.enum(['success', 'failure', 'pending']).nullable(),
-        runs: z.array(runSchema),
-      }),
-      'The latest run of each workflow for a commit, and their combined state'
+      checksSchema,
+      'The latest run of each workflow for a commit, the reported statuses, and their combined state'
     ),
   },
 });
@@ -615,11 +630,14 @@ async function commitChecks(
     db,
     rows.map((r) => r.actorId ?? '')
   );
+  // Statuses CI servers reported (docs/webhooks.md) count with the runs.
+  const statuses = await latestStatuses(db, repositoryId, shas);
   const out: Record<
     string,
     {
       state: 'success' | 'failure' | 'pending' | null;
       runs: ReturnType<typeof serializeRun>[];
+      statuses: z.infer<typeof reportedSchema>[];
     }
   > = {};
   for (const sha of shas) {
@@ -631,7 +649,7 @@ async function commitChecks(
       seen.add(k);
       return true;
     });
-    const state = !latest.length
+    const runState = !latest.length
       ? null
       : latest.some((r) => r.status !== 'completed')
         ? 'pending'
@@ -640,15 +658,29 @@ async function commitChecks(
             )
           ? 'failure'
           : 'success';
-    out[sha] = { state, runs: latest.map((r) => serializeRun(r, people)) };
+    const reported = statuses.get(sha) ?? [];
+    const states = [runState, combinedState(reported)];
+    const state = states.includes('failure')
+      ? 'failure'
+      : states.includes('pending')
+        ? 'pending'
+        : states.includes('success')
+          ? 'success'
+          : null;
+    out[sha] = {
+      state,
+      runs: latest.map((r) => serializeRun(r, people)),
+      statuses: reported.map((s) => ({
+        context: s.context,
+        state: s.state,
+        description: s.description,
+        targetUrl: s.targetUrl,
+        createdAt: s.createdAt.toISOString(),
+      })),
+    };
   }
   return out;
 }
-
-const checksSchema = z.object({
-  state: z.enum(['success', 'failure', 'pending']).nullable(),
-  runs: z.array(runSchema),
-});
 
 const batchChecksRoute = createRoute({
   method: 'get',

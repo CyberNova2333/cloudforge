@@ -31,7 +31,9 @@ export function reasonText(r: PullReason): string {
   switch (r.kind) {
     case 'check_failed': {
       const check = r.check ? String(r.check) : null;
-      const run = has(r.run_number) ? n(r.run_number) : null;
+      // Run 0: a status a CI server reported, not an Actions run.
+      const run =
+        has(r.run_number) && n(r.run_number) > 0 ? n(r.run_number) : null;
       if (check && run !== null)
         return t('the "{check}" check failed (run #{run})', { check, run });
       if (check) return t('the "{check}" check failed', { check });

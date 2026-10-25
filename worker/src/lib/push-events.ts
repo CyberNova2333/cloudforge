@@ -20,6 +20,7 @@ import { resolutionConfigured } from '../merge/resolution';
 import { settleStates } from '../pulls/settle';
 import { carryApprovalsOnSameTree } from '../review/carry';
 import { findRepoById, gitFor } from './repos';
+import { emitPush, emitSynchronize } from './webhook-events';
 
 export type PushedRef = { old: string; new: string; ref: string };
 export type PushEvent = typeof pushEvents.$inferSelect;
@@ -132,14 +133,16 @@ async function followUps(
     patch.defaultBranch =
       branches.find((b) => b.name === 'main')?.name ?? branches[0].name;
   await db.update(repositories).set(patch).where(eq(repositories.id, repo.id));
+  // The commands that still stand: their refs are where the push put them. A ref moved again since is that push's to
+  // report.
+  const updates: RefUpdate[] = event.commands.filter((c) =>
+    c.new === ZERO_SHA ? !refsAfter.has(c.ref) : refsAfter.get(c.ref) === c.new
+  );
+  // Webhooks: the push itself, and the pull requests whose head branch it moved (keyed on this event: once each).
+  const hooksCtx = { env, db };
+  await emitPush(hooksCtx, repo, updates, event.actorId, event.id);
+  await emitSynchronize(hooksCtx, repo, updates, event.actorId, event.id);
   if (actionsConfigured(env) || resolutionConfigured(env)) {
-    // The commands that still stand: their refs are where the push put them. A ref moved again since is that
-    // push's to report.
-    const updates: RefUpdate[] = event.commands.filter((c) =>
-      c.new === ZERO_SHA
-        ? !refsAfter.has(c.ref)
-        : refsAfter.get(c.ref) === c.new
-    );
     await onRefsUpdated(
       env,
       db,

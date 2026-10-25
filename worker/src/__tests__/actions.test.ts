@@ -979,7 +979,7 @@ describe('列表中的提交检查', () => {
     >;
     expect(body[first].state).toBe('failure');
     expect(body[second].state).toBe('pending');
-    expect(body[none]).toEqual({ state: null, runs: [] });
+    expect(body[none]).toEqual({ state: null, runs: [], statuses: [] });
     expect(body[first].runs.map((r) => r.name)).toEqual(['CI']);
 
     // A re-run supersedes the failed run: only the newest run per workflow counts.

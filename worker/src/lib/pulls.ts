@@ -252,6 +252,7 @@ export async function addComment(
       actorId: authorId,
       text: body,
       joins: 'participating',
+      commentId: row.id,
     }
   );
   return row;

@@ -136,7 +136,7 @@ describe('超过 100 个成员的 D1 集合查询', () => {
     expect(res.status).toBe(200);
     const statuses = (await res.json()) as Record<string, unknown>;
     expect(Object.keys(statuses)).toEqual(shas);
-    expect(statuses[shas[99]]).toEqual({ state: null, runs: [] });
+    expect(statuses[shas[99]]).toEqual({ state: null, runs: [], statuses: [] });
   });
 
   it('下载完整的 100 对象 LFS 批次，保留各对象限定作用域的 URL', async () => {

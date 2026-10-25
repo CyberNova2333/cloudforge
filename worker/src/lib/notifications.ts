@@ -21,6 +21,7 @@ import { d1Of } from '../pulls/events';
 import { publishToUsers } from '../live/publish';
 import { emailConfigured } from './email';
 import { deliverNotificationEmails } from './notification-email';
+import { emitThreadEvent } from './webhook-events';
 import { mentionedUsernames } from './mentions';
 import { readableByMembers } from './repos';
 import { inJsonArray } from './sql-set';
@@ -55,6 +56,8 @@ export type NotifyEvent = {
   assigned?: string[];
   /** The actor joins the thread: as its author (opening it) or as a participant (commenting). */
   joins?: 'author' | 'participating';
+  /** `commented`: the comment, for webhooks' `issue_comment` events. */
+  commentId?: string;
 };
 
 const RANK: Record<SubscriptionReason, number> = {
@@ -197,16 +200,18 @@ async function subscribe(
 }
 
 /**
- * Records `e`: subscribes whoever it makes a participant, then brings the thread back to unread in the inbox of
- * everyone who follows it, watches its repository or is named in it (never the actor, nor anyone who cannot read the
- * repository), and owes an email to those who want one. Returns the people it notified.
+ * Fans an issue or pull request event out, to people and to systems. People: subscribes whoever it makes a
+ * participant, then brings the thread back to unread in the inbox of everyone who follows it, watches its repository
+ * or is named in it (never the actor, nor anyone who cannot read the repository), and owes an email to those who want
+ * one. Systems: the repository's webhooks that take the event (lib/webhook-events.ts). Returns the people it notified.
  */
 export async function notify(
   ctx: NotifyCtx,
   e: NotifyEvent
 ): Promise<string[]> {
+  let people: string[] = [];
   try {
-    return await deliver(ctx, e);
+    people = await deliver(ctx, e);
   } catch (err) {
     console.error(
       '[notify] could not record notifications',
@@ -214,8 +219,9 @@ export async function notify(
       threadKey(e.thread),
       err
     );
-    return [];
   }
+  await emitThreadEvent(ctx, e);
+  return people;
 }
 
 async function deliver(ctx: NotifyCtx, e: NotifyEvent): Promise<string[]> {

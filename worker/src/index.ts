@@ -23,6 +23,8 @@ import {
 import { agentRunsRouter } from './routers/agent-runs-router';
 import { pullsRouter } from './routers/pulls-router';
 import { issuesRouter } from './routers/issues-router';
+import { statusesRouter } from './routers/statuses-router';
+import { webhooksRouter } from './routers/webhooks-router';
 import {
   notificationsRouter,
   repoNotificationsRouter,
@@ -62,6 +64,7 @@ import { searchRouter } from './routers/search-router';
 import { sameOriginWrites } from './auth/same-origin';
 import { redactedLog } from './lib/request-log';
 import { runScheduled } from './cron';
+import { acceptsToken, tokenUser } from './auth/token-auth';
 
 const app = new OpenAPIHono<AppEnv>();
 
@@ -92,6 +95,16 @@ app.use('*', async (c, next) => {
   // times the two reads on every request of every page.
   const user = await currentUser(c.get('db'), c.env, c.req.raw.headers);
   if (user) c.set('user', user);
+  else if (acceptsToken(p)) {
+    // CI servers report commit statuses with a personal access token.
+    const pat = await tokenUser(c.get('db'), c.req.raw.headers, (work) =>
+      c.executionCtx.waitUntil(work)
+    );
+    if (pat) {
+      c.set('user', pat.user);
+      c.set('tokenScope', pat.scope);
+    }
+  }
   await next();
 });
 app.use('/api/*', sameOriginWrites);
@@ -131,7 +144,7 @@ const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
     );
     // Issues, labels, watching and subscriptions never move a pull request's state.
     if (
-      /^\/api\/repos\/[^/]+\/[^/]+\/(?:issues|labels|watch)(?:\/|$)|\/subscription$/.test(
+      /^\/api\/repos\/[^/]+\/[^/]+\/(?:issues|labels|watch|hooks)(?:\/|$)|\/subscription$/.test(
         c.req.path
       )
     )
@@ -170,6 +183,8 @@ app.route('/api/repos', reposRouter);
 app.route('/api/repos', pullsRouter);
 app.route('/api/repos', issuesRouter);
 app.route('/api/repos', repoNotificationsRouter);
+app.route('/api/repos', statusesRouter);
+app.route('/api/repos', webhooksRouter);
 app.route('/api/repos', actionsRouter);
 app.route('/api/repos', actionsVariablesRouter);
 app.route('/api/repos', agentRunsRouter);

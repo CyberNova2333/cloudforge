@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 export type CheckRun = {
   runNumber: number;
   status: string;
@@ -22,6 +23,45 @@ export type CheckVerdict =
       check: string | null;
       started: boolean;
     };
+
+/** A commit status reported from outside (docs/webhooks.md): the latest one of its context. */
+export type ReportedStatus = { context: string; state: string };
+
+/**
+ * Whether reported statuses hold a commit up: failure or error fails it, pending waits. `runNumber` 0: not an
+ * Actions run (there is nothing to re-run here).
+ */
+export function statusVerdict(statuses: ReportedStatus[]): CheckVerdict | null {
+  const bad = statuses.find(
+    (s) => s.state === 'failure' || s.state === 'error'
+  );
+  if (bad)
+    return {
+      kind: 'failed',
+      reason: `The "${bad.context}" check failed`,
+      runNumber: 0,
+      check: bad.context,
+    };
+  const pending = statuses.find((s) => s.state === 'pending');
+  if (pending)
+    return {
+      kind: 'waiting',
+      reason: `The "${pending.context}" check is running`,
+      check: pending.context,
+      started: true,
+    };
+  return null;
+}
+
+/** Two verdicts as one: any failure first, then any wait. */
+export function combineVerdicts(
+  a: CheckVerdict | null,
+  b: CheckVerdict | null
+): CheckVerdict | null {
+  if (a?.kind === 'failed') return a;
+  if (b?.kind === 'failed') return b;
+  return a ?? b;
+}
 
 /**
  * Like the checks badge: only failures and cancellations fail; success and skipped don't. A required

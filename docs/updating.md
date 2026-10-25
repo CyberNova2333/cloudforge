@@ -98,8 +98,19 @@ before deploying the Worker. Then:
 - **`notifications` is a reserved name**: an account or team already named `notifications` keeps working, but its
   profile page is now hidden behind the inbox; rename it if you have one.
 
+The webhooks update adds migration `0047` (commit statuses, webhooks and their deliveries) and a third Cron Trigger,
+`*/5 * * * *`, that retries webhook deliveries and sends notification emails left unsent. Apply the migration before
+deploying the Worker, and add the trigger to your own `wrangler.jsonc` (`triggers.crons`, as in `wrangler.jsonc.example`);
+deploying registers it. Then:
+
+- **External CI can report commit statuses** (`POST /api/repos/{owner}/{repo}/statuses/{sha}`) with a personal access
+  token in `Authorization: Bearer …`; only the three status endpoints accept a token, the rest of the API still needs a
+  session. A failing or pending status blocks merging like an Actions run. See [Webhooks](webhooks.md).
+- **Repository admins can add webhooks** through the API (`/api/repos/{owner}/{repo}/hooks`); the settings page for them
+  is not built yet. Webhook secrets are encrypted with the same key as Actions secrets.
+
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
-`BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
+`BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state and makes stored webhook secrets unreadable (set them again); rerun those workflows after the change.
 
 ## Adopt an existing installation
 

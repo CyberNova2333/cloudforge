@@ -686,6 +686,21 @@ describe('每项审计操作都构成一个句子', () => {
       { action: 'label.deleted', target: 'bug' },
       'mahmoud deleted the label “bug” in octocat/cloudforge',
     ],
+    [
+      'webhook.created 新建 webhook',
+      { action: 'webhook.created', target: 'ci.example.com' },
+      'mahmoud added a webhook for ci.example.com in octocat/cloudforge',
+    ],
+    [
+      'webhook.updated 修改 webhook',
+      { action: 'webhook.updated', target: 'ci.example.com' },
+      'mahmoud edited the webhook for ci.example.com in octocat/cloudforge',
+    ],
+    [
+      'webhook.deleted 删除 webhook',
+      { action: 'webhook.deleted', target: 'ci.example.com' },
+      'mahmoud deleted the webhook for ci.example.com in octocat/cloudforge',
+    ],
   ];
 
   it.each(cases)('审计操作：%s', (_name, over, sentence) => {
@@ -740,6 +755,9 @@ describe('每项审计操作都构成一个句子', () => {
         'label.created',
         'label.updated',
         'label.deleted',
+        'webhook.created',
+        'webhook.updated',
+        'webhook.deleted',
       ].sort()
     );
   });

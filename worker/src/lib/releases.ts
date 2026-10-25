@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { onRefsUpdated } from '../actions/trigger';
 import {
@@ -15,6 +16,7 @@ import { recordAudit } from './audit';
 import { landTargetIs } from './land-target';
 import { pullRef } from '../merge/land';
 import { gitFor } from './repos';
+import { emitPush, emitRelease } from './webhook-events';
 import { chunks } from '../stack/view';
 import {
   bumpVersion,
@@ -519,6 +521,26 @@ export async function cutRelease(opts: {
     target: tag,
     data: { sha: head, pulls: rows.length },
   });
+  // Webhooks: the tag's push, then the release (keyed on the release: once each).
+  await emitPush(
+    { env, db },
+    repo,
+    [{ ref, old: ZERO_SHA, new: head }],
+    opts.actor.id,
+    `release-${id}`
+  );
+  await emitRelease(
+    { env, db },
+    repo,
+    {
+      id,
+      tag,
+      title: opts.title?.trim() || tag,
+      notes,
+      createdAt: new Date(),
+    },
+    opts.actor.id
+  );
   const release = await getRelease(db, repo, tag);
   return { ok: true, release: release! };
 }

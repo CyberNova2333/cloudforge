@@ -69,8 +69,9 @@
     { "name": "cloudforge-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
     { "name": "cloudforge-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
   ],
-  // Daily housekeeping: deletes Actions runs past their retention (Site admin → Actions).
-  "triggers": { "crons": ["17 4 * * *", "30 2 * * *"] },
+  // Daily housekeeping (Actions runs past their retention), the usage sync, and every five minutes webhook retries
+  // and notification emails a request was cut off before.
+  "triggers": { "crons": ["17 4 * * *", "30 2 * * *", "*/5 * * * *"] },
   // Workers AI: AI conflict resolution (RESOLVER_MODEL) and reviewer agents' reviews (SUMMARY_MODEL
   // one-liners, Clef for which agents review, REVIEW_MODEL for each review, single pass or Pi).
   "ai": { "binding": "AI" },
@@ -156,8 +157,8 @@
         { "name": "cloudforge-actions-run-dev", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
         { "name": "cloudforge-merge-resolution-dev", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
       ],
-      // Daily housekeeping: deletes Actions runs past their retention (Site admin → Actions).
-      "triggers": { "crons": ["17 4 * * *", "30 2 * * *"] },
+      // Daily housekeeping, the usage sync, and every five minutes webhook retries and notification emails.
+      "triggers": { "crons": ["17 4 * * *", "30 2 * * *", "*/5 * * * *"] },
       // Workers AI has no local emulator either; dev calls the real service.
       "ai": { "binding": "AI", "remote": true },
       "vars": {

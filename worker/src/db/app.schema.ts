@@ -778,6 +778,117 @@ export const repositoryWatches = sqliteTable(
   ]
 );
 
+// ── Commit statuses and webhooks (docs/webhooks.md) ─────────────────────────
+
+export const commitStatusStates = [
+  'pending',
+  'success',
+  'failure',
+  'error',
+] as const;
+export type CommitStatusState = (typeof commitStatusStates)[number];
+
+// A check reported on a commit from outside (a CI server). Per commit and context the latest row counts; older ones
+// stay as its history.
+export const commitStatuses = sqliteTable(
+  'commit_statuses',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    sha: text('sha').notNull(),
+    context: text('context').notNull(),
+    state: text('state', { enum: commitStatusStates }).notNull(),
+    targetUrl: text('target_url'),
+    description: text('description'),
+    creatorId: text('creator_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    index('commit_statuses_repo_sha_idx').on(
+      t.repositoryId,
+      t.sha,
+      t.createdAt
+    ),
+  ]
+);
+export type CommitStatus = typeof commitStatuses.$inferSelect;
+
+export const webhookEvents = [
+  'push',
+  'pull_request',
+  'issues',
+  'issue_comment',
+  'release',
+  'status',
+] as const;
+export type WebhookEvent = (typeof webhookEvents)[number] | 'ping';
+
+// Where a repository's events are POSTed. `secret` is encrypted (lib/webhooks.ts) and never shown again.
+export const webhooks = sqliteTable(
+  'webhooks',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    secret: text('secret'),
+    // Event names, or ['*'] for every event.
+    events: text('events', { mode: 'json' }).$type<string[]>().notNull(),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    createdById: text('created_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    // The latest delivery's outcome: its HTTP status (null: no response) and when.
+    lastStatus: integer('last_status'),
+    lastDeliveredAt: integer('last_delivered_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('webhooks_repo_idx').on(t.repositoryId)]
+);
+export type Webhook = typeof webhooks.$inferSelect;
+
+// One event sent to one webhook: written with the event, sent after the response, retried by the frequent cron.
+export const webhookDeliveries = sqliteTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey(),
+    webhookId: text('webhook_id')
+      .notNull()
+      .references(() => webhooks.id, { onDelete: 'cascade' }),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(),
+    action: text('action'),
+    payload: text('payload').notNull(),
+    status: text('status', { enum: ['pending', 'delivered', 'failed'] })
+      .notNull()
+      .default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: integer('next_attempt_at', { mode: 'timestamp_ms' }),
+    // A sender holds the row until this lease runs out.
+    claimedAt: integer('claimed_at', { mode: 'timestamp_ms' }),
+    responseStatus: integer('response_status'),
+    responseBody: text('response_body'),
+    error: text('error'),
+    durationMs: integer('duration_ms'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    deliveredAt: integer('delivered_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    index('webhook_deliveries_due_idx').on(t.status, t.nextAttemptAt),
+    index('webhook_deliveries_hook_idx').on(t.webhookId, t.createdAt),
+    index('webhook_deliveries_created_idx').on(t.createdAt),
+  ]
+);
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+
 // Git LFS objects: `r2_key` is a bare key, never a URL; a row exists only once the upload is in R2.
 export const lfsObjects = sqliteTable(
   'lfs_objects',
@@ -1356,6 +1467,9 @@ export const auditActions = [
   'label.created',
   'label.updated',
   'label.deleted',
+  'webhook.created',
+  'webhook.updated',
+  'webhook.deleted',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
 /** person: a member. agent: a reviewer agent. ai: CloudForge AI deciding for `actor_id`. system: CloudForge itself. */

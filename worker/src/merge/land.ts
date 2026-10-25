@@ -176,7 +176,8 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
       reason: 'checks',
       error:
         checks.kind === 'failed'
-          ? `${checks.reason} (run #${checks.runNumber}). Fix them, then merge.`
+          ? // Run 0: a status a CI server reported, not an Actions run.
+            `${checks.reason}${checks.runNumber ? ` (run #${checks.runNumber})` : ''}. Fix them, then merge.`
           : `${checks.reason}. Merge once they pass.`,
     };
   const review = await reviewGateFor(

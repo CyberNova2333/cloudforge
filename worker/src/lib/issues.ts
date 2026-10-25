@@ -545,6 +545,7 @@ export async function addIssueComment(
       actorId: authorId,
       text: body,
       joins: 'participating',
+      commentId: row.id,
     });
   return row;
 }

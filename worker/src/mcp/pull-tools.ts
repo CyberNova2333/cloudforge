@@ -367,7 +367,7 @@ const getPullRequest: ToolModule = {
       'person with merge permission), waiting (CloudForge: checks, review or AI resolving a rebase conflict are running, ' +
       'or merging_paused: a person paused merging on the repository), ' +
       'or ready; "reasons" lists why, as structured objects (e.g. check_failed with run_number for ' +
-      'cloudforge_get_run_logs).' +
+      'cloudforge_get_run_logs; run_number 0 is a status a CI server reported, named by "check": read it with cloudforge_get_commit_status).' +
       ' "rebased" (when set) means CloudForge rebased your branch: follow its note before pushing again.',
     annotations: { readOnlyHint: true, title: 'Get pull request' },
     inputSchema: {
