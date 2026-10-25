@@ -27,6 +27,7 @@ import { McpToolError } from './errors';
 import { AGENT_TOOLS } from './agent-tools';
 import { PULL_TOOLS } from './pull-tools';
 import { RELEASE_TOOLS } from './release-tools';
+import { ISSUE_TOOLS } from './issue-tools';
 import { MODERATOR_TOOLS } from './moderator-tools';
 import type { Moderator } from './moderators';
 
@@ -519,6 +520,7 @@ export const TOOL_MODULES: ToolModule[] = [
   getUsage,
   ...PULL_TOOLS,
   ...RELEASE_TOOLS,
+  ...ISSUE_TOOLS,
   ...AGENT_TOOLS,
 ];
 export const TOOL_DEFINITIONS = TOOL_MODULES.map((m) => m.definition);

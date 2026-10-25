@@ -648,7 +648,8 @@ const createPullRequest: ToolModule = {
       'their review; follow both with cloudforge_get_pull_request. Needs push access. Always pass `request` ' +
       "(the person's original request, in their words) and `session` (a short label for this coding session, the " +
       'same on every pull request you open in it): CloudForge shows them to the people who review the change and ' +
-      'groups your pull requests into one session.',
+      'groups your pull requests into one session. Write "Fixes #<n>" in the body to close issue n when it lands on ' +
+      'the default branch.',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
