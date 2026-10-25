@@ -78,7 +78,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   lists and calls the approve/dismiss tools; checked on every call, never cached; the tools reuse `decideFlag` /
   `approvePull` and record `via`.
 - Merging is rebase + fast-forward (details in `docs/architecture.md`). CloudForge rebases open PRs itself: engine `git/rebase.ts`, runs on `MERGE_RESOLUTION`
-  (`merge/rebase.ts`, `ensureRebase`; CAS on the old head, old head kept as `refs/pull/N/pre-rebase/<sha7>`); per-commit
+  (`merge/rebase.ts`, `ensureRebase`; CAS on the old head, old head kept as `refs/pull/N/pre-rebase/<sha7>`, pruned with landing receipts 30 days after the PR closes: `lib/pull-refs.ts`); per-commit
   AI conflict resolution in `merge/commit-resolution.ts`; a stop is `rebase_conflict` or "Not rebased: …" (`rebaseBlocked`: default branch, a
   `repositories.protected_branches` glob, a head shared into another base). `review/carry.ts`
   carries approvals/reviews on clean rebases. `landPull` (`merge/land.ts`) is a CAS fast-forward, rebasing inline first
