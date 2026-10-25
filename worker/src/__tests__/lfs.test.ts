@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
-import { handleLfsRequest } from '../lfs-http';
+import { describe, expect, it, vi } from 'vitest';
+import { handleLfsRequest, MAX_ADOPT_PROBES } from '../lfs-http';
 import { sha256Hex } from '../git/bytes';
 import {
   addMember,
@@ -185,6 +185,28 @@ describe('Git LFS 批量 API', () => {
     });
     const body = (await res.json()) as Batch;
     expect(body.objects.map((o) => o.error?.code)).toEqual([404, 422]);
+  });
+
+  it('一次批量请求最多向 R2 查询 100 个 D1 不认识的对象', async () => {
+    const { t, token } = await setup();
+    const head = vi.spyOn(t.env.LFS, 'head');
+    try {
+      const objects = await Promise.all(
+        Array.from({ length: 150 }, async (_, i) => {
+          const f = await blob(`unknown ${i}`);
+          return { oid: f.oid, size: f.size };
+        })
+      );
+      const res = await lfs(t, '/objects/batch', {
+        token,
+        json: { operation: 'download', objects },
+      });
+      const body = (await res.json()) as Batch;
+      expect(body.objects.every((o) => o.error?.code === 404)).toBe(true);
+      expect(head).toHaveBeenCalledTimes(MAX_ADOPT_PROBES);
+    } finally {
+      head.mockRestore();
+    }
   });
 
   it('允许所有成员下载，但仅写入者可上传', async () => {
