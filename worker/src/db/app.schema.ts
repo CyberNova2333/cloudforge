@@ -1608,7 +1608,11 @@ export const workflowJobs = sqliteTable(
     startedAt: integer('started_at', { mode: 'timestamp' }),
     completedAt: integer('completed_at', { mode: 'timestamp' }),
   },
-  (t) => [index('workflow_jobs_run_idx').on(t.runId)]
+  (t) => [
+    index('workflow_jobs_run_idx').on(t.runId),
+    // Capacity admission and orphan recovery must not scan every historical job.
+    index('workflow_jobs_status_run_idx').on(t.status, t.runId),
+  ]
 );
 
 export const workflowSteps = sqliteTable(

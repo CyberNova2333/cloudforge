@@ -784,9 +784,18 @@ export type AgentRunDetail = {
   steps: AgentStep[];
 };
 
+export type ReportedCommitStatus = {
+  context: string;
+  state: 'pending' | 'success' | 'failure' | 'error';
+  description: string | null;
+  targetUrl: string | null;
+  createdAt: string;
+};
+
 export type CommitRuns = {
   state: 'success' | 'failure' | 'pending' | null;
   runs: WorkflowRun[];
+  statuses?: ReportedCommitStatus[];
 };
 
 export type McpTool = {

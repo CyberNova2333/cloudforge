@@ -52,6 +52,9 @@ The security update adds migrations `0040` through `0044` and changes behaviour;
 - **Pushes to the default branch and protected branches are restricted**: only repository admins push to them, and
   only fast-forwards; nobody deletes or force-pushes them, and nobody pushes `refs/pull/*`. Collaborators who pushed to
   the default branch directly now open a pull request instead.
+  Protected pushes upload objects through temporary internal refs, validate ancestry, then compare-and-swap the
+  requested refs. A rejected force push never temporarily moves the protected branch. Protected requests using
+  `push-options` are rejected; ordinary unprotected pushes keep their existing protocol path.
 - **Authors don't approve their own pull requests** (nor approve or dismiss findings on them, through the web, MCP
   moderator apps or Let Claude decide). On an instance with one maintainer, turn on Site admin → Settings → Reviews →
   "Authors approve their own pull requests". Closing, reopening and the version bump of a pull request need push
@@ -73,8 +76,10 @@ The security update adds migrations `0040` through `0044` and changes behaviour;
 - **Personal access tokens can be read-only** (Settings → Personal access tokens → Access); existing tokens keep read
   and write. A member holds at most 50 unexpired tokens.
 - **Site admin → Settings → Jobs running at once per repository** (empty by default: only the instance's limit) keeps
-  one repository from holding every Actions slot. While the job queue can't be reached, jobs start only while fewer
-  are running than the instance's limit, instead of all at once.
+  one repository from holding every Actions slot. Normal queue grants and the queue-outage fallback reserve capacity
+  atomically in D1 before booting, enforcing both limits even when only some jobs can reach the queue.
+  Recovery includes reservations without queue entries and retains capacity if Workflow/container shutdown cannot
+  be confirmed. Failed container destruction preserves the runner's hard-stop alarm.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 
@@ -95,6 +100,7 @@ before deploying the Worker. Then:
   [Notifications](notifications.md).
 - **Those that concern them directly are also emailed** when the instance sends email and their address is verified;
   each member chooses participating (the default), all or off in Settings → Notifications.
+  Pending email rechecks current repository access, ban status, verification and notification choices before sending.
 - **`notifications` is a reserved name**: an account or team already named `notifications` keeps working, but its
   profile page is now hidden behind the inbox; rename it if you have one.
 
@@ -106,8 +112,17 @@ deploying registers it. Then:
 - **External CI can report commit statuses** (`POST /api/repos/{owner}/{repo}/statuses/{sha}`) with a personal access
   token in `Authorization: Bearer …`; only the three status endpoints accept a token, the rest of the API still needs a
   session. A failing or pending status blocks merging like an Actions run. See [Webhooks](webhooks.md).
-- **Repository admins can add webhooks** through the API (`/api/repos/{owner}/{repo}/hooks`); the settings page for them
-  is not built yet. Webhook secrets are encrypted with the same key as Actions secrets.
+- **Repository admins can add webhooks** in Settings → Webhooks or through the API (`/api/repos/{owner}/{repo}/hooks`).
+  The page includes secret replacement/removal, delivery records, test pings and redelivery. Webhook secrets are
+  encrypted with the same key as Actions secrets; decryption failure stops delivery instead of sending unsigned data.
+- **Checks display external CI results** alongside Actions. MCP clients can report and read statuses with
+  `cloudforge_create_commit_status` and `cloudforge_get_commit_status` under the same repository permissions.
+
+The audited integration adds migration `0048`, an index on Actions job status and run ID for capacity admission and
+recovery. Apply `0040`–`0048` in order before deploying. The first-admin write now
+checks the setup claim in the same D1 batch as its credential, preventing an expired setup request from creating a
+second administrator. Secret repository allowlist replacement is atomic. Closed-PR internal-ref cleanup resumes with
+a persistent repository cursor, including after an outage longer than a week.
 
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state and makes stored webhook secrets unreadable (set them again); rerun those workflows after the change.

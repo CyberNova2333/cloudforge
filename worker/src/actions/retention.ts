@@ -15,6 +15,7 @@ import { recoverPullCloses } from '../pulls/close-recovery';
 import { recoverPushEvents } from '../lib/push-events';
 import { recoverRepositoryDeletions } from '../lib/repo-deletion';
 import { prunePullRefs } from '../lib/pull-refs';
+import { prunePushStaging } from '../lib/push-staging';
 import {
   deliverNotificationEmails,
   pruneNotifications,
@@ -153,6 +154,9 @@ export async function runActionsRetention(
   );
   await prunePullRefs(env, db, now).catch((e: unknown) => {
     console.error('[refs] could not prune pull refs', e);
+  });
+  await prunePushStaging(env, db, now).catch((e: unknown) => {
+    console.error('[git] could not prune staged pushes', e);
   });
   const days = await getSetting(db, env, 'actions.retention_days');
   let deleted = 0;

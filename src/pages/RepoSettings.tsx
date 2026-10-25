@@ -186,6 +186,9 @@ export default function RepoSettings() {
         >
           <LockIcon /> {t('Secrets and variables')}
         </a>
+        <Link className="menu-item" to={`/${repo.fullName}/settings/webhooks`}>
+          <GearIcon /> {t('Webhooks')}
+        </Link>
       </nav>
       <div className="flex-1">
         {flash && (

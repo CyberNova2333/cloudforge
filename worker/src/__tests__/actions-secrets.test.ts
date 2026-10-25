@@ -385,6 +385,30 @@ jobs:
 });
 
 describe('实例级密钥的可用仓库', () => {
+  it('并发替换白名单只能留下其中一个完整集合，不能混合两次授权', async () => {
+    const s = await setup();
+    await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-1234');
+    const made = await call(s.t, '/api/repos', {
+      cookie: s.admin,
+      json: { name: 'other', visibility: 'private' },
+    });
+    const second = ((await made.json()) as { id: string }).id;
+    const first = await appId(s);
+    const { drizzle } = await import('drizzle-orm/d1');
+    const { schema } = await import('../db/schema');
+    const { instanceSecret, setSecretRepositories, secretRepositories } =
+      await import('../actions/secrets');
+    const db = drizzle(s.t.env.DB, { schema });
+    const secret = (await instanceSecret(db, 'PROD_KEY'))!;
+    await Promise.all([
+      setSecretRepositories(db, secret.id, [first]),
+      setSecretRepositories(db, secret.id, [second]),
+    ]);
+    const actual = (await secretRepositories(db, [secret.id])).get(secret.id)!;
+    expect(actual).toHaveLength(1);
+    expect([first, second]).toContain(actual[0]);
+  });
+
   it('只下发给列出的仓库，其他成员新建的仓库读不到', async () => {
     const s = await setup();
     await put(s, s.admin, '/api/admin/actions/secrets/PROD_KEY', 'prod-1234');

@@ -10,6 +10,38 @@ import { JobRunner } from '../actions/job-runner';
 import { call, settle } from './helpers/app';
 import { harness, pushFiles, runDetail, runs, setup } from './helpers/actions';
 
+it('停止容器失败时保留孤儿硬停止闹钟，成功后才删除', async () => {
+  let alarmScheduled = true;
+  let failStop = true;
+  const container = {
+    running: true,
+    destroy: async () => {
+      if (failStop) throw new Error('container stop unavailable');
+      container.running = false;
+    },
+  };
+  const runner = Object.assign(Object.create(JobRunner.prototype), {
+    ctx: {
+      container,
+      storage: {
+        deleteAlarm: async () => {
+          alarmScheduled = false;
+        },
+      },
+    },
+    masks: [],
+    registeredMasks: [],
+  }) as JobRunner;
+  await expect(runner.destroy()).rejects.toThrow('container stop unavailable');
+  expect(container.running).toBe(true);
+  expect(alarmScheduled).toBe(true);
+  failStop = false;
+  await runner.alarm();
+  expect(container.running).toBe(false);
+  await runner.destroy();
+  expect(alarmScheduled).toBe(false);
+});
+
 it.each(['exec', 'stdout'])(
   '截去实时日志和已保存日志的开头前，先脱敏 %s 异常文本',
   async (source) => {

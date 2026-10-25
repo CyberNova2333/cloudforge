@@ -1,8 +1,10 @@
 // Commit statuses (docs/webhooks.md): checks a CI server reports on a commit. Per commit and context the latest row
 // counts; they hold pull requests up like Actions runs do (review/checks.ts `statusVerdict`).
 import { and, desc, eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import {
   commitStatuses,
+  commitStatusStates,
   type CommitStatus,
   type CommitStatusState,
 } from '../db/app.schema';
@@ -14,6 +16,26 @@ export const DESCRIPTION_MAX = 140;
 export const TARGET_URL_MAX = 500;
 /** Statuses one commit may carry, all contexts together. */
 export const MAX_STATUSES_PER_COMMIT = 1000;
+
+/** Shared REST/MCP input boundary; target URLs are displayed, never fetched. */
+export const statusInputSchema = z.object({
+  state: z.enum(commitStatusStates),
+  context: z.string().trim().min(1).max(CONTEXT_MAX).optional(),
+  description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
+  target_url: z
+    .string()
+    .trim()
+    .max(TARGET_URL_MAX)
+    .refine((value) => {
+      try {
+        return ['http:', 'https:'].includes(new URL(value).protocol);
+      } catch {
+        return false;
+      }
+    }, 'An http or https URL')
+    .nullable()
+    .optional(),
+});
 
 export type StatusInput = {
   state: CommitStatusState;
@@ -71,7 +93,7 @@ export function statusesOf(db: DrizzleDB, repositoryId: string, sha: string) {
         eq(commitStatuses.sha, sha)
       )
     )
-    .orderBy(desc(commitStatuses.createdAt))
+    .orderBy(desc(commitStatuses.createdAt), desc(sql`rowid`))
     .all();
 }
 
@@ -83,18 +105,19 @@ export async function latestStatuses(
 ): Promise<Map<string, CommitStatus[]>> {
   const out = new Map<string, CommitStatus[]>(shas.map((s) => [s, []]));
   if (!shas.length) return out;
-  const rows = (
-    await db
-      .select()
-      .from(commitStatuses)
-      .where(
-        and(
-          eq(commitStatuses.repositoryId, repositoryId),
-          inJsonArray(commitStatuses.sha, shas)
-        )
+  const rows = await db
+    .select()
+    .from(commitStatuses)
+    .where(
+      and(
+        eq(commitStatuses.repositoryId, repositoryId),
+        inJsonArray(commitStatuses.sha, shas)
       )
-      .all()
-  ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    )
+    // D1 timestamps have millisecond precision. rowid is insertion order,
+    // so reports in one millisecond cannot leave an earlier success effective.
+    .orderBy(desc(commitStatuses.createdAt), desc(sql`rowid`))
+    .all();
   const seen = new Set<string>();
   for (const r of rows) {
     const key = `${r.sha}\0${r.context}`;

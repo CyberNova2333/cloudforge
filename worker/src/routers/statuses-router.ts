@@ -8,11 +8,9 @@ import { usersById, type PublicUser } from '../lib/users';
 import {
   combinedState,
   createStatus,
-  CONTEXT_MAX,
-  DESCRIPTION_MAX,
   latestStatuses,
+  statusInputSchema,
   statusesOf,
-  TARGET_URL_MAX,
 } from '../lib/commit-statuses';
 import { publishChange } from '../live/publish';
 import { settleStates } from '../pulls/settle';
@@ -71,18 +69,6 @@ const shaParams = ownerRepoParams.extend({
     .transform((s) => s.toLowerCase()),
 });
 
-const httpUrl = z
-  .string()
-  .trim()
-  .max(TARGET_URL_MAX)
-  .refine((u) => {
-    try {
-      return ['http:', 'https:'].includes(new URL(u).protocol);
-    } catch {
-      return false;
-    }
-  }, 'An http or https URL');
-
 const createRouteDef = createRoute({
   method: 'post',
   path: '/{owner}/{repo}/statuses/{sha}',
@@ -95,12 +81,7 @@ const createRouteDef = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: z.object({
-            state: z.enum(commitStatusStates),
-            target_url: httpUrl.nullable().optional(),
-            description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
-            context: z.string().trim().min(1).max(CONTEXT_MAX).optional(),
-          }),
+          schema: statusInputSchema,
         },
       },
     },

@@ -1,5 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as emailClaims from '../lib/email-claims';
+import { authFor } from '../auth';
 import { localOnlyHost, setupCodeHash } from '../lib/setup-code';
 import { countUsers, SETUP_CODE_MISSING } from '../routers/setup-router';
 import app from '../index';
@@ -190,6 +192,82 @@ describe('未设置初始化代码的实例', () => {
 });
 
 describe('首位管理员的创建是原子的', () => {
+  it('密码哈希失败不留下用户或凭据，并允许立即重试', async () => {
+    const t = makeEnv();
+    const context = await authFor(t.env).$context;
+    const hash = vi
+      .spyOn(context.password, 'hash')
+      .mockRejectedValue(new Error('injected password hash failure'));
+    try {
+      expect((await post(t)).status).toBe(400);
+      expect(await users(t)).toBe(0);
+      expect(
+        await t.env.DB.prepare('SELECT COUNT(*) AS n FROM accounts').first('n')
+      ).toBe(0);
+    } finally {
+      hash.mockRestore();
+    }
+    expect((await post(t)).status).toBe(200);
+  });
+
+  it('凭据写入失败回滚用户写入，重试后可用原密码正常登录', async () => {
+    const t = makeEnv();
+    await t.env.DB.prepare(
+      "CREATE TRIGGER fail_setup_credential BEFORE INSERT ON accounts BEGIN SELECT RAISE(ABORT, 'injected credential failure'); END"
+    ).run();
+    try {
+      expect((await post(t)).status).toBe(400);
+      expect(await users(t)).toBe(0);
+      expect(
+        await t.env.DB.prepare('SELECT COUNT(*) AS n FROM accounts').first('n')
+      ).toBe(0);
+    } finally {
+      await t.env.DB.prepare('DROP TRIGGER fail_setup_credential').run();
+    }
+    expect((await post(t)).status).toBe(200);
+    expect(
+      (
+        await call(t, '/api/auth/sign-in/username', {
+          json: { username: admin.username, password: admin.password },
+        })
+      ).status
+    ).toBe(200);
+  });
+
+  it('过期占用被接管后，恢复的旧请求不能再创建第二位管理员', async () => {
+    const t = makeEnv();
+    const original = emailClaims.emailClaimedByOther;
+    let replacement: Response | undefined;
+    const pause = vi
+      .spyOn(emailClaims, 'emailClaimedByOther')
+      .mockImplementation(async (...args) => {
+        if (args[1] === admin.email) {
+          // The first request is paused before insertion while its lease expires.
+          await t.env.DB.prepare(
+            "UPDATE instance_settings SET updated_at = ? WHERE key = 'setup.claim'"
+          )
+            .bind(Math.floor(Date.now() / 1000) - 120)
+            .run();
+          replacement = await call(t, '/api/setup', {
+            json: {
+              ...admin,
+              username: 'replacement',
+              email: 'replacement@example.com',
+            },
+          });
+        }
+        return original(...args);
+      });
+    try {
+      const resumed = await post(t);
+      expect(replacement?.status).toBe(200);
+      expect(resumed.status).not.toBe(200);
+      expect(await users(t)).toBe(1);
+    } finally {
+      pause.mockRestore();
+    }
+  });
+
   it('同时提交的两次初始化只有一次成功', async () => {
     const t = makeEnv();
     const results = await Promise.all([

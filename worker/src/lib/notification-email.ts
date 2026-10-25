@@ -1,12 +1,16 @@
 // The emails notifications owe (docs/notifications.md): a row's `email_pending_at` is cleared before its email goes
 // out, so a retry never sends it twice (a send that fails after that is lost, never duplicated). Rows waiting longer
 // than a day are dropped rather than sent late.
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import {
+  agents,
   issues,
+  notificationSubscriptions,
   notifications,
   pullRequests,
+  repositoryWatches,
+  userPreferences,
   type NotificationEvent,
   type NotificationReason,
 } from '../db/app.schema';
@@ -14,7 +18,7 @@ import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { d1Of } from '../pulls/events';
 import { emailConfigured, sendNotificationEmail } from './email';
-import { findReposByIds } from './repos';
+import { findReposByIds, permissionsFor } from './repos';
 import { inJsonArray } from './sql-set';
 
 const DAY_MS = 86_400_000;
@@ -82,8 +86,11 @@ export async function deliverNotificationEmails(
   const rows = await db
     .select({
       n: notifications,
-      to: users.email,
-      verified: users.emailVerified,
+      recipient: users,
+      agent: agents.userId,
+      emailChoice: userPreferences.value,
+      watch: repositoryWatches.level,
+      subscribed: notificationSubscriptions.subscribed,
       actor: actor.username,
       issueNumber: issues.number,
       issueTitle: issues.title,
@@ -92,6 +99,28 @@ export async function deliverNotificationEmails(
     })
     .from(notifications)
     .innerJoin(users, eq(users.id, notifications.userId))
+    .leftJoin(agents, eq(agents.userId, users.id))
+    .leftJoin(
+      userPreferences,
+      and(
+        eq(userPreferences.userId, users.id),
+        eq(userPreferences.key, 'notificationEmail')
+      )
+    )
+    .leftJoin(
+      repositoryWatches,
+      and(
+        eq(repositoryWatches.userId, users.id),
+        eq(repositoryWatches.repositoryId, notifications.repositoryId)
+      )
+    )
+    .leftJoin(
+      notificationSubscriptions,
+      and(
+        eq(notificationSubscriptions.userId, users.id),
+        eq(notificationSubscriptions.thread, notifications.thread)
+      )
+    )
     .leftJoin(actor, eq(actor.id, notifications.actorId))
     .leftJoin(issues, eq(issues.id, notifications.issueId))
     .leftJoin(pullRequests, eq(pullRequests.id, notifications.pullRequestId))
@@ -108,10 +137,30 @@ export async function deliverNotificationEmails(
     const kind = r.n.issueId ? 'issue' : 'pull';
     const number = kind === 'issue' ? r.issueNumber : r.pullNumber;
     const title = kind === 'issue' ? r.issueTitle : r.pullTitle;
-    if (!found || number === null || !title || !r.to || !r.verified) continue;
+    if (
+      !found ||
+      number === null ||
+      !title ||
+      !r.recipient.email ||
+      !r.recipient.emailVerified
+    )
+      continue;
+    // Outbox delivery can happen long after the event. Recheck current access and
+    // choices before sending the latest title or the stored private excerpt.
+    if (
+      r.agent ||
+      r.recipient.banned ||
+      !(await permissionsFor(db, found.repo, r.recipient)).read ||
+      r.emailChoice === 'off' ||
+      (r.emailChoice !== 'all' && r.n.reason === 'watching') ||
+      r.watch === 'ignoring' ||
+      r.subscribed === false ||
+      (r.n.reason === 'watching' && r.watch !== 'watching')
+    )
+      continue;
     const fullName = `${found.namespace.username}/${found.repo.name}`;
     const ok = await sendNotificationEmail(env, db, {
-      to: r.to,
+      to: r.recipient.email,
       subject: `[${fullName}] ${title} (#${number})`,
       headline: headline(r.actor ?? 'CloudForge', r.n.event, kind, r.n.reason),
       excerpt: r.n.excerpt,

@@ -24,4 +24,5 @@
 @import './pages/releases.css';
 @import './pages/issues.css';
 @import './pages/notifications.css';
+@import './pages/webhooks.css';
 @import './legacy.css';

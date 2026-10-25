@@ -48,6 +48,7 @@ import IssueView from './pages/IssueView';
 import RepoLabels from './pages/RepoLabels';
 import Session from './pages/Session';
 import RepoSettings from './pages/RepoSettings';
+import RepoWebhooks from './pages/RepoWebhooks';
 import RepoActions from './pages/RepoActions';
 import RepoInsights from './pages/RepoInsights';
 import RepoReleases from './pages/RepoReleases';
@@ -246,6 +247,7 @@ const App = () => (
                 />
                 <Route path="insights" element={<RepoInsights />} />
                 <Route path="settings" element={<RepoSettings />} />
+                <Route path="settings/webhooks" element={<RepoWebhooks />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />

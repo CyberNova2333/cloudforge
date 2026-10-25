@@ -14,6 +14,9 @@ export type PushCommand = { old: string; new: string; ref: string };
 export type ReceiveRequest = {
   commands: PushCommand[];
   capabilities: string[];
+  shallow: string[];
+  /** Bytes through the command-list flush, excluding the following pack. */
+  commandBytes: number;
   body: ReadableStream<Uint8Array>;
 };
 
@@ -33,7 +36,6 @@ export async function readReceiveRequest(
   const chunks: Uint8Array[] = [];
   let buf: Uint8Array = new Uint8Array(0);
   const more = async () => {
-    if (buf.length > MAX_COMMAND_LIST_BYTES) return false;
     const { value, done } = await reader.read();
     if (done) return false;
     chunks.push(value);
@@ -45,24 +47,37 @@ export async function readReceiveRequest(
     return null;
   };
   const commands: PushCommand[] = [];
+  const shallow: string[] = [];
   let capabilities: string[] = [];
-  for (let off = 0; ;) {
+  let off = 0;
+  for (;;) {
+    if (off + 4 > MAX_COMMAND_LIST_BYTES) return fail();
     while (buf.length < off + 4) if (!(await more())) return fail();
-    const len = parseInt(decoder.decode(buf.subarray(off, off + 4)), 16);
-    if (len === 0) break;
-    if (!Number.isInteger(len) || len < 5) return fail();
+    const prefix = decoder.decode(buf.subarray(off, off + 4));
+    if (!/^[0-9a-fA-F]{4}$/.test(prefix)) return fail();
+    const len = parseInt(prefix, 16);
+    if (len === 0) {
+      off += 4;
+      break;
+    }
+    if (len < 5 || off + len > MAX_COMMAND_LIST_BYTES) return fail();
     while (buf.length < off + len) if (!(await more())) return fail();
     let line = decoder.decode(buf.subarray(off + 4, off + len));
     off += len;
     line = line.replace(/\n$/, '');
-    if (line.startsWith('shallow ')) continue;
+    if (line.startsWith('shallow ')) {
+      if (commands.length || !/^shallow [0-9a-f]{40}$/.test(line))
+        return fail();
+      shallow.push(line);
+      continue;
+    }
     const nul = line.indexOf('\0');
     if (nul >= 0) {
-      if (!commands.length)
-        capabilities = line
-          .slice(nul + 1)
-          .split(' ')
-          .filter(Boolean);
+      if (commands.length) return fail();
+      capabilities = line
+        .slice(nul + 1)
+        .split(' ')
+        .filter(Boolean);
       line = line.slice(0, nul);
     }
     const m = COMMAND.exec(line);
@@ -86,7 +101,47 @@ export async function readReceiveRequest(
       return reader.cancel(reason);
     },
   });
-  return { commands, capabilities, body };
+  return { commands, capabilities, shallow, commandBytes: off, body };
+}
+
+export function receiveCommandBytes(
+  commands: PushCommand[],
+  capabilities: string[],
+  shallow: string[] = []
+): Uint8Array {
+  return concat([
+    ...shallow.map((line) => pktLine(`${line}\n`)),
+    ...commands.map((c, i) =>
+      pktLine(
+        `${c.old} ${c.new} ${c.ref}${i === 0 ? '\0' + capabilities.join(' ') : ''}\n`
+      )
+    ),
+    FLUSH,
+  ]);
+}
+
+/** Replace only the command list; the client's pack keeps streaming without a second copy. */
+export function rewriteReceiveRequest(
+  push: ReceiveRequest,
+  commands: PushCommand[],
+  capabilities: string[]
+): ReadableStream<Uint8Array> {
+  let skip = push.commandBytes;
+  return push.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          receiveCommandBytes(commands, capabilities, push.shallow)
+        );
+      },
+      transform(chunk, controller) {
+        const consumed = Math.min(skip, chunk.length);
+        skip -= consumed;
+        if (consumed < chunk.length)
+          controller.enqueue(chunk.subarray(consumed));
+      },
+    })
+  );
 }
 
 export type PushRules = {
@@ -176,6 +231,47 @@ function sidebandMax(capabilities: string[]) {
   if (capabilities.includes('side-band-64k')) return 65515;
   if (capabilities.includes('side-band')) return 995;
   return 0;
+}
+
+/** A complete report only: missing/truncated status must never authorize a protected ref update. */
+export function successfulPushRefs(
+  body: Uint8Array,
+  capabilities: string[]
+): Set<string> {
+  const packets = (bytes: Uint8Array): Uint8Array[] | null => {
+    const out: Uint8Array[] = [];
+    let off = 0;
+    while (off + 4 <= bytes.length) {
+      const prefix = decoder.decode(bytes.subarray(off, off + 4));
+      if (!/^[0-9a-fA-F]{4}$/.test(prefix)) return null;
+      const len = parseInt(prefix, 16);
+      if (len === 0) return off + 4 === bytes.length ? out : null;
+      if (len < 5 || off + len > bytes.length) return null;
+      out.push(bytes.subarray(off + 4, off + len));
+      off += len;
+    }
+    return null;
+  };
+  let inner = body;
+  if (sidebandMax(capabilities)) {
+    const outer = packets(body);
+    if (!outer || outer.some((p) => p[0] !== 1 && p[0] !== 2)) return new Set();
+    inner = concat(outer.filter((p) => p[0] === 1).map((p) => p.subarray(1)));
+  }
+  const lines = packets(inner)?.map((p) =>
+    decoder.decode(p).replace(/\n$/, '')
+  );
+  if (!lines || lines[0] !== 'unpack ok') return new Set();
+  const successful = new Set<string>();
+  const failed = new Set<string>();
+  for (const line of lines.slice(1)) {
+    const ok = /^ok (\S+)$/.exec(line);
+    if (ok) successful.add(ok[1]);
+    const ng = /^ng (\S+) /.exec(line);
+    if (ng) failed.add(ng[1]);
+  }
+  for (const ref of failed) successful.delete(ref);
+  return successful;
 }
 
 /** A report-status reply as the client asked for it (on side-band 1 or plain), ending with the flush. */

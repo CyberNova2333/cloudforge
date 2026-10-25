@@ -10,7 +10,10 @@ import {
 } from './helpers/app';
 import { commitFiles } from './helpers/seed';
 import { schema } from '../db/schema';
-import { pruneNotifications } from '../lib/notification-email';
+import {
+  deliverNotificationEmails,
+  pruneNotifications,
+} from '../lib/notification-email';
 
 const base = '/api/repos/octocat/app';
 
@@ -342,6 +345,114 @@ const notes = (t: TestEnv, to: string) =>
   t.sent.filter((m) => m.to === to && m.subject.startsWith('[octocat/app]'));
 
 describe('通知：邮件', () => {
+  it.each([
+    'remove-collaborator',
+    'ban',
+    'make-private',
+    'email-off',
+    'ignore',
+    'unsubscribe',
+  ])('发送待发邮件前重新检查当前收件资格：%s', async (change) => {
+    const { t, admin, bob } = await world(
+      change === 'make-private' ? 'internal' : 'private'
+    );
+    if (change !== 'make-private')
+      expect(
+        (
+          await call(t, `${base}/collaborators/bob`, {
+            cookie: admin,
+            method: 'PUT',
+          })
+        ).status
+      ).toBe(200);
+    const n = await openIssue(t, admin, {
+      title: 'Original title',
+      body: '@bob',
+    });
+    await settle(t);
+    // A persisted outbox row left by a stopped Worker, before the delivery claim.
+    await t.env.DB.prepare(
+      "UPDATE notifications SET email_pending_at = ? WHERE user_id = (SELECT id FROM users WHERE username = 'bob')"
+    )
+      .bind(Date.now())
+      .run();
+    t.sent.length = 0;
+    if (change === 'remove-collaborator') {
+      expect(
+        (
+          await call(t, `${base}/collaborators/bob`, {
+            cookie: admin,
+            method: 'DELETE',
+          })
+        ).status
+      ).toBe(200);
+    } else if (change === 'ban') {
+      await t.env.DB.prepare(
+        "UPDATE users SET banned = 1 WHERE username = 'bob'"
+      ).run();
+    } else if (change === 'make-private') {
+      expect(
+        (
+          await call(t, base, {
+            cookie: admin,
+            method: 'PATCH',
+            json: { visibility: 'private' },
+          })
+        ).status
+      ).toBe(200);
+    } else if (change === 'email-off') {
+      expect(
+        (
+          await call(t, '/api/me/preferences', {
+            cookie: bob,
+            method: 'PUT',
+            json: { notificationEmail: 'off' },
+          })
+        ).status
+      ).toBe(200);
+    } else if (change === 'ignore') {
+      expect(
+        (
+          await call(t, `${base}/watch`, {
+            cookie: bob,
+            method: 'PUT',
+            json: { level: 'ignoring' },
+          })
+        ).status
+      ).toBe(200);
+    } else {
+      expect(
+        (
+          await call(t, `${base}/issues/${n}/subscription`, {
+            cookie: bob,
+            method: 'PUT',
+            json: { subscribed: false },
+          })
+        ).status
+      ).toBe(200);
+    }
+    expect(
+      (
+        await call(t, `${base}/issues/${n}`, {
+          cookie: admin,
+          method: 'PATCH',
+          json: { title: 'New confidential title after revocation' },
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      await deliverNotificationEmails(t.env, drizzle(t.env.DB, { schema }))
+    ).toBe(0);
+    expect(notes(t, 'bob@example.com')).toEqual([]);
+    expect(
+      (
+        await t.env.DB.prepare(
+          'SELECT count(*) AS n FROM notifications WHERE email_pending_at IS NOT NULL'
+        ).first<{ n: number }>()
+      )?.n
+    ).toBe(0);
+  });
+
   it('默认只为与自己直接相关的动静发邮件，可改为全部或关闭，每条只发一次', async () => {
     const { t, admin, bob, carol } = await world();
     await call(t, `${base}/watch`, {

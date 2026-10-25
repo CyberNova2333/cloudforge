@@ -21,11 +21,17 @@ import {
   readReceiveRequest,
   refusalReport,
   reportsStatus,
-  rewriteReport,
+  receiveCommandBytes,
+  rewriteReceiveRequest,
+  successfulPushRefs,
   type PushCommand,
   type ReceiveRequest,
 } from './git/push-protection';
 import type { GitService } from './git/service';
+import { concat } from './git/bytes';
+import { buildPack } from './git/pack';
+import { ZERO_SHA } from './git/remote';
+import { deletePushStaging, PUSH_STAGING_PREFIX } from './lib/push-staging';
 
 const GIT_PATH =
   /^\/([^/]+)\/([^/]+?)\.git\/(info\/refs|git-upload-pack|git-receive-pack)$/;
@@ -197,7 +203,7 @@ export async function handleGitRequest(
   // A push's commands, read before anything is forwarded: branch protection decides on them, and afterPush tells
   // from them which refs moved.
   let push: ReceiveRequest | null = null;
-  let fastForwardOnly: PushCommand[] = [];
+  let upstream: Response | undefined;
   if (isPush && endpoint === 'git-receive-pack') {
     const gzip = request.headers.get('Content-Encoding') === 'gzip';
     if (gzip) headers.delete('Content-Encoding');
@@ -219,32 +225,42 @@ export async function handleGitRequest(
     if (decision.refused.size) {
       // The pack is never forwarded; read it to the end so the client gets the reply.
       await push.body.pipeTo(new WritableStream()).catch(() => {});
-      if (!reportsStatus(push.capabilities))
-        return new Response(
-          `Push refused: ${[...decision.refused.values()][0]}\n`,
-          { status: 403 }
-        );
-      return new Response(
-        refusalReport(push.commands, decision.refused, push.capabilities),
-        {
-          headers: {
-            'Content-Type': 'application/x-git-receive-pack-result',
-            'Cache-Control': 'no-cache',
-          },
-        }
-      );
+      return refusedPush(push, decision.refused);
     }
-    fastForwardOnly = decision.fastForwardOnly;
     body = push.body;
+    if (decision.fastForwardOnly.length) {
+      // Replaying push options could run remote hooks twice, once against staging refs. Refuse instead.
+      if (push.capabilities.includes('push-options')) {
+        await push.body.pipeTo(new WritableStream()).catch(() => {});
+        return refusedPush(
+          push,
+          new Map(
+            decision.fastForwardOnly.map((c) => [
+              c.ref,
+              'push-options are not supported when updating protected branches',
+            ])
+          )
+        );
+      }
+      const result = await protectedPush(
+        git,
+        push,
+        decision.fastForwardOnly,
+        headers,
+        `/${endpoint}${url.search}`
+      );
+      if (result instanceof Map) return refusedPush(push, result);
+      upstream = result;
+    }
     // Forwarded with the length the client declared, as the request itself would have been.
     const length = Number(request.headers.get('Content-Length'));
-    if (!gzip && Number.isSafeInteger(length) && length > 0) {
+    if (!upstream && !gzip && Number.isSafeInteger(length) && length > 0) {
       const fixed = new FixedLengthStream(length);
       body.pipeTo(fixed.writable).catch(() => {});
       body = fixed.readable;
     }
   }
-  const upstream = await git.client.forward(
+  upstream ??= await git.client.forward(
     `/${endpoint}${url.search}`,
     { method: request.method, headers, body },
     isPush ? 'write' : 'read'
@@ -257,18 +273,27 @@ export async function handleGitRequest(
 
   if (isPush && user && push && upstream.ok) {
     // Receive-pack responses are small; buffer to sync metadata after the push lands.
-    let reply: Uint8Array = new Uint8Array(await upstream.arrayBuffer());
-    const undone = await undoForcedUpdates(git, fastForwardOnly);
-    if (undone.size)
-      reply = rewriteReport(reply, push.capabilities, undone) ?? reply;
+    const reply: Uint8Array = new Uint8Array(await upstream.arrayBuffer());
+    let applied: PushCommand[];
+    if (reportsStatus(push.capabilities)) {
+      const successful = successfulPushRefs(reply, push.capabilities);
+      applied = push.commands.filter((c) => successful.has(c.ref));
+    } else {
+      const { refs } = await git.client.listRefs();
+      applied = push.commands.filter(
+        (c) => (refs.get(c.ref) ?? ZERO_SHA) === c.new
+      );
+    }
     // Recorded before the push is answered, so its follow-ups run again if their background is cut off.
-    const event = await recordPush(
-      drizzle(env.DB, { schema }),
-      repo.id,
-      user.id,
-      push.commands.filter((c) => !undone.has(c.ref))
-    );
-    ctx.waitUntil(afterPush(env, event, repo.id));
+    if (applied.length) {
+      const event = await recordPush(
+        drizzle(env.DB, { schema }),
+        repo.id,
+        user.id,
+        applied
+      );
+      ctx.waitUntil(afterPush(env, event, repo.id));
+    }
     return new Response(reply, {
       status: upstream.status,
       headers: respHeaders,
@@ -280,35 +305,103 @@ export async function handleGitRequest(
   });
 }
 
-/**
- * An admin's push may move a protected branch only forward. Its objects are in once receive-pack answers, so each
- * such update that landed is checked; one that rewrote history is put back (compare-and-swap on what was pushed).
- * Returns the refs that were refused this way, with the reason the client is told.
- */
-async function undoForcedUpdates(
-  git: GitService,
-  commands: PushCommand[]
-): Promise<Map<string, string>> {
-  const undone = new Map<string, string>();
-  if (!commands.length) return undone;
-  const refs = (await git.client.listRefs()).refs;
-  for (const c of commands) {
-    if (refs.get(c.ref) !== c.new) continue;
-    const forward = await git.isAncestor(c.old, c.new);
-    if (forward) continue;
-    const branch = c.ref.slice('refs/heads/'.length);
-    try {
-      await git.client.push([{ ref: c.ref, old: c.new, new: c.old }], []);
-    } catch (e) {
-      console.error('[git] could not undo a forced update', c.ref, e);
-      continue;
+function refusedPush(
+  push: ReceiveRequest,
+  reasons: Map<string, string>
+): Response {
+  if (!reportsStatus(push.capabilities))
+    return new Response(`Push refused: ${[...reasons.values()][0]}\n`, {
+      status: 403,
+    });
+  return new Response(
+    refusalReport(push.commands, reasons, push.capabilities),
+    {
+      headers: {
+        'Content-Type': 'application/x-git-receive-pack-result',
+        'Cache-Control': 'no-cache',
+      },
     }
-    undone.set(
-      c.ref,
-      forward === null
-        ? `${branch} is a protected branch: this push is too large to check as a fast-forward; push it in smaller steps`
-        : `${branch} is a protected branch: only fast-forward pushes are allowed`
+  );
+}
+
+/** Upload objects to internal refs first. No branch moves until every protected update is proven safe. */
+async function protectedPush(
+  git: GitService,
+  push: ReceiveRequest,
+  checked: PushCommand[],
+  headers: Headers,
+  path: string
+): Promise<Response | Map<string, string>> {
+  const prefix = `${PUSH_STAGING_PREFIX}${Date.now()}-${crypto.randomUUID()}/`;
+  const staged = push.commands
+    .filter((c) => c.new !== ZERO_SHA)
+    .map((c, i) => ({ old: ZERO_SHA, new: c.new, ref: `${prefix}${i}` }));
+  const caps = [
+    'report-status',
+    ...push.capabilities.filter(
+      (c) =>
+        ![
+          'report-status',
+          'report-status-v2',
+          'side-band',
+          'side-band-64k',
+        ].includes(c)
+    ),
+  ];
+  const refuseAll = (reason: string) =>
+    new Map(checked.map((c) => [c.ref, reason]));
+  try {
+    const stage = await git.client.forward(
+      path,
+      {
+        method: 'POST',
+        headers,
+        body: rewriteReceiveRequest(push, staged, caps),
+      },
+      'write'
     );
+    const report = new Uint8Array(await stage.arrayBuffer());
+    const uploaded = successfulPushRefs(report, caps);
+    if (!stage.ok || staged.some((c) => !uploaded.has(c.ref)))
+      return refuseAll('could not stage this push for branch protection');
+    const refused = new Map<string, string>();
+    for (const c of checked) {
+      const forward = await git.isAncestor(c.old, c.new);
+      if (forward) continue;
+      const branch = c.ref.slice('refs/heads/'.length);
+      refused.set(
+        c.ref,
+        forward === null
+          ? `${branch} is a protected branch: this push is too large to check as a fast-forward; push it in smaller steps`
+          : `${branch} is a protected branch: only fast-forward pushes are allowed`
+      );
+    }
+    if (refused.size) return refused;
+    // The original old IDs still CAS each ref. Keep the original capabilities, including atomic if requested:
+    // only the remote may promise all-or-nothing updates, never a series of our own per-ref pushes.
+    const landed = await git.client.forward(
+      path,
+      {
+        method: 'POST',
+        headers,
+        body: concat([
+          receiveCommandBytes(push.commands, push.capabilities, push.shallow),
+          await buildPack([]),
+        ]),
+      },
+      'write'
+    );
+    // Finish reading the result before cleanup; side-band progress may precede the actual ref transaction.
+    return new Response(await landed.arrayBuffer(), {
+      status: landed.status,
+      headers: landed.headers,
+    });
+  } catch (error) {
+    console.error('[git] protected push failed', error);
+    return refuseAll('could not verify or complete this protected push');
+  } finally {
+    await deletePushStaging(git, staged).catch((error: unknown) => {
+      console.error('[git] could not clean staged push refs', error);
+    });
   }
-  return undone;
 }

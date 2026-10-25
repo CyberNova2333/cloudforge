@@ -6,10 +6,12 @@ import {
   api,
   qk,
   type CommitRuns,
+  type ReportedCommitStatus,
   type RepoDetail,
   type WorkflowRun,
 } from '@/lib/uiApi';
 import { duration } from '@/lib/format';
+import { checkCounts, checkTarget } from '@/lib/commitChecks';
 import { lang, t, tn } from '@/lib/i18n';
 import { RunStatusIcon } from './RunStatusIcon';
 import { Dropdown } from './Dropdown';
@@ -137,11 +139,7 @@ function runLine(r: WorkflowRun): string {
 
 /** "1 failing, 2 successful checks". */
 export function checksDetail(data: CommitRuns): string {
-  const failed = data.runs.filter(
-    (r) => r.conclusion === 'failure' || r.conclusion === 'cancelled'
-  ).length;
-  const pending = data.runs.filter((r) => r.status !== 'completed').length;
-  const passed = data.runs.length - failed - pending;
+  const { failed, pending, passed, total } = checkCounts(data);
   const detail = [
     failed && t('{n} failing', { n: failed }),
     pending && t('{n} in progress', { n: pending }),
@@ -149,7 +147,34 @@ export function checksDetail(data: CommitRuns): string {
   ]
     .filter(Boolean)
     .join(lang === 'zh' ? '，' : ', ');
-  return tn(data.runs.length, '{detail} check', '{detail} checks', { detail });
+  return tn(total, '{detail} check', '{detail} checks', { detail });
+}
+
+function ExternalCheck({ status }: { status: ReportedCommitStatus }) {
+  const state = status.state === 'error' ? 'failure' : status.state;
+  const target = checkTarget(status.targetUrl);
+  return (
+    <>
+      <RunStatusIcon {...STATE_ICON[state]} />
+      <span className="checks-name flex-1" style={{ minWidth: 0 }}>
+        <b>{status.context}</b>{' '}
+        <span className="muted small">
+          {t('External CI')}
+          {status.description ? ` · ${status.description}` : ''}
+        </span>
+      </span>
+      {target && (
+        <a
+          className="small flex-shrink-0"
+          href={target}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t('Details')}
+        </a>
+      )}
+    </>
+  );
 }
 
 /** The summary of a commit's checks (the badge's popover): the overall result, then one row per workflow run. */
@@ -184,6 +209,15 @@ function ChecksSummary({ repo, data }: { repo: RepoDetail; data: CommitRuns }) {
           >
             {t('Details')}
           </Link>
+        </div>
+      ))}
+      {(data.statuses ?? []).map((status) => (
+        <div
+          key={status.context}
+          className="px-3 py-2 border-bottom d-flex flex-items-center f6"
+          style={{ gap: 8 }}
+        >
+          <ExternalCheck status={status} />
         </div>
       ))}
     </>
@@ -225,15 +259,13 @@ export function ChecksBox({
       </div>
     );
   if (!data) return <RowsSkeleton rows={2} />;
-  if (!data.state || !data.runs.length)
+  if (!data.state || !checkCounts(data).total)
     return (
       <div className="panel">
         <EmptyState
           picture={<CheckCircleIcon size={20} />}
           title={t('No checks ran on this commit')}
-          body={t(
-            'Workflows in .github/workflows run on every push and show up here.'
-          )}
+          body={t('Workflow runs and external CI statuses show up here.')}
         />
       </div>
     );
@@ -256,6 +288,11 @@ export function ChecksBox({
             <Link to={`${base}/actions/runs/${r.runNumber}`} className="small">
               {t('Details')}
             </Link>
+          </li>
+        ))}
+        {(data.statuses ?? []).map((status) => (
+          <li key={status.context} className="checks-external">
+            <ExternalCheck status={status} />
           </li>
         ))}
       </ul>
