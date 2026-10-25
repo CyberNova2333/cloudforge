@@ -354,18 +354,22 @@ actionsRouter.openapi(logsRoute, async (c) => {
     'Content-Type': 'text/plain; charset=utf-8',
     'Cache-Control': 'no-store',
   };
+  // The running step's output from its runner, else the stored log streamed from R2 (never read whole).
+  let body: string | ReadableStream = '';
   if (row.step.status === 'in_progress' && actionsConfigured(c.env)) {
     try {
       const live = await c.env.JOB_RUNNER.getByName(jobId).live(step);
-      if (live !== null) return c.text(live, 200, headers);
+      if (live !== null) body = live;
     } catch {
       // The runner is between steps or gone; fall through to the stored log.
     }
   }
-  const obj = row.step.logR2Key
-    ? await c.env.ACTIONS_LOGS.get(row.step.logR2Key)
-    : null;
-  return c.text(obj ? await obj.text() : '', 200, headers);
+  if (body === '' && row.step.logR2Key) {
+    const obj = await c.env.ACTIONS_LOGS.get(row.step.logR2Key);
+    if (obj) body = obj.body;
+  }
+  // As the raw file route streams: the route's text/plain response, without making a string of it first.
+  return new Response(body, { headers }) as never;
 });
 
 // ── artifacts ────────────────────────────────────────────────────────────────
