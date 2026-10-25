@@ -7,6 +7,7 @@ export type PageIconName =
   | 'home'
   | 'repo'
   | 'inbox'
+  | 'bell'
   | 'crew'
   | 'sliders'
   | 'shield'

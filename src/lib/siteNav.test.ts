@@ -8,6 +8,7 @@ describe('settingsSection：设置区域', () => {
     expect(settingsSection('/settings/mcp')).toBe('mcp');
     expect(settingsSection('/settings/emails')).toBe('emails');
     expect(settingsSection('/settings/emails/verify')).toBe('emails');
+    expect(settingsSection('/settings/notifications')).toBe('notifications');
   });
   it('不识别其他页面', () => {
     expect(settingsSection('/settings')).toBeNull();

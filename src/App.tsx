@@ -61,6 +61,8 @@ import AgentRunView from './pages/AgentRuns';
 import SettingsTokens from './pages/SettingsTokens';
 import SettingsEmails, { VerifyEmail } from './pages/SettingsEmails';
 import SettingsLanguage from './pages/SettingsLanguage';
+import SettingsNotifications from './pages/SettingsNotifications';
+import Notifications from './pages/Notifications';
 import Admin from './pages/Admin';
 import AdminUsage from './pages/AdminUsage';
 import AdminAudit from './pages/AdminAudit';
@@ -176,6 +178,11 @@ const App = () => (
               <Route path="/settings/mcp" element={<SettingsMcp />} />
               <Route path="/settings/emails" element={<SettingsEmails />} />
               <Route path="/settings/language" element={<SettingsLanguage />} />
+              <Route
+                path="/settings/notifications"
+                element={<SettingsNotifications />}
+              />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/emails/verify" element={<VerifyEmail />} />
               <Route
                 path="/admin"

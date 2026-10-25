@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { useLiveRepo } from '@/lib/live';
 import { repoBand, repoRest, repoTabOf, repoTabs } from '@/lib/repoNav';
+import { WatchSelect } from '@/components/notifications/NotificationParts';
 import {
   PageHeadContext,
   usePageHead,
@@ -170,6 +171,7 @@ export function RepoLayout() {
               {VISIBILITY_TEXT[data.visibility]}
             </span>
           )}
+          {data && !agent && <WatchSelect repo={data} />}
           {agent && (
             <>
               <span className="vis">{t('Agent instructions')}</span>

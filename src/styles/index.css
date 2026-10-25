@@ -23,4 +23,5 @@
 @import './pages/health.css';
 @import './pages/releases.css';
 @import './pages/issues.css';
+@import './pages/notifications.css';
 @import './legacy.css';

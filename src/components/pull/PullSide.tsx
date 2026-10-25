@@ -17,6 +17,7 @@ import { ReviewersSidebar } from '@/components/ReviewersBox';
 import { PullStateLabel, PullStateReasons } from '@/components/PullStateLabel';
 import { VersionPanel } from './VersionPanel';
 import { IssueStateIcon } from '@/components/issue/IssueParts';
+import { SubscribeButton } from '@/components/notifications/NotificationParts';
 
 /** The head commit's checks in one line, with a link to the Checks tab. */
 function ChecksPanel({ repo, d }: { repo: RepoDetail; d: PullDetail }) {
@@ -103,6 +104,10 @@ export function PullSide({
       )}
       {open && <ChecksPanel repo={repo} d={d} />}
       <VersionPanel repo={repo} pr={pr} onSaved={refresh} />
+      <section className="panel pad" aria-labelledby="pr-notify-title">
+        <h2 id="pr-notify-title">{t('Notifications')}</h2>
+        <SubscribeButton repo={repo} kind="pulls" number={pr.number} />
+      </section>
       {!!d.issues?.length && (
         <section className="panel pad" aria-labelledby="pr-issues-title">
           <h2 id="pr-issues-title">{t('Issues')}</h2>
