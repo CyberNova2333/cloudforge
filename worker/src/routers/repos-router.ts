@@ -4,6 +4,7 @@ import { rebase, REBASE_COMMITTER } from '../git/rebase';
 import { and, asc, desc, eq, or, sql } from 'drizzle-orm';
 import {
   lfsObjects,
+  issues,
   pullRequests,
   repositories,
   teams,
@@ -84,6 +85,7 @@ export function serializeRepo(r: Repository, ns: Namespace) {
     defaultBranch: r.defaultBranch,
     protectedBranches: r.protectedBranches ?? [],
     deleteMergedBranches: r.deleteMergedBranches,
+    hasIssues: r.hasIssues,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };
@@ -217,6 +219,8 @@ const repoDetailSchema = repoSchema.extend({
   empty: z.boolean(),
   branches: z.array(z.object({ name: z.string(), sha: z.string() })),
   openPullCount: z.number(),
+  /** 0 when the repository has issues turned off. */
+  openIssueCount: z.number(),
 });
 
 const getRepoRoute = createRoute({
@@ -233,17 +237,29 @@ reposRouter.openapi(getRepoRoute, async (c) => {
   const repo = c.get('repo');
   const ns = c.get('namespace');
   const branches = await c.get('git').branches();
-  const open = await c
-    .get('db')
-    .select({ n: sql<number>`COUNT(*)` })
-    .from(pullRequests)
-    .where(
-      and(
-        eq(pullRequests.repositoryId, repo.id),
-        eq(pullRequests.state, 'open')
+  const [open, openIssues] = await Promise.all([
+    c
+      .get('db')
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(pullRequests)
+      .where(
+        and(
+          eq(pullRequests.repositoryId, repo.id),
+          eq(pullRequests.state, 'open')
+        )
       )
-    )
-    .get();
+      .get(),
+    repo.hasIssues
+      ? c
+          .get('db')
+          .select({ n: sql<number>`COUNT(*)` })
+          .from(issues)
+          .where(
+            and(eq(issues.repositoryId, repo.id), eq(issues.state, 'open'))
+          )
+          .get()
+      : undefined,
+  ]);
   return c.json(
     {
       ...serializeRepo(repo, ns),
@@ -252,6 +268,7 @@ reposRouter.openapi(getRepoRoute, async (c) => {
       empty: branches.length === 0,
       branches,
       openPullCount: Number(open?.n ?? 0),
+      openIssueCount: Number(openIssues?.n ?? 0),
     },
     200
   );
@@ -282,6 +299,10 @@ const updateRepoRoute = createRoute({
                   'Branch name patterns CloudForge never rebases and that only change by merging a pull request or a repository admin’s fast-forward push (never deleted or force-pushed): exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace. The default branch is always protected.',
                 example: ['release/*', 'develop'],
               }),
+            hasIssues: z.boolean().optional().openapi({
+              description:
+                'Turn the Issues page and API on or off. Turning them off keeps the issues; turning them back on shows them again.',
+            }),
             deleteMergedBranches: z.boolean().optional().openapi({
               description:
                 'Delete a pull request’s head branch when it lands, by the merge button or auto-merge (never the default or a protected branch, or one another open pull request uses).',
@@ -337,6 +358,7 @@ reposRouter.openapi(updateRepoRoute, async (c) => {
   }
   if (body.deleteMergedBranches !== undefined)
     patch.deleteMergedBranches = body.deleteMergedBranches;
+  if (body.hasIssues !== undefined) patch.hasIssues = body.hasIssues;
   await db.update(repositories).set(patch).where(eq(repositories.id, repo.id));
   await auditRepoChanges(
     db,
@@ -364,6 +386,7 @@ async function auditRepoChanges(
     'defaultBranch',
     'protectedBranches',
     'deleteMergedBranches',
+    'hasIssues',
   ] as const) {
     if (!(key in patch)) continue;
     const list = key === 'protectedBranches';

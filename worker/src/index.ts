@@ -22,6 +22,7 @@ import {
 } from './routers/actions-variables-router';
 import { agentRunsRouter } from './routers/agent-runs-router';
 import { pullsRouter } from './routers/pulls-router';
+import { issuesRouter } from './routers/issues-router';
 import { reposRouter } from './routers/repos-router';
 import { setupRouter } from './routers/setup-router';
 import { tokensRouter } from './routers/tokens-router';
@@ -124,6 +125,11 @@ const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
         approvals: c.req.path.includes('/pulls'),
       })
     );
+    // Issues and labels never move a pull request's state.
+    if (
+      /^\/api\/repos\/[^/]+\/[^/]+\/(?:issues|labels)(?:\/|$)/.test(c.req.path)
+    )
+      return;
     // The change may move a pull request to another state: record it for the timeline (coalesced per repository).
     c.executionCtx.waitUntil(
       settleAfterChange(
@@ -153,6 +159,7 @@ app.use('/api/live', requireAuth);
 app.get('/api/live', liveSocket);
 app.route('/api/repos', reposRouter);
 app.route('/api/repos', pullsRouter);
+app.route('/api/repos', issuesRouter);
 app.route('/api/repos', actionsRouter);
 app.route('/api/repos', actionsVariablesRouter);
 app.route('/api/repos', agentRunsRouter);

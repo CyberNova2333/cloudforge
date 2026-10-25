@@ -64,6 +64,11 @@ export const AUDIT_ACTIONS = [
   'user.password_reset',
   'user.password_reset_link',
   'user.password_set',
+  'issue.deleted',
+  'issue.comment_deleted',
+  'label.created',
+  'label.updated',
+  'label.deleted',
 ] as const;
 
 type Data = Record<string, unknown>;
@@ -532,6 +537,33 @@ export function auditParts(
         d.emailed === true && t(' and emailed it'),
         via()
       );
+    case 'issue.deleted':
+      return say(t(' deleted issue '), e.target, ...tail('in'), via());
+    case 'issue.comment_deleted':
+      return say(
+        t(" deleted someone's comment on issue "),
+        e.target,
+        ...tail('in'),
+        via()
+      );
+    case 'label.created':
+      return say(
+        t(' created the label “'),
+        e.target,
+        '”',
+        ...tail('in'),
+        via()
+      );
+    case 'label.updated':
+      return say(t(' edited the label “'), e.target, '”', ...tail('in'), via());
+    case 'label.deleted':
+      return say(
+        t(' deleted the label “'),
+        e.target,
+        '”',
+        ...tail('in'),
+        via()
+      );
     case 'token.created':
       return say(t(' created the access token “'), e.target, '”', via());
     case 'token.deleted':
@@ -775,6 +807,15 @@ export function auditDetail(e: AuditEvent): string | null {
     }
     case 'pull.merged':
       return d.automatic === true ? t('Merged automatically') : null;
+    case 'issue.deleted': {
+      const title = str(d.title);
+      return title ? clip(title) : null;
+    }
+    case 'label.updated': {
+      const name = record(d.name);
+      const to = name && str(name.to);
+      return to ? t('Renamed to “{name}”', { name: to }) : null;
+    }
     case 'release.created': {
       const n = num(d.pulls);
       return n ? tn(n, '{n} pull request', '{n} pull requests') : null;
@@ -806,6 +847,11 @@ export function auditLink(e: AuditEvent): string | null {
   if (!e.repo) return null;
   if (e.action.startsWith('release.') && e.target)
     return `/${e.repo}/releases/${encodeURIComponent(e.target)}`;
+  if (e.action.startsWith('label.')) return `/${e.repo}/labels`;
+  if (e.action === 'issue.deleted') return `/${e.repo}/issues`;
+  const issue = /^#(\d+)$/.exec(e.target);
+  if (e.action === 'issue.comment_deleted' && issue)
+    return `/${e.repo}/issues/${issue[1]}`;
   return e.pull !== null ? `/${e.repo}/pull/${e.pull}` : `/${e.repo}`;
 }
 
@@ -866,6 +912,11 @@ export function auditCategory(action: string): AuditCategory {
     case 'secret.repositories':
     case 'variable.saved':
     case 'variable.deleted':
+    case 'issue.deleted':
+    case 'issue.comment_deleted':
+    case 'label.created':
+    case 'label.updated':
+    case 'label.deleted':
       return 'settings';
     default:
       return 'activity';

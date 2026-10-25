@@ -17,7 +17,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   (`rootAttributes`); the boot script in `index.html` mirrors `rootAttributes` before first paint, so change both (and its
   hash in `public/_headers`' Content-Security-Policy: `src/lib/csp.test.ts`). User Markdown (`components/Markdown.tsx`)
   is sanitized without styles, forms or the app's classes.
-- **D1** holds users, invitations, tokens, repository metadata, pull requests, and comments. **Artifacts**
+- **D1** holds users, invitations, tokens, repository metadata, pull requests, issues, and comments. **Artifacts**
   holds every git object and ref; nothing about git content is mirrored into D1.
 - Artifacts repos are named `r_<repository id>` (`repositories.artifacts_name`), so renames never touch storage.
 - `worker/src/git-http.ts` serves `https://host/<owner>/<repo>.git`: users authenticate with a personal
@@ -170,6 +170,16 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   wrangler var it replaced or a built-in value. Read with `getSetting`/`getSettings` only where used, never per request;
   deploy-time facts (BASE_URL, bucket names) stay in wrangler. A daily Cron Trigger (`scheduled()` in `index.ts`) runs
   `runActionsRetention` (`worker/src/actions/retention.ts`).
+- Issues (`docs/issues.md`, `worker/src/lib/issues.ts`, `lib/issue-links.ts`, `routers/issues-router.ts`): `issues` +
+  `issue_comments`, per-repository `labels` (`issue_labels`), `issue_assignees` (people with push access, never agents),
+  and the timeline `issue_events` (closed, reopened, labeled, assigned, renamed, referenced). Numbers come from
+  `repositories.next_pr_number` with pull requests (one batch: bump, then insert reading it), so `#N` is one or the other.
+  The libs never check permissions; the router and MCP tools do (author or push access edits and closes; push access sets
+  labels and assignees). `issue_links` records the issues a PR's title and description name (`linkPullToIssues`, on open and
+  edit; `Fixes #N` = `closes`); the `issues` landing follow-up (`finishLanding`) closes them when the land target is the
+  default branch. `repositories.has_issues` off: the routes 404. Deleting an issue, a label or someone else's comment is audited.
+  Drizzle pitfall: a single-table select drops table names from columns inside its `sql` fields, so a correlated subquery
+  there names the outer table literally (`… WHERE c.issue_id = issues.id`).
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
   person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target

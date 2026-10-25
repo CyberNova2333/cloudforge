@@ -55,6 +55,10 @@ export const repositories = sqliteTable(
     })
       .notNull()
       .default(true),
+    // Off: the repository has no Issues page or API; its issues stay and come back when turned on.
+    hasIssues: integer('has_issues', { mode: 'boolean' })
+      .notNull()
+      .default(true),
     // The most common source file extension on the default branch, cached at `language_sha` (its commit).
     language: text('language'),
     languageSha: text('language_sha'),
@@ -485,6 +489,174 @@ export const pullRequestComments = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (t) => [index('pull_request_comments_pr_idx').on(t.pullRequestId)]
+);
+
+// ── Issues (docs/issues.md) ──────────────────────────────────────────────────
+// Numbered from repositories.next_pr_number with pull requests, so `#N` names one or the other in a repository.
+
+export const issueStateReasons = ['completed', 'not_planned'] as const;
+export type IssueStateReason = (typeof issueStateReasons)[number];
+
+export const issues = sqliteTable(
+  'issues',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => users.id),
+    state: text('state', { enum: ['open', 'closed'] })
+      .notNull()
+      .default('open'),
+    // Why it was closed; null while open.
+    stateReason: text('state_reason', { enum: issueStateReasons }),
+    closedAt: integer('closed_at', { mode: 'timestamp' }),
+    closedById: text('closed_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    // The pull request whose landing closed it (a closing keyword); null when a person closed it.
+    closedByPullId: text('closed_by_pull_id').references(
+      () => pullRequests.id,
+      { onDelete: 'set null' }
+    ),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('issues_repo_number_uq').on(t.repositoryId, t.number),
+    index('issues_repo_state_number_idx').on(t.repositoryId, t.state, t.number),
+  ]
+);
+export type Issue = typeof issues.$inferSelect;
+
+export const issueComments = sqliteTable(
+  'issue_comments',
+  {
+    id: text('id').primaryKey(),
+    issueId: text('issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => users.id),
+    body: text('body').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [index('issue_comments_issue_idx').on(t.issueId, t.createdAt)]
+);
+export type IssueComment = typeof issueComments.$inferSelect;
+
+// A repository's labels; names are unique per repository ignoring case.
+export const labels = sqliteTable(
+  'labels',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    // Six hex digits, no '#'.
+    color: text('color').notNull(),
+    description: text('description').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('labels_repo_name_uq').on(t.repositoryId, sql`lower(name)`),
+  ]
+);
+export type Label = typeof labels.$inferSelect;
+
+export const issueLabels = sqliteTable(
+  'issue_labels',
+  {
+    issueId: text('issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+    labelId: text('label_id')
+      .notNull()
+      .references(() => labels.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.issueId, t.labelId] }),
+    index('issue_labels_label_idx').on(t.labelId),
+  ]
+);
+
+export const issueAssignees = sqliteTable(
+  'issue_assignees',
+  {
+    issueId: text('issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.issueId, t.userId] }),
+    index('issue_assignees_user_idx').on(t.userId),
+  ]
+);
+
+export const issueEventKinds = [
+  'closed',
+  'reopened',
+  'labeled',
+  'unlabeled',
+  'assigned',
+  'unassigned',
+  'renamed',
+  // A pull request mentioned it (data: { pull, closes }).
+  'referenced',
+] as const;
+export type IssueEventKind = (typeof issueEventKinds)[number];
+
+// An issue's timeline between its comments. data per kind: closed { reason, pull? }, labeled/unlabeled { label, color },
+// assigned/unassigned { user }, renamed { from, to }, referenced { pull, closes }.
+export const issueEvents = sqliteTable(
+  'issue_events',
+  {
+    id: text('id').primaryKey(),
+    issueId: text('issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: issueEventKinds }).notNull(),
+    data: text('data', { mode: 'json' })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    actorId: text('actor_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('issue_events_issue_idx').on(t.issueId, t.createdAt)]
+);
+export type IssueEvent = typeof issueEvents.$inferSelect;
+
+// The issues a pull request's title and description name (lib/issue-links.ts): `closes` for a closing keyword, which
+// closes the issue when the pull request lands on the default branch.
+export const issueLinks = sqliteTable(
+  'issue_links',
+  {
+    pullRequestId: text('pull_request_id')
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    issueId: text('issue_id')
+      .notNull()
+      .references(() => issues.id, { onDelete: 'cascade' }),
+    closes: integer('closes', { mode: 'boolean' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pullRequestId, t.issueId] }),
+    index('issue_links_issue_idx').on(t.issueId),
+  ]
 );
 
 // Git LFS objects: `r2_key` is a bare key, never a URL; a row exists only once the upload is in R2.
@@ -1060,6 +1232,11 @@ export const auditActions = [
   'user.password_reset',
   'user.password_reset_link',
   'user.password_set',
+  'issue.deleted',
+  'issue.comment_deleted',
+  'label.created',
+  'label.updated',
+  'label.deleted',
 ] as const;
 export type AuditAction = (typeof auditActions)[number];
 /** person: a member. agent: a reviewer agent. ai: CloudForge AI deciding for `actor_id`. system: CloudForge itself. */

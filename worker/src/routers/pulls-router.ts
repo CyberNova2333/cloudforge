@@ -93,6 +93,7 @@ import { recordAudit } from '../lib/audit';
 import { releasedIn, releasedInMany } from '../lib/releases';
 import { BUMPS } from '../lib/semver';
 import { recordEvent } from '../pulls/events';
+import { issuesNamedBy, linkPullToIssues } from '../lib/issue-links';
 
 export const pullsRouter = new OpenAPIHono<RepoEnv>({
   defaultHook: validationHook,
@@ -815,6 +816,15 @@ const getPullRoute = createRoute({
         pullState: pullStateSchema.nullable(),
         /** CloudForge's timeline entries (state changes), oldest first. */
         events: z.array(prEventSchema),
+        /** The issues its title or description names; `closes`: it closes them when it lands on the default branch. */
+        issues: z.array(
+          z.object({
+            number: z.number(),
+            title: z.string(),
+            state: z.enum(['open', 'closed']),
+            closes: z.boolean(),
+          })
+        ),
       }),
       'Pull request'
     ),
@@ -926,6 +936,7 @@ pullsRouter.openapi(getPullRoute, async (c) => {
         actor: e.actorId ? (people.get(e.actorId) ?? ghost) : null,
         createdAt: e.createdAt.toISOString(),
       })),
+      issues: c.get('repo').hasIssues ? await issuesNamedBy(db, pr.id) : [],
     },
     200
   );
@@ -1008,6 +1019,10 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
     return c.json(
       { error: 'The pull request changed. Refresh and try again.' },
       409
+    );
+  if (patch.title !== undefined || patch.body !== undefined)
+    await linkPullToIssues(c.get('db'), { ...pr, ...patch }, user.id).catch(
+      (e) => console.error('[pulls] could not link issues', pr.id, e)
     );
   if (bumpChanged) {
     const change = { from: pr.versionBump, to: body.versionBump ?? null };

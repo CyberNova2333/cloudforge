@@ -661,6 +661,31 @@ describe('每项审计操作都构成一个句子', () => {
       },
       'mahmoud cleared the version bump on octocat/cloudforge#4',
     ],
+    [
+      'issue.deleted 删除议题',
+      { action: 'issue.deleted', target: '#12', data: { title: 'Spam' } },
+      'mahmoud deleted issue #12 in octocat/cloudforge',
+    ],
+    [
+      'issue.comment_deleted 删除他人评论',
+      { action: 'issue.comment_deleted', target: '#12' },
+      "mahmoud deleted someone's comment on issue #12 in octocat/cloudforge",
+    ],
+    [
+      'label.created 新建标签',
+      { action: 'label.created', target: 'bug' },
+      'mahmoud created the label “bug” in octocat/cloudforge',
+    ],
+    [
+      'label.updated 修改标签',
+      { action: 'label.updated', target: 'bug' },
+      'mahmoud edited the label “bug” in octocat/cloudforge',
+    ],
+    [
+      'label.deleted 删除标签',
+      { action: 'label.deleted', target: 'bug' },
+      'mahmoud deleted the label “bug” in octocat/cloudforge',
+    ],
   ];
 
   it.each(cases)('审计操作：%s', (_name, over, sentence) => {
@@ -710,6 +735,11 @@ describe('每项审计操作都构成一个句子', () => {
         'release.created',
         'release.updated',
         'pull.version_bump',
+        'issue.deleted',
+        'issue.comment_deleted',
+        'label.created',
+        'label.updated',
+        'label.deleted',
       ].sort()
     );
   });
@@ -1138,6 +1168,29 @@ describe('链接和分类', () => {
       '/octocat/cloudforge'
     );
     expect(auditLink(ev({ action: 'token.created', repo: null }))).toBeNull();
+  });
+
+  it('将议题与标签事件链接到对应页面', () => {
+    expect(auditLink(ev({ action: 'label.created', target: 'bug' }))).toBe(
+      '/octocat/cloudforge/labels'
+    );
+    expect(auditLink(ev({ action: 'issue.deleted', target: '#3' }))).toBe(
+      '/octocat/cloudforge/issues'
+    );
+    expect(
+      auditLink(ev({ action: 'issue.comment_deleted', target: '#3' }))
+    ).toBe('/octocat/cloudforge/issues/3');
+    expect(
+      auditDetail(ev({ action: 'issue.deleted', data: { title: 'Spam' } }))
+    ).toBe('Spam');
+    expect(
+      auditDetail(
+        ev({
+          action: 'label.updated',
+          data: { name: { from: 'bug', to: 'defect' } },
+        })
+      )
+    ).toBe('Renamed to “defect”');
   });
 
   it('将发布事件链接到发行版本', () => {

@@ -19,6 +19,7 @@ import { unwindLanding } from '../stack/landing';
 import { startSweep } from './auto';
 import { deleteMergedBranch } from './land';
 import { d1Of } from '../pulls/events';
+import { closeLinkedIssues } from '../lib/issue-links';
 
 export const landingReceipt = (pr: number, id: string) =>
   `refs/pull/${pr}/landings/${id}`;
@@ -181,6 +182,14 @@ export async function finishLanding(
       () =>
         intent.target === repo.defaultBranch
           ? refreshAgentConfig(env, db, repo.id, true)
+          : Promise.resolve(),
+    ],
+    // A closing keyword (`Fixes #12`) closes its issue once the change is on the default branch.
+    [
+      'issues',
+      () =>
+        intent.target === repo.defaultBranch
+          ? closeLinkedIssues(db, pr, intent.actorId)
           : Promise.resolve(),
     ],
     ['states', () => settleStates(env, db, repo.id)],

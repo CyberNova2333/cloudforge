@@ -78,6 +78,15 @@ The security update adds migrations `0040` through `0044` and changes behaviour;
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 
+The issues update adds migration `0045` (issues, their comments, labels, assignees and timeline, the pull requests that
+name them, and `repositories.has_issues`, on by default). Apply it before deploying the Worker. Then:
+
+- **Every repository has an Issues tab** (an admin turns it off in Settings → General, keeping its issues). Issues are
+  numbered with pull requests, so a repository's next pull request skips the numbers its issues took. See
+  [Issues](issues.md).
+- **`Fixes #12` in a pull request's title or description closes issue #12** when the pull request lands on the default
+  branch. Pull requests opened before the upgrade link their issues the next time their title or description is edited.
+
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
 
