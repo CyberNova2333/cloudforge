@@ -74,13 +74,18 @@ export type CacheMatch = {
   size: number;
 };
 
+/** R2 objects per list page, and pages read per restore key and ref (the newest seen among them wins). */
+const LIST_PAGE = 1000;
+const MAX_LIST_PAGES = 20;
+
 /** Exact `key`, else the newest entry prefixed by a `restoreKeys` entry; each ref in order. */
 export async function findCacheEntry(
   env: CloudflareBindings,
   repositoryId: string,
   refs: string[],
   key: string,
-  restoreKeys: string[]
+  restoreKeys: string[],
+  opts: { pageSize?: number } = {}
 ): Promise<CacheMatch | null> {
   const scopes = [...new Set(refs)];
   for (const ref of scopes) {
@@ -91,13 +96,21 @@ export async function findCacheEntry(
   for (const prefix of restoreKeys)
     for (const ref of scopes) {
       const dir = refDir(repositoryId, ref);
-      const listed = await env.ACTIONS_CACHE.list({
-        prefix: dir + keySegment(prefix),
-        limit: 1000,
-      });
-      const newest = listed.objects.sort(
-        (a, b) => b.uploaded.getTime() - a.uploaded.getTime()
-      )[0];
+      // R2 lists by key, not by age: every page counts, or a newer entry past the first one is never restored.
+      let newest: R2Object | undefined;
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const listed = await env.ACTIONS_CACHE.list({
+          prefix: dir + keySegment(prefix),
+          limit: opts.pageSize ?? LIST_PAGE,
+          cursor,
+        });
+        for (const o of listed.objects)
+          if (!newest || o.uploaded.getTime() > newest.uploaded.getTime())
+            newest = o;
+        cursor = listed.truncated ? listed.cursor : undefined;
+      } while (cursor && ++pages < MAX_LIST_PAGES);
       if (newest)
         return {
           objectKey: newest.key,
