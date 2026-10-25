@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { settleStates } from './pulls/settle';
+import { settleAfterChange } from './pulls/settle';
 import { swaggerUI } from '@hono/swagger-ui';
 import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
@@ -124,9 +124,13 @@ const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
         approvals: c.req.path.includes('/pulls'),
       })
     );
-    // The change may move a pull request to another state: record it for the timeline.
+    // The change may move a pull request to another state: record it for the timeline (coalesced per repository).
     c.executionCtx.waitUntil(
-      settleStates(c.env, (c as unknown as Context<RepoEnv>).get('db'), repo.id)
+      settleAfterChange(
+        c.env,
+        (c as unknown as Context<RepoEnv>).get('db'),
+        repo.id
+      )
     );
   }
 };

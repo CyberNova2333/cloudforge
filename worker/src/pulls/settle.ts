@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -54,6 +55,37 @@ export async function settleStates(
   } catch (e) {
     console.error('[states] settle failed', repositoryId, e);
     return 0;
+  }
+}
+
+/** Repositories whose states this isolate is settling, and whether a later change asked for another pass. */
+const settling = new Map<string, { again: boolean }>();
+
+/**
+ * settleStates after a request's change, coalesced per repository in this isolate: while one runs, later changes
+ * only ask it for one more pass when it ends, so a burst of writes settles at most twice instead of once each. A
+ * request that only asks returns at once: it never awaits another request's work. Never throws.
+ */
+export async function settleAfterChange(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  repositoryId: string,
+  settle: typeof settleStates = settleStates
+): Promise<void> {
+  const running = settling.get(repositoryId);
+  if (running) {
+    running.again = true;
+    return;
+  }
+  const entry = { again: false };
+  settling.set(repositoryId, entry);
+  try {
+    do {
+      entry.again = false;
+      await settle(env, db, repositoryId);
+    } while (entry.again);
+  } finally {
+    settling.delete(repositoryId);
   }
 }
 
