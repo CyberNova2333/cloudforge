@@ -305,7 +305,9 @@ pullsRouter.openapi(listRoute, async (c) => {
   let listed = db
     .select({
       pr: pullRequests,
-      comments: sql<number>`(SELECT COUNT(*) FROM pull_request_comments WHERE pull_request_id = ${pullRequests.id})`,
+      // Spelled out: a single-table select drops the table name from columns in its fields, so `${pullRequests.id}`
+      // would read the comment's own id and count nothing.
+      comments: sql<number>`(SELECT COUNT(*) FROM pull_request_comments c WHERE c.pull_request_id = pull_requests.id)`,
     })
     .from(pullRequests)
     .where(inList)

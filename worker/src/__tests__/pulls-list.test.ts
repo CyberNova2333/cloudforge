@@ -129,6 +129,30 @@ describe('拉取请求列表：分页', () => {
   });
 });
 
+describe('拉取请求列表：评论数', () => {
+  it('按每个拉取请求统计评论数', async () => {
+    const s = await crewRepo();
+    await s.branch('talk');
+    const talk = await s.web('talk');
+    await s.branch('quiet');
+    await s.web('quiet');
+    for (const body of ['one', 'two'])
+      await call(s.t, `/api/repos/octocat/app/pulls/${talk}/comments`, {
+        cookie: s.admin,
+        json: { body },
+      });
+    const res = await call(s.t, '/api/repos/octocat/app/pulls', {
+      cookie: s.admin,
+    });
+    const { pulls } = (await res.json()) as {
+      pulls: { number: number; commentCount: number }[];
+    };
+    expect(
+      Object.fromEntries(pulls.map((p) => [p.number, p.commentCount]))
+    ).toEqual({ [talk]: 2, [talk + 1]: 0 });
+  });
+});
+
 describe('拉取请求列表：搜索', () => {
   /** manyPulls, with merged 2 and 6 opened by Claude Code's session s4 and merged 4 by Codex's s5. */
   async function sessions() {
