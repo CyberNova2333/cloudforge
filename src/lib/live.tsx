@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   createContext,
   useContext,
@@ -62,6 +63,8 @@ export function LiveUpdates({ children }: { children: ReactNode }) {
         }
         if (pending.has('approvals'))
           void qc.invalidateQueries({ queryKey: ['approvals'] });
+        if (pending.has('notifications'))
+          void qc.invalidateQueries({ queryKey: ['notifications'] });
         pending.clear();
       }, 150);
     };
@@ -76,6 +79,7 @@ export function LiveUpdates({ children }: { children: ReactNode }) {
         if (connectedBefore) {
           schedule('repo');
           schedule('approvals');
+          schedule('notifications');
         }
         connectedBefore = true;
         heard = Date.now();

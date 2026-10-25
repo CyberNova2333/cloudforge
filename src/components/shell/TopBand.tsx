@@ -10,6 +10,7 @@ import {
   ThreeBarsIcon,
 } from '@primer/octicons-react';
 import type { PageHeadInfo } from '@/components/ui/PageHead';
+import { NotificationsTool } from '@/components/notifications/NotificationParts';
 import { useApprovalCount } from '@/lib/approvals';
 import { useCurrentUser } from '@/lib/auth';
 import type { RecentRepo } from '@/lib/recentRepos';
@@ -158,6 +159,7 @@ export function TopBand({
             <div className="ph-tools">
               {admin && <SetupErrors />}
               <CreateMenu open={menu === 'create'} setMenu={setMenu} />
+              <NotificationsTool />
               <ApprovalsTool />
               <AccountMenu open={menu === 'acct'} setMenu={setMenu} />
             </div>

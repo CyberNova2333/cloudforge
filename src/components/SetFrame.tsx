@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  BellIcon,
   ChecklistIcon,
   CreditCardIcon,
   GlobeIcon,
@@ -49,6 +50,12 @@ const SETTINGS: NavItem<SettingsSection>[] = [
     label: t('Emails'),
     icon: <MailIcon />,
     to: '/settings/emails',
+  },
+  {
+    id: 'notifications',
+    label: t('Notifications'),
+    icon: <BellIcon />,
+    to: '/settings/notifications',
   },
   {
     id: 'language',

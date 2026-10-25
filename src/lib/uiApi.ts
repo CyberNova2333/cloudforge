@@ -440,7 +440,44 @@ export type EarlierReview = {
   flags: ReviewFlag[];
 };
 /** One instance setting in Site admin (GET /api/admin/settings). */
-export type Preferences = { language: 'zh' | 'en' | null };
+export type NotificationEmail = 'participating' | 'all' | 'off';
+export type Preferences = {
+  language: 'zh' | 'en' | null;
+  /** Which notifications also arrive by email. */
+  notificationEmail: NotificationEmail;
+};
+export type NotificationReason =
+  'mention' | 'assign' | 'author' | 'participating' | 'watching';
+export type NotificationEvent =
+  'opened' | 'commented' | 'closed' | 'reopened' | 'merged' | 'assigned';
+/** One thread in the inbox (GET /api/notifications). */
+export type NotificationItem = {
+  id: string;
+  unread: boolean;
+  reason: NotificationReason;
+  event: NotificationEvent;
+  /** Null: CloudForge itself (auto-merge). */
+  actor: User | null;
+  excerpt: string | null;
+  repository: string;
+  subject: {
+    kind: 'issue' | 'pull';
+    number: number;
+    title: string;
+    state: 'open' | 'closed' | 'merged';
+    stateReason: IssueStateReason | null;
+  };
+  /** The page it is about, e.g. `/octocat/app/issues/12`. */
+  url: string;
+  updatedAt: string;
+};
+export type NotificationList = {
+  notifications: NotificationItem[];
+  unread: number;
+  total: number;
+};
+export type WatchLevel = 'participating' | 'watching' | 'ignoring';
+export type Subscription = { subscribed: boolean; reason: string | null };
 export type InstanceSetting = {
   key: string;
   label: string;
@@ -1736,6 +1773,63 @@ export const api = {
     ),
   issue: (o: string, n: string, num: number) =>
     apiFetch<IssueDetail>(`${r(o, n)}/issues/${num}`),
+  notifications: (opts: {
+    filter: 'unread' | 'all';
+    reason?: NotificationReason;
+    repo?: string;
+    page?: number;
+    limit?: number;
+  }) =>
+    apiFetch<NotificationList>(
+      `/api/notifications${qs({
+        filter: opts.filter,
+        ...(opts.reason ? { reason: opts.reason } : {}),
+        ...(opts.repo ? { repo: opts.repo } : {}),
+        ...(opts.page && opts.page > 1 ? { page: opts.page } : {}),
+        ...(opts.limit ? { limit: opts.limit } : {}),
+      })}`
+    ),
+  notificationCount: () =>
+    apiFetch<{ unread: number }>('/api/notifications/count'),
+  markNotificationsRead: (body: {
+    ids?: string[];
+    all?: boolean;
+    repo?: string;
+  }) =>
+    apiFetch<{ updated: number }>('/api/notifications/read', {
+      method: 'POST',
+      json: body,
+    }),
+  setNotificationUnread: (id: string, unread: boolean) =>
+    apiFetch(`/api/notifications/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      json: { unread },
+    }),
+  /** Done: off the inbox until the next event on its thread. */
+  doneNotification: (id: string) =>
+    apiFetch(`/api/notifications/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  watch: (o: string, n: string) =>
+    apiFetch<{ level: WatchLevel; watchers: number }>(`${r(o, n)}/watch`),
+  setWatch: (o: string, n: string, level: WatchLevel) =>
+    apiFetch<{ level: WatchLevel; watchers: number }>(`${r(o, n)}/watch`, {
+      method: 'PUT',
+      json: { level },
+    }),
+  subscription: (o: string, n: string, kind: 'issues' | 'pulls', num: number) =>
+    apiFetch<Subscription>(`${r(o, n)}/${kind}/${num}/subscription`),
+  setSubscription: (
+    o: string,
+    n: string,
+    kind: 'issues' | 'pulls',
+    num: number,
+    subscribed: boolean
+  ) =>
+    apiFetch<Subscription>(`${r(o, n)}/${kind}/${num}/subscription`, {
+      method: 'PUT',
+      json: { subscribed },
+    }),
   createIssue: (
     o: string,
     n: string,
@@ -1922,7 +2016,8 @@ export const api = {
   delegations: () => apiFetch<Delegations>('/api/me/delegations'),
   /** Your preferences, kept with your account: `language` null follows the instance default. */
   preferences: () => apiFetch<Preferences>('/api/me/preferences'),
-  savePreferences: (body: Preferences) =>
+  /** Changes only what the body names. */
+  savePreferences: (body: Partial<Preferences>) =>
     apiFetch<Preferences>('/api/me/preferences', { method: 'PUT', json: body }),
   /** Replaces the set of agents CloudForge AI decides for you (handles); 400 for an unknown agent, 422 for a guarded one. */
   setDelegations: (agents: string[]) =>
@@ -2127,6 +2222,13 @@ export const qk = {
   issue: (o: string, n: string, num: number) =>
     ['repo', o, n, 'issue', num] as const,
   labels: (o: string, n: string) => ['repo', o, n, 'labels'] as const,
+  watch: (o: string, n: string) => ['repo', o, n, 'watch'] as const,
+  subscription: (o: string, n: string, kind: string, num: number) =>
+    ['repo', o, n, 'subscription', kind, num] as const,
+  /** Under `['notifications']`: the live "notifications" ping refreshes the inbox and the bell together. */
+  notifications: (params: Record<string, string | number>) =>
+    ['notifications', 'list', params] as const,
+  notificationCount: ['notifications', 'count'] as const,
   pull: (o: string, n: string, num: number) =>
     ['repo', o, n, 'pull', num] as const,
   pullCommits: (o: string, n: string, num: number) =>

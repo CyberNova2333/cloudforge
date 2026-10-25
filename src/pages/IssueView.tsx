@@ -42,6 +42,7 @@ import { QueryError } from '@/components/actions/states';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { PrStateIcon } from '@/pages/PrIcons';
 import { IssueStatePill, LabelChip } from '@/components/issue/IssueParts';
+import { SubscribeButton } from '@/components/notifications/NotificationParts';
 import { NOT_FOUND_HEAD, NotFound } from './NotFound';
 
 const when = (at: string) => (
@@ -312,6 +313,10 @@ function Side({
   return (
     <aside className="issue-side">
       {error && <PanelError error={error} />}
+      <section className="issue-side-box" aria-labelledby="issue-notify">
+        <h3 id="issue-notify">{t('Notifications')}</h3>
+        <SubscribeButton repo={repo} kind="issues" number={issue.number} />
+      </section>
       <section className="issue-side-box" aria-labelledby="issue-assignees">
         <h3 id="issue-assignees">{t('Assignees')}</h3>
         {issue.assignees.length ? (

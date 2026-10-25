@@ -208,6 +208,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   the repository (`readersAmong`, permissionsFor's rule). One `INSERT … SELECT FROM json_each` upserts every recipient's row
   (one per person and thread). Email: `email_pending_at` is cleared before sending (never twice), after the response and in
   daily retention (≤ 24 h late); personal setting `notificationEmail` (`lib/user-settings.ts`). Live: `user:<id>` channel.
+  SPA: the bell (`components/notifications/NotificationParts.tsx`, also the subscribe button and the repository's watch
+  choice), `pages/Notifications.tsx` (`lib/notificationsView.ts`), `pages/SettingsNotifications.tsx`.
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
   person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target
