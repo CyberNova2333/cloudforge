@@ -36,6 +36,10 @@ export interface SlotRequest {
   maxMinutes: number;
   /** `actions.max_concurrent_jobs` when the job asked; the newest value wins. */
   limit: number;
+  /** The job's repository, for the per-repository limit. */
+  repositoryId?: string;
+  /** `actions.max_concurrent_jobs_per_repo` when the job asked (null: none); the newest value wins. */
+  repoLimit?: number | null;
 }
 
 export interface SlotStatus {
@@ -163,6 +167,13 @@ export class ActionsQueue
     this.sql.exec(
       'CREATE INDEX IF NOT EXISTS entries_run_idx ON entries (run_id)'
     );
+    // Added with the per-repository limit; entries from before have none and count for no repository.
+    const columns = this.sql
+      .exec<{ name: string }>('PRAGMA table_info(entries)')
+      .toArray()
+      .map((c) => c.name);
+    if (!columns.includes('repo_id'))
+      this.sql.exec('ALTER TABLE entries ADD COLUMN repo_id TEXT');
     this.sql.exec(
       'CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)'
     );
@@ -173,6 +184,16 @@ export class ActionsQueue
       .exec<{ value: number }>("SELECT value FROM meta WHERE key = 'limit'")
       .toArray()[0];
     return row?.value ?? 10;
+  }
+
+  /** Slots one repository's jobs may hold at once; 0 when only the instance's limit applies. */
+  private repoLimit(): number {
+    const row = this.sql
+      .exec<{
+        value: number;
+      }>("SELECT value FROM meta WHERE key = 'repo_limit'")
+      .toArray()[0];
+    return row?.value ?? 0;
   }
 
   private statusOf(jobId: string): SlotStatus | null {
@@ -204,15 +225,49 @@ export class ActionsQueue
       .one();
     const free = this.limit() - n;
     if (free <= 0) return [];
-    const next = this.sql
-      .exec<{
-        job_id: string;
-        run_id: string;
-      }>(
-        'SELECT job_id, run_id FROM entries WHERE granted_at IS NULL ORDER BY seq LIMIT ?',
-        free
-      )
-      .toArray();
+    const perRepo = this.repoLimit();
+    let next: { job_id: string; run_id: string }[];
+    if (!perRepo)
+      next = this.sql
+        .exec<{
+          job_id: string;
+          run_id: string;
+        }>(
+          'SELECT job_id, run_id FROM entries WHERE granted_at IS NULL ORDER BY seq LIMIT ?',
+          free
+        )
+        .toArray();
+    else {
+      // The longest-waiting jobs whose repository holds fewer than its share: one busy repository can't take every
+      // slot while others wait.
+      const held = new Map(
+        this.sql
+          .exec<{
+            repo_id: string | null;
+            n: number;
+          }>(
+            'SELECT repo_id, COUNT(*) AS n FROM entries WHERE granted_at IS NOT NULL GROUP BY repo_id'
+          )
+          .toArray()
+          .map((r) => [r.repo_id, r.n])
+      );
+      next = [];
+      for (const e of this.sql
+        .exec<{
+          job_id: string;
+          run_id: string;
+          repo_id: string | null;
+        }>(
+          'SELECT job_id, run_id, repo_id FROM entries WHERE granted_at IS NULL ORDER BY seq'
+        )
+        .toArray()) {
+        if (next.length >= free) break;
+        const holds = held.get(e.repo_id) ?? 0;
+        if (e.repo_id !== null && holds >= perRepo) continue;
+        held.set(e.repo_id, holds + 1);
+        next.push(e);
+      }
+    }
     for (const e of next)
       this.sql.exec(
         'UPDATE entries SET granted_at = ? WHERE job_id = ?',
@@ -237,14 +292,20 @@ export class ActionsQueue
       "INSERT INTO meta (key, value) VALUES ('limit', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
       Math.max(1, Math.floor(req.limit))
     );
+    if (req.repoLimit !== undefined)
+      this.sql.exec(
+        "INSERT INTO meta (key, value) VALUES ('repo_limit', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        req.repoLimit === null ? 0 : Math.max(1, Math.floor(req.repoLimit))
+      );
     // Asking again (a replayed Workflow step) keeps the job's place.
     if (!this.statusOf(req.jobId))
       this.sql.exec(
-        'INSERT INTO entries (job_id, run_id, max_ms, queued_at) VALUES (?, ?, ?, ?)',
+        'INSERT INTO entries (job_id, run_id, max_ms, queued_at, repo_id) VALUES (?, ?, ?, ?, ?)',
         req.jobId,
         req.runId,
         Math.round(req.maxMinutes * 60_000),
-        Date.now()
+        Date.now(),
+        req.repositoryId ?? null
       );
     // A raised limit can start others too; they hear about it by event.
     const others = this.pump().filter((g) => g.jobId !== req.jobId);

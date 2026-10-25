@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { settleStates } from '../pulls/settle';
-import { and, eq, exists, inArray, isNull, ne } from 'drizzle-orm';
+import { and, eq, exists, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import { autoMergeForCommit } from '../review/auto-merge';
 import {
@@ -73,7 +73,7 @@ import {
   type ActionRef,
 } from './remote';
 import { runnerStarted, runnersStopped } from '../usage/record';
-import { getSetting } from '../lib/settings';
+import { getSetting, getSettings } from '../lib/settings';
 import {
   actionsQueue,
   markStarted,
@@ -527,8 +527,9 @@ async function skipJob(deps: ExecutorDeps, jobId: string, name: string) {
  * Waits durably for one of the instance's job slots (ActionsQueue) before a container starts.
  * The grant arrives as a Workflow event; a lost or early event is caught by the next recheck
  * (5, 10, 20, then every 30 minutes), when the queue is asked again. Returns false when the run
- * was cancelled while waiting. Fails open: if the queue can't be reached after its retries, the
- * job runs without a slot (giving it back later is a no-op).
+ * was cancelled while waiting. If the queue can't be reached after its retries, the job runs
+ * without a slot once D1 counts fewer running jobs than the limit (startWithoutQueue; giving the
+ * slot back later is a no-op).
  */
 async function waitForSlot(
   deps: ExecutorDeps,
@@ -550,12 +551,17 @@ async function waitForSlot(
       .get();
     if (!run || run.status === 'completed')
       return { cancelled: true, granted: false, ahead: 0 };
-    const limit = await getSetting(db, env, 'actions.max_concurrent_jobs');
+    const limits = await getSettings(db, env, [
+      'actions.max_concurrent_jobs',
+      'actions.max_concurrent_jobs_per_repo',
+    ]);
     const s = await actionsQueue(env).acquire({
       jobId: job.id,
       runId: ctx.runId,
       maxMinutes,
-      limit,
+      limit: limits['actions.max_concurrent_jobs'],
+      repositoryId: ctx.repoId,
+      repoLimit: limits['actions.max_concurrent_jobs_per_repo'],
     });
     return { cancelled: false, granted: s.granted, ahead: s.ahead };
   };
@@ -579,11 +585,61 @@ async function waitForSlot(
     return !state.cancelled;
   } catch (e) {
     console.warn(
-      '[actions] job queue unavailable; running without a slot',
+      '[actions] job queue unavailable; starting within the limit as D1 counts it',
       job.id,
       e
     );
-    return true;
+    return startWithoutQueue(deps, ctx, job, prefix);
+  }
+}
+
+/** Minutes between a queue-less job's checks: 5, 10, 20, then every 30. */
+const QUEUE_DOWN_RECHECK_MINUTES = [5, 10, 20, 30];
+
+/**
+ * The queue can't be reached: the job still runs, so CI keeps working, but only while fewer jobs run than
+ * `actions.max_concurrent_jobs` as D1 counts them (approximate: two jobs may count at once), so an outage of the queue
+ * never starts every waiting container together. Returns false when the run was cancelled meanwhile.
+ */
+async function startWithoutQueue(
+  deps: ExecutorDeps,
+  ctx: RunContext,
+  job: RunContext['jobs'][number],
+  prefix: string
+): Promise<boolean> {
+  const { db, env, step } = deps;
+  for (let i = 1; ; i++) {
+    const state = await step.do(`${prefix}:queue-down:${i}`, async () => {
+      const run = await db
+        .select({ status: workflowRuns.status })
+        .from(workflowRuns)
+        .where(eq(workflowRuns.id, ctx.runId))
+        .get();
+      if (!run || run.status === 'completed')
+        return { cancelled: true, start: false };
+      const limit = await getSetting(db, env, 'actions.max_concurrent_jobs');
+      const running = await db
+        .select({ n: sql<number>`count(*)` })
+        .from(workflowJobs)
+        .where(eq(workflowJobs.status, 'in_progress'))
+        .get();
+      return { cancelled: false, start: Number(running?.n ?? 0) < limit };
+    });
+    if (state.cancelled) return false;
+    if (state.start) return true;
+    const minutes =
+      QUEUE_DOWN_RECHECK_MINUTES[
+        Math.min(i, QUEUE_DOWN_RECHECK_MINUTES.length) - 1
+      ];
+    try {
+      // A durable wait: nothing sends this event.
+      await step.waitForEvent(`${prefix}:queue-down:wait:${i}`, {
+        type: `queue-down-${job.id}`,
+        timeout: `${minutes} minutes`,
+      });
+    } catch {
+      // Timed out: count again.
+    }
   }
 }
 

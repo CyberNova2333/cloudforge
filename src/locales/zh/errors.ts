@@ -335,6 +335,9 @@ export const errors: Record<string, string> = {
     '已结束的工作流运行（含其作业、步骤和日志）在结束这么多天后删除；Agent 运行从开始算起这么多天后删除。留空则永久保留。',
   'Jobs running at once': '同时运行的作业数',
   'Largest runner': '最大运行器规格',
+  'Jobs running at once per repository': '每个仓库同时运行的作业数',
+  "The most Actions jobs of one repository that run at the same time, within the instance's limit, so one busy repository can't hold every slot while others wait. Empty: only the instance's limit applies.":
+    '同一个仓库同时运行的 Actions 作业上限（不超过整个实例的上限），避免一个繁忙的仓库占满所有空位、其他仓库只能等待。留空则只按实例的上限。',
   'The largest container a job may ask for with runs-on (cloudforge-standard-N). A workflow whose job asks for a larger one is invalid and does not run; ubuntu-latest is standard-2.':
     '作业通过 runs-on（cloudforge-standard-N）可以要求的最大容器规格。要求更大规格的工作流视为无效，不会运行；ubuntu-latest 对应 standard-2。',
   'The most Actions jobs that run at the same time across the instance, each in its own container. Jobs past the limit wait in a queue, first come first served, and the run page shows how many are ahead.':

@@ -232,6 +232,14 @@ export const SETTINGS = {
     schema: z.number().int().min(1).max(500),
     default: () => 10,
   } satisfies Definition<number>,
+  'actions.max_concurrent_jobs_per_repo': {
+    label: 'Jobs running at once per repository',
+    description:
+      "The most Actions jobs of one repository that run at the same time, within the instance's limit, so one busy repository can't hold every slot while others wait. Empty: only the instance's limit applies.",
+    group: 'Actions',
+    schema: z.number().int().min(1).max(500).nullable(),
+    default: () => null,
+  } satisfies Definition<number | null>,
   'actions.max_runner_size': {
     label: 'Largest runner',
     description:

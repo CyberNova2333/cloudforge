@@ -49,6 +49,24 @@ describe('ActionsQueue 作业队列', () => {
     ).toEqual(Array.from({ length: 22 }, (_, i) => i));
   });
 
+  it('设置了每仓库上限时，一个仓库占满份额后先分配给其他仓库', async () => {
+    const q = fresh();
+    const repo = (jobId: string, repositoryId: string) =>
+      ask(jobId, 3, { repositoryId, repoLimit: 1 });
+    expect((await q.acquire(repo('a1', 'A'))).granted).toBe(true);
+    expect((await q.acquire(repo('a2', 'A'))).granted).toBe(false);
+    // Arrived after a2, but its repository holds nothing yet.
+    expect((await q.acquire(repo('b1', 'B'))).granted).toBe(true);
+    expect(await q.positions(['a2'])).toEqual({ a2: 0 });
+    const grants = await q.release('a1');
+    expect(grants.map((g) => g.jobId)).toEqual(['a2']);
+    // Cleared (null): only the instance's limit applies again.
+    expect(
+      (await q.acquire(ask('a3', 3, { repositoryId: 'A', repoLimit: null })))
+        .granted
+    ).toBe(true);
+  });
+
   it('空位释放后按到达顺序分配', async () => {
     const q = fresh();
     expect(await q.acquire(ask('a', 1))).toEqual({ granted: true, ahead: 0 });
@@ -591,6 +609,63 @@ describe('作业队列故障与重启', () => {
     } as unknown as typeof s.t;
     const h = harness(t);
     expect(await h.run(queued.id)).toBe('success');
+    expect(h.boots).toHaveLength(1);
+  });
+
+  it('无法连接队列时，只在运行中的作业少于上限时启动', async () => {
+    const s = await setup();
+    await s.t.env.DB.prepare(
+      "INSERT INTO instance_settings (key, value, updated_at) VALUES ('actions.max_concurrent_jobs', '1', 0)"
+    ).run();
+    await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
+    const [queued] = (await runs(s.t, s.admin)).runs;
+    // Another job of another run already holds the instance's one slot, as D1 counts it.
+    await pushFiles(
+      s,
+      'main',
+      { '.github/workflows/ci.yml': CI, 'b.txt': 'b\n' },
+      'Another run'
+    );
+    const busy = (await s.t.env.DB.prepare(
+      'SELECT j.id FROM workflow_jobs j JOIN workflow_runs r ON r.id = j.run_id WHERE r.id != ? LIMIT 1'
+    )
+      .bind(queued.id)
+      .first<{ id: string }>())!;
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_jobs SET status = 'in_progress' WHERE id = ?"
+    )
+      .bind(busy.id)
+      .run();
+    const broken = () => {
+      throw new Error('queue unavailable');
+    };
+    const t = {
+      ...s.t,
+      env: {
+        ...s.t.env,
+        ACTIONS_QUEUE: {
+          getByName: () => ({
+            acquire: broken,
+            started: broken,
+            release: broken,
+            cancelRun: broken,
+            positions: broken,
+          }),
+        },
+      },
+    } as unknown as typeof s.t;
+    const h = harness(t, undefined, { loseEvents: true });
+    const done = h.run(queued.id);
+    // It waits, counting again after each wait, until the other job finishes.
+    while (!h.stepNames.some((n) => n.endsWith(':queue-down:wait:2')))
+      await new Promise((r) => setTimeout(r, 5));
+    expect(h.boots).toHaveLength(0);
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_jobs SET status = 'completed' WHERE id = ?"
+    )
+      .bind(busy.id)
+      .run();
+    expect(await done).toBe('success');
     expect(h.boots).toHaveLength(1);
   });
 

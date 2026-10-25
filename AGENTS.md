@@ -70,7 +70,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   (`ACTIONS_LOGS`). Tests drive `executeRun` with a fake step and runner; `makeEnv({ actions: true })` adds fake
   `ACTIONS_RUN`/`JOB_RUNNER` bindings and a fresh real `ACTIONS_QUEUE`. A job waits for a slot from the one
   `ActionsQueue` DO (`actions/queue.ts`, setting `actions.max_concurrent_jobs`) before its container starts
-  (`step.waitForEvent`, rechecking after 5/10/20/30 minutes; fails open if the queue is unreachable); it gives the slot
+  (`step.waitForEvent`, rechecking after 5/10/20/30 minutes; optional per-repository cap `actions.max_concurrent_jobs_per_repo`; if the queue is unreachable a job starts once D1 counts fewer running jobs than the limit); it gives the slot
   back on complete, restart, and cancel. The cache (`actions/cache.ts`): zstd tarballs in R2 `ACTIONS_CACHE`, moved by
   the runner via pre-signed URLs (never through the Worker), scoped per ref (read own ref then default branch, write own
   ref), saved by "Post" steps. `setup-node` uses the image's Node.js and its `cache:` caches `node_modules` keyed by

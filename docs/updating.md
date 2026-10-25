@@ -72,6 +72,9 @@ The security update adds migrations `0040` through `0043` and changes behaviour;
   → Actions → Largest runner (default `standard-4`, as before) caps the size `runs-on` may ask for.
 - **Personal access tokens can be read-only** (Settings → Personal access tokens → Access); existing tokens keep read
   and write. A member holds at most 50 unexpired tokens.
+- **Site admin → Settings → Jobs running at once per repository** (empty by default: only the instance's limit) keeps
+  one repository from holding every Actions slot. While the job queue can't be reached, jobs start only while fewer
+  are running than the instance's limit, instead of all at once.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 
