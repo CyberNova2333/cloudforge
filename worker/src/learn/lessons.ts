@@ -28,6 +28,7 @@ import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { landTargetOf } from '../lib/land-target';
 import { findRepoById, readableByMembers } from '../lib/repos';
+import { getSetting } from '../lib/settings';
 import type { MergeResolutionParams } from '../merge/workflow';
 import { flagTitleOf } from '../review/gate';
 import { chunks } from '../stack/view';
@@ -91,6 +92,7 @@ export async function queueLessons(
   strict = false
 ): Promise<string[]> {
   try {
+    if (!(await getSetting(db, env, 'review.learning'))) return [];
     const queued: string[] = [];
     const now = new Date();
     for (const [agentId, findingIds] of await lessonFindingsByAgent(
@@ -159,6 +161,8 @@ export async function startNextLesson(
   db: DrizzleDB,
   agentId: string
 ): Promise<string | null> {
+  // Turned off: queued lessons wait (and start once it is on again).
+  if (!(await getSetting(db, env, 'review.learning'))) return null;
   const busy = await db
     .select({ id: agentLessons.id })
     .from(agentLessons)

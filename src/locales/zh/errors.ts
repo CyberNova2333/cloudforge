@@ -336,6 +336,9 @@ export const errors: Record<string, string> = {
   'Jobs running at once': '同时运行的作业数',
   'Largest runner': '最大运行器规格',
   'Jobs running at once per repository': '每个仓库同时运行的作业数',
+  'Agents learn from dismissed findings': '智能体从被驳回的意见中学习',
+  'When a pull request closes, each reviewer agent whose change requests people dismissed (or whose findings they decided with a teach note) edits its own AGENT.md and knowledge/ from them, committed to its repository and used by its next reviews. Off: agents change only when someone edits their repository; lessons already queued wait.':
+    'PR 关闭时，修改请求被人工驳回（或意见附带教学备注）的审查智能体会据此修改自己的 AGENT.md 和 knowledge/，提交到其仓库并用于之后的审查。关闭时，智能体只在有人编辑其仓库时变化；已排队的学习任务会等待。',
   "The most Actions jobs of one repository that run at the same time, within the instance's limit, so one busy repository can't hold every slot while others wait. Empty: only the instance's limit applies.":
     '同一个仓库同时运行的 Actions 作业上限（不超过整个实例的上限），避免一个繁忙的仓库占满所有空位、其他仓库只能等待。留空则只按实例的上限。',
   'The largest container a job may ask for with runs-on (cloudforge-standard-N). A workflow whose job asks for a larger one is invalid and does not run; ubuntu-latest is standard-2.':

@@ -185,6 +185,14 @@ export const SETTINGS = {
     schema: whole(100_000, 50_000_000),
     default: () => 4_000_000,
   } satisfies Definition<number>,
+  'review.learning': {
+    label: 'Agents learn from dismissed findings',
+    description:
+      'When a pull request closes, each reviewer agent whose change requests people dismissed (or whose findings they decided with a teach note) edits its own AGENT.md and knowledge/ from them, committed to its repository and used by its next reviews. Off: agents change only when someone edits their repository; lessons already queued wait.',
+    group: 'Reviews',
+    schema: z.boolean(),
+    default: () => true,
+  } satisfies Definition<boolean>,
   'review.learn_minutes': {
     label: 'Learning time limit (minutes)',
     description: `How long one lesson (an agent learning from change requests people dismissed) may run before it fails; the daily sweep tries a failed lesson once more. From 2 to ${LEARN_MAX_MINUTES} minutes.`,
