@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ArtifactsRepoClient } from '../git/remote';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import { findRepoById } from '../lib/repos';
@@ -640,6 +641,12 @@ describe('仓库主要语言', () => {
     await commitPaths(s.repo, 'main', { 'data.json': '{}', LICENSE: 'x' }, 'x');
     expect((await s.board()).get('octocat/app')!.stats!.language).toBeNull();
     s.repo.refs.clear();
+    // As the push that empties it would (the board reuses what it read until the repository changes).
+    await s.t.env.DB.prepare(
+      'UPDATE repositories SET updated_at = updated_at + 1 WHERE id = ?'
+    )
+      .bind(s.repoId)
+      .run();
     const stats = (await s.board()).get('octocat/app')!.stats!;
     expect(stats.language).toBeNull();
     expect(stats.branchCount).toBe(0);
@@ -680,6 +687,12 @@ describe('仓库主要语言', () => {
       { 'a.py': 'a', 'b.py': 'b', 'c.py': 'c' },
       'python'
     );
+    // As the push would: it bumps updated_at, so the board reads the refs again.
+    await s.t.env.DB.prepare(
+      'UPDATE repositories SET updated_at = updated_at + 1 WHERE id = ?'
+    )
+      .bind(s.repoId)
+      .run();
     expect((await s.board()).get('octocat/app')!.stats!.language).toBe(
       'Python'
     );
@@ -701,5 +714,37 @@ describe('仓库主要语言', () => {
         language_sha: string;
       }>())!.language_sha
     ).toBe('old');
+  });
+});
+
+describe('仓库看板的引用读取', () => {
+  it('没有打开的 PR 时，分支数和语言在 isolate 内复用，推送后重新读取', async () => {
+    const { t, board, repoId, open } = await boardRepo();
+    const listRefs = vi.spyOn(ArtifactsRepoClient.prototype, 'listRefs');
+    try {
+      const first = (await board()).get('octocat/app')!.stats!;
+      const reads = listRefs.mock.calls.length;
+      expect(reads).toBeGreaterThan(0);
+      expect((await board()).get('octocat/app')!.stats!).toMatchObject({
+        branchCount: first.branchCount,
+        language: first.language,
+      });
+      expect(listRefs.mock.calls.length).toBe(reads);
+      // A push bumps updated_at: the next board reads the refs again.
+      await t.env.DB.prepare(
+        'UPDATE repositories SET updated_at = updated_at + 1 WHERE id = ?'
+      )
+        .bind(repoId)
+        .run();
+      await board();
+      expect(listRefs.mock.calls.length).toBeGreaterThan(reads);
+      // With an open pull request, its states are computed from fresh refs every time.
+      await open('feature');
+      const before = listRefs.mock.calls.length;
+      await board();
+      expect(listRefs.mock.calls.length).toBeGreaterThan(before);
+    } finally {
+      listRefs.mockRestore();
+    }
   });
 });

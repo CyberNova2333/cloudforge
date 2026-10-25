@@ -300,12 +300,16 @@ export async function repoStats(
   const oneRepo = async (repo: Repository): Promise<RepoStats> => {
     const prs = openBy.get(repo.id) ?? [];
     const git = gitFor(env, repo);
+    // Without open pull requests the refs only give the branch count and language: this isolate's copy will do.
+    const known = prs.length ? undefined : refFactsOf(repo, now);
     let refs: Map<string, string> | null = null;
-    try {
-      refs = await git.refs();
-    } catch (e) {
-      console.warn('[repo-stats] could not read refs', repo.id, e);
-    }
+    if (!known)
+      try {
+        refs = await git.refs();
+      } catch (e) {
+        console.warn('[repo-stats] could not read refs', repo.id, e);
+      }
+    const facts = known ?? (refs ? rememberRefFacts(repo, refs, now) : null);
 
     // The states last recorded, for when they can't be computed. If even that fails, this repository's counts stay empty
     // rather than failing the whole board.
@@ -369,10 +373,10 @@ export async function repoStats(
             .status,
         };
       }),
-      branchCount: refs
-        ? [...refs.keys()].filter((r) => r.startsWith('refs/heads/')).length
-        : null,
-      language: refs ? await languageOf(db, git, repo, refs) : repo.language,
+      branchCount: facts ? facts.branchCount : null,
+      language: facts
+        ? await languageOf(db, git, repo, facts.tip)
+        : repo.language,
       updatedAt: repo.updatedAt.getTime(),
     };
   };
@@ -380,6 +384,51 @@ export async function repoStats(
   const all = await pool(repos, CONCURRENT_REPOSITORIES, oneRepo);
   repos.forEach((r, i) => stats.set(r.id, all[i]));
   return stats;
+}
+
+/** What the board needs of a repository's refs: its branch count and its default branch's tip (null: unreadable). */
+type RefFacts = { branchCount: number | null; tip: string | null };
+
+/**
+ * RefFacts as this isolate last read them, per repository: valid while the repository's `updated_at` (bumped by every
+ * push) is unchanged, for at most REF_FACTS_MS (CloudForge's own landings move refs without it).
+ */
+const refFacts = new Map<
+  string,
+  { facts: RefFacts; updatedAt: number; readAt: number }
+>();
+export const REF_FACTS_MS = 2 * 60_000;
+const MAX_REF_FACTS = 2000;
+
+function refFactsOf(repo: Repository, now: Date): RefFacts | undefined {
+  const hit = refFacts.get(repo.id);
+  if (
+    hit &&
+    hit.updatedAt === repo.updatedAt.getTime() &&
+    now.getTime() - hit.readAt < REF_FACTS_MS
+  )
+    return hit.facts;
+  return undefined;
+}
+
+function rememberRefFacts(
+  repo: Repository,
+  refs: Map<string, string>,
+  now: Date
+): RefFacts {
+  const facts: RefFacts = {
+    branchCount: [...refs.keys()].filter((r) => r.startsWith('refs/heads/'))
+      .length,
+    tip: refs.get(`refs/heads/${repo.defaultBranch}`) ?? null,
+  };
+  if (refFacts.size >= MAX_REF_FACTS)
+    refFacts.delete(refFacts.keys().next().value!);
+  refFacts.set(repo.id, {
+    facts,
+    updatedAt: repo.updatedAt.getTime(),
+    readAt: now.getTime(),
+  });
+  return facts;
 }
 
 /**
@@ -390,9 +439,8 @@ async function languageOf(
   db: DrizzleDB,
   git: GitService,
   repo: Repository,
-  refs: Map<string, string>
+  tip: string | null
 ): Promise<string | null> {
-  const tip = refs.get(`refs/heads/${repo.defaultBranch}`);
   if (!tip) return null;
   if (tip === repo.languageSha) return repo.language;
   try {
