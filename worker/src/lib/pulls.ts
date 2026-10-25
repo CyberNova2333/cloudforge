@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, sql } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
 import type { DrizzleDB } from '../db/middleware';
@@ -16,6 +17,7 @@ import { ensureHeadReview } from '../review/head';
 import { publishChange } from '../live/publish';
 import { ensureStacking } from '../stack/discover';
 import { landTargetIs, landTargetOf } from './land-target';
+import { linkPullToIssues } from './issue-links';
 import type { Bump } from './semver';
 
 /**
@@ -161,6 +163,10 @@ export async function openPull(opts: {
   await git
     .setRef(pullRef(pr.number), headSha)
     .catch((e) => console.error('[pulls] pin ref failed', e));
+  // The issues it names (`Fixes #12`), before the response: the page shows them at once.
+  await linkPullToIssues(db, pr, opts.author.id).catch((e) =>
+    console.error('[pulls] could not link issues', pr.id, e)
+  );
   // A new PR's base is its land target, so these are also its land shas.
   const shas = { base: baseSha, head: headSha };
   opts.after(

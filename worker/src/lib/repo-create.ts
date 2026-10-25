@@ -94,6 +94,7 @@ export async function createRepository(
     protectedBranches: null,
     artifactsName: `r_${id}`,
     nextPrNumber: 1,
+    hasIssues: true,
     mergingPausedAt: null,
     mergingPausedById: null,
     deleteMergedBranches: true,

@@ -62,6 +62,8 @@ export const repoSchema = z
     protectedBranches: z.array(z.string()),
     // Every landing (the merge button or auto-merge) deletes the pull request's head branch.
     deleteMergedBranches: z.boolean(),
+    /** The repository has Issues (the page and the API). */
+    hasIssues: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
