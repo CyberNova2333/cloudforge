@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GitService, type FileChange } from '../git/service';
+import { GitService, MAX_EDIT_LENGTH, type FileChange } from '../git/service';
+import { changesPatchId } from '../git/patch-id';
 import { ArtifactsRepoClient } from '../git/remote';
 import { makeBlob } from '../git/objects';
 import { createFakeArtifacts } from './helpers/fake-artifacts';
@@ -11,6 +12,11 @@ const change: FileChange = {
   newHash: 'new',
   mode: '100644',
 };
+
+/** MAX_EDIT_LENGTH lines starting with `p`: two of them differ in every line, twice the limit of edits. */
+const lines = (p: string) =>
+  Array.from({ length: MAX_EDIT_LENGTH }, (_, i) => `${p}${i}`).join('\n') +
+  '\n';
 
 function service() {
   return new GitService(
@@ -43,6 +49,28 @@ describe('blob 大小限制', () => {
     expect(await git.fileDiffs([change])).toMatchObject([
       { tooLarge: false, additions: 1, deletions: 1 },
     ]);
+  });
+
+  it('改动行数超过上限的文件按过大处理，不计算完整差异', async () => {
+    const git = service();
+    vi.spyOn(git, 'readBlob').mockImplementation(
+      async (sha) => new Blob([lines(sha === 'old' ? 'a' : 'b')])
+    );
+    expect(await git.fileDiffs([change])).toMatchObject([
+      { tooLarge: true, hunks: [] },
+    ]);
+  });
+
+  it('patch-id 对改动行数过多的文件按 blob 计算', async () => {
+    const git = service();
+    vi.spyOn(git, 'blob').mockImplementation(async (sha) =>
+      new TextEncoder().encode(lines(sha === 'old' ? 'a' : 'b'))
+    );
+    const id = await changesPatchId(git, [change]);
+    expect(id).toMatch(/^[0-9a-f]{40}$/);
+    expect(
+      await changesPatchId(git, [{ ...change, newHash: 'other' }])
+    ).not.toBe(id);
   });
 
   it('无需远程访问即可提供暂存 blob 的大小和内容', async () => {

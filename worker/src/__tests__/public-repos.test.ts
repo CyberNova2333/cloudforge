@@ -159,6 +159,35 @@ describe('未登录时访问公开仓库', () => {
     expect((await sessions(admin)).flatMap((s) => s.requests)).toHaveLength(1);
   });
 
+  it('比较分支时不为访客试运行变基，成员仍能看到冲突', async () => {
+    const { t, admin } = await setup();
+    const repo = [...t.fake.repos.values()][0];
+    const main = repo.refs.get('refs/heads/main')!;
+    repo.refs.set('refs/heads/feature', main);
+    await commitPaths(repo, 'main', { 'README.md': 'main\n' }, 'main side');
+    await commitPaths(repo, 'feature', { 'README.md': 'feature\n' }, 'other');
+    const compare = (cookie?: string) =>
+      call(t, '/api/repos/octocat/open/compare?base=main&head=feature', {
+        cookie,
+      }).then(
+        async (r) =>
+          (await r.json()) as {
+            status: string;
+            mergeable: boolean;
+            conflicts: string[];
+            files: unknown[];
+          }
+      );
+    const visitor = await compare();
+    expect(visitor).toMatchObject({
+      status: 'diverged',
+      mergeable: false,
+      conflicts: [],
+    });
+    expect(visitor.files).toHaveLength(1);
+    expect((await compare(admin)).conflicts).toEqual(['README.md']);
+  });
+
   it('写操作和成员专属页面仍要求登录', async () => {
     const { t } = await setup();
     expect(

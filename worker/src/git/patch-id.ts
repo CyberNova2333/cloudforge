@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { structuredPatch } from 'diff';
 import { encoder, exactUtf8, sha1, toBinaryString, toHex } from './bytes';
-import type { FileChange, GitService } from './service';
+import { MAX_EDIT_LENGTH, type FileChange, type GitService } from './service';
 
 /** Above this (both sides together) a file's change counts by its blob ids, not its lines. */
 const MAX_PATCH_BYTES = 1024 * 1024;
@@ -54,8 +54,13 @@ export async function changesPatchId(
       isUtf8 ? tb! : b ? toBinaryString(b) : '',
       '',
       '',
-      { context: 0 }
+      { context: 0, maxEditLength: a && b ? MAX_EDIT_LENGTH : Infinity }
     );
+    // Too many changed lines to work out: the change is named by its blobs, as a large file is.
+    if (!patch) {
+      parts.push(`${ch.oldHash} ${ch.newHash}`);
+      continue;
+    }
     for (const h of patch.hunks)
       for (const l of h.lines)
         if (l[0] === '+' || l[0] === '-')

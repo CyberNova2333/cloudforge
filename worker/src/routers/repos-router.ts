@@ -996,7 +996,10 @@ reposRouter.openapi(compareRoute, async (c) => {
     git.resolve(head),
   ]);
   if (!baseSha || !headSha) return c.json({ error: 'Branch not found' }, 404);
-  const result = await compareShas(git, baseSha, headSha);
+  // The dry-run rebase is for opening a pull request: visitors of a public repository can't, so they don't pay for it.
+  const result = await compareShas(git, baseSha, headSha, {
+    mergeability: !!c.get('user'),
+  });
   return c.json(
     { ...result, commits: await attributeCommits(c.get('db'), result.commits) },
     200
