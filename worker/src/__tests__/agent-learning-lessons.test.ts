@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import { learnSystemPrompt, learnUserPrompt } from '../learn/contract';
-import { lessonInput, loadLesson } from '../learn/lessons';
+import { lessonInput, loadLesson, startNextLesson } from '../learn/lessons';
 import { call, settle } from './helpers/app';
 import { agentModels, BASE, runReviews, startReview } from './helpers/reviews';
 import { commitPaths } from './helpers/seed';
@@ -53,6 +53,33 @@ describe('从被驳回的修改请求中学习', () => {
       retryable: 0,
     });
     expect(JSON.parse(rows[0].finding_ids)).toEqual(sec.map((f) => f.id));
+  });
+
+  it('站点关闭学习时不排入学习任务，已排队的任务也不启动', async () => {
+    const { t, admin } = await reviewedPull();
+    for (const f of await changeRequests(t)) await decide(t, admin, f.id);
+    const off = await call(t, '/api/admin/settings/review.learning', {
+      cookie: admin,
+      method: 'PUT',
+      json: { value: false },
+    });
+    expect(off.status).toBe(200);
+    await closePull(t, admin);
+    expect(await lessons(t)).toEqual([]);
+    // A lesson queued while it was on waits.
+    const agent = (await t.env.DB.prepare(
+      "SELECT id FROM users WHERE username = 'secagent'"
+    ).first<{ id: string }>())!.id;
+    const pr = (await t.env.DB.prepare(
+      'SELECT id, repository_id FROM pull_requests'
+    ).first<{ id: string; repository_id: string }>())!;
+    await t.env.DB.prepare(
+      "INSERT INTO agent_lessons (id, agent_id, pull_request_id, repository_id, finding_ids, status, attempts, retryable, created_at) VALUES ('l1', ?, ?, ?, '[]', 'pending', 0, 0, ?)"
+    )
+      .bind(agent, pr.id, pr.repository_id, Math.floor(Date.now() / 1000))
+      .run();
+    const db = drizzle(t.env.DB, { schema });
+    expect(await startNextLesson(t.env, db, agent)).toBeNull();
   });
 
   it('没有修改请求被驳回时，不排入学习任务', async () => {

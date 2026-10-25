@@ -145,7 +145,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `revert-<n>` opened as a PR, never pushed to the target; the branch is deleted if opening fails).
 - Demo data: `yarn seed:demo` (`scripts/seed-demo.mjs`, local hosts only) fills a running `yarn dev` instance through
   the API plus `wrangler d1 execute --local --env dev`; see `docs/development.md`.
-- Agent learning (`worker/src/learn/`): when a PR closes (`landPull`, the close route) `queueLessons` writes one
+- Agent learning (`worker/src/learn/`; Site admin setting `review.learning`, on by default, turns it off): when a PR closes (`landPull`, the close route) `queueLessons` writes one
   `agent_lessons` row per agent whose `change_requested` findings a person dismissed (`approved_at` set) or whose
   findings a person decided with a teach note (`lessonFindingsByAgent`), unique per (agent, PR). A `learn` payload on `MERGE_RESOLUTION` (`learn/run.ts`) claims it (one `learning` lesson per agent;
   writes fenced on `run_id`), runs `AgentReviewer` in learn mode (`learn:<lesson id>:<attempt>`; agent repo at
