@@ -851,17 +851,23 @@ pullsRouter.openapi(getPullRoute, async (c) => {
   if (shas)
     commitCount = (await git.commitsBetween(shas.base, shas.head)).length;
   const tips = pr.state === 'open' ? await rebaseTips(git, pr) : null;
+  // The backstops below start Workflows and model calls: only a member's visit runs them, never an anonymous
+  // visitor's of a public repository (who could start them as often as they reload).
+  const backstops = !!c.get('user');
   if (tips) {
     rebase = await rebaseView(c.env, db, git, pr, tips);
     mergeable = rebase.status === 'up_to_date' || rebase.status === 'behind';
     // Backstop for missed triggers, and for a run that died mid-resolution (it would show resolving forever): a
     // pull request behind its base gets a rebase run unless a fresh one is running (ensureRebase decides).
-    if (rebase.status === 'behind' || rebase.status === 'resolving')
+    if (
+      backstops &&
+      (rebase.status === 'behind' || rebase.status === 'resolving')
+    )
       c.executionCtx.waitUntil(ensureRebase(c.env, db, git, pr));
   }
   const review = await reviewersView(c.env, db, git, pr, shas);
   // Backstop for missed triggers: a head with no review gets one where agents are invited.
-  if (target && review?.agentsInvited && review.status === null)
+  if (backstops && target && review?.agentsInvited && review.status === null)
     c.executionCtx.waitUntil(
       ensureHeadReview(c.env, db, pr, target).catch((e) =>
         console.error('[review] start failed', e)

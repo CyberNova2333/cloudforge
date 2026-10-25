@@ -886,6 +886,31 @@ describe('拉取请求页面', () => {
   });
 });
 
+describe('访客查看页面', () => {
+  it('公开仓库的匿名访客查看页面不会启动审查，成员查看时才补启动', async () => {
+    const { t, admin, repo } = await appRepo();
+    await openPull(t, admin, repo, SCHEMA_CHANGE);
+    await invitedAgent(t, admin, 'secagent', AGENT_MD());
+    const made = await call(t, '/api/repos/octocat/app', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { visibility: 'public' },
+    });
+    expect(made.status).toBe(200);
+    const started = () =>
+      t.actions.resolutions.filter(
+        (r) => (r.params as { headReview?: unknown }).headReview
+      ).length;
+    const anonymous = await call(t, '/api/repos/octocat/app/pulls/1');
+    expect(anonymous.status).toBe(200);
+    await settle(t);
+    expect(started()).toBe(0);
+    await view(t, admin);
+    await settle(t);
+    expect(started()).toBe(1);
+  });
+});
+
 describe('审查启动时机', () => {
   it('拉取请求创建时及每次推送带来新头提交时启动', async () => {
     const { t, admin, repo } = await appRepo();
