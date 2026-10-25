@@ -223,6 +223,11 @@ describe('MCP 服务器', () => {
       ['cloudforge_get_run_logs', true],
       ['cloudforge_list_releases', true],
       ['cloudforge_create_release', false],
+      ['cloudforge_list_issues', true],
+      ['cloudforge_get_issue', true],
+      ['cloudforge_create_issue', false],
+      ['cloudforge_update_issue', false],
+      ['cloudforge_comment_issue', false],
       ['cloudforge_list_agents', true],
       ['cloudforge_list_repository_agents', true],
       ['cloudforge_invite_agent', false],
@@ -437,7 +442,7 @@ describe('MCP 服务器', () => {
     const res = await call(t, '/api/mcp', { cookie: admin });
     const body = (await res.json()) as { serverUrl: string; tools: unknown[] };
     expect(body.serverUrl).toBe(`${ORIGIN}/mcp`);
-    expect(body.tools).toHaveLength(22);
+    expect(body.tools).toHaveLength(27);
     expect((await call(t, '/api/mcp')).status).toBe(401);
   });
 });

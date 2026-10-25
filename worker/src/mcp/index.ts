@@ -159,7 +159,9 @@ mcpRouter.post('/', async (c) => {
             'your branch (cloudforge_get_pull_request shows "rebased", with the old head), rebase your local commits ' +
             'onto origin/<branch> (`git fetch && git rebase --onto origin/<branch> <old head>`) before you push again; ' +
             'a push of the old history is rejected as a non-fast-forward, ' +
-            'never force it. Reviewer agents review the repositories that invite them: list them with ' +
+            'never force it. Issues track work (cloudforge_list_issues, cloudforge_create_issue); write "Fixes #<n>" in a ' +
+            "pull request's description to close issue n when it merges into the default branch. " +
+            'Reviewer agents review the repositories that invite them: list them with ' +
             'cloudforge_list_agents, and repository admins invite or remove them. ' +
             (isModerator
               ? ''

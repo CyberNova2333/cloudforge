@@ -336,6 +336,7 @@ jobs:
           worker/src/__tests__/signup.test.ts
           worker/src/__tests__/issues.test.ts
           worker/src/__tests__/issue-links.test.ts
+          worker/src/__tests__/mcp-issues.test.ts
           src/lib/
 
   # The npm package (scripts/cloudforge/pack.mjs): pack it, prove the shipped build deploys from a

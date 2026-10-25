@@ -186,7 +186,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   wrangler var it replaced or a built-in value. Read with `getSetting`/`getSettings` only where used, never per request;
   deploy-time facts (BASE_URL, bucket names) stay in wrangler. A daily Cron Trigger (`scheduled()` in `index.ts`) runs
   `runActionsRetention` (`worker/src/actions/retention.ts`).
-- Issues (`docs/issues.md`, `worker/src/lib/issues.ts`, `lib/issue-links.ts`, `routers/issues-router.ts`): `issues` +
+- Issues (`docs/issues.md`, `worker/src/lib/issues.ts`, `lib/issue-links.ts`, `routers/issues-router.ts`, MCP `mcp/issue-tools.ts`): `issues` +
   `issue_comments`, per-repository `labels` (`issue_labels`), `issue_assignees` (people with push access, never agents),
   and the timeline `issue_events` (closed, reopened, labeled, assigned, renamed, referenced). Numbers come from
   `repositories.next_pr_number` with pull requests (one batch: bump, then insert reading it), so `#N` is one or the other.
