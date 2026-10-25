@@ -1290,3 +1290,31 @@ describe('审查原因', () => {
     });
   });
 });
+
+describe('请求后的状态结算合并执行', () => {
+  it('同一仓库连续的写请求最多结算两次：进行中的一次加一次补跑', async () => {
+    const { settleAfterChange } = await import('../pulls/settle');
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const settle = (async () => {
+      calls++;
+      if (calls === 1) await gate;
+      return 0;
+    }) as Parameters<typeof settleAfterChange>[3];
+    const env = {} as CloudflareBindings;
+    const db = {} as Parameters<typeof settleAfterChange>[1];
+    const first = settleAfterChange(env, db, 'repo-x', settle);
+    // Three more changes while the first settle runs: they only ask for another pass.
+    await Promise.all(
+      [1, 2, 3].map(() => settleAfterChange(env, db, 'repo-x', settle))
+    );
+    expect(calls).toBe(1);
+    release();
+    await first;
+    expect(calls).toBe(2);
+    // Another repository settles on its own.
+    await settleAfterChange(env, db, 'repo-y', settle);
+    expect(calls).toBe(3);
+  });
+});
