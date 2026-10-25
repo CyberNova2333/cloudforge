@@ -188,6 +188,19 @@ describe('未登录时访问公开仓库', () => {
     expect((await compare(admin)).conflicts).toEqual(['README.md']);
   });
 
+  it('API 参考文档只对登录成员开放', async () => {
+    const { t, admin } = await setup();
+    for (const path of [
+      '/api/doc',
+      '/api/swagger-ui',
+      '/api/auth/reference',
+      '/api/auth/open-api/generate-schema',
+    ]) {
+      expect((await call(t, path)).status, path).toBe(401);
+      expect((await call(t, path, { cookie: admin })).status, path).toBe(200);
+    }
+  });
+
   it('写操作和成员专属页面仍要求登录', async () => {
     const { t } = await setup();
     expect(

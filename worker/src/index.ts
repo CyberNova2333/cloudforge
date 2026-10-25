@@ -91,6 +91,15 @@ app.use('*', async (c, next) => {
 });
 app.use('/api/*', sameOriginWrites);
 
+// The API's reference (ours and better-auth's) maps every route: for members, not for anyone who finds the instance.
+for (const path of [
+  '/api/doc',
+  '/api/swagger-ui',
+  '/api/auth/reference',
+  '/api/auth/open-api/*',
+])
+  app.use(path, requireAuth);
+
 app.on(['GET', 'POST'], '/api/auth/*', (c) => c.get('auth').handler(c.req.raw));
 
 app.route('/', wellKnownRouter);
