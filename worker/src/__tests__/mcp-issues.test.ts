@@ -125,6 +125,59 @@ describe('议题的 MCP 工具', () => {
     expect(missing.content[0].text).toContain('may be a pull request');
   });
 
+  it('列出并标记自己的通知', async () => {
+    const s = await crewRepo();
+    const bob = await addMember(s.t, s.admin, 'bob');
+    const { access_token } = await connect(s.t, s.admin);
+    const created = parse(
+      await tool(s.t, access_token, 'cloudforge_create_issue', {
+        repository,
+        title: 'Ping me',
+      })
+    );
+    await call(
+      s.t,
+      `/api/repos/octocat/app/issues/${created.number}/comments`,
+      {
+        cookie: bob,
+        json: { body: 'Done, @octocat' },
+      }
+    );
+    const listed = parse(
+      await tool(s.t, access_token, 'cloudforge_list_notifications', {})
+    );
+    expect(listed.unread).toBe(1);
+    expect(listed.notifications).toMatchObject([
+      {
+        repository,
+        kind: 'issue',
+        number: created.number,
+        event: 'commented',
+        actor: 'bob',
+        reason: 'mention',
+        excerpt: 'Done, @octocat',
+      },
+    ]);
+    const marked = await tool(
+      s.t,
+      access_token,
+      'cloudforge_mark_notifications_read',
+      { ids: [listed.notifications[0].id] }
+    );
+    expect(marked.content[0].text).toBe('Marked 1 notification(s) read.');
+    expect(
+      parse(await tool(s.t, access_token, 'cloudforge_list_notifications', {}))
+        .notifications
+    ).toEqual([]);
+    const refused = await tool(
+      s.t,
+      access_token,
+      'cloudforge_mark_notifications_read',
+      {}
+    );
+    expect(refused.isError).toBe(true);
+  });
+
   it('仓库关闭议题后工具拒绝', async () => {
     const s = await crewRepo();
     const { access_token } = await connect(s.t, s.admin);

@@ -184,7 +184,7 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   Drizzle pitfall: a single-table select drops table names from columns inside its `sql` fields, so a correlated subquery
   there names the outer table literally (`… WHERE c.issue_id = issues.id`).
 - Notifications (`docs/notifications.md`, `worker/src/lib/notifications.ts`, `notification-email.ts`, `mentions.ts`,
-  `routers/notifications-router.ts`): `notify(ctx, event)` runs where issues and pull requests change (the issue libs take an
+  `routers/notifications-router.ts`, inbox queries `lib/inbox.ts`, MCP `mcp/notification-tools.ts`): `notify(ctx, event)` runs where issues and pull requests change (the issue libs take an
   optional `NotifyCtx`; `openPull`, `addComment`, the PR close route, the `notify` and `issues` landing follow-ups) and never
   throws. Recipients: `notification_subscriptions` of the thread (`issue:<id>` / `pull:<id>`; participants are subscribed,
   a stronger reason is never replaced), `repository_watches` (watching / ignoring; no row = participating), and people

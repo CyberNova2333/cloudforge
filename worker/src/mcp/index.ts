@@ -161,6 +161,7 @@ mcpRouter.post('/', async (c) => {
             'a push of the old history is rejected as a non-fast-forward, ' +
             'never force it. Issues track work (cloudforge_list_issues, cloudforge_create_issue); write "Fixes #<n>" in a ' +
             "pull request's description to close issue n when it merges into the default branch. " +
+            "cloudforge_list_notifications shows what needs the user's attention. " +
             'Reviewer agents review the repositories that invite them: list them with ' +
             'cloudforge_list_agents, and repository admins invite or remove them. ' +
             (isModerator
