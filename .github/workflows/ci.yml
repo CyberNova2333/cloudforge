@@ -32,16 +32,16 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: yarn
 
       # Saved after the job succeeds (a Post step), for this commit's test jobs.
       - name: Cache the build for this commit
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -106,13 +106,13 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
       - id: build-cache
         name: Restore the build for this commit
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -142,13 +142,13 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
       - id: build-cache
         name: Restore the build for this commit
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -212,13 +212,13 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
       - id: build-cache
         name: Restore the build for this commit
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -261,13 +261,13 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
       - id: build-cache
         name: Restore the build for this commit
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -344,8 +344,8 @@ jobs:
     runs-on: ${{ github.server_url == 'https://github.com' && 'ubuntu-latest' || 'cloudforge-standard-4' }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: yarn
@@ -367,7 +367,7 @@ jobs:
       # whatever node-version asks for, so the floor is checked on GitHub only.
       - name: Use Node.js 22.0.0 (GitHub only)
         if: github.server_url == 'https://github.com'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22.0.0
       - name: Install the tarball

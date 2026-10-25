@@ -1,3 +1,4 @@
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 version: 2
 updates:
   # Patch and minor updates only, grouped into one weekly PR per ecosystem.
@@ -15,6 +16,18 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
 
+  # The runner image's base, pinned by digest: new digests (and minor and patch tags) of node:24-trixie-slim.
+  - package-ecosystem: docker
+    directory: '/actions/runner'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  # Actions are pinned to commit SHAs with their version in a comment; Dependabot moves both.
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
