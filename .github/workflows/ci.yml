@@ -248,6 +248,7 @@ jobs:
           worker/src/__tests__/artifacts-cache.test.ts
           worker/src/__tests__/actions-cache.test.ts
           worker/src/__tests__/push-events.test.ts
+          worker/src/__tests__/pull-refs.test.ts
           worker/src/__tests__/git-objects.test.ts
           worker/src/__tests__/git-blob-limits.test.ts
           worker/src/__tests__/lfs.test.ts

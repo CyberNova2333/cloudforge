@@ -14,6 +14,7 @@ import { recoverLandings } from '../merge/landing-recovery';
 import { recoverPullCloses } from '../pulls/close-recovery';
 import { recoverPushEvents } from '../lib/push-events';
 import { recoverRepositoryDeletions } from '../lib/repo-deletion';
+import { prunePullRefs } from '../lib/pull-refs';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
@@ -138,6 +139,9 @@ export async function runActionsRetention(
   });
   await recoverRepositoryDeletions(env, db, { now }).catch((e: unknown) => {
     console.error('[repos] could not finish repository deletions', e);
+  });
+  await prunePullRefs(env, db, now).catch((e: unknown) => {
+    console.error('[refs] could not prune pull refs', e);
   });
   const days = await getSetting(db, env, 'actions.retention_days');
   let deleted = 0;
