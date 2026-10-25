@@ -40,6 +40,8 @@ function TokenRow({ token }: { token: Token }) {
             : t('Never used')}
           {' · '}
           {expiryText(token)}
+          {' · '}
+          {token.scope === 'read' ? t('Read only') : t('Read and write')}
         </span>
       </div>
       <div className="ctl">
@@ -63,12 +65,14 @@ export default function SettingsTokens() {
   const tokens = useQuery({ queryKey: qk.tokens, queryFn: api.tokens });
   const [name, setName] = useState('');
   const [days, setDays] = useState('30');
+  const [scope, setScope] = useState<Token['scope']>('write');
   const [created, setCreated] = useState<string | null>(null);
   const create = useMutation({
     mutationFn: () =>
       api.createToken({
         name: name.trim(),
         expiresInDays: days === 'never' ? null : Number(days),
+        scope,
       }),
     onSuccess: (r) => {
       setCreated(r.plaintext);
@@ -87,7 +91,7 @@ export default function SettingsTokens() {
         ]}
         title={t('Personal access tokens')}
         lede={t(
-          'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push.'
+          'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push. A read-only token can clone and fetch but never push.'
         )}
       />
       <SettingsFrame>
@@ -184,6 +188,18 @@ export default function SettingsTokens() {
                   <option value="90">{t('90 days')}</option>
                   <option value="366">{t('1 year')}</option>
                   <option value="never">{t('No expiration')}</option>
+                </select>
+              </div>
+              <div className="fld">
+                <label htmlFor="tok-scope">{t('Access')}</label>
+                <select
+                  id="tok-scope"
+                  className="form-select"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as Token['scope'])}
+                >
+                  <option value="write">{t('Read and write')}</option>
+                  <option value="read">{t('Read only')}</option>
                 </select>
               </div>
               <PendingButton

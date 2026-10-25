@@ -196,6 +196,10 @@ export const personalAccessTokens = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     tokenHash: text('token_hash').notNull().unique(),
+    /** `read`: clone, fetch and LFS downloads only; `write` (every token made before scopes) may also push. */
+    scope: text('scope', { enum: ['read', 'write'] })
+      .notNull()
+      .default('write'),
     lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

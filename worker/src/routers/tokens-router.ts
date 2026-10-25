@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { personalAccessTokens } from '../db/app.schema';
 import { recordAudit } from '../lib/audit';
 import { hashToken, randomToken } from '../lib/tokens';
@@ -8,9 +8,13 @@ import type { AppEnv } from '../variables';
 import {
   json200Response,
   json201Response,
+  json409Response,
   okSchema,
   validationHook,
 } from './openapi-helpers';
+
+/** Unexpired tokens one member may hold: enough for every machine and CI job, few enough to keep track of. */
+export const MAX_ACTIVE_TOKENS = 50;
 
 export const tokensRouter = new OpenAPIHono<AppEnv>({
   defaultHook: validationHook,
@@ -19,6 +23,8 @@ export const tokensRouter = new OpenAPIHono<AppEnv>({
 const tokenSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** read: clone, fetch and LFS downloads; write: also push and LFS uploads. */
+  scope: z.enum(['read', 'write']),
   lastUsedAt: z.string().nullable(),
   expiresAt: z.string().nullable(),
   createdAt: z.string(),
@@ -27,6 +33,7 @@ const tokenSchema = z.object({
 const serialize = (t: typeof personalAccessTokens.$inferSelect) => ({
   id: t.id,
   name: t.name,
+  scope: t.scope,
   lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
   expiresAt: t.expiresAt?.toISOString() ?? null,
   createdAt: t.createdAt.toISOString(),
@@ -66,6 +73,7 @@ const createTokenRoute = createRoute({
               .max(366)
               .nullable()
               .default(30),
+            scope: z.enum(['read', 'write']).default('write'),
           }),
         },
       },
@@ -76,32 +84,60 @@ const createTokenRoute = createRoute({
       z.object({ token: tokenSchema, plaintext: z.string() }),
       'Token created'
     ),
+    ...json409Response,
   },
 });
 tokensRouter.openapi(createTokenRoute, async (c) => {
-  const { name, expiresInDays } = c.req.valid('json');
+  const { name, expiresInDays, scope } = c.req.valid('json');
+  const db = c.get('db');
+  const userId = c.get('user')!.id;
+  const now = new Date();
+  const active = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(personalAccessTokens)
+    .where(
+      and(
+        eq(personalAccessTokens.userId, userId),
+        or(
+          isNull(personalAccessTokens.expiresAt),
+          gt(personalAccessTokens.expiresAt, now)
+        )
+      )
+    )
+    .get();
+  if (Number(active?.n ?? 0) >= MAX_ACTIVE_TOKENS)
+    return c.json(
+      {
+        error: `You have ${MAX_ACTIVE_TOKENS} active tokens. Delete the ones you no longer use first.`,
+      },
+      409
+    );
   // cfp_ = CloudForge personal access token. Tokens are looked up by hash, so ones issued before the rename
   // (gop_, from GitOrange) keep working.
   const plaintext = randomToken('cfp_');
-  const now = new Date();
   const row = {
     id: crypto.randomUUID(),
-    userId: c.get('user')!.id,
+    userId,
     name,
     tokenHash: await hashToken(plaintext),
+    scope,
     lastUsedAt: null,
     expiresAt: expiresInDays
       ? new Date(now.getTime() + expiresInDays * 86400_000)
       : null,
     createdAt: now,
   };
-  await c.get('db').insert(personalAccessTokens).values(row);
-  await recordAudit(c.get('db'), {
+  await db.insert(personalAccessTokens).values(row);
+  await recordAudit(db, {
     repositoryId: null,
     actorId: row.userId,
     action: 'token.created',
     target: name,
-    data: { token: row.id, expiresAt: row.expiresAt?.getTime() ?? null },
+    data: {
+      token: row.id,
+      scope,
+      expiresAt: row.expiresAt?.getTime() ?? null,
+    },
   });
   return c.json({ token: serialize(row), plaintext }, 201);
 });

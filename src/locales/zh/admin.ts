@@ -297,8 +297,11 @@ export const admin: Record<string, string> = {
   'Never used': '从未使用',
   'Delete token': '删除令牌',
   'Delete token {name}': '删除令牌 {name}',
-  'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push.':
-    '令牌是 git 通过 HTTPS 以及 Git LFS 使用的密码。克隆或推送时使用它。',
+  'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push. A read-only token can clone and fetch but never push.':
+    '令牌是 git 通过 HTTPS 以及 Git LFS 使用的密码。克隆或推送时使用它。只读令牌可以克隆和拉取，但不能推送。',
+  Access: '权限',
+  'Read and write': '读写',
+  'Read only': '只读',
   'Your tokens': '你的令牌',
   'Tokens you have generated. A deleted token stops working at once.':
     '你生成过的令牌。删除后的令牌会立即失效。',

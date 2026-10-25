@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { handleGitRequest } from '../git-http';
 import { hashToken } from '../lib/tokens';
+import { MAX_ACTIVE_TOKENS } from '../routers/tokens-router';
 import {
   addMember,
   bootstrapAdmin,
@@ -142,6 +143,80 @@ describe('Git smart-HTTP 代理', () => {
         )
       ).status
     ).toBe(200);
+  });
+
+  it('只读令牌可以克隆，但即使是管理员也不能推送', async () => {
+    const { t, admin } = await setup();
+    const res = await call(t, '/api/tokens', {
+      cookie: admin,
+      json: { name: 'ci', expiresInDays: 30, scope: 'read' },
+    });
+    const { token: row, plaintext } = (await res.json()) as {
+      token: { scope: string };
+      plaintext: string;
+    };
+    expect(row.scope).toBe('read');
+    expect(
+      (
+        await git(
+          t,
+          '/octocat/app.git/info/refs?service=git-upload-pack',
+          plaintext
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await git(
+          t,
+          '/octocat/app.git/info/refs?service=git-receive-pack',
+          plaintext
+        )
+      ).status
+    ).toBe(403);
+    expect(
+      (await git(t, '/octocat/app.git/git-receive-pack', plaintext, 'POST'))
+        .status
+    ).toBe(403);
+    // Tokens default to read and write, as every token made before scopes.
+    const list = (await (
+      await call(t, '/api/tokens', { cookie: admin })
+    ).json()) as { scope: string }[];
+    expect(list.map((r) => r.scope)).toEqual(['read']);
+    expect(
+      (
+        await git(
+          t,
+          '/octocat/app.git/info/refs?service=git-receive-pack',
+          await pat(t, admin)
+        )
+      ).status
+    ).toBe(200);
+  });
+
+  it(`每人最多 ${MAX_ACTIVE_TOKENS} 个有效令牌，过期的不计入`, async () => {
+    const { t, admin } = await setup();
+    const userId = (await t.env.DB.prepare(
+      "SELECT id FROM users WHERE username = 'octocat'"
+    ).first<{ id: string }>())!.id;
+    const now = Date.now();
+    const insert = (i: number, expiresAt: number | null) =>
+      t.env.DB.prepare(
+        'INSERT INTO personal_access_tokens (id, user_id, name, token_hash, scope, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(`t${i}`, userId, `t${i}`, `h${i}`, 'write', expiresAt, now);
+    await t.env.DB.batch([
+      ...Array.from({ length: MAX_ACTIVE_TOKENS - 1 }, (_, i) =>
+        insert(i, null)
+      ),
+      insert(999, 1),
+    ]);
+    const create = () =>
+      call(t, '/api/tokens', {
+        cookie: admin,
+        json: { name: 'one more', expiresInDays: 30 },
+      });
+    expect((await create()).status).toBe(201);
+    expect((await create()).status).toBe(409);
   });
 
   it('拒绝过期令牌', async () => {
