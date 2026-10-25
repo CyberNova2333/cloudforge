@@ -79,7 +79,7 @@ worker/src/
 migrations/          Generated D1 migrations
 ```
 
-API docs are served at `/api/swagger-ui` while running.
+API docs are served at `/api/swagger-ui` while running, to signed-in members (better-auth's at `/api/auth/reference`).
 
 ## Demo data
 
