@@ -6,7 +6,8 @@ main:
   push: &ci
     - name: 持续集成
       docker:
-        image: node:22
+        # Pinned by digest: the tag alone can change under a build.
+        image: node:22@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
         # 依赖缓存在构建节点上（copy-on-write，并发构建各用一份副本）：落到同一节点时，安装只需按
         # lockfile 校正 node_modules；换了节点则从空开始。
         volumes:
