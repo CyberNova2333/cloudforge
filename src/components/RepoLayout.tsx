@@ -138,7 +138,11 @@ export function RepoLayout() {
 
   if (missing) return <NotFound />;
 
-  const tabs = repoTabs(isAgentRepo, !!data?.permissions.admin);
+  const tabs = repoTabs(
+    isAgentRepo,
+    !!data?.permissions.admin,
+    data?.hasIssues ?? true
+  );
   return (
     <>
       <div className="rhead">
@@ -186,6 +190,9 @@ export function RepoLayout() {
               {tab.label}
               {tab.id === 'pulls' && !!data?.openPullCount && (
                 <span className="count">{data.openPullCount}</span>
+              )}
+              {tab.id === 'issues' && !!data?.openIssueCount && (
+                <span className="count">{data.openIssueCount}</span>
               )}
             </Link>
           ))}

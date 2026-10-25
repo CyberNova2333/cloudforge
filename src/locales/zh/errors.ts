@@ -518,6 +518,21 @@ export const errors: Record<string, string> = {
     '请先确认邮箱：打开我们发给你的链接后再登录。',
   'No sign-up is waiting for this email to be confirmed.':
     '没有等待确认这个邮箱的注册。',
+  // Issues and labels.
+  'Issues are turned off for this repository': '这个仓库已关闭议题',
+  'Only people with push access can set labels or assignees on an issue':
+    '只有拥有推送权限的人可以设置议题的标记或指派人',
+  'Only its author or people with push access can change this issue':
+    '只有作者或拥有推送权限的人可以修改此议题',
+  'Only repository admins can delete an issue': '只有仓库管理员可以删除议题',
+  'Only its author or people with push access can edit this comment':
+    '只有作者或拥有推送权限的人可以编辑此评论',
+  'Only its author or people with push access can delete this comment':
+    '只有作者或拥有推送权限的人可以删除此评论',
+  'Only people with push access can manage labels':
+    '只有拥有推送权限的人可以管理标记',
+  'A label name has no commas or newlines': '标记名称不能包含逗号或换行',
+  'Six hex digits, like d73a4a': '六位十六进制数字，例如 d73a4a',
 };
 
 /**
@@ -921,4 +936,21 @@ export const zhPatterns: [RegExp, string][] = [
   ],
   [/^(.+) asked for (\d+) changes?$/, '$1 请求了 $2 处更改'],
   [/^(.+)’s review failed$/, '$1 的评审失败'],
+
+  // Issues and labels.
+  [/^There is no label "(.+)" in this repository$/, '这个仓库没有标记“$1”'],
+  [
+    /^@(.+) can't be assigned: only people with push access to this repository can be$/,
+    '无法指派 @$1：只能指派给拥有这个仓库推送权限的人',
+  ],
+  [/^A label named "(.+)" exists$/, '已有名为“$1”的标记'],
+  [/^An issue can have at most (\d+) labels$/, '一个议题最多只能有 $1 个标记'],
+  [
+    /^An issue can have at most (\d+) assignees$/,
+    '一个议题最多只能有 $1 个指派人',
+  ],
+  [
+    /^A repository can have at most (\d+) labels$/,
+    '一个仓库最多只能有 $1 个标记',
+  ],
 ];

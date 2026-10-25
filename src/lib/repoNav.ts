@@ -10,6 +10,7 @@ import type { PageIconName } from './pageIcon';
 export type RepoTabId =
   | 'code'
   | 'health'
+  | 'issues'
   | 'pulls'
   | 'releases'
   | 'actions'
@@ -40,6 +41,7 @@ export interface RepoBand {
 const TABS: Record<RepoTabId, RepoTab> = {
   code: { id: 'code', label: t('Code'), icon: 'code', path: '' },
   health: { id: 'health', label: t('Health'), icon: 'pulse', path: 'health' },
+  issues: { id: 'issues', label: t('Issues'), icon: 'issue', path: 'issues' },
   pulls: {
     id: 'pulls',
     label: t('Pull requests'),
@@ -96,6 +98,9 @@ export function repoTabOf(rest: string[], agentRepo: boolean): RepoTabId {
   switch (rest[0]) {
     case 'health':
       return 'health';
+    case 'issues':
+    case 'labels':
+      return 'issues';
     case 'pulls':
     case 'pull':
     case 'compare':
@@ -120,13 +125,25 @@ export function repoTabOf(rest: string[], agentRepo: boolean): RepoTabId {
 
 /**
  * The tabs, in order. Agent repositories (`<handle>/<handle>`, the agent's instructions) show Code, Commits and
- * Settings. Settings needs admin rights on the repository. Health, Branches, Live and Audit log join as their
- * pages are built.
+ * Settings. Issues shows while the repository has them turned on; Settings needs admin rights on the repository.
+ * Health, Branches, Live and Audit log join as their pages are built.
  */
-export function repoTabs(agentRepo: boolean, admin: boolean): RepoTab[] {
+export function repoTabs(
+  agentRepo: boolean,
+  admin: boolean,
+  hasIssues = true
+): RepoTab[] {
   const ids: RepoTabId[] = agentRepo
     ? ['code', 'commits']
-    : ['code', 'health', 'pulls', 'releases', 'actions', 'insights'];
+    : [
+        'code',
+        'health',
+        ...(hasIssues ? (['issues'] as const) : []),
+        'pulls',
+        'releases',
+        'actions',
+        'insights',
+      ];
   if (admin) ids.push('settings');
   return ids.map((id) => TABS[id]);
 }
@@ -170,6 +187,13 @@ export function repoBand(
       return item('commit', TABS.commits, (id ?? '').slice(0, 7));
     case 'health':
       return page('pulse', t('Health'));
+    case 'issues':
+      if (id === 'new') return item('issue', TABS.issues, t('New issue'));
+      return id
+        ? item('issue', TABS.issues, `#${id}`)
+        : page('issue', t('Issues'));
+    case 'labels':
+      return item('tag', TABS.issues, t('Labels'));
     case 'pulls':
       return page('pull', t('Pull requests'));
     case 'pull':

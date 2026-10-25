@@ -42,6 +42,10 @@ import CommitView from './pages/CommitView';
 import Pulls from './pages/Pulls';
 import PullNew from './pages/PullNew';
 import PullView from './pages/PullView';
+import Issues from './pages/Issues';
+import IssueNew from './pages/IssueNew';
+import IssueView from './pages/IssueView';
+import RepoLabels from './pages/RepoLabels';
 import Session from './pages/Session';
 import RepoSettings from './pages/RepoSettings';
 import RepoActions from './pages/RepoActions';
@@ -213,6 +217,10 @@ const App = () => (
                 <Route path="commits/*" element={<RepoCommits />} />
                 <Route path="commit/:sha" element={<CommitView />} />
                 <Route path="health" element={<RepoHealth />} />
+                <Route path="issues" element={<Issues />} />
+                <Route path="issues/new" element={<IssueNew />} />
+                <Route path="issues/:number" element={<IssueView />} />
+                <Route path="labels" element={<RepoLabels />} />
                 <Route path="pulls" element={<Pulls />} />
                 <Route path="compare" element={<PullNew />} />
                 <Route path="compare/*" element={<PullNew />} />

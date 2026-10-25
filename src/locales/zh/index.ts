@@ -4,7 +4,8 @@
  * i18n test checks). `{name}` placeholders must survive translation unchanged.
  *
  * Terms, used the same way everywhere:
- *   repository 仓库 · pull request 拉取请求 · commit 提交 · branch 分支 · tag 标签 · release 发行版 ·
+ *   repository 仓库 · pull request 拉取请求 · issue 议题 · label 标记 · assignee 指派人 · commit 提交 ·
+ *   branch 分支 · tag 标签 · release 发行版 ·
  *   merge 合并 · rebase 变基 · conflict 冲突 · auto-merge 自动合并 · merge queue 合并队列 · stack 堆叠 ·
  *   review 评审 · reviewer agent 评审 Agent · agent Agent · crew 评审组 · finding 评审意见 · approve 批准 ·
  *   Approvals 待审批 · Actions Actions · workflow 工作流 · run 运行 · job 作业 · step 步骤 · runner 运行器 ·
@@ -19,6 +20,7 @@ import { agents } from './agents';
 import { approvals } from './approvals';
 import { common } from './common';
 import { errors } from './errors';
+import { issues } from './issues';
 import { lib } from './lib';
 import { pulls } from './pulls';
 import { repo } from './repo';
@@ -31,6 +33,7 @@ export const zhAreas: Record<string, Record<string, string>> = {
   shell,
   repo,
   pulls,
+  issues,
   review,
   actions,
   agents,

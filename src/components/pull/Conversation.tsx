@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   GitMergeIcon,
@@ -36,14 +36,20 @@ export type Slots = TimelineItem<
 >[][];
 
 /** A comment (the description is the first): avatar, who and when, Markdown; yours is tinted. */
-function TimelineComment({
+export function TimelineComment({
   c,
   me,
   label,
+  refs,
+  actions,
 }: {
   c: Pick<Comment, 'author' | 'body' | 'createdAt'>;
   me: boolean;
   label?: string;
+  /** The repository (`/owner/repo`) whose `#N` the text links. */
+  refs?: string;
+  /** Controls in the header (edit, delete). */
+  actions?: ReactNode;
 }) {
   return (
     <div className="pr-entry">
@@ -74,10 +80,11 @@ function TimelineComment({
           </span>
           <span className="grow" />
           {label && <span className="chip off">{label}</span>}
+          {actions}
         </header>
         <div className="pr-card-body">
           {c.body.trim() ? (
-            <Markdown source={c.body} />
+            <Markdown source={c.body} refs={refs} />
           ) : (
             <p className="muted">
               <i>{t('No description provided.')}</i>
@@ -170,6 +177,7 @@ export function Conversation({
           c={{ author: pr.author, body: pr.body, createdAt: pr.createdAt }}
           me={pr.author.id === me?.id}
           label={t('Author')}
+          refs={`/${repo.fullName}`}
         />
         {d.comments.map((c, i) => (
           <Fragment key={c.id}>
@@ -179,6 +187,7 @@ export function Conversation({
               c={c}
               me={c.author.id === me?.id}
               label={c.author.id === pr.author.id ? t('Author') : undefined}
+              refs={`/${repo.fullName}`}
             />
           </Fragment>
         ))}

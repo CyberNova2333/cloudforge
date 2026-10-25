@@ -1,0 +1,289 @@
+/* Issues: the list (it reuses the pull request list's rows and toolbar), an issue's page, and labels. */
+
+/* ---------- Labels ---------- */
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.view a.label-link:hover {
+  text-decoration: none;
+}
+.prow-title .label-link {
+  margin-left: 4px;
+}
+
+/* ---------- State ---------- */
+.issue-icon {
+  display: inline-flex;
+}
+.issue-icon.open {
+  color: var(--ok);
+}
+.issue-icon.done {
+  color: var(--fgColor-done, #8250df);
+}
+.issue-icon.not-planned {
+  color: var(--muted);
+}
+.issue-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+.issue-pill .issue-icon {
+  color: inherit;
+}
+.issue-pill.open {
+  background: var(--ok);
+}
+.issue-pill.done {
+  background: var(--fgColor-done, #8250df);
+}
+.issue-pill.not-planned {
+  background: var(--muted);
+}
+.issue-assignees {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* ---------- One issue ---------- */
+.issue-page {
+  display: grid;
+  gap: 16px;
+}
+.issue-head {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.issue-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.issue-title .btn {
+  margin-left: auto;
+}
+.issue-title-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.issue-title-edit input {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.issue-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.issue-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: start;
+}
+.issue-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.issue-reply,
+.issue-edit {
+  display: grid;
+  gap: 8px;
+}
+.issue-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.issue-comment-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.issue-danger {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- The side ---------- */
+.issue-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.issue-side-box {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.issue-side-box h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.issue-side-box p {
+  margin: 0;
+}
+.issue-people,
+.issue-pulls {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.issue-people li,
+.issue-pulls li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.issue-pulls a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.issue-people .btn-link {
+  margin-left: auto;
+}
+.issue-assign {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.issue-assign input {
+  width: 100%;
+}
+.issue-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.issue-label-picks {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px dashed var(--line);
+}
+.issue-label-picks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: normal;
+}
+
+/* ---------- Labels page ---------- */
+.label-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.label-row {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+}
+.label-row > .label-chip {
+  justify-self: start;
+}
+.label-row:first-child {
+  border-top: 0;
+}
+.label-row.editing {
+  grid-template-columns: minmax(0, 1fr);
+}
+.label-row-desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.label-row-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.label-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+.label-form-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.label-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+.label-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.label-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+  .issue-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .label-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .label-row-desc {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}

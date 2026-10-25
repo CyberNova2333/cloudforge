@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import { Link, Navigate, useOutletContext, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChecklistIcon,
@@ -243,6 +243,9 @@ export default function PullView() {
           documentTitle: d ? `${d.pull.title} · #${num}` : `#${num}`,
         }
   );
+  // Issues share the numbers: #N that is no pull request may be an issue (whose page says when it is neither).
+  if (missing && valid && repo.hasIssues)
+    return <Navigate to={`${base}/issues/${num}`} replace />;
   if (missing) return <NotFound />;
   if (q.isError && !d)
     return (

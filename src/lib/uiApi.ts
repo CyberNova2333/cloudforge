@@ -69,6 +69,8 @@ export type Repo = {
   protectedBranches: string[];
   /** Every landing (the merge button or auto-merge) deletes the pull request's head branch. */
   deleteMergedBranches: boolean;
+  /** The repository has Issues (the tab, the pages and the API). */
+  hasIssues: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -78,6 +80,75 @@ export type RepoDetail = Repo & {
   empty: boolean;
   branches: { name: string; sha: string }[];
   openPullCount: number;
+  /** 0 when the repository has issues turned off. */
+  openIssueCount: number;
+};
+/** A repository's label (GET …/labels); `color` is six hex digits without '#'. */
+export type Label = {
+  id: string;
+  name: string;
+  color: string;
+  description: string;
+};
+export type IssueStateReason = 'completed' | 'not_planned';
+export type Issue = {
+  id: string;
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed';
+  /** Why it was closed; null while open. */
+  stateReason: IssueStateReason | null;
+  author: User;
+  labels: Label[];
+  assignees: User[];
+  commentCount: number;
+  closedAt: string | null;
+  closedBy: User | null;
+  /** The pull request whose landing closed it; null when a person closed it. */
+  closedByPull: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+export type IssueEventKind =
+  | 'closed'
+  | 'reopened'
+  | 'labeled'
+  | 'unlabeled'
+  | 'assigned'
+  | 'unassigned'
+  | 'renamed'
+  | 'referenced';
+export type IssueEvent = {
+  id: string;
+  kind: IssueEventKind;
+  /** Null: CloudForge itself (a landing that closed it). */
+  actor: User | null;
+  /** assigned/unassigned: who. */
+  user: User | null;
+  /** closed { reason, pull? }, labeled/unlabeled { label, color }, renamed { from, to }, referenced { pull, closes }. */
+  data: Record<string, unknown>;
+  createdAt: string;
+};
+/** A pull request that names an issue (or an issue a pull request names); `closes`: it closes it on landing. */
+export type IssueLink = {
+  number: number;
+  title: string;
+  state: string;
+  closes: boolean;
+};
+export type IssueDetail = {
+  issue: Issue;
+  comments: Comment[];
+  events: IssueEvent[];
+  pulls: IssueLink[];
+};
+export type IssueListState = 'open' | 'closed' | 'all';
+export type IssueList = {
+  issues: Issue[];
+  openCount: number;
+  closedCount: number;
+  total: number;
 };
 /** A git identity; `user` is the member whose account email or verified alternate it is. */
 export type CommitIdentity = { name: string; email: string; user: User | null };
@@ -300,6 +371,8 @@ export type PullDetail = {
   stack: StackNode | null;
   pullState: PullState | null;
   events: PullEvent[];
+  /** The issues its title or description names; `closes`: it closes them when it lands on the default branch. */
+  issues?: IssueLink[];
 };
 export type ReviewFlag = {
   id: string;
@@ -1509,6 +1582,7 @@ export const api = {
       visibility?: Visibility;
       protectedBranches?: string[] | null;
       deleteMergedBranches?: boolean;
+      hasIssues?: boolean;
     }
   ) => apiFetch<Repo>(r(o, n), { method: 'PATCH', json: body }),
   deleteRepo: (o: string, n: string) => apiFetch(r(o, n), { method: 'DELETE' }),
@@ -1635,6 +1709,104 @@ export const api = {
     }),
   pull: (o: string, n: string, num: number) =>
     apiFetch<PullDetail>(`${r(o, n)}/pulls/${num}`),
+  /** One page of issues; `assignee` is a username or `none`. */
+  issues: (
+    o: string,
+    n: string,
+    opts: {
+      state: IssueListState;
+      q?: string;
+      label?: string;
+      assignee?: string;
+      author?: string;
+      page?: number;
+      limit?: number;
+    }
+  ) =>
+    apiFetch<IssueList>(
+      `${r(o, n)}/issues${qs({
+        state: opts.state,
+        ...(opts.q?.trim() ? { q: opts.q.trim() } : {}),
+        ...(opts.label ? { label: opts.label } : {}),
+        ...(opts.assignee ? { assignee: opts.assignee } : {}),
+        ...(opts.author ? { author: opts.author } : {}),
+        ...(opts.page && opts.page > 1 ? { page: opts.page } : {}),
+        ...(opts.limit ? { limit: opts.limit } : {}),
+      })}`
+    ),
+  issue: (o: string, n: string, num: number) =>
+    apiFetch<IssueDetail>(`${r(o, n)}/issues/${num}`),
+  createIssue: (
+    o: string,
+    n: string,
+    body: {
+      title: string;
+      body: string;
+      labels?: string[];
+      assignees?: string[];
+    }
+  ) => apiFetch<Issue>(`${r(o, n)}/issues`, { method: 'POST', json: body }),
+  /** `labels` and `assignees` replace the lists (names and usernames). */
+  updateIssue: (
+    o: string,
+    n: string,
+    num: number,
+    body: {
+      title?: string;
+      body?: string;
+      state?: 'open' | 'closed';
+      stateReason?: IssueStateReason;
+      labels?: string[];
+      assignees?: string[];
+    }
+  ) =>
+    apiFetch<Issue>(`${r(o, n)}/issues/${num}`, {
+      method: 'PATCH',
+      json: body,
+    }),
+  deleteIssue: (o: string, n: string, num: number) =>
+    apiFetch(`${r(o, n)}/issues/${num}`, { method: 'DELETE' }),
+  commentIssue: (o: string, n: string, num: number, body: string) =>
+    apiFetch<Comment>(`${r(o, n)}/issues/${num}/comments`, {
+      method: 'POST',
+      json: { body },
+    }),
+  updateIssueComment: (
+    o: string,
+    n: string,
+    num: number,
+    id: string,
+    body: string
+  ) =>
+    apiFetch<Comment>(
+      `${r(o, n)}/issues/${num}/comments/${encodeURIComponent(id)}`,
+      { method: 'PATCH', json: { body } }
+    ),
+  deleteIssueComment: (o: string, n: string, num: number, id: string) =>
+    apiFetch(`${r(o, n)}/issues/${num}/comments/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  labels: (o: string, n: string) =>
+    apiFetch<(Label & { openIssues: number })[]>(`${r(o, n)}/labels`),
+  createLabel: (
+    o: string,
+    n: string,
+    body: { name: string; color: string; description?: string }
+  ) => apiFetch<Label>(`${r(o, n)}/labels`, { method: 'POST', json: body }),
+  updateLabel: (
+    o: string,
+    n: string,
+    id: string,
+    body: { name?: string; color?: string; description?: string }
+  ) =>
+    apiFetch<Label>(`${r(o, n)}/labels/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      json: body,
+    }),
+  deleteLabel: (o: string, n: string, id: string) =>
+    apiFetch(`${r(o, n)}/labels/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
   updatePull: (
     o: string,
     n: string,
@@ -1949,6 +2121,12 @@ export const qk = {
     search = ''
   ) => ['repo', o, n, 'pulls', state, limit, page, search] as const,
   pullTree: (o: string, n: string) => ['repo', o, n, 'pull-tree'] as const,
+  /** Under `['repo', o, n, 'issues']`: a change to one issue refreshes every list. */
+  issues: (o: string, n: string, params: Record<string, string | number>) =>
+    ['repo', o, n, 'issues', params] as const,
+  issue: (o: string, n: string, num: number) =>
+    ['repo', o, n, 'issue', num] as const,
+  labels: (o: string, n: string) => ['repo', o, n, 'labels'] as const,
   pull: (o: string, n: string, num: number) =>
     ['repo', o, n, 'pull', num] as const,
   pullCommits: (o: string, n: string, num: number) =>

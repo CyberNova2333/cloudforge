@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   AlertIcon,
   BookIcon,
@@ -10,6 +11,7 @@ import {
   GraphIcon,
   HomeIcon,
   InboxIcon,
+  IssueOpenedIcon,
   KeyIcon,
   MailIcon,
   PersonIcon,
@@ -75,6 +77,7 @@ const OCTICONS: Record<Exclude<PageIconName, 'crew'>, Icon> = {
   code: CodeIcon,
   file: FileIcon,
   pull: GitPullRequestIcon,
+  issue: IssueOpenedIcon,
   commit: GitCommitIcon,
   branch: GitBranchIcon,
   tag: TagIcon,

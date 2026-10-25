@@ -178,6 +178,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   labels and assignees). `issue_links` records the issues a PR's title and description name (`linkPullToIssues`, on open and
   edit; `Fixes #N` = `closes`); the `issues` landing follow-up (`finishLanding`) closes them when the land target is the
   default branch. `repositories.has_issues` off: the routes 404. Deleting an issue, a label or someone else's comment is audited.
+  SPA: `pages/Issues.tsx`, `IssueNew.tsx`, `IssueView.tsx`, `RepoLabels.tsx` (pure parts in `lib/issuesView.ts`); a pull request
+  number that 404s forwards to `issues/<n>` and back. `<Markdown refs="/owner/repo">` links `#N` (`lib/issueRefs.ts`, a marked
+  extension); the UI says 标记 for labels (标签 is a git tag).
   Drizzle pitfall: a single-table select drops table names from columns inside its `sql` fields, so a correlated subquery
   there names the outer table literally (`… WHERE c.issue_id = issues.id`).
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
