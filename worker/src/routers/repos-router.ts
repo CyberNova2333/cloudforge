@@ -29,7 +29,7 @@ import {
   type Namespace,
   type RepoEnv,
 } from '../lib/repos';
-import { deleteRepositoryLogs } from '../actions/trigger';
+import { deleteRepository } from '../lib/repo-deletion';
 import { recordAudit } from '../lib/audit';
 import { createRepository, nameTaken } from '../lib/repo-create';
 import { repoStats } from '../lib/repo-stats';
@@ -43,7 +43,6 @@ import {
 import {
   LFS_NOT_CONFIGURED,
   OID_RE,
-  deleteRepositoryObjects,
   lfsConfigured,
   parseLfsPointer,
   presign,
@@ -406,19 +405,13 @@ reposRouter.openapi(deleteRepoRoute, async (c) => {
   if (!c.get('perms').admin)
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const repo = c.get('repo');
-  await c.get('db').delete(repositories).where(eq(repositories.id, repo.id));
-  // An instance event: the repository's own log went with it.
-  await recordAudit(c.get('db'), {
-    repositoryId: null,
-    actorId: c.get('user')!.id,
-    action: 'repository.deleted',
-    target: `${c.get('namespace').username}/${repo.name}`,
-    data: { repository: repo.id },
-  });
-  await c.env.ARTIFACTS.delete(repo.artifactsName);
-  // LFS rows cascade with the repository; their R2 bytes have to go explicitly.
-  await deleteRepositoryObjects(c.env, repo.id);
-  await deleteRepositoryLogs(c.env, repo.id);
+  await deleteRepository(
+    c.env,
+    c.get('db'),
+    repo,
+    c.get('user')!.id,
+    `${c.get('namespace').username}/${repo.name}`
+  );
   return c.json({ ok: true as const }, 200);
 });
 

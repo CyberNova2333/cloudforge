@@ -337,6 +337,29 @@ export const landingIntents = sqliteTable(
 export type LandingIntent = typeof landingIntents.$inferSelect;
 
 /**
+ * A deleted repository whose storage is still being cleaned up: written in the batch that deletes its row, so the
+ * Artifacts repo, LFS bytes and Actions logs, caches and artifacts are removed even when a step fails (the daily
+ * retention runs the steps left, `lib/repo-deletion.ts`). `id` is the repository's id; no foreign key, the row is gone.
+ */
+export const repositoryDeletions = sqliteTable(
+  'repository_deletions',
+  {
+    id: text('id').primaryKey(),
+    artifactsName: text('artifacts_name').notNull(),
+    fullName: text('full_name').notNull(),
+    /** Cleanup steps done, by name. */
+    completed: text('completed', { mode: 'json' })
+      .$type<Record<string, boolean>>()
+      .notNull()
+      .default({}),
+    attempts: integer('attempts').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('repository_deletions_pending_idx').on(t.finishedAt)]
+);
+
+/**
  * A push's follow-ups (Actions triggers, the rebase sweep, carried approvals, PR states), recorded before the push is
  * answered: they run in the background, which Cloudflare stops 30 s after the response, so an event left unfinished
  * runs again from the next push to its repository or the daily retention (`lib/push-events.ts`). `commands` are the
