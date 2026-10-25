@@ -15,6 +15,11 @@ export const USER_SETTINGS = {
     schema: z.enum(['zh', 'en']).nullable(),
     default: null,
   },
+  /** Which notifications also arrive by email (docs/notifications.md). */
+  notificationEmail: {
+    schema: z.enum(['participating', 'all', 'off']),
+    default: 'participating',
+  },
 } as const satisfies Record<string, { schema: z.ZodType; default: unknown }>;
 
 export type UserSettingKey = keyof typeof USER_SETTINGS;

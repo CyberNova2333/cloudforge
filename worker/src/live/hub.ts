@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
 
 /** Hibernating hub for every live WebSocket; relays "changed" pings by channel tag. */
@@ -29,6 +30,11 @@ export class LiveHub extends DurableObject<CloudflareBindings> {
         // Closing; the browser reconnects.
       }
     }
+  }
+
+  /** `publish` for several channels in one call (a notification's recipients). */
+  async publishMany(channels: string[], message: string): Promise<void> {
+    for (const channel of channels) await this.publish(channel, message);
   }
 
   async webSocketMessage() {}

@@ -15,6 +15,7 @@ export const RESERVED_USERNAMES = new Set([
   'logout',
   'mcp',
   'new',
+  'notifications',
   'oauth',
   'repos',
   'reset-password',

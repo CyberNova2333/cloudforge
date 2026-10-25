@@ -15,6 +15,10 @@ import { recoverPullCloses } from '../pulls/close-recovery';
 import { recoverPushEvents } from '../lib/push-events';
 import { recoverRepositoryDeletions } from '../lib/repo-deletion';
 import { prunePullRefs } from '../lib/pull-refs';
+import {
+  deliverNotificationEmails,
+  pruneNotifications,
+} from '../lib/notification-email';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
@@ -140,6 +144,13 @@ export async function runActionsRetention(
   await recoverRepositoryDeletions(env, db, { now }).catch((e: unknown) => {
     console.error('[repos] could not finish repository deletions', e);
   });
+  // Emails a request was cut off before sending, then the inbox's old rows.
+  await deliverNotificationEmails(env, db, { now: now.getTime() }).catch(
+    (e: unknown) => console.error('[retention] notification emails failed', e)
+  );
+  await pruneNotifications(db, now.getTime()).catch((e: unknown) =>
+    console.error('[retention] notification pruning failed', e)
+  );
   await prunePullRefs(env, db, now).catch((e: unknown) => {
     console.error('[refs] could not prune pull refs', e);
   });

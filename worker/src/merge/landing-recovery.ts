@@ -20,6 +20,7 @@ import { startSweep } from './auto';
 import { deleteMergedBranch } from './land';
 import { d1Of } from '../pulls/events';
 import { closeLinkedIssues } from '../lib/issue-links';
+import { notify } from '../lib/notifications';
 
 export const landingReceipt = (pr: number, id: string) =>
   `refs/pull/${pr}/landings/${id}`;
@@ -189,8 +190,21 @@ export async function finishLanding(
       'issues',
       () =>
         intent.target === repo.defaultBranch
-          ? closeLinkedIssues(db, pr, intent.actorId)
+          ? closeLinkedIssues(db, pr, intent.actorId, { env, db })
           : Promise.resolve(),
+    ],
+    // Run again after a lost checkpoint, it brings the thread back to unread once more: harmless.
+    [
+      'notify',
+      () =>
+        notify(
+          { env, db },
+          {
+            thread: { kind: 'pull', id: pr.id, repositoryId: pr.repositoryId },
+            event: 'merged',
+            actorId: intent.actorId,
+          }
+        ),
     ],
     ['states', () => settleStates(env, db, repo.id)],
   ];

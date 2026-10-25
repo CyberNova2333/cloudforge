@@ -127,3 +127,32 @@ export async function sendPasswordReset(
 `),
   });
 }
+
+/** One notification (lib/notification-email.ts): what happened on a thread, an excerpt, and why it was sent. */
+export async function sendNotificationEmail(
+  env: CloudflareBindings,
+  db: DrizzleDB,
+  opts: {
+    to: string;
+    subject: string;
+    /** "ada commented", "bob merged this pull request". */
+    headline: string;
+    excerpt: string | null;
+    url: string;
+    why: string;
+    settingsUrl: string;
+  }
+): Promise<boolean> {
+  const { app, from } = await identity(db, env);
+  return send(env, { email: from, name: app }, 'notification', {
+    to: opts.to,
+    subject: opts.subject,
+    text: `${opts.headline}${opts.excerpt ? `:\n\n${opts.excerpt}` : '.'}\n\n${opts.url}\n\n${opts.why}\nEmail settings: ${opts.settingsUrl}`,
+    html: shell(`
+  <p>${escapeHtml(opts.headline)}${opts.excerpt ? ':' : '.'}</p>
+  ${opts.excerpt ? `<blockquote style="margin:0 0 16px;padding:0 12px;border-left:3px solid #d1d9e0;color:#59636e">${escapeHtml(opts.excerpt)}</blockquote>` : ''}
+  ${button(opts.url, 'View it')}
+  <p style="color:#59636e;font-size:12px">${escapeHtml(opts.why)} <a href="${escapeHtml(opts.settingsUrl)}">Email settings</a></p>
+`),
+  });
+}

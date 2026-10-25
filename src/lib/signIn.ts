@@ -12,6 +12,7 @@ const APP_PAGES = new Set([
   'agents',
   'new',
   'approvals',
+  'notifications',
   'settings',
   'admin',
   'oauth',

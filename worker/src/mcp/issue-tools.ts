@@ -22,6 +22,7 @@ import {
   setIssueLabels,
 } from '../lib/issues';
 import { pullsNaming } from '../lib/issue-links';
+import type { NotifyCtx } from '../lib/notifications';
 import { userByUsername, usersById } from '../lib/users';
 import { publishChange } from '../live/publish';
 import { McpToolError } from './errors';
@@ -35,6 +36,12 @@ const issueNumberProp = {
   minimum: 1,
   description: 'The issue number, e.g. 12.',
 };
+
+const notifyCtx = (ctx: ToolContext): NotifyCtx => ({
+  env: ctx.env,
+  db: ctx.db,
+  after: ctx.after,
+});
 
 const issueUrl = (ctx: ToolContext, fullName: string, n: number) =>
   `${ctx.baseURL}/${fullName}/issues/${n}`;
@@ -294,6 +301,7 @@ const createIssueTool: ToolModule = {
       body,
       labels: labels.labels,
       assigneeIds: assignees.users.map((u) => u.id),
+      notify: notifyCtx(ctx),
     });
     ctx.after(publishChange(ctx.env, repo.id));
     return {
@@ -374,13 +382,21 @@ const updateIssueTool: ToolModule = {
     if (labels?.ok)
       await setIssueLabels(ctx.db, issue, labels.labels, ctx.user.id);
     if (assignees?.ok)
-      await setIssueAssignees(ctx.db, issue, assignees.users, ctx.user.id);
+      await setIssueAssignees(
+        ctx.db,
+        issue,
+        assignees.users,
+        ctx.user.id,
+        notifyCtx(ctx)
+      );
     if (state === 'closed')
       await closeIssue(ctx.db, issue, {
         actorId: ctx.user.id,
         reason: reason as (typeof issueStateReasons)[number],
+        notify: notifyCtx(ctx),
       });
-    if (state === 'open') await reopenIssue(ctx.db, issue, ctx.user.id);
+    if (state === 'open')
+      await reopenIssue(ctx.db, issue, ctx.user.id, notifyCtx(ctx));
     ctx.after(publishChange(ctx.env, repo.id));
     const fresh = (await getIssue(ctx.db, repo.id, issue.number))!;
     return {
@@ -425,7 +441,7 @@ const commentIssueTool: ToolModule = {
       throw new McpToolError(
         `body must be at most ${ISSUE_BODY_MAX} characters.`
       );
-    await addIssueComment(ctx.db, issue, ctx.user.id, body);
+    await addIssueComment(ctx.db, issue, ctx.user.id, body, notifyCtx(ctx));
     ctx.after(publishChange(ctx.env, repo.id));
     return {
       content: [text(`Commented on ${issueUrl(ctx, fullName, issue.number)}`)],

@@ -772,7 +772,14 @@ const commentPullRequest: ToolModule = {
   handler: async (args, ctx) => {
     const { repo, fullName } = await repoFor(ctx, args);
     const pr = await pullFor(ctx, repo.id, fullName, prNumber(args));
-    await addComment(ctx.env, ctx.db, pr, ctx.user.id, str(args, 'body', true));
+    await addComment(
+      ctx.env,
+      ctx.db,
+      pr,
+      ctx.user.id,
+      str(args, 'body', true),
+      ctx.after
+    );
     return {
       content: [text(`Commented on ${pullUrl(ctx, fullName, pr.number)}`)],
     };

@@ -43,6 +43,7 @@ import {
   setIssueLabels,
 } from '../lib/issues';
 import { pullsNaming } from '../lib/issue-links';
+import type { NotifyCtx } from '../lib/notifications';
 import {
   errorSchema,
   json200Response,
@@ -229,6 +230,13 @@ const numberParams = ownerRepoParams.extend({
   number: z.coerce.number().int().min(1),
 });
 
+/** Notifications from this request: written now, their emails sent after the response. */
+const notifyCtx = (c: Context<RepoEnv>): NotifyCtx => ({
+  env: c.env,
+  db: c.get('db'),
+  after: (work) => c.executionCtx.waitUntil(work),
+});
+
 /** The author, or someone with push access. */
 const mayEdit = (c: Context<RepoEnv>, authorId: string) =>
   c.get('perms').write || c.get('user')?.id === authorId;
@@ -356,6 +364,7 @@ issuesRouter.openapi(createRouteDef, async (c) => {
     body: body.body,
     labels: named.labels,
     assigneeIds: assignees.users.map((u) => u.id),
+    notify: notifyCtx(c),
   });
   return c.json(await issueOut(c, issue), 201);
 });
@@ -546,13 +555,15 @@ issuesRouter.openapi(updateRouteDef, async (c) => {
   await editIssue(db, issue, { title: body.title, body: body.body }, user.id);
   if (named?.ok) await setIssueLabels(db, issue, named.labels, user.id);
   if (assignees?.ok)
-    await setIssueAssignees(db, issue, assignees.users, user.id);
+    await setIssueAssignees(db, issue, assignees.users, user.id, notifyCtx(c));
   if (body.state === 'closed')
     await closeIssue(db, issue, {
       actorId: user.id,
       reason: body.stateReason ?? 'completed',
+      notify: notifyCtx(c),
     });
-  if (body.state === 'open') await reopenIssue(db, issue, user.id);
+  if (body.state === 'open')
+    await reopenIssue(db, issue, user.id, notifyCtx(c));
   const fresh = (await getIssue(db, repo.id, issue.number))!;
   return c.json(await issueOut(c, fresh), 200);
 });
@@ -623,7 +634,8 @@ issuesRouter.openapi(createCommentRoute, async (c) => {
     db,
     issue,
     user.id,
-    c.req.valid('json').body
+    c.req.valid('json').body,
+    notifyCtx(c)
   );
   const people = await usersById(db, [user.id]);
   return c.json(

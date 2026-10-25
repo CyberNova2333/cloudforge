@@ -87,6 +87,17 @@ name them, and `repositories.has_issues`, on by default). Apply it before deploy
 - **`Fixes #12` in a pull request's title or description closes issue #12** when the pull request lands on the default
   branch. Pull requests opened before the upgrade link their issues the next time their title or description is edited.
 
+The notifications update adds migration `0046` (notifications, thread subscriptions and repository watches). Apply it
+before deploying the Worker. Then:
+
+- **Members get notifications** about issues and pull requests they opened, took part in, were mentioned in or assigned
+  to, and every thread of repositories they watch (the bell in the top band, `/notifications`). See
+  [Notifications](notifications.md).
+- **Those that concern them directly are also emailed** when the instance sends email and their address is verified;
+  each member chooses participating (the default), all or off in Settings → Notifications.
+- **`notifications` is a reserved name**: an account or team already named `notifications` keeps working, but its
+  profile page is now hidden behind the inbox; rename it if you have one.
+
 Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after using the fallback) or the fallback
 `BETTER_AUTH_SECRET` invalidates in-flight encrypted Actions state; rerun those workflows after the change.
 
