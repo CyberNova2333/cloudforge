@@ -1017,8 +1017,9 @@ it('通过单个运行和单个 Workflow 实例重试失败的合并投递', asy
     await deliver();
     await deliver();
     expect(started.size).toBe(1);
+    // The push itself queued its run under its own event; this delivery's runs carry its key.
     const rows = await s.t.env.DB.prepare(
-      'SELECT id FROM workflow_runs WHERE trigger_key IS NOT NULL'
+      "SELECT id FROM workflow_runs WHERE instr(trigger_key, 'landing:stable') > 0"
     ).all();
     expect(rows.results).toHaveLength(1);
     expect(

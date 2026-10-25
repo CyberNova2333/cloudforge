@@ -12,6 +12,7 @@ import { stopStaleReviews } from '../review/head';
 import { recoverLessons } from '../learn/recover';
 import { recoverLandings } from '../merge/landing-recovery';
 import { recoverPullCloses } from '../pulls/close-recovery';
+import { recoverPushEvents } from '../lib/push-events';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */
@@ -130,6 +131,9 @@ export async function runActionsRetention(
   });
   await recoverPullCloses(env, db).catch((e: unknown) => {
     console.error('[pulls] could not recover closed pulls', e);
+  });
+  await recoverPushEvents(env, db, { now }).catch((e: unknown) => {
+    console.error('[git] could not recover push events', e);
   });
   const days = await getSetting(db, env, 'actions.retention_days');
   let deleted = 0;

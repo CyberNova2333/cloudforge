@@ -74,6 +74,13 @@ Each repository row has an immutable `artifacts_name` (`r_<id>`). The Artifacts 
 
 Artifacts credentials never leave the worker.
 
+After a push lands, the worker records its ref updates in D1 (`push_events`) before it answers, then runs the
+follow-ups in the background: Actions triggers, carried approvals, the rebase sweep, PR states and an agent's
+`AGENT.md` ([`push-events.ts`](../worker/src/lib/push-events.ts)). Cloudflare stops a response's background work 30
+seconds after the response, so an event left unfinished runs again from the next push to the same repository or from
+the daily retention (at most 5 attempts, each under a 2-minute lease). Running one twice is harmless: the Actions runs
+it queues are unique per event.
+
 ## Reads
 
 The repository UI uses the Artifacts binding directly: `readTree`, `readCommit`, `readBlob`, `readFile`, and `log`. Branch lists come from the git smart-HTTP ref advertisement. See [`worker/src/git/service.ts`](../worker/src/git/service.ts).

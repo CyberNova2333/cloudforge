@@ -336,6 +336,37 @@ export const landingIntents = sqliteTable(
 );
 export type LandingIntent = typeof landingIntents.$inferSelect;
 
+/**
+ * A push's follow-ups (Actions triggers, the rebase sweep, carried approvals, PR states), recorded before the push is
+ * answered: they run in the background, which Cloudflare stops 30 s after the response, so an event left unfinished
+ * runs again from the next push to its repository or the daily retention (`lib/push-events.ts`). `commands` are the
+ * ref updates that took effect; its id is the event id that makes queued Actions runs unique.
+ */
+export const pushEvents = sqliteTable(
+  'push_events',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    actorId: text('actor_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    commands: text('commands', { mode: 'json' })
+      .$type<{ old: string; new: string; ref: string }[]>()
+      .notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    /** A run in progress holds the event until this lease runs out. */
+    claimedAt: integer('claimed_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    index('push_events_pending_idx').on(t.completedAt, t.createdAt),
+    index('push_events_repository_idx').on(t.repositoryId),
+  ]
+);
+
 /** One close generation per PR; reopening removes it, and closing again uses a fresh identity. */
 export const pullCloseIntents = sqliteTable(
   'pull_close_intents',
