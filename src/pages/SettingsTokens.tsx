@@ -91,7 +91,7 @@ export default function SettingsTokens() {
         ]}
         title={t('Personal access tokens')}
         lede={t(
-          'A token is a password for git over HTTPS and for Git LFS. Use it when you clone or push. A read-only token can clone and fetch but never push.'
+          'Use a token for git over HTTPS, Git LFS, or the commit status API (Authorization: Bearer). A read-only token can read but cannot push or report statuses.'
         )}
       />
       <SettingsFrame>

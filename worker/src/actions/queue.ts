@@ -1,9 +1,12 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
-import { inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { workflowJobs, workflowRuns } from '../db/app.schema';
 import { schema } from '../db/schema';
 import { finishAbandoned } from './abandon';
+import type { DrizzleDB } from '../db/middleware';
+import { runnersStopped } from '../usage/record';
 
 /**
  * The instance's Actions job queue: at most `actions.max_concurrent_jobs` jobs hold a slot (run a
@@ -28,6 +31,9 @@ export const MAX_RECHECK_MS = 30 * 60_000;
 export const FRESH_WAIT_MS = 10 * 60_000;
 /** Job ids per D1 lookup (bound-parameter limit). */
 const CHUNK = 50;
+const RESERVATION_CURSOR = 'reservation-recovery-cursor';
+/** Extra margin after the runner's timeout + 10 minute hard-stop alarm. */
+const HARD_STOP_MARGIN_MS = 5 * 60_000;
 
 export interface SlotRequest {
   jobId: string;
@@ -282,7 +288,12 @@ export class ActionsQueue
     const { n } = this.sql
       .exec<{ n: number }>('SELECT COUNT(*) AS n FROM entries')
       .one();
-    if (!n) await this.ctx.storage.deleteAlarm();
+    const reserved =
+      !n &&
+      (await this.env.DB.prepare(
+        "SELECT 1 FROM workflow_jobs WHERE status = 'in_progress' LIMIT 1"
+      ).first());
+    if (!n && !reserved) await this.ctx.storage.deleteAlarm();
     else if ((await this.ctx.storage.getAlarm()) === null)
       await this.ctx.storage.setAlarm(Date.now() + SWEEP_MS);
   }
@@ -346,11 +357,77 @@ export class ActionsQueue
     return out;
   }
 
+  /** Fence the executor first, but keep its D1 capacity until every container is confirmed stopped. */
+  private async stopAbandonedRun(
+    db: DrizzleDB,
+    runId: string,
+    conclusion: 'failure' | 'cancelled'
+  ): Promise<boolean> {
+    if (!this.env.ACTIONS_RUN || !this.env.JOB_RUNNER) return false;
+    try {
+      await db
+        .update(workflowRuns)
+        .set({
+          status: 'completed',
+          conclusion,
+          completedAt: new Date(),
+          errorMessage:
+            conclusion === 'failure'
+              ? 'The run stopped unexpectedly. Try re-running it.'
+              : null,
+        })
+        .where(
+          and(
+            eq(workflowRuns.id, runId),
+            inArray(workflowRuns.status, ['queued', 'in_progress'])
+          )
+        );
+      const instance = await this.env.ACTIONS_RUN.get(runId);
+      const { status } = await instance.status();
+      if (!['errored', 'terminated', 'complete'].includes(status))
+        await instance.terminate();
+      const progressKey = `stop-run:${runId}`;
+      const cursor = (await this.ctx.storage.get<string>(progressKey)) ?? '';
+      const jobs = await db
+        .select({ id: workflowJobs.id })
+        .from(workflowJobs)
+        .where(
+          and(
+            eq(workflowJobs.runId, runId),
+            eq(workflowJobs.status, 'in_progress'),
+            gt(workflowJobs.id, cursor)
+          )
+        )
+        .orderBy(asc(workflowJobs.id))
+        .limit(CHUNK + 1)
+        .all();
+      // A failed destroy is not proof of a stopped container. Retain all reservations and retry later.
+      // Stop at most CHUNK containers per visit; a large matrix resumes without clearing capacity early.
+      for (const { id } of jobs.slice(0, CHUNK)) {
+        await this.env.JOB_RUNNER.getByName(id).destroy();
+        await runnersStopped(db, [id]);
+        await this.ctx.storage.put(progressKey, id);
+      }
+      if (jobs.length > CHUNK) return false;
+      await finishAbandoned(db, runId, conclusion);
+      await this.ctx.storage.delete(progressKey);
+      return true;
+    } catch (error) {
+      console.warn(
+        '[actions] could not stop abandoned run; retaining capacity',
+        runId,
+        error
+      );
+      return false;
+    }
+  }
+
   /**
    * Frees slots a crash leaked: entries whose job row is gone (its repository was deleted) or
    * already finished; entries of runs that are finished in D1, or whose Workflow errored, was
-   * terminated, or completed (an errored or terminated run is marked finished, as viewing it
-   * would); and slots held past their deadline plus RECLAIM_MARGIN_MS. A started job's deadline is
+   * terminated, or completed; and slots held past their deadline plus RECLAIM_MARGIN_MS. Reserved
+   * jobs are released only after their Workflow and containers stop; failures retain capacity.
+   * D1 reservations with no queue entry are swept too. A started job's deadline is
    * its start plus timeout-minutes and cache-save window; a granted job that hasn't started yet
    * gets the longest recheck to notice its grant.
    */
@@ -362,42 +439,97 @@ export class ActionsQueue
         'SELECT seq, job_id, run_id, max_ms, granted_at, started_at, queued_at FROM entries ORDER BY seq'
       )
       .toArray();
-    const reclaimed = new Set<string>();
+    const expired = new Set<string>();
     for (const e of entries) {
       if (e.granted_at === null) continue;
       const deadline =
         e.started_at !== null
           ? e.started_at + e.max_ms
           : e.granted_at + MAX_RECHECK_MS;
-      if (now > deadline + RECLAIM_MARGIN_MS) reclaimed.add(e.job_id);
+      if (now > deadline + RECLAIM_MARGIN_MS) expired.add(e.job_id);
     }
     const ids = entries.map((e) => e.job_id);
     const open = new Set<string>();
+    const running = new Set<string>();
+    const deadlines = new Map<string, number>();
     const db = drizzle(this.env.DB, { schema });
     for (let i = 0; i < ids.length; i += CHUNK) {
       const rows = await db
-        .select({ id: workflowJobs.id, status: workflowJobs.status })
+        .select({
+          id: workflowJobs.id,
+          status: workflowJobs.status,
+          deadline: sql<
+            number | null
+          >`(SELECT max(deadline_at) FROM runner_sessions WHERE job_id = workflow_jobs.id)`,
+        })
         .from(workflowJobs)
         .where(inArray(workflowJobs.id, ids.slice(i, i + CHUNK)))
         .all();
-      for (const r of rows) if (r.status !== 'completed') open.add(r.id);
+      for (const r of rows) {
+        if (r.status !== 'completed') open.add(r.id);
+        if (r.status === 'in_progress') running.add(r.id);
+        if (r.deadline !== null) deadlines.set(r.id, r.deadline);
+      }
     }
+    const reclaimed = new Set<string>();
     for (const id of ids) if (!open.has(id)) reclaimed.add(id);
 
-    // Runs whose Workflow is gone never give their slots back on their own.
+    // Fallback can reserve D1 without ever creating a DO entry. Sweep a bounded durable page too.
+    const cursor =
+      (await this.ctx.storage.get<string>(RESERVATION_CURSOR)) ?? '';
+    const reservations = await db
+      .select({
+        id: workflowJobs.id,
+        runId: workflowJobs.runId,
+        deadline: sql<
+          number | null
+        >`(SELECT max(deadline_at) FROM runner_sessions WHERE job_id = workflow_jobs.id)`,
+      })
+      .from(workflowJobs)
+      .where(
+        and(eq(workflowJobs.status, 'in_progress'), gt(workflowJobs.id, cursor))
+      )
+      .orderBy(asc(workflowJobs.id))
+      .limit(CHUNK + 1)
+      .all();
+    const page = reservations.slice(0, CHUNK);
+    const timedOutRuns = new Set<string>();
+    for (const r of page)
+      if (r.deadline !== null && now > r.deadline + HARD_STOP_MARGIN_MS)
+        timedOutRuns.add(r.runId);
+    for (const e of entries) {
+      if (!expired.has(e.job_id) || reclaimed.has(e.job_id)) continue;
+      if (!running.has(e.job_id)) {
+        // An unstarted stale grant holds no D1 capacity and can simply be offered again.
+        reclaimed.add(e.job_id);
+      } else if (now > (deadlines.get(e.job_id) ?? 0) + HARD_STOP_MARGIN_MS) {
+        timedOutRuns.add(e.run_id);
+      }
+    }
+    // Include expired holders: excluding them here would bypass Workflow termination and D1 cleanup.
     const runIds = [
-      ...new Set(
-        entries.filter((e) => !reclaimed.has(e.job_id)).map((e) => e.run_id)
-      ),
+      ...new Set([
+        ...entries.filter((e) => !reclaimed.has(e.job_id)).map((e) => e.run_id),
+        ...page.map((r) => r.runId),
+      ]),
     ];
-    const finished = new Set<string>();
+    const terminal = new Map<string, 'failure' | 'cancelled'>();
     for (let i = 0; i < runIds.length; i += CHUNK) {
       const rows = await db
-        .select({ id: workflowRuns.id, status: workflowRuns.status })
+        .select({
+          id: workflowRuns.id,
+          status: workflowRuns.status,
+          conclusion: workflowRuns.conclusion,
+        })
         .from(workflowRuns)
         .where(inArray(workflowRuns.id, runIds.slice(i, i + CHUNK)))
         .all();
-      for (const r of rows) if (r.status === 'completed') finished.add(r.id);
+      for (const r of rows)
+        if (r.status === 'completed')
+          terminal.set(
+            r.id,
+            r.conclusion === 'cancelled' ? 'cancelled' : 'failure'
+          );
     }
     // Only runs holding a slot, or waiting a while, are worth a Workflow status call: a fresh
     // waiter's Workflow is plainly alive (it just asked).
@@ -409,26 +541,29 @@ export class ActionsQueue
             (e.granted_at !== null || now - e.queued_at > FRESH_WAIT_MS)
         )
         .map((e) => e.run_id)
+        .concat(page.map((r) => r.runId))
     );
+    const finished = new Set<string>();
     if ((this.env as Partial<CloudflareBindings>).ACTIONS_RUN)
       for (const runId of runIds) {
-        if (finished.has(runId) || !worthChecking.has(runId)) continue;
+        if (!terminal.has(runId) && !worthChecking.has(runId)) continue;
         try {
           const { status } = await (
             await this.env.ACTIONS_RUN.get(runId)
           ).status();
-          if (status === 'errored' || status === 'terminated')
-            await finishAbandoned(
-              db,
-              runId,
-              status === 'terminated' ? 'cancelled' : 'failure'
-            );
           if (
+            terminal.has(runId) ||
+            timedOutRuns.has(runId) ||
             status === 'errored' ||
             status === 'terminated' ||
             status === 'complete'
-          )
-            finished.add(runId);
+          ) {
+            const conclusion =
+              terminal.get(runId) ??
+              (status === 'terminated' ? 'cancelled' : 'failure');
+            if (await this.stopAbandonedRun(db, runId, conclusion))
+              finished.add(runId);
+          }
         } catch {
           // Unknown instance or a transient error: the D1 checks above still apply.
         }
@@ -438,6 +573,10 @@ export class ActionsQueue
 
     for (const id of reclaimed)
       this.sql.exec('DELETE FROM entries WHERE job_id = ?', id);
+    await this.ctx.storage.put(
+      RESERVATION_CURSOR,
+      reservations.length > CHUNK ? page.at(-1)!.id : ''
+    );
     const grants = this.pump(now);
     await this.keepSweeping();
     await notifyGranted(this.env, grants);

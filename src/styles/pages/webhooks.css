@@ -1,0 +1,309 @@
+/* Repository webhooks: settings, write-only signing secrets and delivery inspection. */
+.webhooks-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.webhook-settings-nav {
+  margin: 0;
+}
+.webhook-settings-nav .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.webhooks-main,
+.webhook-list {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.webhook-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.webhook-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.webhook-card-head,
+.webhook-card-meta,
+.webhook-actions,
+.webhook-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.webhook-card-head {
+  padding: 16px 16px 8px;
+}
+.webhook-open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.webhook-open > svg {
+  flex: none;
+  color: var(--muted);
+}
+.webhook-url {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.webhook-open:hover .webhook-url {
+  text-decoration: underline;
+}
+.webhook-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.webhook-card-meta {
+  padding: 0 16px 16px 40px;
+  gap: 6px 16px;
+  overflow-wrap: anywhere;
+}
+.webhook-card-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.webhook-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+.webhook-card > .webhook-form {
+  border-top: 1px solid var(--line);
+}
+.webhook-form h3,
+.webhook-history h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.webhook-form p,
+.webhook-history p {
+  margin: 0;
+}
+.webhook-form-fields,
+.webhook-events {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.webhook-form .fld {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.webhook-form .lbl {
+  font-size: 13px;
+  font-weight: 600;
+}
+.webhook-form .form-control,
+.webhook-form .form-select {
+  width: 100%;
+  max-width: 100%;
+}
+.webhook-events legend {
+  margin-bottom: 10px;
+}
+.webhook-event-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.webhook-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: normal;
+  cursor: pointer;
+}
+.webhook-choice input {
+  flex: none;
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.webhook-choice > span {
+  display: grid;
+  gap: 3px;
+}
+.webhook-choice:has(input:disabled) {
+  cursor: default;
+}
+.webhook-notice {
+  margin: 0;
+  padding: 12px 20px;
+  color: var(--ok);
+  background: var(--ok-bg);
+  font-size: 13px;
+}
+.webhook-history {
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.webhook-history-head {
+  justify-content: space-between;
+  padding: 16px 20px;
+  gap: 12px;
+}
+.webhook-history-head p {
+  margin-top: 4px;
+}
+.webhook-history > .ap-error {
+  padding: 0 20px 12px;
+}
+.webhook-delivery {
+  border-top: 1px solid var(--line);
+}
+.webhook-delivery > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.webhook-delivery > summary::-webkit-details-marker {
+  display: none;
+}
+.webhook-delivery > summary::before {
+  content: '›';
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+.webhook-delivery[open] > summary::before {
+  transform: rotate(90deg);
+}
+.webhook-delivery > summary:hover {
+  background: var(--surface-2);
+}
+.webhook-delivery > summary code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.webhook-delivery-response {
+  margin-left: auto;
+}
+.webhook-delivery-body {
+  display: grid;
+  gap: 16px;
+  padding: 4px 20px 20px;
+  min-width: 0;
+}
+.webhook-delivery-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+.webhook-delivery-meta > div:first-child {
+  grid-column: 1 / -1;
+}
+.webhook-delivery-meta dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: normal;
+}
+.webhook-delivery-meta dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.webhook-payloads {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.webhook-payloads section {
+  min-width: 0;
+}
+.webhook-payloads h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.webhook-payloads pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.webhook-error {
+  font-size: 13px;
+  color: var(--bad);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .webhooks-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .webhook-settings-nav {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .webhook-settings-nav .menu-item {
+    flex: 1;
+    border-top: 0;
+  }
+}
+@media (max-width: 600px) {
+  .webhook-event-grid,
+  .webhook-delivery-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .webhook-card-head,
+  .webhook-delivery > summary {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .webhook-card-meta {
+    padding-left: 12px;
+  }
+  .webhook-form,
+  .webhook-history-head,
+  .webhook-delivery-body {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .webhook-delivery-response {
+    margin-left: 0;
+  }
+}

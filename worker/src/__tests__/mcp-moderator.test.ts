@@ -615,7 +615,7 @@ describe('审核工具', () => {
     const page = (await (
       await call(t, '/api/mcp', { cookie: admin })
     ).json()) as { tools: unknown[]; moderatorTools: { name: string }[] };
-    expect(page.tools).toHaveLength(29);
+    expect(page.tools).toHaveLength(31);
     expect(page.moderatorTools.map((x) => x.name)).toEqual(MOD_TOOLS);
   });
 

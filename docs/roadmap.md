@@ -13,9 +13,9 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 需要提前接受的平台限制：不支持 SSH（Workers 不能监听 22 端口，只能 HTTPS + 令牌）；新建的 Artifacts 仓库上限 1 GB、推送只支持协议 v1（大仓库要用 LFS）；D1 单线程、每条语句最多 100 个参数（高写入功能都按批量写入和后台处理设计）。
 
-## 已完成（相对 `origin/main` 6f7a22a）
+## 导入成果（基线 `6f7a22a`）
 
-四个分支依次叠在一起，按顺序合并：
+原交付的四个分支依次叠在一起；2026-10-25 从提供的 bundle 导入，并在 `codex/roadmap-integration` 统一审计补修，保留以下提交顺序：
 
 | 分支                 | 内容                                                                                                                                                              | 迁移      |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
@@ -26,17 +26,19 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 设计与行为说明见 `docs/issues.md`、`docs/notifications.md`、`docs/webhooks.md`；升级步骤见 `docs/updating.md`。
 
-## 当前阶段没有做完的
+## 2026-10-25 集成进展
 
-### Webhooks 与提交状态（`feat/webhooks`）
+### Webhooks 与提交状态补完
 
-后端、接口、门禁、测试和文档已完成；以下部分没做：
+已完成原路线图指定的立即下一步：
 
-- **网页：仓库设置 → Webhooks**：列表、新建（地址、密钥、事件、启用）、编辑、删除、投递记录（请求体、响应码、前 2 KB 响应、耗时、错误）、重新投递、发送测试。接口已全部可用（`/api/repos/{owner}/{repo}/hooks…`），在页面做好之前只能用接口管理。
-- **网页：检查框与检查徽章显示外部状态**：`GET …/commit-statuses` 已返回 `statuses`，`src/lib/uiApi.ts` 的类型和检查框、提交列表徽章还没有用上；PR 状态原因里 `run_number` 为 0 的检查失败已能正确显示（不带“运行 #N”）。
-- **网页：访问令牌页说明**令牌可以调用提交状态接口（Bearer）。
-- **MCP 工具**：`cloudforge_create_commit_status`、`cloudforge_get_commit_status`（`worker/src/mcp/` 新文件，注册后更新 MCP 工具列表与数量的测试）。
-- 上述网页部分的中文翻译与截图检查。
+- **网页：仓库设置 → Webhooks**：列表、新建、编辑、删除、密钥保留/替换/移除、投递记录、重新投递、测试 ping。
+- **网页：检查框与检查徽章**：展示外部状态及 Actions，只有外部 CI 时也能查看；包含描述、安全详情链接及移动布局。
+- **网页：访问令牌说明**：Bearer 上报用途及只读限制。
+- **MCP 工具**：`cloudforge_create_commit_status`、`cloudforge_get_commit_status`，共用 REST 输入校验，遵守当前仓库权限；普通连接发现的工具数量为 31。
+- 中文翻译、桌面/移动/暗色截图及页面交互检查。
+
+导入审计同时补修了初始化租约、受保护推送、Git 命令解析、通知撤权、密钥白名单并发替换、Actions 故障降级并发及名额回收、Webhook 批量入队/响应读取/签名/租约/耗尽状态/地址检查、提交状态时间戳并列，以及内部 PR 引用的清理进度。新测试进入 CI；行为变更见 `docs/updating.md` 和 `docs/architecture.md`。迁移 `0048` 由 Drizzle 生成，为 Actions 状态/运行添加索引，避免容量检查扫描全部历史作业。
 
 后续可做（`docs/webhooks.md`“以后”）：实例级 webhook、按分支过滤事件、表单编码请求体、连续失败自动停用、**必需检查**（与分支保护规则一起做）。
 
@@ -48,8 +50,8 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 ### 交付相关
 
-- 我推送不了 CNB（没有凭据），所有提交都在 `cloudforge-all.bundle` 里，需要你导入后推送并按上表顺序合并。
-- 部署前依次执行迁移 0040–0047，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
+- 原始 `cloudforge-all.bundle` 已导入本地；保留四个分支的完整历史。新交付 bundle 包含导入成果与本次补修，远端推送另需明确指示。
+- 部署前依次执行迁移 0040–0048，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
 
 ## 规划
 
@@ -57,7 +59,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 1. 议题 —— 已完成（里程碑、模板待做）。
 2. 通知 —— 已完成。
-3. 集成接口 —— 提交状态、Webhooks 后端已完成；**下一步先补完 Webhooks 网页与 MCP 工具**，再做部署密钥（仓库级只读/可写 SSH 不可行，做成仓库级 HTTPS 令牌）。
+3. 集成接口 —— 提交状态、Webhooks 后端、网页与 MCP 工具已完成；**下一步是仓库级 HTTPS 部署令牌**（只读/可写、最小仓库授权、撤销与审计；SSH 不可行）。先写中文设计文档，再分支实现。
 
 ### 第二阶段：单租户企业部署的门槛
 

@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { settleStates } from '../pulls/settle';
-import { and, eq, exists, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import { autoMergeForCommit } from '../review/auto-merge';
 import {
@@ -528,8 +528,8 @@ async function skipJob(deps: ExecutorDeps, jobId: string, name: string) {
  * The grant arrives as a Workflow event; a lost or early event is caught by the next recheck
  * (5, 10, 20, then every 30 minutes), when the queue is asked again. Returns false when the run
  * was cancelled while waiting. If the queue can't be reached after its retries, the job runs
- * without a slot once D1 counts fewer running jobs than the limit (startWithoutQueue; giving the
- * slot back later is a no-op).
+ * without a queue slot only after an atomic D1 capacity reservation. Normal grants reserve in
+ * D1 too, so jobs on either side of an outage share the same global and repository limits.
  */
 async function waitForSlot(
   deps: ExecutorDeps,
@@ -582,26 +582,27 @@ async function waitForSlot(
       }
       state = await step.do(`${prefix}:queue:${i}`, config, ask);
     }
-    return !state.cancelled;
+    if (state.cancelled) return false;
   } catch (e) {
     console.warn(
-      '[actions] job queue unavailable; starting within the limit as D1 counts it',
+      '[actions] job queue unavailable; reserving capacity in D1',
       job.id,
       e
     );
-    return startWithoutQueue(deps, ctx, job, prefix);
+    return reserveCapacity(deps, ctx, job, `${prefix}:queue-down`);
   }
+  return reserveCapacity(deps, ctx, job, `${prefix}:capacity`);
 }
 
 /** Minutes between a queue-less job's checks: 5, 10, 20, then every 30. */
 const QUEUE_DOWN_RECHECK_MINUTES = [5, 10, 20, 30];
 
 /**
- * The queue can't be reached: the job still runs, so CI keeps working, but only while fewer jobs run than
- * `actions.max_concurrent_jobs` as D1 counts them (approximate: two jobs may count at once), so an outage of the queue
- * never starts every waiting container together. Returns false when the run was cancelled meanwhile.
+ * Count and reserve in one D1 statement, before booting. Reading the count and later marking the
+ * job running lets every parallel waiter see the same free slot. A reservation is idempotent on
+ * durable-step replay; it is released on completion, cancellation or before a runner restart.
  */
-async function startWithoutQueue(
+async function reserveCapacity(
   deps: ExecutorDeps,
   ctx: RunContext,
   job: RunContext['jobs'][number],
@@ -609,21 +610,63 @@ async function startWithoutQueue(
 ): Promise<boolean> {
   const { db, env, step } = deps;
   for (let i = 1; ; i++) {
-    const state = await step.do(`${prefix}:queue-down:${i}`, async () => {
-      const run = await db
-        .select({ status: workflowRuns.status })
-        .from(workflowRuns)
-        .where(eq(workflowRuns.id, ctx.runId))
-        .get();
-      if (!run || run.status === 'completed')
-        return { cancelled: true, start: false };
-      const limit = await getSetting(db, env, 'actions.max_concurrent_jobs');
-      const running = await db
-        .select({ n: sql<number>`count(*)` })
+    const state = await step.do(`${prefix}:${i}`, async () => {
+      const limits = await getSettings(db, env, [
+        'actions.max_concurrent_jobs',
+        'actions.max_concurrent_jobs_per_repo',
+      ]);
+      const repoLimit = limits['actions.max_concurrent_jobs_per_repo'];
+      const reserved = await db
+        .update(workflowJobs)
+        .set({ status: 'in_progress' })
+        .where(
+          and(
+            eq(workflowJobs.id, job.id),
+            activeRunForJob(db, job.id),
+            or(
+              eq(workflowJobs.status, 'in_progress'),
+              and(
+                eq(workflowJobs.status, 'queued'),
+                sql`(SELECT count(*) FROM workflow_jobs j WHERE j.status = 'in_progress') < ${limits['actions.max_concurrent_jobs']}`,
+                repoLimit === null
+                  ? undefined
+                  : sql`(
+                SELECT count(*) FROM workflow_jobs j
+                JOIN workflow_runs r ON r.id = j.run_id
+                WHERE j.status = 'in_progress' AND r.repository_id = ${ctx.repoId}
+              ) < ${repoLimit}`
+              )
+            )
+          )
+        )
+        .returning({ id: workflowJobs.id });
+      if (reserved.length) return { cancelled: false, start: true };
+      const current = await db
+        .select({ status: workflowJobs.status, runStatus: workflowRuns.status })
         .from(workflowJobs)
-        .where(eq(workflowJobs.status, 'in_progress'))
+        .innerJoin(workflowRuns, eq(workflowRuns.id, workflowJobs.runId))
+        .where(eq(workflowJobs.id, job.id))
         .get();
-      return { cancelled: false, start: Number(running?.n ?? 0) < limit };
+      // A fallback holder may have died before the queue ever saw an entry. Once the
+      // queue is reachable, its bounded D1 sweep can stop that run and free capacity.
+      if (
+        current &&
+        current.status !== 'completed' &&
+        current.runStatus !== 'completed'
+      ) {
+        try {
+          await actionsQueue(env).reclaim();
+        } catch {
+          /* Queue still unavailable. */
+        }
+      }
+      return {
+        cancelled:
+          !current ||
+          current.status === 'completed' ||
+          current.runStatus === 'completed',
+        start: false,
+      };
     });
     if (state.cancelled) return false;
     if (state.start) return true;
@@ -633,12 +676,12 @@ async function startWithoutQueue(
       ];
     try {
       // A durable wait: nothing sends this event.
-      await step.waitForEvent(`${prefix}:queue-down:wait:${i}`, {
-        type: `queue-down-${job.id}`,
+      await step.waitForEvent(`${prefix}:wait:${i}`, {
+        type: `capacity-${job.id}`,
         timeout: `${minutes} minutes`,
       });
     } catch {
-      // Timed out: count again.
+      // Timed out: try another atomic reservation.
     }
   }
 }
@@ -794,6 +837,10 @@ async function runJob(
         }
         await runnersStopped(db, [job.id]);
         // The container is gone: the restart queues again, and meanwhile someone else may use the slot.
+        await db
+          .update(workflowJobs)
+          .set({ status: 'queued', startedAt: null })
+          .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
         await releaseSlot(env, job.id);
         const wait = (deps.restartDelayMs ?? 15_000) * attempt;
         if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -973,7 +1020,6 @@ async function runJob(
       console.error('[actions] runner destroy failed', job.id, e);
     }
     await runnersStopped(db, [job.id]);
-    await releaseSlot(env, job.id);
     const outputs: Record<string, string> = {};
     const withheld: string[] = [];
     for (const [k, v] of Object.entries(stateError ? {} : def.outputs)) {
@@ -997,7 +1043,7 @@ async function runJob(
         ? 'failure'
         : 'success';
     const now = new Date();
-    return persistState(async () => {
+    const saved = await persistState(async () => {
       await putLog(
         env,
         ctx,
@@ -1040,6 +1086,20 @@ async function runJob(
             }),
       } satisfies JobOutcome);
     });
+    // persistState turns log/state storage errors into durable markers. In that case
+    // the normal completion write may not have run, so clear D1 capacity before release too.
+    if ('unavailable' in saved)
+      await db
+        .update(workflowJobs)
+        .set({
+          status: 'completed',
+          conclusion: 'failure',
+          completedAt: now,
+        })
+        .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
+    // Publish the D1 completion before waking the next queue holder.
+    await releaseSlot(env, job.id);
+    return saved;
   });
   try {
     return await openState<JobOutcome>(

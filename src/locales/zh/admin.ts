@@ -1,5 +1,7 @@
 /** Chinese for the admin area (site admin, personal settings): see index.ts for the terms. */
 export const admin: Record<string, string> = {
+  'Use a token for git over HTTPS, Git LFS, or the commit status API (Authorization: Bearer). A read-only token can read but cannot push or report statuses.':
+    '令牌可用于 HTTPS Git、Git LFS 或提交状态接口（Authorization: Bearer）。只读令牌可以读取，但不能推送或上报状态。',
   // src/pages/Admin.tsx — People and team
   'Who can sign in, whether this deployment is set up properly, and the settings every repository shares.':
     '谁可以登录、此部署是否已正确设置，以及所有仓库共享的设置。',

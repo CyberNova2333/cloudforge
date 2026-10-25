@@ -385,40 +385,33 @@ export async function setSecretRepositories(
   repositoryIds: string[]
 ): Promise<{ added: string[]; removed: string[] }> {
   const wanted = [...new Set(repositoryIds)];
-  const before = (await secretRepositories(db, [secretId])).get(secretId)!;
-  const added = wanted.filter((id) => !before.includes(id));
-  const removed = before.filter((id) => !wanted.includes(id));
   const now = new Date();
   // 3 columns a row: 33 rows stay under D1's 100 bound parameters.
   const inserts = [];
-  for (let i = 0; i < added.length; i += 33)
+  for (let i = 0; i < wanted.length; i += 33)
     inserts.push(
       db
         .insert(actionsSecretRepositories)
         .values(
-          added
+          wanted
             .slice(i, i + 33)
             .map((repositoryId) => ({ secretId, repositoryId, createdAt: now }))
         )
         .onConflictDoNothing()
     );
-  const deletes = removed.length
-    ? [
-        db
-          .delete(actionsSecretRepositories)
-          .where(
-            and(
-              eq(actionsSecretRepositories.secretId, secretId),
-              inJsonArray(actionsSecretRepositories.repositoryId, removed)
-            )
-          ),
-      ]
-    : [];
-  const statements = [...deletes, ...inserts];
-  if (statements.length)
-    await db.batch(
-      statements as [(typeof statements)[0], ...typeof statements]
-    );
+  // Replacing from a stale diff can merge two concurrent allow-lists. Delete the
+  // current set and insert the full requested set in one transaction instead.
+  // RETURNING also makes the audit delta describe the set actually replaced.
+  const [previous] = await db.batch([
+    db
+      .delete(actionsSecretRepositories)
+      .where(eq(actionsSecretRepositories.secretId, secretId))
+      .returning({ repositoryId: actionsSecretRepositories.repositoryId }),
+    ...inserts,
+  ]);
+  const before = previous.map((row) => row.repositoryId);
+  const added = wanted.filter((id) => !before.includes(id));
+  const removed = before.filter((id) => !wanted.includes(id));
   return { added, removed };
 }
 

@@ -1,6 +1,18 @@
 // Webhooks (docs/webhooks.md): where a repository's events are POSTed, and their deliveries. A delivery is written with
 // its event, sent after the response, and retried by the frequent cron (1 min, 5 min, 30 min, 2 h; five tries).
-import { and, asc, desc, eq, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gte,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 import {
   webhookDeliveries,
   webhooks,
@@ -36,7 +48,12 @@ export function webhookUrlError(url: string, baseUrl?: string): string | null {
     return 'Only http and https URLs are allowed';
   if (u.username || u.password)
     return 'Put credentials in the secret, not in the URL';
-  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  const canonicalHost = (hostname: string) =>
+    hostname
+      .toLowerCase()
+      .replace(/\.$/, '')
+      .replace(/^\[|\]$/g, '');
+  const host = canonicalHost(u.hostname);
   if (
     host === 'localhost' ||
     host.endsWith('.localhost') ||
@@ -48,7 +65,7 @@ export function webhookUrlError(url: string, baseUrl?: string): string | null {
   if (privateAddress(host))
     return 'Private and reserved addresses are not allowed';
   try {
-    if (baseUrl && new URL(baseUrl).hostname.toLowerCase() === host)
+    if (baseUrl && canonicalHost(new URL(baseUrl).hostname) === host)
       return 'A webhook cannot call this instance itself';
   } catch {
     // A malformed BASE_URL forbids nothing more.
@@ -220,13 +237,20 @@ export async function enqueueDeliveries(
       nextAttemptAt: now,
       createdAt: now,
     }));
-    const ids = (
-      await ctx.db
-        .insert(webhookDeliveries)
-        .values(rows)
-        .onConflictDoNothing()
-        .returning({ id: webhookDeliveries.id })
-    ).map((r) => r.id);
+    // A full repository has 20 hooks: one INSERT would exceed D1's 100 binds.
+    // Keep the inserts in one batch so an event is recorded for all hooks atomically.
+    const inserts = [];
+    for (let i = 0; i < rows.length; i += 5)
+      inserts.push(
+        ctx.db
+          .insert(webhookDeliveries)
+          .values(rows.slice(i, i + 5))
+          .onConflictDoNothing()
+          .returning({ id: webhookDeliveries.id })
+      );
+    const ids = (await ctx.db.batch([inserts[0], ...inserts.slice(1)]))
+      .flat()
+      .map((r) => r.id);
     const work = sendDeliveries(ctx.env, ctx.db, ids).catch((e: unknown) =>
       console.error('[webhooks] delivery failed', e)
     );
@@ -264,6 +288,26 @@ async function claim(db: DrizzleDB, id: string, now: number) {
   );
 }
 
+/** Retain only the preview bytes, never buffer an untrusted response body in full. */
+async function responsePreview(res: Response): Promise<string> {
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const bytes = new Uint8Array(RESPONSE_BODY_MAX);
+  let size = 0;
+  try {
+    while (size < bytes.length) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const part = value.subarray(0, bytes.length - size);
+      bytes.set(part, size);
+      size += part.length;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return new TextDecoder().decode(bytes.subarray(0, size));
+}
+
 /** One attempt at delivery `id`, recorded on the row and the hook. True when it was delivered. */
 export async function sendDelivery(
   env: CloudflareBindings,
@@ -290,11 +334,6 @@ export async function sendDelivery(
     'X-GitHub-Delivery': d.id,
     'X-GitHub-Hook-ID': hook.id,
   };
-  if (hook.secret) {
-    const secret = await openSecret(env, hook.id, hook.secret);
-    if (secret)
-      headers['X-Hub-Signature-256'] = await signature(secret, d.payload);
-  }
   let responseStatus: number | null = null;
   let responseBody: string | null = null;
   let error: string | null = null;
@@ -303,6 +342,14 @@ export async function sendDelivery(
   if (urlError) error = urlError;
   else
     try {
+      if (hook.secret) {
+        const secret = await openSecret(env, hook.id, hook.secret);
+        if (secret === null)
+          throw new Error(
+            'Webhook secret could not be decrypted; save it again.'
+          );
+        headers['X-Hub-Signature-256'] = await signature(secret, d.payload);
+      }
       const res = await fetcher(hook.url, {
         method: 'POST',
         headers,
@@ -311,10 +358,7 @@ export async function sendDelivery(
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       responseStatus = res.status;
-      responseBody = (await res.text().catch(() => '')).slice(
-        0,
-        RESPONSE_BODY_MAX
-      );
+      responseBody = await responsePreview(res).catch(() => '');
       if (res.status >= 300 && res.status < 400)
         error = 'Redirects are not followed';
     } catch (e) {
@@ -327,7 +371,28 @@ export async function sendDelivery(
     responseStatus < 300;
   const durationMs = Date.now() - started;
   const final = ok || d.attempts >= MAX_ATTEMPTS;
-  await db.batch([
+  const ownedClaim = and(
+    eq(webhookDeliveries.id, d.id),
+    eq(webhookDeliveries.status, 'pending'),
+    eq(webhookDeliveries.attempts, d.attempts),
+    eq(webhookDeliveries.claimedAt, d.claimedAt!)
+  );
+  const [, saved] = await db.batch([
+    // Check ownership before clearing the claim, in the same atomic batch.
+    db
+      .update(webhooks)
+      .set({ lastStatus: responseStatus, lastDeliveredAt: new Date() })
+      .where(
+        and(
+          eq(webhooks.id, hook.id),
+          exists(
+            db
+              .select({ id: webhookDeliveries.id })
+              .from(webhookDeliveries)
+              .where(ownedClaim)
+          )
+        )
+      ),
     db
       .update(webhookDeliveries)
       .set({
@@ -346,13 +411,10 @@ export async function sendDelivery(
                   60_000
             ),
       })
-      .where(eq(webhookDeliveries.id, d.id)),
-    db
-      .update(webhooks)
-      .set({ lastStatus: responseStatus, lastDeliveredAt: new Date() })
-      .where(eq(webhooks.id, hook.id)),
+      .where(ownedClaim)
+      .returning({ id: webhookDeliveries.id }),
   ]);
-  return ok;
+  return ok && saved.length > 0;
 }
 
 /** Sends `ids` one after another. */
@@ -371,12 +433,35 @@ export async function deliverDueWebhooks(
   opts: { now?: number; limit?: number } = {}
 ): Promise<number> {
   const now = opts.now ?? Date.now();
+  const availableClaim = or(
+    isNull(webhookDeliveries.claimedAt),
+    lt(webhookDeliveries.claimedAt, new Date(now - LEASE_MS))
+  );
+  // A Worker may stop during its final attempt. Such rows must not permanently
+  // occupy the head of the due queue, or be overwritten by that stale sender.
+  await db
+    .update(webhookDeliveries)
+    .set({
+      status: 'failed',
+      claimedAt: null,
+      nextAttemptAt: null,
+      error: 'The final delivery attempt was interrupted.',
+    })
+    .where(
+      and(
+        eq(webhookDeliveries.status, 'pending'),
+        gte(webhookDeliveries.attempts, MAX_ATTEMPTS),
+        availableClaim
+      )
+    );
   const due = await db
     .select({ id: webhookDeliveries.id })
     .from(webhookDeliveries)
     .where(
       and(
         eq(webhookDeliveries.status, 'pending'),
+        lt(webhookDeliveries.attempts, MAX_ATTEMPTS),
+        availableClaim,
         lte(webhookDeliveries.nextAttemptAt, new Date(now))
       )
     )

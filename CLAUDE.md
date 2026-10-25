@@ -54,8 +54,12 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   (`ACTIONS_LOGS`). Tests drive `executeRun` with a fake step and runner; `makeEnv({ actions: true })` adds fake
   `ACTIONS_RUN`/`JOB_RUNNER` bindings and a fresh real `ACTIONS_QUEUE`. A job waits for a slot from the one
   `ActionsQueue` DO (`actions/queue.ts`, setting `actions.max_concurrent_jobs`) before its container starts
-  (`step.waitForEvent`, rechecking after 5/10/20/30 minutes; optional per-repository cap `actions.max_concurrent_jobs_per_repo`; if the queue is unreachable a job starts once D1 counts fewer running jobs than the limit); it gives the slot
-  back on complete, restart, and cancel. The cache (`actions/cache.ts`): zstd tarballs in R2 `ACTIONS_CACHE`, moved by
+  (`step.waitForEvent`, rechecking after 5/10/20/30 minutes; optional per-repository cap `actions.max_concurrent_jobs_per_repo`). Normal grants and queue-outage fallback both atomically reserve D1 capacity before boot; it gives the slot
+  back on complete, restart, and cancel. Queue recovery also scans D1 reservations without queue entries in bounded
+  cursor pages, fences abandoned runs and confirms Workflow/container stop before freeing those reservations; stop
+  failures retain capacity for retry. `workflow_jobs(status,run_id)` indexes admission/recovery (migration 0048).
+  JobRunner removes its hard-stop alarm only after successful container destruction.
+  The cache (`actions/cache.ts`): zstd tarballs in R2 `ACTIONS_CACHE`, moved by
   the runner via pre-signed URLs (never through the Worker), scoped per ref (read own ref then default branch, write own
   ref), saved by "Post" steps. `setup-node` uses the image's Node.js and its `cache:` caches `node_modules` keyed by
   lockfile. `ubuntu-latest` → `standard-2`. Other `uses:` (`actions/remote.ts`): JavaScript and composite actions from
@@ -194,6 +198,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   daily retention (≤ 24 h late); personal setting `notificationEmail` (`lib/user-settings.ts`). Live: `user:<id>` channel.
   SPA: the bell (`components/notifications/NotificationParts.tsx`, also the subscribe button and the repository's watch
   choice), `pages/Notifications.tsx` (`lib/notificationsView.ts`), `pages/SettingsNotifications.tsx`.
+  Pending email rechecks current read access, ban/verification, email preference, repository watch and thread subscription
+  before sending, so a delayed delivery does not rely on enqueue-time authorization.
 - Webhooks and commit statuses (`docs/webhooks.md`, `lib/commit-statuses.ts`, `routers/statuses-router.ts`, `lib/webhooks.ts`,
   `lib/webhook-events.ts`, `routers/webhooks-router.ts`): external CI posts `commit_statuses`; the latest per context joins
   the Actions verdict (`statusVerdict` + `combineVerdicts`, `review/checks.ts`) wherever checks gate (`checksAt`,
@@ -201,7 +207,11 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   `loadRepo` perms). Webhooks (repository admins, ≤ 20 per repository) are an outbox: `webhook_deliveries` rows written with
   the event (push follow-ups use stable ids, `onConflictDoNothing`), sent after the response under a claim, retried by the
   five-minute cron (`runFrequentJobs`, which also sends unsent notification emails), pruned after 14 days. Thread events come
-  from `notify` (`emitThreadEvent`). Secrets AES-GCM sealed; `webhookUrlError` refuses private hosts; no redirects.
+  from `notify` (`emitThreadEvent`). Completion writes are fenced on the delivery claim; exhausted interrupted attempts
+  become failed. Secrets AES-GCM sealed; unreadable secrets prevent sending. Responses are read up to 2048 bytes then
+  cancelled. `webhookUrlError` rejects local hostnames and private IP literals (not DNS resolution); no redirects.
+  SPA: `pages/RepoWebhooks.tsx` (repository admins), external statuses in `components/Checks.tsx`.
+  MCP: `mcp/commit-status-tools.ts` create/get; REST and MCP share `statusInputSchema`.
 - Releases (`worker/src/lib/releases.ts`, `semver.ts`, `routers/releases-router.ts`, MCP `mcp/release-tools.ts`): a release is a
   lightweight `vX.Y.Z` tag on the default branch plus a `releases` row (notes) and `release_pulls` rows (chunked inserts), cut by a
   person or `cloudforge_create_release`. "Unreleased" is D1 only, never a history walk: merged PRs whose land target

@@ -4,7 +4,7 @@
 
 ## 提交状态
 
-`commit_statuses`（迁移 `0047`）每次上报一行：提交、`context`（检查的名字，默认 `default`）、`state`（`pending` / `success` / `failure` / `error`）、`target_url`（详情链接，只收 http/https）、`description`（≤ 140 字符）、上报人、时间。同一提交同一 `context` 以最新一次为准，旧的保留作历史；每个提交最多 1000 条，超过时 422。
+`commit_statuses`（迁移 `0047`）每次上报一行：提交、`context`（检查的名字，默认 `default`）、`state`（`pending` / `success` / `failure` / `error`）、`target_url`（详情链接，只收 http/https）、`description`（≤ 140 字符）、上报人、时间。同一提交同一 `context` 以最新一次为准，时间相同时以后插入的记录为准，旧的保留作历史；每个提交最多 1000 条，超过时 422。
 
 - `POST /api/repos/{owner}/{repo}/statuses/{sha}`：上报，需要推送权限；`sha` 必须是这个仓库里存在的提交。
 - `GET /api/repos/{owner}/{repo}/statuses/{sha}`：这个提交的全部上报，新的在前。
@@ -42,13 +42,18 @@
 
 事件发生时为每个订阅它的已启用 webhook 写一行投递（与事件本身同一请求内），随后在响应之后发送。失败按 1 分钟、5 分钟、30 分钟、2 小时重试，最多 5 次；重试由每 5 分钟一次的定时任务执行（同一任务也补发被中断的通知邮件）。可以对任何一次投递“重新投递”（`POST …/hooks/{id}/deliveries/{deliveryId}/redeliver`），或发送测试（`POST …/hooks/{id}/pings`）。
 
+停用 webhook 阻止新的普通事件入队；已经排队的投递和管理员显式发送的测试、重新投递仍会发送。删除 webhook 会连同待发送记录一起删除。重试是至少一次投递：接收端应按 delivery ID 去重；管理员重新投递会生成新 ID。过期发送者不能覆盖新一次尝试的结果，最后一次中断也会最终标记失败。响应体仅流式读取前 2048 字节并取消剩余读取；配置过密钥但不能解密时拒绝发送，重新设置密钥后再重投。
+
 ### 地址限制
 
-只允许 `http`/`https`，地址里不能带用户名密码；拒绝 `localhost`、`.local`、`.internal`、内网和保留 IP 字面量（`10/8`、`172.16/12`、`192.168/16`、`127/8`、`169.254/16`、`0.0.0.0`、`::1`、`fc00::/7`、`fe80::/10`），也拒绝实例自己的域名。Worker 本身无法访问你的内网，这些限制挡住的是明显的误用和自我回环。
+只允许 `http`/`https`，地址里不能带用户名密码；拒绝 `localhost`、`.local`、`.internal`、内网和保留 IP 字面量（`10/8`、`172.16/12`、`192.168/16`、`127/8`、`169.254/16`、`0.0.0.0`、`::1`、`fc00::/7`、`fe80::/10`），也拒绝实例自己的域名，比较前统一大小写和 DNS 末尾的点。应用检查 URL 中的主机名和 IP 字面量，不自行解析并验证域名的全部 DNS 结果；出站访问还受 Cloudflare Workers 的网络环境限制。
 
-## MCP 与网页（尚未完成）
+## MCP 与网页
 
-计划中：MCP 工具 `cloudforge_create_commit_status` 与 `cloudforge_get_commit_status`，权限与接口相同；仓库设置里的 Webhooks 页面（列表、新建、编辑、删除、投递记录、重新投递、发送测试）；检查框与检查徽章列出外部状态（接口 `GET …/commit-statuses` 已返回 `statuses`）。在那之前用接口管理 webhook。
+- 仓库管理员在 **仓库设置 → Webhooks** 管理地址、事件和启用状态，查看投递的请求体、响应预览、耗时和错误，发送测试或重新投递。编辑时密钥默认保留，可明确选择替换或移除，原密钥不会回显。
+- PR 检查框及提交的检查徽章列出 Actions 和外部 CI 状态、描述与详情链接；只有外部状态时也正常显示。个人访问令牌页说明 Bearer 用途和只读限制。
+- MCP `cloudforge_create_commit_status` 要求仓库推送权限以及存在的完整提交 SHA；字段限制与 REST 共用。成功上报可能触发自动合并，只应报告实际执行的检查结果。
+- MCP `cloudforge_get_commit_status` 要求仓库读取权限，接受 SHA、分支或标签，缺省使用默认分支，返回各 context 最新状态及合并状态；没有任何外部上报时状态为 `null`，不代表 Actions 已通过。
 
 ## 以后
 

@@ -1,5 +1,8 @@
 /** Chinese for the actions area (Actions, Insights, Health): see index.ts for the terms. */
 export const actions: Record<string, string> = {
+  'External CI': '外部 CI',
+  'Workflow runs and external CI statuses show up here.':
+    '工作流运行和外部 CI 上报的提交状态会显示在这里。',
   // src/lib/runs.ts
   Queued: '排队中',
   'In progress': '进行中',

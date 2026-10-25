@@ -3,19 +3,24 @@
 // advertisement longer, and keeps old objects alive in a repository's storage. Once its pull request has been closed
 // for a while nothing reads them (a receipt only matters while its landing is unfinished), so the daily retention
 // deletes them. `refs/pull/N/head` stays: a closed pull request still shows its commits.
-import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { landingIntents, pullRequests, repositories } from '../db/app.schema';
+import { and, asc, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
+import {
+  instanceSettings,
+  landingIntents,
+  pullRequests,
+  repositories,
+} from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { ZERO_SHA } from '../git/remote';
 import { gitFor } from './repos';
 
 /** Days a pull request stays closed before its bookkeeping refs go. */
 export const PULL_REF_RETENTION_DAYS = 30;
-/** Days after that a repository is still looked at, so a missed daily run is made up for. */
-const CATCH_UP_DAYS = 7;
 /** Repositories pruned per run, and refs deleted per push. */
 const MAX_REPOS = 50;
 const REFS_PER_PUSH = 200;
+/** Internal progress, not an editable instance setting. */
+const CURSOR_KEY = 'git.pull_ref_cleanup_cursor';
 
 const BOOKKEEPING = /^refs\/pull\/(\d+)\/(pre-rebase|landings)\/(.+)$/;
 
@@ -26,8 +31,23 @@ export async function prunePullRefs(
   now = new Date()
 ): Promise<number> {
   const cutoff = new Date(now.getTime() - PULL_REF_RETENTION_DAYS * 86_400_000);
-  const from = new Date(cutoff.getTime() - CATCH_UP_DAYS * 86_400_000);
+  const saved = await db
+    .select({ value: instanceSettings.value })
+    .from(instanceSettings)
+    .where(eq(instanceSettings.key, CURSOR_KEY))
+    .get();
+  const cursor = typeof saved?.value === 'string' ? saved.value : '';
+  const checkpoint = (value: string) =>
+    db
+      .insert(instanceSettings)
+      .values({ key: CURSOR_KEY, value, updatedAt: now })
+      .onConflictDoUpdate({
+        target: instanceSettings.key,
+        set: { value, updatedAt: now },
+      });
   const endedAt = sql`coalesce(${pullRequests.mergedAt}, ${pullRequests.closedAt})`;
+  // No lower date bound: a long outage must not permanently orphan old refs.
+  // A durable keyset cursor also avoids repeatedly selecting the same first 50 repositories.
   const due = await db
     .selectDistinct({ repo: repositories })
     .from(pullRequests)
@@ -35,20 +55,25 @@ export async function prunePullRefs(
     .where(
       and(
         ne(pullRequests.state, 'open'),
-        sql`${endedAt} >= ${Math.floor(from.getTime() / 1000)}`,
+        gt(repositories.id, cursor),
         sql`${endedAt} < ${Math.floor(cutoff.getTime() / 1000)}`
       )
     )
-    .limit(MAX_REPOS)
+    .orderBy(asc(repositories.id))
+    .limit(MAX_REPOS + 1)
     .all();
   let deleted = 0;
-  for (const { repo } of due) {
+  for (const { repo } of due.slice(0, MAX_REPOS)) {
+    // Advance before remote work: even an interrupted or permanently failing repository cannot
+    // starve the next page. Its remaining refs are retried when the sweep wraps around.
+    await checkpoint(repo.id);
     try {
       deleted += await pruneRepository(env, db, repo, cutoff);
     } catch (e) {
       console.error('[refs] could not prune pull refs', repo.id, e);
     }
   }
+  if (due.length <= MAX_REPOS) await checkpoint('');
   return deleted;
 }
 

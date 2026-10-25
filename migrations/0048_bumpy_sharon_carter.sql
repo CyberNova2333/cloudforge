@@ -1,0 +1,1 @@
+CREATE INDEX `workflow_jobs_status_run_idx` ON `workflow_jobs` (`status`,`run_id`);

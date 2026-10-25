@@ -22,6 +22,7 @@ import { common } from './common';
 import { errors } from './errors';
 import { issues } from './issues';
 import { notifications } from './notifications';
+import { webhooks } from './webhooks';
 import { lib } from './lib';
 import { pulls } from './pulls';
 import { repo } from './repo';
@@ -36,6 +37,7 @@ export const zhAreas: Record<string, Record<string, string>> = {
   pulls,
   issues,
   notifications,
+  webhooks,
   review,
   actions,
   agents,

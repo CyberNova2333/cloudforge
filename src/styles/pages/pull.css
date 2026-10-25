@@ -1212,6 +1212,9 @@
   .checks-list li {
     grid-template-columns: minmax(0, 1fr) auto;
   }
+  .checks-list li.checks-external {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
   .checks-list li > .chip {
     grid-column: 1 / -1;
   }

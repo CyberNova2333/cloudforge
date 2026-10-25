@@ -13,6 +13,8 @@ import {
   verifySetupCode,
 } from '../lib/setup-code';
 import { USERNAME_RE, isReservedUsername } from '../lib/usernames';
+import { emailClaimedByOther } from '../lib/email-claims';
+import { d1Of } from '../pulls/events';
 import type { AppEnv } from '../variables';
 import {
   json200Response,
@@ -201,15 +203,54 @@ setupRouter.openapi(createAdminRoute, async (c) => {
     return c.json({ error: 'Setup has already been completed' }, 403);
   }
   try {
-    await c.get('auth').api.createUser({
-      body: {
-        name,
-        email,
-        password,
-        role: 'admin',
-        data: { username: username.toLowerCase(), displayUsername: username },
-      },
-    });
+    const normalizedEmail = email.toLowerCase();
+    if (await emailClaimedByOther(db, normalizedEmail))
+      throw new Error('That email belongs to another member.');
+    // Hash before writing anything, using the same implementation as sign-in. The ordinary admin API creates
+    // the user before its credentials and cannot fence the insertion against a setup lease taken over meanwhile.
+    const authContext = await c.get('auth').$context;
+    const hash = await authContext.password.hash(password);
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const d1 = d1Of(db);
+    const [created] = await d1.batch([
+      d1
+        .prepare(
+          `INSERT INTO users
+        (id, name, email, email_verified, created_at, updated_at, role, username, display_username)
+        SELECT ?, ?, ?, 1, ?, ?, 'admin', ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM users)
+          AND EXISTS (SELECT 1 FROM instance_settings WHERE key = ? AND json_extract(value, '$.nonce') = ?)`
+        )
+        .bind(
+          id,
+          name,
+          normalizedEmail,
+          now,
+          now,
+          username.toLowerCase(),
+          username,
+          SETUP_CLAIM_KEY,
+          claim
+        ),
+      d1
+        .prepare(
+          `INSERT INTO accounts
+        (id, account_id, provider_id, user_id, password, created_at, updated_at)
+        SELECT ?, id, 'credential', id, ?, ?, ? FROM users WHERE id = ?`
+        )
+        .bind(crypto.randomUUID(), hash, now, now, id),
+    ]);
+    if (created.meta.changes !== 1) {
+      await releaseSetup(db, claim);
+      return c.json(
+        {
+          error:
+            'Setup has already been completed or this setup attempt expired.',
+        },
+        409
+      );
+    }
   } catch (e) {
     await releaseSetup(db, claim);
     return c.json(

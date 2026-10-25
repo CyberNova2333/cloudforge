@@ -307,8 +307,9 @@ export class JobRunner
     this.liveStep = null;
     this.masks = [];
     this.registeredMasks = [];
-    await this.ctx.storage.deleteAlarm();
+    // Keep the hard-stop fallback if the platform cannot confirm container destruction.
     if (this.ctx.container?.running) await this.container.destroy();
+    await this.ctx.storage.deleteAlarm();
   }
 
   async alarm() {

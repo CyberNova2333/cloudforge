@@ -24,10 +24,33 @@ import {
 } from './helpers/actions';
 
 /** A queue of its own: tests share storage, so each one names a fresh instance. */
-const fresh = () =>
-  env.ACTIONS_QUEUE.getByName(
-    `unit-${crypto.randomUUID()}`
-  ) as unknown as ActionsQueueApi;
+const fresh = (): ActionsQueueApi => {
+  const stub = env.ACTIONS_QUEUE.getByName(`unit-${crypto.randomUUID()}`);
+  const q = stub as unknown as ActionsQueueApi;
+  return {
+    acquire: (request) => q.acquire(request),
+    started: (id, now) => q.started(id, now),
+    release: (id) => q.release(id),
+    cancelRun: (id) => q.cancelRun(id),
+    positions: (ids) => q.positions(ids),
+    reclaim: (now) =>
+      runInDurableObject(stub, async (obj) => {
+        // Unit fixtures have real D1/queue storage but no real Workflow or containers.
+        (obj as unknown as { env: CloudflareBindings }).env = {
+          ...env,
+          ACTIONS_RUN: {
+            get: async () => ({
+              status: async () => ({ status: 'running' }),
+              terminate: async () => {},
+              sendEvent: async () => {},
+            }),
+          },
+          JOB_RUNNER: { getByName: () => ({ destroy: async () => {} }) },
+        } as unknown as CloudflareBindings;
+        return (obj as unknown as ActionsQueue).reclaim(now);
+      }),
+  };
+};
 const ask = (
   jobId: string,
   limit: number,
@@ -180,8 +203,9 @@ describe('ActionsQueue 作业队列', () => {
     const later = await q.reclaim(
       t0 + 30 * 60_000 + RECLAIM_MARGIN_MS + 60_000
     );
-    expect(later.reclaimed).toEqual(['job-a']);
-    expect(await q.acquire(ask('job-c', 3, { runId }))).toEqual({
+    // A timed-out executor is fenced as a whole before its slots can be reused.
+    expect(later.reclaimed.sort()).toEqual(['job-a', 'job-c']);
+    expect(await q.acquire(ask('next-run', 3, { runId: 'next-run' }))).toEqual({
       granted: true,
       ahead: 0,
     });
@@ -253,6 +277,27 @@ describe('ActionsQueue 空位回收', () => {
     ]);
   });
 
+  it('队列期限已过但新 runner 的硬停期限未到时保留预留', async () => {
+    const id = `new-boot-${crypto.randomUUID()}`;
+    const runId = await seedRun([[id, 'in_progress']]);
+    const now = Date.now();
+    await env.DB.prepare(
+      "INSERT INTO runner_sessions (id, job_id, instance_type, started_at, deadline_at) VALUES (?, ?, 'standard-2', ?, ?)"
+    )
+      .bind(`${id}:1`, id, now, now + 10 * 60_000)
+      .run();
+    const q = fresh();
+    await q.acquire(ask(id, 1, { runId, maxMinutes: 1 }));
+    await q.started(id, now - RECLAIM_MARGIN_MS - 2 * 60_000);
+    expect((await q.reclaim(now)).reclaimed).toEqual([]);
+    expect(
+      await env.DB.prepare('SELECT status FROM workflow_jobs WHERE id = ?')
+        .bind(id)
+        .first('status')
+    ).toBe('in_progress');
+    expect((await q.reclaim(now + 16 * 60_000)).reclaimed).toEqual([id]);
+  });
+
   it('为已分配空位但尚未启动的作业保留最长复查间隔以接收通知', async () => {
     const id = `granted-${crypto.randomUUID()}`;
     const runId = await seedRun([[id, 'queued']]);
@@ -308,6 +353,7 @@ describe('ActionsQueue 空位回收', () => {
             sendEvent: async () => {},
           }),
         },
+        JOB_RUNNER: { getByName: () => ({ destroy: async () => {} }) },
       } as unknown as CloudflareBindings;
       await instance.acquire(ask(crashed, 2, { runId: crashedRun }));
       await instance.acquire(ask(killed, 2, { runId: killedRun }));
@@ -585,6 +631,241 @@ describe('运行页面和取消操作中的排队作业', () => {
 });
 
 describe('作业队列故障与重启', () => {
+  it('清理日志失败也先落库完成再释放队列，命令不会重放', async () => {
+    const s = await setup();
+    await pushFiles(s, 'main', {
+      '.github/workflows/ci.yml':
+        'on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: once\n',
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    const real = actionsQueue(s.t.env);
+    const released: unknown[] = [];
+    const logs = s.t.env.ACTIONS_LOGS;
+    s.t.env.ACTIONS_LOGS = new Proxy(logs, {
+      get(target, property) {
+        if (property === 'put')
+          return async (key: string, ...args: unknown[]) => {
+            if (key.endsWith('/3.log'))
+              throw new Error('cleanup log unavailable');
+            return (target.put as (...a: unknown[]) => unknown)(key, ...args);
+          };
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const t = {
+      ...s.t,
+      env: {
+        ...s.t.env,
+        ACTIONS_QUEUE: {
+          getByName: () => ({
+            acquire: (request: SlotRequest) => real.acquire(request),
+            started: (id: string) => real.started(id),
+            release: async (id: string) => {
+              released.push(
+                await s.t.env.DB.prepare(
+                  'SELECT status FROM workflow_jobs WHERE id = ?'
+                )
+                  .bind(id)
+                  .first('status')
+              );
+              return real.release(id);
+            },
+            reclaim: (now?: number) => real.reclaim(now),
+          }),
+        },
+      },
+    } as unknown as typeof s.t;
+    const h = harness(t);
+    expect(await h.run(run.id)).toBe('failure');
+    expect(h.requests).toHaveLength(1);
+    expect(released).toEqual(['completed']);
+  });
+
+  it.each([true, false])(
+    '回收死亡作业的 D1 预留后 executor 能启动下一作业（队列记录：%s）',
+    async (hasEntry) => {
+      const s = await setup();
+      await setLimit(s, 1);
+      await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
+      const [abandoned] = (await runs(s.t, s.admin)).runs;
+      await pushFiles(s, 'main', {
+        '.github/workflows/ci.yml': CI,
+        'next.txt': 'next',
+      });
+      const [next] = (await runs(s.t, s.admin)).runs;
+      const job = (await s.t.env.DB.prepare(
+        'SELECT id FROM workflow_jobs WHERE run_id = ?'
+      )
+        .bind(abandoned.id)
+        .first<{ id: string }>())!;
+      await s.t.env.DB.batch([
+        s.t.env.DB.prepare(
+          "UPDATE workflow_runs SET status = 'in_progress' WHERE id = ?"
+        ).bind(abandoned.id),
+        s.t.env.DB.prepare(
+          "UPDATE workflow_jobs SET status = 'in_progress' WHERE id = ?"
+        ).bind(job.id),
+      ]);
+      const stopped: string[] = [];
+      const stub = s.t.env.ACTIONS_QUEUE.getByName('instance');
+      await runInDurableObject(stub, async (obj) => {
+        (obj as unknown as { env: CloudflareBindings }).env = {
+          ...env,
+          ACTIONS_RUN: {
+            get: async (id: string) => ({
+              status: async () => ({
+                status:
+                  id === abandoned.id && !hasEntry ? 'errored' : 'running',
+              }),
+              terminate: async () => {},
+              sendEvent: async () => {},
+            }),
+          },
+          JOB_RUNNER: {
+            getByName: (id: string) => ({
+              destroy: async () => {
+                stopped.push(id);
+              },
+            }),
+          },
+        } as unknown as CloudflareBindings;
+      });
+      const q = actionsQueue(s.t.env);
+      if (hasEntry) {
+        await q.acquire(ask(job.id, 1, { runId: abandoned.id, maxMinutes: 1 }));
+        await q.started(job.id, Date.now() - RECLAIM_MARGIN_MS - 2 * 60_000);
+      }
+      await q.reclaim();
+      const h = harness(s.t, slow, { loseEvents: true });
+      const done = h.run(next.id);
+      try {
+        // The old code grants in the DO but leaves B stuck behind A's D1 in_progress row.
+        for (
+          let i = 0;
+          i < 200 &&
+          !h.boots.length &&
+          !h.stepNames.some((n) => n.endsWith(':capacity:wait:1'));
+          i++
+        )
+          await new Promise((r) => setTimeout(r, 10));
+        expect(h.boots).toHaveLength(1);
+        expect(stopped).toContain(job.id);
+        expect(await done).toBe('success');
+      } finally {
+        // Even a failed regression must leave no live executor waiting across test teardown.
+        await s.t.env.DB.batch([
+          s.t.env.DB.prepare(
+            "UPDATE workflow_jobs SET status = 'completed' WHERE run_id = ?"
+          ).bind(abandoned.id),
+          s.t.env.DB.prepare(
+            "UPDATE workflow_runs SET status = 'completed' WHERE id = ?"
+          ).bind(abandoned.id),
+        ]);
+        await q.release(job.id);
+        await done;
+      }
+    }
+  );
+
+  it.each(['runner', 'workflow'])(
+    '超时回收无法停止 %s 时保留 D1 和队列名额，停止成功后才释放',
+    async (failure) => {
+      const id = `stuck-${crypto.randomUUID()}`;
+      const runId = await seedRun([[id, 'in_progress']]);
+      const stub = env.ACTIONS_QUEUE.getByName(`unit-${crypto.randomUUID()}`);
+      let failStop = true;
+      await runInDurableObject(stub, async (obj) => {
+        (obj as unknown as { env: CloudflareBindings }).env = {
+          ...env,
+          ACTIONS_RUN: {
+            get: async () => ({
+              status: async () => ({ status: 'running' }),
+              terminate: async () => {
+                if (failStop && failure === 'workflow')
+                  throw new Error('Workflow termination unavailable');
+              },
+              sendEvent: async () => {},
+            }),
+          },
+          JOB_RUNNER: {
+            getByName: () => ({
+              destroy: async () => {
+                if (failStop && failure === 'runner')
+                  throw new Error('container stop unavailable');
+              },
+            }),
+          },
+        } as unknown as CloudflareBindings;
+      });
+      const q = stub as unknown as ActionsQueueApi;
+      await q.acquire(ask(id, 1, { runId, maxMinutes: 1 }));
+      await q.started(id, Date.now() - RECLAIM_MARGIN_MS - 2 * 60_000);
+      expect((await q.reclaim()).reclaimed).toEqual([]);
+      expect(
+        await env.DB.prepare('SELECT status FROM workflow_jobs WHERE id = ?')
+          .bind(id)
+          .first('status')
+      ).toBe('in_progress');
+      expect((await q.acquire(ask('next', 1))).granted).toBe(false);
+      failStop = false;
+      expect((await q.reclaim()).reclaimed).toContain(id);
+      expect(
+        await env.DB.prepare('SELECT status FROM workflow_jobs WHERE id = ?')
+          .bind(id)
+          .first('status')
+      ).toBe('completed');
+    }
+  );
+
+  it.each([
+    { limit: 1, repoLimit: null, mixed: false },
+    { limit: 5, repoLimit: 1, mixed: false },
+    { limit: 1, repoLimit: 1, mixed: true },
+  ])(
+    '队列故障时并行申请仍遵守全局和仓库上限：%j',
+    async ({ limit, repoLimit, mixed }) => {
+      const s = await setup();
+      await setLimit(s, limit);
+      await call(
+        s.t,
+        '/api/admin/settings/actions.max_concurrent_jobs_per_repo',
+        {
+          cookie: s.admin,
+          method: 'PUT',
+          json: { value: repoLimit },
+        }
+      );
+      await pushFiles(s, 'main', { '.github/workflows/ci.yml': MATRIX });
+      const [queued] = (await runs(s.t, s.admin)).runs;
+      const real = actionsQueue(s.t.env);
+      let asks = 0;
+      const broken = () => {
+        throw new Error('queue unavailable');
+      };
+      const t = {
+        ...s.t,
+        env: {
+          ...s.t.env,
+          ACTIONS_QUEUE: {
+            getByName: () => ({
+              acquire: (request: SlotRequest) =>
+                mixed && ++asks % 2 === 0 ? real.acquire(request) : broken(),
+              started: (id: string) => real.started(id),
+              release: (id: string) => real.release(id),
+              cancelRun: (id: string) => real.cancelRun(id),
+              positions: (ids: string[]) => real.positions(ids),
+            }),
+          },
+        },
+      } as unknown as typeof s.t;
+      const h = harness(t, slow, { loseEvents: true, events: [] });
+      expect(await h.run(queued.id)).toBe('success');
+      expect(h.boots).toHaveLength(5);
+      expect(h.peak()).toBe(1);
+    }
+  );
+
   it('无法连接队列时，无需空位即可运行作业', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });

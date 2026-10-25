@@ -1,10 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { handleGitRequest } from '../git-http';
+import { GitService } from '../git/service';
+import { ArtifactsRepoClient } from '../git/remote';
+import { drizzle } from 'drizzle-orm/d1';
+import { schema } from '../db/schema';
+import { prunePushStaging, PUSH_STAGING_PREFIX } from '../lib/push-staging';
 import { concat, decoder } from '../git/bytes';
 import { buildPack } from '../git/pack';
 import { FLUSH, parsePktLines, pktLine } from '../git/pktline';
 import {
   decidePush,
+  MAX_COMMAND_LIST_BYTES,
+  receiveCommandBytes,
+  rewriteReceiveRequest,
+  successfulPushRefs,
+  type PushCommand,
   readReceiveRequest,
   refusalReport,
   rewriteReport,
@@ -131,6 +141,82 @@ describe('receive-pack 请求与回复', () => {
     expect(await readReceiveRequest(bad)).toBeNull();
   });
 
+  it('pkt 长度必须是完整的四位十六进制，不能把无效前缀当作 flush', async () => {
+    expect(await readReceiveRequest(new Response('00g4').body!)).toBeNull();
+  });
+
+  it('单个网络块也不能绕过命令列表大小上限', async () => {
+    const line = pktLine(`${A} ${B} refs/heads/feature\n`);
+    const oversized = concat([
+      ...Array.from(
+        { length: Math.ceil(MAX_COMMAND_LIST_BYTES / line.length) },
+        () => line
+      ),
+      FLUSH,
+    ]);
+    expect(await readReceiveRequest(new Response(oversized).body!)).toBeNull();
+  });
+
+  it('短命令列表后的大 pack 不算命令字节，分块改写保留 shallow 和完整 pack', async () => {
+    const pack = new Uint8Array(MAX_COMMAND_LIST_BYTES + 1).fill(42);
+    const commands = [{ old: A, new: B, ref: 'refs/heads/main' }];
+    const header = receiveCommandBytes(
+      commands,
+      ['report-status'],
+      [`shallow ${A}`]
+    );
+    const raw = concat([header, pack]);
+    const parsed = await readReceiveRequest(new Response(raw).body!);
+    expect(parsed?.commandBytes).toBe(header.length);
+    const staged = [{ old: Z, new: B, ref: 'refs/pull/_push/test/0' }];
+    const rewritten = new Uint8Array(
+      await new Response(
+        rewriteReceiveRequest(parsed!, staged, ['report-status'])
+      ).arrayBuffer()
+    );
+    expect(rewritten).toEqual(
+      concat([
+        receiveCommandBytes(staged, ['report-status'], [`shallow ${A}`]),
+        pack,
+      ])
+    );
+  });
+
+  it('缺少 flush、截断和失败的报告都不会把 ref 认作成功', () => {
+    const ok = concat([
+      pktLine('unpack ok\n'),
+      pktLine('ok refs/heads/main\n'),
+      FLUSH,
+    ]);
+    expect([...successfulPushRefs(ok, ['report-status'])]).toEqual([
+      'refs/heads/main',
+    ]);
+    expect(
+      successfulPushRefs(ok.subarray(0, ok.length - 4), ['report-status']).size
+    ).toBe(0);
+    expect(
+      successfulPushRefs(
+        concat([
+          pktLine('unpack failed\n'),
+          pktLine('ok refs/heads/main\n'),
+          FLUSH,
+        ]),
+        []
+      ).size
+    ).toBe(0);
+    expect(
+      successfulPushRefs(
+        concat([
+          pktLine('unpack ok\n'),
+          pktLine('ok refs/heads/main\n'),
+          pktLine('ng refs/heads/main denied\n'),
+          FLUSH,
+        ]),
+        []
+      ).size
+    ).toBe(0);
+  });
+
   it('拒绝的回复按客户端要求的格式（普通或 side-band）给出每个 ref 的原因', () => {
     const commands = [
       { old: A, new: B, ref: 'refs/heads/main' },
@@ -216,25 +302,46 @@ describe('经由 git 端点的推送', () => {
     old: string,
     next: string
   ) {
+    return pushMany(s, token, [{ ref, old, new: next }]);
+  }
+
+  async function pushMany(
+    s: Awaited<ReturnType<typeof setup>>,
+    token: string,
+    commands: PushCommand[],
+    opts: { caps?: string[]; gzip?: boolean; pack?: Uint8Array } = {}
+  ) {
+    const caps = opts.caps ?? ['report-status'];
+    let body = concat([
+      receiveCommandBytes(commands, caps),
+      opts.pack ?? (await buildPack([])),
+    ]);
+    if (opts.gzip)
+      body = new Uint8Array(
+        await new Response(
+          new Response(body).body!.pipeThrough(new CompressionStream('gzip'))
+        ).arrayBuffer()
+      );
     const res = await handleGitRequest(
       new Request('http://test.local/octocat/app.git/git-receive-pack', {
         method: 'POST',
         headers: {
           Authorization: `Basic ${btoa(`u:${token}`)}`,
           'Content-Type': 'application/x-git-receive-pack-request',
+          ...(opts.gzip ? { 'Content-Encoding': 'gzip' } : {}),
+          'Content-Length': String(body.length),
         },
-        body: concat([
-          pktLine(`${old} ${next} ${ref}\0report-status\n`),
-          FLUSH,
-          await buildPack([]),
-        ]),
+        body,
       }),
       s.t.env,
       s.t.ctx
     );
     expect(res.status).toBe(200);
     await settle(s.t);
-    return reportLines(new Uint8Array(await res.arrayBuffer()));
+    return reportLines(
+      new Uint8Array(await res.arrayBuffer()),
+      caps.includes('side-band-64k')
+    );
   }
 
   it('协作者推送 main 被拒绝且分支不动，推送功能分支照常', async () => {
@@ -254,7 +361,7 @@ describe('经由 git 端点的推送', () => {
     ]);
   });
 
-  it('管理员可以快进 main，强制推送会被撤回', async () => {
+  it('管理员可以快进 main，强制推送在修改分支前被拒绝', async () => {
     const s = await setup();
     const main = s.repo.refs.get('refs/heads/main')!;
     const forward = await commitPaths(s.repo, 'main', { 'a.txt': 'a\n' }, 'x', {
@@ -282,6 +389,280 @@ describe('经由 git 端点的推送', () => {
     );
     expect(lines[1]).toMatch(/only fast-forward pushes are allowed/);
     expect(s.repo.refs.get('refs/heads/main')).toBe(forward);
+  });
+
+  it('检查祖先时受保护分支仍是原头，从未短暂暴露被禁止的历史', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const rewrite = await commitPaths(
+      s.repo,
+      'other',
+      { 'b.txt': 'b\n' },
+      'rewrite',
+      { moveRef: false }
+    );
+    const seen: (string | undefined)[] = [];
+    const original = GitService.prototype.isAncestor;
+    const check = vi
+      .spyOn(GitService.prototype, 'isAncestor')
+      .mockImplementation(function (this: GitService, ...args) {
+        seen.push(s.repo.refs.get('refs/heads/main'));
+        return original.apply(this, args);
+      });
+    try {
+      await push(s, s.adminToken, 'refs/heads/main', main, rewrite);
+      expect(seen).toEqual([main]);
+      expect(s.repo.refs.get('refs/heads/main')).toBe(main);
+    } finally {
+      check.mockRestore();
+    }
+  });
+
+  it('补偿或临时引用清理失败也不会留下被禁止的强制推送', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const rewrite = await commitPaths(
+      s.repo,
+      'other',
+      { 'b.txt': 'b\n' },
+      'rewrite',
+      { moveRef: false }
+    );
+    const cleanup = vi
+      .spyOn(ArtifactsRepoClient.prototype, 'push')
+      .mockRejectedValue(new Error('injected cleanup failure'));
+    try {
+      const lines = await push(
+        s,
+        s.adminToken,
+        'refs/heads/main',
+        main,
+        rewrite
+      );
+      expect(s.repo.refs.get('refs/heads/main')).toBe(main);
+      expect(lines[1]).toMatch(/^ng refs\/heads\/main /);
+    } finally {
+      cleanup.mockRestore();
+    }
+  });
+
+  it('验证抛错时保守拒绝，混合的普通分支和删除命令也没有执行', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    s.repo.refs.set('refs/heads/delete-me', main);
+    const next = await commitPaths(s.repo, 'main', { a: 'next' }, 'next', {
+      moveRef: false,
+    });
+    const check = vi
+      .spyOn(GitService.prototype, 'isAncestor')
+      .mockRejectedValue(new Error('verification interrupted'));
+    try {
+      const lines = await pushMany(
+        s,
+        s.adminToken,
+        [
+          { old: main, new: next, ref: 'refs/heads/main' },
+          { old: Z, new: next, ref: 'refs/heads/feature' },
+          { old: main, new: Z, ref: 'refs/heads/delete-me' },
+        ],
+        { caps: ['report-status', 'atomic', 'delete-refs'] }
+      );
+      expect(lines.filter((l) => l.startsWith('ng '))).toHaveLength(3);
+      expect(s.repo.refs.get('refs/heads/main')).toBe(main);
+      expect(s.repo.refs.has('refs/heads/feature')).toBe(false);
+      expect(s.repo.refs.get('refs/heads/delete-me')).toBe(main);
+      expect(
+        [...s.repo.refs.keys()].some((r) => r.startsWith(PUSH_STAGING_PREFIX))
+      ).toBe(false);
+      expect(
+        await s.t.env.DB.prepare('SELECT COUNT(*) AS n FROM push_events').first(
+          'n'
+        )
+      ).toBe(0);
+    } finally {
+      check.mockRestore();
+    }
+  });
+
+  it('gzip 的新对象先暂存，最终保留 v2、sideband、atomic 与普通 ref 命令', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const existing = new Set(s.repo.objects.keys());
+    const next = await commitPaths(
+      s.repo,
+      'main',
+      { 'new.txt': 'new pack object' },
+      'new commit',
+      { moveRef: false }
+    );
+    const objects = [...s.repo.objects.values()].filter(
+      (o) => !existing.has(o.sha)
+    );
+    for (const o of objects) s.repo.objects.delete(o.sha);
+    const requests: { commands: PushCommand[]; caps: string[] }[] = [];
+    const receive = s.repo.receivePack.bind(s.repo);
+    const wire = vi
+      .spyOn(s.repo, 'receivePack')
+      .mockImplementation(async (bytes) => {
+        const parsed = (await readReceiveRequest(new Response(bytes).body!))!;
+        requests.push({ commands: parsed.commands, caps: parsed.capabilities });
+        await parsed.body.cancel();
+        const plain = await receive(bytes);
+        return parsed.capabilities.includes('side-band-64k')
+          ? concat([pktLine(concat([new Uint8Array([1]), plain])), FLUSH])
+          : plain;
+      });
+    try {
+      const caps = [
+        'report-status-v2',
+        'side-band-64k',
+        'atomic',
+        'ofs-delta',
+        'agent=test',
+      ];
+      expect(
+        await pushMany(
+          s,
+          s.adminToken,
+          [
+            { old: main, new: next, ref: 'refs/heads/main' },
+            { old: Z, new: next, ref: 'refs/heads/feature' },
+          ],
+          { caps, gzip: true, pack: await buildPack(objects) }
+        )
+      ).toEqual(['unpack ok', 'ok refs/heads/main', 'ok refs/heads/feature']);
+      expect(
+        requests[0].commands.every((c) => c.ref.startsWith(PUSH_STAGING_PREFIX))
+      ).toBe(true);
+      expect(requests[1].caps).toEqual(caps);
+      expect(requests[1].commands.map((c) => c.ref)).toEqual([
+        'refs/heads/main',
+        'refs/heads/feature',
+      ]);
+      expect(s.repo.refs.get('refs/heads/main')).toBe(next);
+      expect(s.repo.refs.get('refs/heads/feature')).toBe(next);
+      expect(
+        [...s.repo.refs.keys()].some((r) => r.startsWith(PUSH_STAGING_PREFIX))
+      ).toBe(false);
+      const events = await s.t.env.DB.prepare(
+        'SELECT commands FROM push_events'
+      ).all<{ commands: string }>();
+      expect(events.results).toHaveLength(1);
+      expect(events.results[0].commands).not.toContain(PUSH_STAGING_PREFIX);
+    } finally {
+      wire.mockRestore();
+    }
+  });
+
+  it('最终 CAS 失败保留并发更新，不把暂存成功记作正式推送成功', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const next = await commitPaths(s.repo, 'main', { a: 'next' }, 'next', {
+      moveRef: false,
+    });
+    const other = await commitPaths(
+      s.repo,
+      'main',
+      { b: 'concurrent' },
+      'other',
+      { moveRef: false }
+    );
+    const receive = s.repo.receivePack.bind(s.repo);
+    const wire = vi
+      .spyOn(s.repo, 'receivePack')
+      .mockImplementation(async (bytes) => {
+        const parsed = (await readReceiveRequest(new Response(bytes).body!))!;
+        if (parsed.commands.some((c) => c.ref === 'refs/heads/main'))
+          s.repo.refs.set('refs/heads/main', other);
+        await parsed.body.cancel();
+        return receive(bytes);
+      });
+    try {
+      expect(
+        (await push(s, s.adminToken, 'refs/heads/main', main, next))[1]
+      ).toMatch(/^ng refs\/heads\/main /);
+      expect(s.repo.refs.get('refs/heads/main')).toBe(other);
+      expect(
+        [...s.repo.refs.keys()].some((r) => r.startsWith(PUSH_STAGING_PREFIX))
+      ).toBe(false);
+      expect(
+        await s.t.env.DB.prepare('SELECT COUNT(*) AS n FROM push_events').first(
+          'n'
+        )
+      ).toBe(0);
+    } finally {
+      wire.mockRestore();
+    }
+  });
+
+  it('暂存报告缺失或截断则不进入祖先检查或正式提交', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const next = await commitPaths(s.repo, 'main', { a: 'next' }, 'next', {
+      moveRef: false,
+    });
+    const receive = s.repo.receivePack.bind(s.repo);
+    const wire = vi
+      .spyOn(s.repo, 'receivePack')
+      .mockImplementation(async (bytes) => {
+        const reply = await receive(bytes);
+        return decoder.decode(bytes).includes(PUSH_STAGING_PREFIX)
+          ? reply.subarray(0, reply.length - 4)
+          : reply;
+      });
+    const check = vi.spyOn(GitService.prototype, 'isAncestor');
+    try {
+      expect(
+        (await push(s, s.adminToken, 'refs/heads/main', main, next))[1]
+      ).toContain('could not stage');
+      expect(check).not.toHaveBeenCalled();
+      expect(s.repo.refs.get('refs/heads/main')).toBe(main);
+    } finally {
+      wire.mockRestore();
+      check.mockRestore();
+    }
+  });
+
+  it('protected push-options 明确拒绝且不向远程上传', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const receive = vi.spyOn(s.repo, 'receivePack');
+    try {
+      const lines = await pushMany(
+        s,
+        s.adminToken,
+        [{ old: main, new: main, ref: 'refs/heads/main' }],
+        { caps: ['report-status', 'push-options'] }
+      );
+      expect(lines[1]).toContain('push-options are not supported');
+      expect(receive).not.toHaveBeenCalled();
+    } finally {
+      receive.mockRestore();
+    }
+  });
+
+  it('日常清理只删过期暂存，保留近期暂存和 PR 记录', async () => {
+    const s = await setup();
+    const main = s.repo.refs.get('refs/heads/main')!;
+    const now = Date.now();
+    const old = `${PUSH_STAGING_PREFIX}${now - 2 * 86_400_000}-${crypto.randomUUID()}/0`;
+    const fresh = `${PUSH_STAGING_PREFIX}${now}-${crypto.randomUUID()}/0`;
+    s.repo.refs.set(old, main);
+    s.repo.refs.set(fresh, main);
+    s.repo.refs.set('refs/pull/1/head', main);
+    s.repo.refs.set('refs/pull/1/landings/receipt', main);
+    expect(
+      await prunePushStaging(
+        s.t.env,
+        drizzle(s.t.env.DB, { schema }),
+        new Date(now)
+      )
+    ).toBe(1);
+    expect(s.repo.refs.has(old)).toBe(false);
+    expect(s.repo.refs.has(fresh)).toBe(true);
+    expect(s.repo.refs.get('refs/heads/main')).toBe(main);
+    expect(s.repo.refs.has('refs/pull/1/head')).toBe(true);
+    expect(s.repo.refs.has('refs/pull/1/landings/receipt')).toBe(true);
   });
 
   it('管理员也不能删除 main，协作者不能推送 refs/pull/', async () => {
