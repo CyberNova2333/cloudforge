@@ -50,7 +50,19 @@ function database() {
     st.run(...args);
     return [];
   };
-  return { db, d1Query };
+  // As D1 runs a batch: one transaction, rolled back when a statement fails.
+  const d1Batch: FakeCloudflareSeed['d1Batch'] = (id, statements) => {
+    db.exec('BEGIN');
+    try {
+      const out = statements.map((s) => d1Query(id, s.sql, s.params ?? [])!);
+      db.exec('COMMIT');
+      return out;
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+  };
+  return { db, d1Query, d1Batch };
 }
 
 let root: string;
@@ -69,7 +81,7 @@ function harness(
     recorded?: boolean;
   } = {}
 ) {
-  const { db, d1Query } = database();
+  const { db, d1Query, d1Batch } = database();
   const dir = join(root, '.cloudforge');
   if (opts.recorded) {
     const names = resourceNames('acme');
@@ -141,6 +153,7 @@ function harness(
           { uuid: 'd1-other', name: 'other-db' },
         ],
         d1Query,
+        d1Batch,
       })),
   };
   const run = (...argv: string[]) => main(['reset-password', ...argv], deps);
@@ -166,7 +179,7 @@ function harness(
       )
       .all()
       .map((r) => ({ ...r }));
-  return { run, text, asked, hash, sessions, audit, cf: () => cf };
+  return { run, text, asked, hash, sessions, audit, cf: () => cf, db };
 }
 
 describe('cloudforge reset-password', () => {
@@ -199,6 +212,19 @@ describe('cloudforge reset-password', () => {
       .calls.filter((c) => c.method === 'queryD1')
       .map((c) => c.args[1]);
     expect(new Set(queried)).toEqual(new Set([DB_ID]));
+  });
+
+  it('密码、会话和审计在一次批量请求中写入，任一条失败则都不生效', async () => {
+    const h = harness({ prompts: ['brand-new-pass', 'brand-new-pass'] });
+    // The audit insert fails: the batch rolls back, the old password and sessions stay.
+    h.db.exec('DROP TABLE audit_events');
+    expect(await h.run('ada', '--database', DB_ID)).toBe(1);
+    expect(h.text()).not.toContain('Done:');
+    expect(h.hash('u-admin')).toBe(OLD_HASH);
+    expect(h.sessions('u-admin')).toBe(2);
+    const batches = h.cf()!.calls.filter((c) => c.method === 'batchD1');
+    expect(batches).toHaveLength(1);
+    expect((batches[0]!.args[2] as unknown[]).length).toBe(3);
   });
 
   it('按邮箱找人（不分大小写）；没有密码账户的成员会新建一个', async () => {

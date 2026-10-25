@@ -97,25 +97,27 @@ export async function resetPassword(
 
   const hash = await hashPassword(password);
   const now = ctx.now().getTime();
-  if (member.credential) {
-    await q(
-      `UPDATE accounts SET password = ?, updated_at = ? WHERE user_id = ? AND provider_id = 'credential'`,
-      [hash, now, member.id]
-    );
-  } else {
-    // As better-auth creates it: the credential account's account_id is the user's id.
-    await q(
-      `INSERT INTO accounts (id, account_id, provider_id, user_id, password, created_at, updated_at)
+  // One batch, so the new password, the signed-out sessions and the audit row land together or not at all: never a
+  // changed password with the old sessions still signed in.
+  await cf.batchD1(opts.accountId, opts.database.uuid, [
+    member.credential
+      ? {
+          sql: `UPDATE accounts SET password = ?, updated_at = ? WHERE user_id = ? AND provider_id = 'credential'`,
+          params: [hash, now, member.id],
+        }
+      : {
+          // As better-auth creates it: the credential account's account_id is the user's id.
+          sql: `INSERT INTO accounts (id, account_id, provider_id, user_id, password, created_at, updated_at)
        VALUES (?, ?, 'credential', ?, ?, ?, ?)`,
-      [crypto.randomUUID(), member.id, member.id, hash, now, now]
-    );
-  }
-  await q(`DELETE FROM sessions WHERE user_id = ?`, [member.id]);
-  await q(
-    `INSERT INTO audit_events (id, repository_id, actor_id, actor_kind, via, action, target, data, created_at)
+          params: [crypto.randomUUID(), member.id, member.id, hash, now, now],
+        },
+    { sql: `DELETE FROM sessions WHERE user_id = ?`, params: [member.id] },
+    {
+      sql: `INSERT INTO audit_events (id, repository_id, actor_id, actor_kind, via, action, target, data, created_at)
      VALUES (?, NULL, NULL, 'system', ?, 'user.password_set', ?, '{}', ?)`,
-    [crypto.randomUUID(), RESET_VIA, handle, now]
-  );
+      params: [crypto.randomUUID(), RESET_VIA, handle, now],
+    },
+  ]);
   io.print(
     `Done: ${handle} can sign in with the new password${opts.baseUrl ? ` at ${opts.baseUrl}` : ''}.`
   );

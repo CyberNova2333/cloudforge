@@ -75,6 +75,11 @@ export interface FakeCloudflareSeed {
     sql: string,
     params: unknown[]
   ) => Record<string, unknown>[] | undefined;
+  /** Answers a D1 batch; without it, each statement goes to d1Query in turn. */
+  d1Batch?: (
+    id: string,
+    statements: { sql: string; params?: unknown[] }[]
+  ) => Record<string, unknown>[][];
 }
 
 export type FakeCloudflare = Cloudflare & {
@@ -179,6 +184,16 @@ export function fakeCloudflare(seed: FakeCloudflareSeed = {}): FakeCloudflare {
         return (seed.d1Tables?.[id] ?? []).map((name) => ({ name }));
       }
       return seed.d1Query?.(id, sql, params ?? []) ?? [];
+    },
+    async batchD1(a, id, statements) {
+      await enter('batchD1', [a, id, statements]);
+      const db = state.d1.find((d) => d.uuid === id);
+      if (!db) throw new Error(`fakeCloudflare: no D1 ${id}`);
+      for (const s of statements) db.queries.push(s.sql);
+      if (seed.d1Batch) return seed.d1Batch(id, statements);
+      return statements.map(
+        (s) => seed.d1Query?.(id, s.sql, s.params ?? []) ?? []
+      );
     },
     async listR2(a) {
       await enter('listR2', [a]);

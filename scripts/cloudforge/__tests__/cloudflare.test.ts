@@ -167,6 +167,24 @@ describe('restCloudflare：Cloudflare REST 客户端', () => {
     });
   });
 
+  it('batchD1 在一次请求中发送全部语句，并按语句返回结果集', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok([{ results: [{ n: 1 }] }, { results: [] }])
+    );
+    const rows = await restCloudflare('t', fetch, noSleep).batchD1('a', 'db', [
+      { sql: 'select ?', params: [1] },
+      { sql: 'delete from x' },
+    ]);
+    expect(rows).toEqual([[{ n: 1 }], []]);
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0]!.body!)).toEqual({
+      batch: [
+        { sql: 'select ?', params: [1] },
+        { sql: 'delete from x', params: [] },
+      ],
+    });
+  });
+
   it('putR2Lifecycle 将规则转换为 API 格式', async () => {
     const { fetch, calls } = fakeFetch(() => ok({}));
     await restCloudflare('t', fetch, noSleep).putR2Lifecycle('a', 'b', [
