@@ -54,6 +54,7 @@ import { sessionsRouter } from './routers/sessions-router';
 import { queueRouter } from './routers/queue-router';
 import { healthRouter } from './routers/health-router';
 import { searchRouter } from './routers/search-router';
+import { sameOriginWrites } from './auth/same-origin';
 import { redactedLog } from './lib/request-log';
 import { runScheduled } from './cron';
 
@@ -88,6 +89,7 @@ app.use('*', async (c, next) => {
   if (user) c.set('user', user);
   await next();
 });
+app.use('/api/*', sameOriginWrites);
 
 app.on(['GET', 'POST'], '/api/auth/*', (c) => c.get('auth').handler(c.req.raw));
 

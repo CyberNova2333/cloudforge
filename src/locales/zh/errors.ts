@@ -493,6 +493,8 @@ export const errors: Record<string, string> = {
   'Accounts made by self sign-up must open the link emailed to them before they can sign in. Until outbound email (Email Sending) is set up, self sign-up stays closed while this is on; invited members and the first admin are never asked.':
     '自助注册的账户必须先打开发到邮箱的链接才能登录。开启时，在配置发信（Email Sending）之前自助注册保持关闭；被邀请的成员和第一个管理员不受影响。',
   'Set up the instance first.': '请先完成实例的初始设置。',
+  'This request came from another site. Open CloudForge itself and try again.':
+    '这个请求来自其他网站。请直接打开 CloudForge 后重试。',
   'This instance is reachable from the internet, so creating the first administrator needs a setup code. Set the SETUP_CODE_HASH secret first (see docs/setup.md).':
     '这个实例可以从互联网访问，创建第一个管理员需要初始化代码。请先设置 SETUP_CODE_HASH 密钥（见 docs/setup.md）。',
   'The first administrator is being created. Try again in a minute.':
