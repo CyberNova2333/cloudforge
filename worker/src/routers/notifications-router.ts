@@ -2,29 +2,16 @@
 // subscribing to one issue or pull request.
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
-import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { and, eq } from 'drizzle-orm';
 import {
   issues,
   notificationEvents,
   notificationReasons,
   notifications,
   pullRequests,
-  repositories,
-  teams,
 } from '../db/app.schema';
-import { users } from '../db/auth.schema';
 import type { AppEnv } from '../variables';
-import {
-  findRepo,
-  loadRepo,
-  teamNamespace,
-  userNamespace,
-  visibleTo,
-  type RepoEnv,
-} from '../lib/repos';
-import { toPublicUser } from '../lib/users';
-import { inJsonArray } from '../lib/sql-set';
+import { loadRepo, type RepoEnv } from '../lib/repos';
 import {
   setSubscription,
   setWatchLevel,
@@ -35,6 +22,7 @@ import {
   type Thread,
 } from '../lib/notifications';
 import { publishToUsers } from '../live/publish';
+import { listInbox, markRead, unreadCount } from '../lib/inbox';
 import {
   json200Response,
   json400Response,
@@ -73,25 +61,6 @@ const notificationSchema = z
   })
   .openapi('Notification');
 
-/** The inbox's rows: `userId`'s, in repositories they can still read, about issues and pull requests that exist. */
-function inboxWhere(c: Context<AppEnv>, extra: (SQL | undefined)[] = []) {
-  const user = c.get('user')!;
-  return and(
-    eq(notifications.userId, user.id),
-    visibleTo(user),
-    sql`(${notifications.issueId} IS NOT NULL OR ${notifications.pullRequestId} IS NOT NULL)`,
-    ...extra
-  );
-}
-
-/** The repository filter `owner/name`, or undefined when absent; null when it names nothing. */
-async function repoFilter(c: Context<AppEnv>, name: string | undefined) {
-  if (!name) return undefined;
-  const [owner, repo] = name.split('/');
-  const found = owner && repo ? await findRepo(c.get('db'), owner, repo) : null;
-  return found ? eq(notifications.repositoryId, found.repo.id) : null;
-}
-
 const listRoute = createRoute({
   method: 'get',
   path: '/',
@@ -121,97 +90,19 @@ const listRoute = createRoute({
   },
 });
 notificationsRouter.openapi(listRoute, async (c) => {
-  const db = c.get('db');
   const q = c.req.valid('query');
-  const repo = await repoFilter(c, q.repo);
-  const where = inboxWhere(c, [
-    q.filter === 'unread' ? eq(notifications.unread, true) : undefined,
-    q.reason ? eq(notifications.reason, q.reason) : undefined,
-    repo === null ? sql`0` : repo,
-  ]);
-  const actor = alias(users, 'actor');
-  const owner = alias(users, 'owner');
-  const [rows, total, unread] = await Promise.all([
-    db
-      .select({
-        n: notifications,
-        repo: repositories,
-        owner,
-        team: teams,
-        actor,
-        issue: issues,
-        pull: pullRequests,
-      })
-      .from(notifications)
-      .innerJoin(repositories, eq(repositories.id, notifications.repositoryId))
-      .innerJoin(owner, eq(owner.id, repositories.ownerId))
-      .leftJoin(teams, eq(teams.id, repositories.teamId))
-      .leftJoin(actor, eq(actor.id, notifications.actorId))
-      .leftJoin(issues, eq(issues.id, notifications.issueId))
-      .leftJoin(pullRequests, eq(pullRequests.id, notifications.pullRequestId))
-      .where(where)
-      .orderBy(desc(notifications.updatedAt))
-      .limit(q.limit)
-      .offset((q.page - 1) * q.limit)
-      .all(),
-    countWhere(c, where),
-    countWhere(c, inboxWhere(c, [eq(notifications.unread, true)])),
-  ]);
+  const inbox = await listInbox(c.get('db'), c.get('user')!, {
+    filter: q.filter,
+    reason: q.reason,
+    repo: q.repo,
+    limit: q.limit,
+    offset: (q.page - 1) * q.limit,
+  });
   return c.json(
-    {
-      notifications: rows.flatMap((r) => {
-        const ns = r.team ? teamNamespace(r.team) : userNamespace(r.owner);
-        const fullName = `${ns.username}/${r.repo.name}`;
-        const subject = r.issue
-          ? {
-              kind: 'issue' as const,
-              number: r.issue.number,
-              title: r.issue.title,
-              state: r.issue.state,
-              stateReason: r.issue.stateReason,
-            }
-          : r.pull
-            ? {
-                kind: 'pull' as const,
-                number: r.pull.number,
-                title: r.pull.title,
-                state: r.pull.state,
-                stateReason: null,
-              }
-            : null;
-        if (!subject) return [];
-        return [
-          {
-            id: r.n.id,
-            unread: r.n.unread,
-            reason: r.n.reason,
-            event: r.n.event,
-            actor: r.actor ? toPublicUser(r.actor) : null,
-            excerpt: r.n.excerpt,
-            repository: fullName,
-            subject,
-            url: `/${fullName}/${subject.kind === 'issue' ? 'issues' : 'pull'}/${subject.number}`,
-            updatedAt: r.n.updatedAt.toISOString(),
-          },
-        ];
-      }),
-      unread,
-      total,
-    },
+    { notifications: inbox.items, unread: inbox.unread, total: inbox.total },
     200
   );
 });
-
-async function countWhere(c: Context<AppEnv>, where: SQL | undefined) {
-  const row = await c
-    .get('db')
-    .select({ n: sql<number>`COUNT(*)` })
-    .from(notifications)
-    .innerJoin(repositories, eq(repositories.id, notifications.repositoryId))
-    .where(where)
-    .get();
-  return Number(row?.n ?? 0);
-}
 
 const countRoute = createRoute({
   method: 'get',
@@ -223,15 +114,7 @@ const countRoute = createRoute({
   },
 });
 notificationsRouter.openapi(countRoute, async (c) =>
-  c.json(
-    {
-      unread: await countWhere(
-        c,
-        inboxWhere(c, [eq(notifications.unread, true)])
-      ),
-    },
-    200
-  )
+  c.json({ unread: await unreadCount(c.get('db'), c.get('user')!) }, 200)
 );
 
 const markReadRoute = createRoute({
@@ -261,25 +144,10 @@ const markReadRoute = createRoute({
   },
 });
 notificationsRouter.openapi(markReadRoute, async (c) => {
-  const body = c.req.valid('json');
   const user = c.get('user')!;
-  const repo = await repoFilter(c, body.repo);
-  if (repo === null) return c.json({ updated: 0 }, 200);
-  const changed = await c
-    .get('db')
-    .update(notifications)
-    .set({ unread: false })
-    .where(
-      and(
-        eq(notifications.userId, user.id),
-        eq(notifications.unread, true),
-        body.all ? undefined : inJsonArray(notifications.id, body.ids ?? []),
-        repo
-      )
-    )
-    .returning({ id: notifications.id });
-  if (changed.length) await publishToUsers(c.env, [user.id]);
-  return c.json({ updated: changed.length }, 200);
+  const updated = await markRead(c.get('db'), user.id, c.req.valid('json'));
+  if (updated) await publishToUsers(c.env, [user.id]);
+  return c.json({ updated }, 200);
 });
 
 const idParams = z.object({ id: z.string().max(64) });
