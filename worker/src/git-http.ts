@@ -1,17 +1,10 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { drizzle } from 'drizzle-orm/d1';
-import { refreshAgentConfig } from './agents/refresh';
-import { settleStates } from './pulls/settle';
 import { eq } from 'drizzle-orm';
-import { publishChange } from './live/publish';
 import { instanceName } from './lib/settings';
+import { afterPush, recordPush } from './lib/push-events';
 import { schema } from './db/schema';
-import {
-  agents,
-  personalAccessTokens,
-  repositories,
-  type Repository,
-} from './db/app.schema';
+import { agents, personalAccessTokens, type Repository } from './db/app.schema';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { users } from './db/auth.schema';
 import {
@@ -23,11 +16,6 @@ import {
 } from './lib/repos';
 import { hashToken } from './lib/tokens';
 import {
-  actionsConfigured,
-  onRefsUpdated,
-  type RefUpdate,
-} from './actions/trigger';
-import {
   decidePush,
   needsEmptyCheck,
   readReceiveRequest,
@@ -37,11 +25,7 @@ import {
   type PushCommand,
   type ReceiveRequest,
 } from './git/push-protection';
-import { ZERO_SHA } from './git/remote';
 import type { GitService } from './git/service';
-import { startSweep } from './merge/auto';
-import { carryApprovalsOnSameTree } from './review/carry';
-import { resolutionConfigured } from './merge/resolution';
 
 const GIT_PATH =
   /^\/([^/]+)\/([^/]+?)\.git\/(info\/refs|git-upload-pack|git-receive-pack)$/;
@@ -277,15 +261,14 @@ export async function handleGitRequest(
     const undone = await undoForcedUpdates(git, fastForwardOnly);
     if (undone.size)
       reply = rewriteReport(reply, push.capabilities, undone) ?? reply;
-    ctx.waitUntil(
-      afterPush(
-        env,
-        repo.id,
-        user.id,
-        push.commands.filter((c) => !undone.has(c.ref)),
-        fullName
-      )
+    // Recorded before the push is answered, so its follow-ups run again if their background is cut off.
+    const event = await recordPush(
+      drizzle(env.DB, { schema }),
+      repo.id,
+      user.id,
+      push.commands.filter((c) => !undone.has(c.ref))
     );
+    ctx.waitUntil(afterPush(env, event, repo.id));
     return new Response(reply, {
       status: upstream.status,
       headers: respHeaders,
@@ -328,65 +311,4 @@ async function undoForcedUpdates(
     );
   }
   return undone;
-}
-
-/**
- * Bumps `updated_at`, adopts the first pushed branch as default if missing, queues Actions runs,
- * and starts AI resolution for newly conflicting pull requests.
- */
-async function afterPush(
-  env: CloudflareBindings,
-  repoId: string,
-  actorId: string,
-  commands: PushCommand[],
-  fullName: string
-) {
-  const db = drizzle(env.DB, { schema });
-  const patch: { updatedAt: Date; defaultBranch?: string } = {
-    updatedAt: new Date(),
-  };
-  const repo = await db
-    .select()
-    .from(repositories)
-    .where(eq(repositories.id, repoId))
-    .get();
-  if (!repo) return;
-  let refsAfter: Map<string, string> | null = null;
-  try {
-    const git = gitFor(env, repo);
-    refsAfter = await git.refs();
-    const branches = await git.branches();
-    if (
-      branches.length &&
-      !branches.some((b) => b.name === repo.defaultBranch)
-    ) {
-      patch.defaultBranch =
-        branches.find((b) => b.name === 'main')?.name ?? branches[0].name;
-    }
-  } catch (e) {
-    console.error('[git] post-push sync failed', e);
-  }
-  await db.update(repositories).set(patch).where(eq(repositories.id, repoId));
-  if (refsAfter && (actionsConfigured(env) || resolutionConfigured(env))) {
-    // The commands that took effect: their refs are where the push put them. A ref moved again since is that
-    // push's to report.
-    const updates: RefUpdate[] = commands.filter((c) =>
-      c.new === ZERO_SHA
-        ? !refsAfter.has(c.ref)
-        : refsAfter.get(c.ref) === c.new
-    );
-    await onRefsUpdated(env, db, repo, fullName, updates, actorId);
-    // Before the sweep and the state settling below: they read approvals of the new head.
-    await carryApprovalsOnSameTree(
-      db,
-      gitFor(env, repo),
-      repoId,
-      updates
-    ).catch((e) => console.error('[git] could not carry approvals', repoId, e));
-    await startSweep(env, repo, updates);
-  }
-  await publishChange(env, repoId, { approvals: true });
-  await settleStates(env, db, repoId);
-  // An agent's repository: re-read AGENT.md if its default branch moved. Last, so it delays nothing above.
-  await refreshAgentConfig(env, db, repoId);
 }

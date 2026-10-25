@@ -38,7 +38,8 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 - Artifacts repos are named `r_<repository id>` (`repositories.artifacts_name`), so renames never touch storage.
 - `worker/src/git-http.ts` serves `https://host/<owner>/<repo>.git`: users authenticate with a personal
   access token (Basic auth), and the worker streams the request to the Artifacts remote with a
-  short-lived repo-scoped token. Artifacts credentials never leave the worker.
+  short-lived repo-scoped token. Artifacts credentials never leave the worker. A push's follow-ups (Actions triggers,
+  sweep, states) run from a `push_events` row written before the reply (`lib/push-events.ts`), retried when cut off.
 - Reads use the Artifacts binding (`readTree`, `readCommit`, `readBlob`, `readFile`, `log`). Branches come
   from the smart-HTTP ref advertisement. Merges are computed in the worker (three-way tree merge in
   `worker/src/git/service.ts`) and written as a packfile pushed over `git-receive-pack`
