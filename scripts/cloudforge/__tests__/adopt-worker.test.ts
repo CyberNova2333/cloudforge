@@ -179,6 +179,7 @@ function workerHarness(
 
 /** Every Cloudflare call that changes something. */
 const WRITES = [
+  'batchD1',
   'createD1',
   'createR2',
   'putR2Lifecycle',

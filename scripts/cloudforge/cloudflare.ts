@@ -79,6 +79,12 @@ export interface Cloudflare {
     sql: string,
     params?: unknown[]
   ): Promise<Record<string, unknown>[]>;
+  /** Runs `statements` in one request as a D1 batch (one transaction: all of them or none); rows per statement. */
+  batchD1(
+    a: string,
+    id: string,
+    statements: { sql: string; params?: unknown[] }[]
+  ): Promise<Record<string, unknown>[][]>;
   listR2(a: string): Promise<string[]>;
   createR2(a: string, name: string): Promise<void>;
   putR2Lifecycle(
@@ -369,6 +375,23 @@ export function restCloudflare(
         { json: { sql, params: params ?? [] } }
       );
       return r[0]?.results ?? [];
+    },
+
+    // POST /accounts/{a}/d1/database/{id}/query {batch: [{sql, params}]}; one result entry per statement.
+    async batchD1(a, id, statements) {
+      const r = await call<{ results?: Record<string, unknown>[] }[]>(
+        'POST',
+        `/accounts/${a}/d1/database/${enc(id)}/query`,
+        {
+          json: {
+            batch: statements.map((s) => ({
+              sql: s.sql,
+              params: s.params ?? [],
+            })),
+          },
+        }
+      );
+      return statements.map((_, i) => r[i]?.results ?? []);
     },
 
     // GET /accounts/{a}/r2/buckets -> { buckets: [{ name }] } (wrangler src/r2/helpers/bucket.ts listR2Buckets).
