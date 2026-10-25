@@ -76,6 +76,11 @@ class DateQueue {
 }
 const MAX_DIFF_FILES = 300;
 const MAX_DIFF_BYTES = 512 * 1024;
+/**
+ * Most changed lines one file's diff may take to work out (jsdiff `maxEditLength`) when both sides have content: its
+ * cost grows with the lines times this, and a file past it is shown as too large. Not a timeout: in a Worker the clock stands still while code runs.
+ */
+export const MAX_EDIT_LENGTH = 2000;
 
 export class MergeConflictError extends Error {
   constructor(readonly paths: string[]) {
@@ -563,8 +568,16 @@ export class GitService {
         newBytes ? decoder.decode(newBytes) : '',
         '',
         '',
-        { context: 3 }
+        // A file added or deleted whole costs only its length to diff: no limit then.
+        {
+          context: 3,
+          maxEditLength: oldBytes && newBytes ? MAX_EDIT_LENGTH : Infinity,
+        }
       );
+      if (!patch) {
+        out.push({ ...base, tooLarge: true });
+        continue;
+      }
       for (const h of patch.hunks) {
         for (const l of h.lines) {
           if (l[0] === '+') base.additions++;
