@@ -258,7 +258,13 @@ function createAuth(env?: CloudflareBindings) {
       }),
     },
     // In-memory limits would be per isolate.
-    rateLimit: { enabled: true, storage: 'database' },
+    rateLimit: {
+      enabled: true,
+      storage: 'database',
+      // Each limited request writes D1 (single-threaded). get-session runs on every page load and focus, reads only
+      // the caller's own session, and has nothing to guess: it isn't counted. Sign-in, sign-up, resets and OAuth are.
+      customRules: { '/get-session': false },
+    },
     databaseHooks: {
       session: {
         create: {

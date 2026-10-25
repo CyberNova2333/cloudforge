@@ -84,3 +84,21 @@ it('同一 isolate 内每个环境只创建一个 better-auth 实例', async () 
   expect(res.status).toBe(200);
   expect(await res.json()).toMatchObject({ user: { username: 'octocat' } });
 });
+
+it('get-session 不计入限流，因此不写 rate_limits；登录仍然计入', async () => {
+  const t = makeEnv();
+  const cookie = await bootstrapAdmin(t);
+  const rows = async () =>
+    (await t.env.DB.prepare(
+      "SELECT count(*) AS n FROM rate_limits WHERE key LIKE '%get-session%'"
+    ).first<{ n: number }>())!.n;
+  for (let i = 0; i < 3; i++)
+    expect((await call(t, '/api/auth/get-session', { cookie })).status).toBe(
+      200
+    );
+  expect(await rows()).toBe(0);
+  const signIns = await t.env.DB.prepare(
+    "SELECT count(*) AS n FROM rate_limits WHERE key LIKE '%sign-in%'"
+  ).first<{ n: number }>();
+  expect(signIns!.n).toBeGreaterThan(0);
+});
