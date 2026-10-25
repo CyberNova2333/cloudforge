@@ -288,6 +288,7 @@ jobs:
           worker/src/__tests__/request-log.test.ts
           worker/src/__tests__/same-origin.test.ts
           worker/src/__tests__/repo-deletion.test.ts
+          worker/src/__tests__/email-index.test.ts
           worker/src/__tests__/d1-set-boundaries.test.ts
           worker/src/__tests__/protected-branches.test.ts
           worker/src/__tests__/setup-code.test.ts
