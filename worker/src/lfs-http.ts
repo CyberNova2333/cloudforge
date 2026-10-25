@@ -45,6 +45,13 @@ const lfsError = (status: number, message: string) =>
 
 type BatchObject = { oid: string; size: number };
 
+/**
+ * Objects of one batch looked up in R2 when D1 doesn't know them (an upload whose verify never arrived): each is an
+ * R2 HEAD, and a public repository's visitors can send batches too. Past it, a download answers 404 and an upload
+ * is asked for (uploading again is harmless).
+ */
+export const MAX_ADOPT_PROBES = 100;
+
 /** A batch of the 1000 objects allowed is about 100 KB; anything much larger is not a batch request. */
 const MAX_LFS_JSON_BYTES = 1024 * 1024;
 
@@ -176,7 +183,9 @@ async function handleBatch(
   const byOid = new Map(known.map((r) => [r.oid, r]));
 
   /** Records an object R2 already holds (e.g. upload whose verify never arrived). */
+  let probes = 0;
   const adopt = async (o: BatchObject) => {
+    if (probes++ >= MAX_ADOPT_PROBES) return false;
     const key = lfsKey(repo.id, o.oid);
     if (!(await storedObjectMatches(env, key, o.oid, o.size))) return false;
     await db
