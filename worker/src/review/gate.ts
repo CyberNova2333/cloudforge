@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -13,7 +14,13 @@ import {
 import { users } from '../db/auth.schema';
 import type { Reason } from '../pulls/state';
 import { chunks } from '../stack/view';
-import { checkVerdict, type CheckVerdict } from './checks';
+import {
+  checkVerdict,
+  combineVerdicts,
+  statusVerdict,
+  type CheckVerdict,
+} from './checks';
+import { latestStatuses } from '../lib/commit-statuses';
 import { hasInvitedAgents, headReviewId } from './keys';
 
 export type ReviewReason = Extract<
@@ -429,5 +436,10 @@ export async function checksAt(
       )
     )
     .all();
-  return checkVerdict(runs, [], 'any');
+  // Statuses CI servers reported on the commit hold it up like Actions runs.
+  const statuses = await latestStatuses(db, repositoryId, [sha]);
+  return combineVerdicts(
+    checkVerdict(runs, [], 'any'),
+    statusVerdict(statuses.get(sha) ?? [])
+  );
 }

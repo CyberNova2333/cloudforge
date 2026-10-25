@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -8,7 +9,13 @@ import {
 } from '../db/app.schema';
 import type { GitService } from '../git/service';
 import { NOTHING_TO_MERGE, rebaseRow, SUPERSEDED } from '../merge/resolution';
-import { checkVerdict, type CheckRun } from '../review/checks';
+import {
+  checkVerdict,
+  combineVerdicts,
+  statusVerdict,
+  type CheckRun,
+} from '../review/checks';
+import { latestStatuses } from '../lib/commit-statuses';
 import { reviewInputs, reviewVerdict, type GateInput } from '../review/gate';
 import { chunks, stackTreeView, type StackTreeView } from '../stack/view';
 import {
@@ -105,6 +112,9 @@ export async function pullStates(
         .all())
     );
 
+  // Statuses CI servers reported at the heads: they hold PRs up like Actions runs.
+  const statuses = await latestStatuses(db, repositoryId, heads);
+
   // The latest AI resolution of each PR (only that row is read).
   const resolutions = new Map<
     string,
@@ -190,10 +200,13 @@ export async function pullStates(
   for (const { pr, base, head } of tips) {
     const reasons: Reason[] = [];
 
-    const v = checkVerdict(
-      runs.filter((r) => r.headSha === head),
-      [],
-      'any'
+    const v = combineVerdicts(
+      checkVerdict(
+        runs.filter((r) => r.headSha === head),
+        [],
+        'any'
+      ),
+      statusVerdict(statuses.get(head) ?? [])
     );
     if (v?.kind === 'failed')
       reasons.push({

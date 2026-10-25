@@ -21,6 +21,7 @@ import { deleteMergedBranch } from './land';
 import { d1Of } from '../pulls/events';
 import { closeLinkedIssues } from '../lib/issue-links';
 import { notify } from '../lib/notifications';
+import { emitPush } from '../lib/webhook-events';
 
 export const landingReceipt = (pr: number, id: string) =>
   `refs/pull/${pr}/landings/${id}`;
@@ -205,6 +206,11 @@ export async function finishLanding(
             actorId: intent.actorId,
           }
         ),
+    ],
+    // Webhooks' push for the target branch the landing moved (keyed on the landing: once).
+    [
+      'hooks',
+      () => emitPush({ env, db }, repo, updates, intent.actorId, eventId),
     ],
     ['states', () => settleStates(env, db, repo.id)],
   ];

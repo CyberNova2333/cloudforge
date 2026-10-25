@@ -278,8 +278,13 @@ export const loadRepo: MiddlewareHandler<RepoEnv> = async (c, next) => {
   if (!owner || !name) return c.json({ error: 'Not Found' }, 404);
   const found = await findRepo(c.get('db'), owner, name);
   if (!found) return c.json({ error: 'Not Found' }, 404);
-  const perms = await permissionsFor(c.get('db'), found.repo, c.get('user'));
-  if (!perms.read) return c.json({ error: 'Not Found' }, 404);
+  const full = await permissionsFor(c.get('db'), found.repo, c.get('user'));
+  if (!full.read) return c.json({ error: 'Not Found' }, 404);
+  // A read-only token reads whatever its member may, and changes nothing.
+  const perms =
+    c.get('tokenScope') === 'read'
+      ? { ...full, write: false, admin: false }
+      : full;
   c.set('repo', found.repo);
   c.set('repoOwner', found.owner);
   c.set('namespace', found.namespace);

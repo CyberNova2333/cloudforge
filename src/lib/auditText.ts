@@ -69,6 +69,9 @@ export const AUDIT_ACTIONS = [
   'label.created',
   'label.updated',
   'label.deleted',
+  'webhook.created',
+  'webhook.updated',
+  'webhook.deleted',
 ] as const;
 
 type Data = Record<string, unknown>;
@@ -564,6 +567,17 @@ export function auditParts(
         ...tail('in'),
         via()
       );
+    case 'webhook.created':
+      return say(t(' added a webhook for '), e.target, ...tail('in'), via());
+    case 'webhook.updated':
+      return say(t(' edited the webhook for '), e.target, ...tail('in'), via());
+    case 'webhook.deleted':
+      return say(
+        t(' deleted the webhook for '),
+        e.target,
+        ...tail('in'),
+        via()
+      );
     case 'token.created':
       return say(t(' created the access token “'), e.target, '”', via());
     case 'token.deleted':
@@ -848,6 +862,7 @@ export function auditLink(e: AuditEvent): string | null {
   if (e.action.startsWith('release.') && e.target)
     return `/${e.repo}/releases/${encodeURIComponent(e.target)}`;
   if (e.action.startsWith('label.')) return `/${e.repo}/labels`;
+  if (e.action.startsWith('webhook.')) return `/${e.repo}/settings`;
   if (e.action === 'issue.deleted') return `/${e.repo}/issues`;
   const issue = /^#(\d+)$/.exec(e.target);
   if (e.action === 'issue.comment_deleted' && issue)
@@ -917,6 +932,9 @@ export function auditCategory(action: string): AuditCategory {
     case 'label.created':
     case 'label.updated':
     case 'label.deleted':
+    case 'webhook.created':
+    case 'webhook.updated':
+    case 'webhook.deleted':
       return 'settings';
     default:
       return 'activity';

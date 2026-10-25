@@ -330,6 +330,13 @@
       "when": 1792906006406,
       "tag": "0046_late_machine_man",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792909821567,
+      "tag": "0047_mean_lester",
+      "breakpoints": true
     }
   ]
 }

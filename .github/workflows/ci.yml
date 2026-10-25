@@ -339,6 +339,8 @@ jobs:
           worker/src/__tests__/mcp-issues.test.ts
           worker/src/__tests__/notifications.test.ts
           worker/src/__tests__/mentions.test.ts
+          worker/src/__tests__/commit-statuses.test.ts
+          worker/src/__tests__/webhooks.test.ts
           src/lib/
 
   # The npm package (scripts/cloudforge/pack.mjs): pack it, prove the shipped build deploys from a
