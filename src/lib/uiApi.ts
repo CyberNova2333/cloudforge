@@ -551,6 +551,8 @@ export type Emails = {
 export type Token = {
   id: string;
   name: string;
+  /** read: clone, fetch and LFS downloads; write: also push and LFS uploads. */
+  scope: 'read' | 'write';
   lastUsedAt: string | null;
   expiresAt: string | null;
   createdAt: string;
@@ -1451,7 +1453,11 @@ export const api = {
       method: on ? 'PUT' : 'DELETE',
     }),
   tokens: () => apiFetch<Token[]>('/api/tokens'),
-  createToken: (body: { name: string; expiresInDays: number | null }) =>
+  createToken: (body: {
+    name: string;
+    expiresInDays: number | null;
+    scope: Token['scope'];
+  }) =>
     apiFetch<{ token: Token; plaintext: string }>('/api/tokens', {
       method: 'POST',
       json: body,

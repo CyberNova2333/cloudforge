@@ -44,7 +44,7 @@ The MCP tools are named `cloudforge_*` (they were `gitorange_*`). `tools/list` s
 an old name still reaches the same tool with the same permission checks, so connected agents keep working; update
 prompts, skills and tool allowlists to the new names when convenient.
 
-The security update adds migration `0040` and changes behaviour; check each point after upgrading:
+The security update adds migrations `0040` and `0041` and changes behaviour; check each point after upgrading:
 
 - **Instance-wide Actions secrets reach only the repositories chosen for them** (Site admin → Actions secrets and
   variables → Repositories). Existing ones reach none after the upgrade: choose their repositories, or jobs read them
@@ -70,6 +70,8 @@ The security update adds migration `0040` and changes behaviour; check each poin
   Instances that already have an admin are unaffected.
 - **A workflow run holds at most 128 jobs** (matrices expanded); a workflow with more is invalid. Site admin → Settings
   → Actions → Largest runner (default `standard-4`, as before) caps the size `runs-on` may ask for.
+- **Personal access tokens can be read-only** (Settings → Personal access tokens → Access); existing tokens keep read
+  and write. A member holds at most 50 unexpired tokens.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 

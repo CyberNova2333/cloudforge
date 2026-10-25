@@ -1,0 +1,1 @@
+ALTER TABLE `personal_access_tokens` ADD `scope` text DEFAULT 'write' NOT NULL;

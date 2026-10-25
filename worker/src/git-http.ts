@@ -149,7 +149,11 @@ export async function authenticateRepoRequest(
     user: pat.user,
     repo: found.repo,
     fullName: `${found.namespace.username}/${found.repo.name}`,
-    perms,
+    // A read-only token reads whatever its member may, and changes nothing.
+    perms:
+      pat.pat.scope === 'read'
+        ? { ...perms, write: false, admin: false }
+        : perms,
   };
 }
 
