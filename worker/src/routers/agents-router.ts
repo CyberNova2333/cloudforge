@@ -207,11 +207,14 @@ agentsRouter.openapi(avatarRoute, async (c) => {
     : undefined;
   if (!found || !(await permissionsFor(db, found.repo, c.get('user'))).read)
     return c.json({ error: 'Not Found' }, 404);
-  const repo = await gitFor(c.env, found.repo).client.repo();
+  const git = gitFor(c.env, found.repo);
+  const ref = v ?? (await git.resolveBranch(found.repo.defaultBranch));
+  if (!ref) return c.json({ error: 'Not Found' }, 404);
+  const repo = await git.client.repo();
   const blob = v
     ? // Artifacts throws for an object ID that is a tree or blob rather than a commit: not found here.
       await repo.readFile({ ref: v, path: AVATAR_PATH }).catch(() => null)
-    : await repo.readFile({ ref: found.repo.defaultBranch, path: AVATAR_PATH });
+    : await repo.readFile({ ref, path: AVATAR_PATH });
   if (!blob) return c.json({ error: 'Not Found' }, 404);
   return new Response(blob.stream(), {
     headers: {

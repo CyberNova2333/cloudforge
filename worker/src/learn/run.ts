@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * A lesson on the MERGE_RESOLUTION Workflow: claim it and start the learner (`learn:<handle>`), then wait for its
  * event (or 2 minutes) and check it (`learn-check:<handle>:<n>`, review/pi.ts awaitChecks) until it answers, fails,
@@ -136,7 +137,7 @@ export async function startLesson(
   if (!deps.learner) return failStart(LEARN_NO_PI);
   if (!baseSha) {
     const git = gitFor(env, agentRepo);
-    const tip = await git.resolve(agentRepo.defaultBranch);
+    const tip = await git.resolveBranch(agentRepo.defaultBranch);
     if (!tip) return failStart("The agent's repository could not be read.");
     const config = await readAgentConfig(git, tip);
     if (!config.ok)

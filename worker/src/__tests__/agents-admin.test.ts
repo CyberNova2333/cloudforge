@@ -5,6 +5,7 @@ import { createAgent } from '../agents/accounts';
 import { schema } from '../db/schema';
 import { GitService } from '../git/service';
 import type { SessionUser } from '../variables';
+import { commitPaths } from './helpers/seed';
 import {
   addMember,
   bootstrapAdmin,
@@ -302,6 +303,31 @@ describe('重新创建已删除智能体', () => {
 });
 
 describe('智能体头像', () => {
+  it('无版本头像读取默认分支真正的 tip，不把 SHA 形状分支名当作旧提交', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    await newAgent(t, admin);
+    const repo = await agentRepo(t);
+    const branch = repo.refs.get('refs/heads/main')!;
+    await commitPaths(
+      repo,
+      branch,
+      { 'avatar.png': 'new avatar' },
+      'new avatar'
+    );
+    await t.env.DB.prepare(
+      'UPDATE repositories SET default_branch = ? WHERE artifacts_name = ?'
+    )
+      .bind(branch, repo.name)
+      .run();
+    const response = await call(t, '/api/agents/secagent/avatar', {
+      cookie: admin,
+    });
+    expect(response.status).toBe(200);
+    expect(new TextDecoder().decode(await response.arrayBuffer())).toBe(
+      'new avatar'
+    );
+  });
   it('将智能体仓库中的 avatar.png 作为受沙箱限制的 PNG 提供', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);

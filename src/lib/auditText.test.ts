@@ -701,6 +701,25 @@ describe('每项审计操作都构成一个句子', () => {
       { action: 'webhook.deleted', target: 'ci.example.com' },
       'mahmoud deleted the webhook for ci.example.com in octocat/cloudforge',
     ],
+    [
+      'deploy_token.created 新建部署令牌',
+      { action: 'deploy_token.created', target: 'production' },
+      'mahmoud created the deploy token “production” in octocat/cloudforge',
+    ],
+    [
+      'deploy_token.deleted 撤销部署令牌',
+      { action: 'deploy_token.deleted', target: 'production' },
+      'mahmoud revoked the deploy token “production” in octocat/cloudforge',
+    ],
+    [
+      'deploy_token.pushed 部署身份推送',
+      {
+        action: 'deploy_token.pushed',
+        target: 'production',
+        actor: { kind: 'system', login: null, name: null },
+      },
+      'System pushed with deploy token “production” in octocat/cloudforge',
+    ],
   ];
 
   it.each(cases)('审计操作：%s', (_name, over, sentence) => {
@@ -743,6 +762,9 @@ describe('每项审计操作都构成一个句子', () => {
         'finding.taught',
         'token.created',
         'token.deleted',
+        'deploy_token.created',
+        'deploy_token.deleted',
+        'deploy_token.pushed',
         'visibility.changed',
         'repository.created',
         'repository.deleted',

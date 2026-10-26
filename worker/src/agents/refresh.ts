@@ -56,7 +56,7 @@ async function refreshOnce(
     .get();
   if (!repo) return 'done';
   const git = gitFor(env, repo);
-  const head = await git.resolve(repo.defaultBranch);
+  const head = await git.resolveBranch(repo.defaultBranch);
   // Re-read an unchanged head only to clear an error (a force-push back to the last valid commit).
   if (!head || (head === agent.configSha && !agent.configError)) return 'done';
   const [read, avatar] = await Promise.all([

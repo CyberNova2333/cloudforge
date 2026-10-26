@@ -168,6 +168,7 @@ jobs:
           worker/src/__tests__/review-diagram.test.ts
           worker/src/__tests__/agent-review-contract.test.ts
           worker/src/__tests__/agent-review.test.ts
+          worker/src/__tests__/branch-identity-security.test.ts
           worker/src/__tests__/agent-review-earlier.test.ts
           worker/src/__tests__/agent-review-lifecycle.test.ts
           worker/src/__tests__/agent-review-pi-contract.test.ts
@@ -244,6 +245,8 @@ jobs:
           worker/src/__tests__/actions-d1-limits.test.ts
           worker/src/__tests__/cron.test.ts
           worker/src/__tests__/git-http.test.ts
+          worker/src/__tests__/deploy-token-transport.test.ts
+          worker/src/__tests__/deploy-token-enumeration.test.ts
           worker/src/__tests__/push-protection.test.ts
           worker/src/__tests__/artifacts-cache.test.ts
           worker/src/__tests__/actions-cache.test.ts
@@ -342,6 +345,7 @@ jobs:
           worker/src/__tests__/commit-statuses.test.ts
           worker/src/__tests__/mcp-commit-statuses.test.ts
           worker/src/__tests__/webhooks.test.ts
+          worker/src/__tests__/deploy-tokens.test.ts
           worker/src/__tests__/webhooks-security.test.ts
           src/lib/
 

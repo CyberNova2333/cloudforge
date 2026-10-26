@@ -267,7 +267,7 @@ export async function emitThreadEvent(ctx: NotifyCtx, e: NotifyEvent) {
       pr.state === 'merged'
         ? pr.mergeCommitSha
         : await gitFor(ctx.env, rc.repo)
-            .resolve(pr.headRef)
+            .resolveBranch(pr.headRef)
             .catch(() => null);
     const login = await logins(ctx, [pr.authorId, pr.mergedById ?? '']);
     return {

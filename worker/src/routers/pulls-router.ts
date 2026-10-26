@@ -846,7 +846,7 @@ pullsRouter.openapi(getPullRoute, async (c) => {
   const events = await eventsFor(db, pr.id);
   const [shas, headLive] = await Promise.all([
     pullShas(git, pr),
-    git.resolve(pr.headRef),
+    git.resolveBranch(pr.headRef),
   ]);
   const approvals = shas ? await approvalsAt(db, pr.id, shas.head) : [];
   const people = await usersById(db, [
@@ -1002,7 +1002,7 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
   if (body.state === 'closed' && pr.state === 'open') {
     patch.state = 'closed';
     patch.closedAt = now;
-    const head = await c.get('git').resolve(pr.headRef);
+    const head = await c.get('git').resolveBranch(pr.headRef);
     if (head)
       await c
         .get('git')
@@ -1010,7 +1010,7 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
         .catch(() => {});
   }
   if (body.state === 'open' && pr.state === 'closed') {
-    if (!(await c.get('git').resolve(pr.headRef)))
+    if (!(await c.get('git').resolveBranch(pr.headRef)))
       return c.json({ error: 'The head branch no longer exists' }, 400);
     patch.state = 'open';
     patch.closedAt = null;
@@ -1725,7 +1725,7 @@ pullsRouter.openapi(retryReviewerRoute, async (c) => {
     c.get('db'),
     pr,
     reviewerId,
-    await c.get('git').resolve(pr.headRef),
+    await c.get('git').resolveBranch(pr.headRef),
     (work) => c.executionCtx.waitUntil(work)
   );
   if (!result.ok) return c.json({ error: result.error }, result.status);

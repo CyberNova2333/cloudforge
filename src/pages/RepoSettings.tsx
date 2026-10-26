@@ -6,6 +6,7 @@ import {
   DependabotIcon,
   GearIcon,
   LockIcon,
+  KeyIcon,
   PeopleIcon,
 } from '@primer/octicons-react';
 import { api, qk, type RepoDetail, type Visibility } from '@/lib/uiApi';
@@ -188,6 +189,12 @@ export default function RepoSettings() {
         </a>
         <Link className="menu-item" to={`/${repo.fullName}/settings/webhooks`}>
           <GearIcon /> {t('Webhooks')}
+        </Link>
+        <Link
+          className="menu-item"
+          to={`/${repo.fullName}/settings/deploy-tokens`}
+        >
+          <KeyIcon /> {t('Deploy tokens')}
         </Link>
       </nav>
       <div className="flex-1">

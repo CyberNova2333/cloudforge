@@ -670,9 +670,9 @@ describe('实际合入的提交', () => {
     const found = (await findRepoById(db, pr.repositoryId))!;
     const git = gitFor(t.env, found.repo);
     // The branch moves right after landPull reads the head it gates (as a refs-cache refresh would show).
-    const real = git.resolve.bind(git);
+    const real = git.resolveBranch.bind(git);
     let first = true;
-    git.resolve = async (ref: string) => {
+    git.resolveBranch = async (ref: string) => {
       if (ref !== 'feature') return real(ref);
       if (!first) return repo.refs.get('refs/heads/feature') ?? null;
       first = false;
@@ -698,6 +698,7 @@ describe('实际合入的提交', () => {
       by: user,
       after: () => {},
     });
+    expect(first).toBe(false);
     expect(result).toMatchObject({ ok: false, status: 409 });
     expect(repo.refs.get('refs/heads/main')).toBe(base);
     expect(repo.refs.get('refs/heads/feature')).not.toBe(head);

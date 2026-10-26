@@ -12,6 +12,44 @@ async function fixture() {
   return { repo, git };
 }
 
+describe('明确分支名称解析', () => {
+  it('40 位分支名称读取分支头，泛用对象解析仍返回对象本身', async () => {
+    const { repo, git } = await fixture();
+    const old = await commitFiles(repo, 'main', { 'a.txt': 'old' }, 'old');
+    const tip = await commitFiles(repo, old, { 'a.txt': 'tip' }, 'tip', [old]);
+    expect(await git.resolveBranch(old)).toBe(tip);
+    expect(await git.resolve(old)).toBe(old);
+    expect(await git.resolveBranch('ab'.repeat(20))).toBeNull();
+  });
+
+  it('refs/heads 和 refs/tags 字样只作分支名称，不回退到完整引用或标签', async () => {
+    const { repo, git } = await fixture();
+    const main = await commitFiles(repo, 'main', { 'a.txt': 'main' }, 'main');
+    const named = await commitFiles(
+      repo,
+      'refs/heads/main',
+      { 'a.txt': 'named branch' },
+      'named',
+      [main]
+    );
+    repo.refs.set('refs/tags/release', main);
+    expect(await git.resolveBranch('main')).toBe(main);
+    expect(await git.resolveBranch('refs/heads/main')).toBe(named);
+    expect(await git.resolveBranch('refs/heads/refs/heads/main')).toBeNull();
+    expect(await git.resolveBranch('release')).toBeNull();
+    expect(await git.resolveBranch('refs/tags/release')).toBeNull();
+  });
+
+  it('删除 40 位名称分支时以真实分支头作 CAS，不使用同名旧提交', async () => {
+    const { repo, git } = await fixture();
+    const old = await commitFiles(repo, 'main', { 'a.txt': 'old' }, 'old');
+    await commitFiles(repo, old, { 'a.txt': 'tip' }, 'tip', [old]);
+    await git.deleteBranch(old);
+    expect(repo.refs.has(`refs/heads/${old}`)).toBe(false);
+    expect(repo.refs.get('refs/heads/main')).toBe(old);
+  });
+});
+
 /**
  * main: A ─ B ─ M (merges feat), feat: A ─ F, next: F ─ H (a follow-up built on the merged feature).
  * git merge-base main next = F; git log main..next = H.

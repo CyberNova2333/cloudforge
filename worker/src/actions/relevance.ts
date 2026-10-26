@@ -346,7 +346,7 @@ export async function relevanceContext(
       if (pr) {
         rc.title = pr.title;
         rc.pullRequestId = pr.id;
-        const tip = await git.resolve(pr.baseRef);
+        const tip = await git.resolveBranch(pr.baseRef);
         base = tip ? await git.mergeBase(tip, run.headSha) : null;
       }
     } else if (run.event === 'push' && head) {
@@ -355,7 +355,7 @@ export async function relevanceContext(
       rc.title = (head.message.split('\n')[0] ?? '')
         .trim()
         .slice(0, MAX_SUBJECT);
-      const tip = await git.resolve(run.defaultBranch);
+      const tip = await git.resolveBranch(run.defaultBranch);
       base = tip ? await git.mergeBase(tip, run.headSha) : null;
     }
     // Any other event (schedule, workflow_dispatch, …) has no change to judge: base stays null.

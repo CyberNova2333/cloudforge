@@ -196,6 +196,11 @@ export class GitService {
     );
   }
 
+  /** Resolves a branch name without interpreting it as an object id, tag, or fully qualified ref. */
+  async resolveBranch(name: string): Promise<string | null> {
+    return (await this.refs()).get(`refs/heads/${name}`) ?? null;
+  }
+
   // ── objects ────────────────────────────────────────────────────────────────
 
   /** Makes `objects` readable through tree() and blob() until this service is dropped (nothing is pushed). */
@@ -771,8 +776,8 @@ export class GitService {
     committer?: Signature;
     extraRefs?: { ref: string; sha: string }[];
   }): Promise<{ sha: string; headSha: string }> {
-    const baseSha = await this.resolve(opts.base);
-    const headSha = await this.resolve(opts.head);
+    const baseSha = await this.resolveBranch(opts.base);
+    const headSha = await this.resolveBranch(opts.head);
     if (!baseSha || !headSha) throw new Error('Branch not found');
     const plan = await this.planMerge(baseSha, headSha);
     if (plan.upToDate) throw new Error('Nothing to merge');
@@ -834,7 +839,7 @@ export class GitService {
    * a concurrent push wins and the push throws GitPushError.
    */
   async deleteBranch(name: string, expected?: string) {
-    const sha = expected ?? (await this.resolve(name));
+    const sha = expected ?? (await this.resolveBranch(name));
     if (!sha) return;
     await this.client.push(
       [{ ref: `refs/heads/${name}`, old: sha, new: ZERO_SHA }],

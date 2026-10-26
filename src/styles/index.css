@@ -25,4 +25,5 @@
 @import './pages/issues.css';
 @import './pages/notifications.css';
 @import './pages/webhooks.css';
+@import './pages/deploy-tokens.css';
 @import './legacy.css';

@@ -47,7 +47,7 @@ async function openHead(git: GitService, pr: PullRequest): Promise<OpenHead> {
       status: 400,
       error: 'This pull request is no longer open',
     };
-  const head = await git.resolve(pr.headRef);
+  const head = await git.resolveBranch(pr.headRef);
   if (!head)
     return {
       ok: false,

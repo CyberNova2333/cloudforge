@@ -97,7 +97,7 @@ export async function handleLfsRequest(
       ? credentialsNeeded(access.headers.get('WWW-Authenticate'))
       : lfsError(404, 'Repository not found');
   }
-  if (!access.user && (await writes(request, endpoint)))
+  if (!access.user && !access.deployToken && (await writes(request, endpoint)))
     return credentialsNeeded(null);
 
   if (endpoint.startsWith('locks'))
@@ -113,7 +113,7 @@ function credentialsNeeded(challenge: string | null) {
   return lfsJson(
     {
       message:
-        'Credentials needed. Use a personal access token as the password.',
+        'Credentials needed. Use a personal access token or repository deploy token as the password.',
     },
     401,
     { 'WWW-Authenticate': challenge ?? 'Basic' }

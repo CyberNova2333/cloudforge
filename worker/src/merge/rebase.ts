@@ -167,9 +167,9 @@ export async function rebaseTips(
   pr: Pick<PullRequest, 'baseRef' | 'landTarget' | 'headRef'>
 ): Promise<RebaseTips | null> {
   const [base, target, head] = await Promise.all([
-    git.resolve(pr.baseRef),
-    git.resolve(landTargetOf(pr)),
-    git.resolve(pr.headRef),
+    git.resolveBranch(pr.baseRef),
+    git.resolveBranch(landTargetOf(pr)),
+    git.resolveBranch(pr.headRef),
   ]);
   const onto = base ?? target;
   if (!onto || !head) return null;

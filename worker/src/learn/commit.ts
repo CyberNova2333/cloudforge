@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Committing a learned edit to the agent's repository: the message, and compare-and-swap with one retry. */
 import { AGENT_PATH } from '../agents/config';
 import type { Signature } from '../git/objects';
@@ -153,7 +154,7 @@ export async function findLessonCommit(
   author: { email: string },
   findingIds: string[]
 ): Promise<string | null> {
-  const tip = await git.resolve(branch);
+  const tip = await git.resolveBranch(branch);
   if (!tip || tip === baseSha || !findingIds.length) return null;
   for (const c of await git.log(tip, LESSON_COMMIT_LOOKBACK)) {
     if (c.hash === baseSha) return null;
@@ -212,7 +213,7 @@ export async function commitLearned(opts: {
     if (!(e instanceof GitPushError)) throw e;
   }
   const git = opts.fresh();
-  const tip = await git.resolve(branch);
+  const tip = await git.resolveBranch(branch);
   if (!tip)
     return {
       status: 'failed',

@@ -23,6 +23,7 @@ import { errors } from './errors';
 import { issues } from './issues';
 import { notifications } from './notifications';
 import { webhooks } from './webhooks';
+import { deployTokens } from './deployTokens';
 import { lib } from './lib';
 import { pulls } from './pulls';
 import { repo } from './repo';
@@ -38,6 +39,7 @@ export const zhAreas: Record<string, Record<string, string>> = {
   issues,
   notifications,
   webhooks,
+  deployTokens,
   review,
   actions,
   agents,
