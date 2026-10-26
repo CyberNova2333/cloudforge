@@ -9,6 +9,7 @@ import {
   GearIcon,
   LinkIcon,
   LockIcon,
+  KeyIcon,
   XCircleIcon,
 } from '@primer/octicons-react';
 import type { RepoDetail } from '@/lib/uiApi';
@@ -626,6 +627,12 @@ function WebhooksContent({ repo }: { repo: RepoDetail }) {
             aria-current="page"
           >
             <LinkIcon size={16} /> {t('Webhooks')}
+          </Link>
+          <Link
+            className="menu-item"
+            to={`/${repo.fullName}/settings/deploy-tokens`}
+          >
+            <KeyIcon size={16} /> {t('Deploy tokens')}
           </Link>
         </nav>
         <div className="webhooks-main">

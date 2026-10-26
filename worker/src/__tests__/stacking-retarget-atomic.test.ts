@@ -259,10 +259,10 @@ it('合入后拒绝旧关闭或重开操作，且不写入发件箱', async () =
 
 it('关闭 API 读取 Git 期间完成合入时返回 409', async () => {
   const f = await stacked();
-  const resolve = GitService.prototype.resolve;
+  const resolve = GitService.prototype.resolveBranch;
   let injected = false;
   const spy = vi
-    .spyOn(GitService.prototype, 'resolve')
+    .spyOn(GitService.prototype, 'resolveBranch')
     .mockImplementation(async function (this: GitService, ref) {
       if (!injected && ref === f.parent.headRef) {
         injected = true;
@@ -302,10 +302,10 @@ it('其他请求已将同一拉取请求重开再关闭后，拒绝旧重开操�
     closedAt: now,
   });
   let latestCloseId: string | undefined;
-  const resolve = GitService.prototype.resolve;
+  const resolve = GitService.prototype.resolveBranch;
   let injected = false;
   const spy = vi
-    .spyOn(GitService.prototype, 'resolve')
+    .spyOn(GitService.prototype, 'resolveBranch')
     .mockImplementation(async function (this: GitService, ref) {
       if (!injected && ref === f.parent.headRef) {
         injected = true;
@@ -354,10 +354,10 @@ it('其他请求已将同一拉取请求重开再关闭后，拒绝旧重开操�
 
 it('其他请求已将同一拉取请求关闭再重开后，拒绝旧关闭操作', async () => {
   const f = await stacked();
-  const resolve = GitService.prototype.resolve;
+  const resolve = GitService.prototype.resolveBranch;
   let injected = false;
   const spy = vi
-    .spyOn(GitService.prototype, 'resolve')
+    .spyOn(GitService.prototype, 'resolveBranch')
     .mockImplementation(async function (this: GitService, ref) {
       if (!injected && ref === f.parent.headRef) {
         injected = true;

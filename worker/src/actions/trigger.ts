@@ -167,7 +167,7 @@ export async function queueRuns(
     if (event.kind === 'push')
       changed = await changedPaths(git, event.before, event.after);
     else {
-      const baseSha = await git.resolve(event.baseRef);
+      const baseSha = await git.resolveBranch(event.baseRef);
       const base = baseSha ? await git.mergeBase(baseSha, event.headSha) : null;
       changed = base ? await changedPaths(git, base, event.headSha) : null;
     }

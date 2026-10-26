@@ -9,6 +9,7 @@ import {
   branchMoved,
   commitLearned,
   contentsAt,
+  findLessonCommit,
   LESSON_TRAILER,
   lessonCommitMessage,
   redactPrivate,
@@ -272,6 +273,52 @@ function racing(git: GitService) {
 }
 
 describe('commitLearned 提交学习结果', () => {
+  it('40 位分支名的学习恢复从真正分支头查找先前提交，不误认同名旧对象', async () => {
+    const { repo, base, git } = await agentRepository();
+    const branch = base;
+    repo.refs.set(`refs/heads/${branch}`, base);
+    const learned = await git().commitFiles({
+      branch,
+      parent: base,
+      files: EDIT,
+      author: AUTHOR,
+      message: `Learned.\n\n${LESSON_TRAILER}: finding-1`,
+    });
+    expect(
+      await findLessonCommit(git(), branch, base, AUTHOR, ['finding-1'])
+    ).toBe(learned);
+  });
+
+  it('40 位分支名前移后学习提交以真正新头重试 CAS，并保留其他文件', async () => {
+    const { repo, base, git } = await agentRepository();
+    const branch = base;
+    repo.refs.set(`refs/heads/${branch}`, base);
+    const moved = await commitPaths(
+      repo,
+      branch,
+      {
+        'AGENT.md': MD,
+        'knowledge/README.md': 'Notes.\n',
+        'README.md': 'Keep me.\n',
+      },
+      'Concurrent edit'
+    );
+    const out = await commitLearned({
+      git: git(),
+      fresh: git,
+      branch,
+      baseSha: base,
+      files: EDIT,
+      author: AUTHOR,
+      message: 'Learned.',
+    });
+    if (out.status !== 'committed') throw new Error(JSON.stringify(out));
+    expect(repo.parseCommit(out.sha)!.parents).toEqual([moved]);
+    expect(repo.refs.get(`refs/heads/${branch}`)).toBe(out.sha);
+    expect(await read(git(), out.sha, 'README.md')).toBe('Keep me.\n');
+    expect(await read(git(), out.sha, 'AGENT.md')).toBe(LEARNED);
+  });
+
   it('以指定作者通过比较并交换提交到 main，保留其他所有文件', async () => {
     const { repo, base, git } = await agentRepository();
     const out = await commitLearned({

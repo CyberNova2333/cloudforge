@@ -48,6 +48,9 @@ export const AUDIT_ACTIONS = [
   'finding.taught',
   'token.created',
   'token.deleted',
+  'deploy_token.created',
+  'deploy_token.deleted',
+  'deploy_token.pushed',
   'visibility.changed',
   'repository.created',
   'repository.deleted',
@@ -582,6 +585,28 @@ export function auditParts(
       return say(t(' created the access token “'), e.target, '”', via());
     case 'token.deleted':
       return say(t(' deleted the access token “'), e.target, '”', via());
+    case 'deploy_token.created':
+      return say(
+        t(' created the deploy token “'),
+        e.target,
+        '”',
+        ...tail('in'),
+        via()
+      );
+    case 'deploy_token.deleted':
+      return say(
+        t(' revoked the deploy token “'),
+        e.target,
+        '”',
+        ...tail('in'),
+        via()
+      );
+    case 'deploy_token.pushed':
+      return say(
+        t(' pushed with deploy token “{token}”', { token: e.target }),
+        ...tail('in'),
+        via()
+      );
     case 'repository.created': {
       const visibility = str(d.visibility);
       return say(
@@ -810,7 +835,8 @@ export function auditDetail(e: AuditEvent): string | null {
       return d.reset === true || d.value === undefined
         ? null
         : t('Now: {value}', { value: clip(show(d.value)) });
-    case 'token.created': {
+    case 'token.created':
+    case 'deploy_token.created': {
       if (!('expiresAt' in d)) return null;
       const at = num(d.expiresAt);
       return at === null
@@ -863,6 +889,8 @@ export function auditLink(e: AuditEvent): string | null {
     return `/${e.repo}/releases/${encodeURIComponent(e.target)}`;
   if (e.action.startsWith('label.')) return `/${e.repo}/labels`;
   if (e.action.startsWith('webhook.')) return `/${e.repo}/settings`;
+  if (e.action.startsWith('deploy_token.'))
+    return `/${e.repo}/settings/deploy-tokens`;
   if (e.action === 'issue.deleted') return `/${e.repo}/issues`;
   const issue = /^#(\d+)$/.exec(e.target);
   if (e.action === 'issue.comment_deleted' && issue)
@@ -912,6 +940,9 @@ export function auditCategory(action: string): AuditCategory {
     case 'agent.restored':
     case 'token.created':
     case 'token.deleted':
+    case 'deploy_token.created':
+    case 'deploy_token.deleted':
+    case 'deploy_token.pushed':
     case 'visibility.changed':
     case 'user.password_reset':
     case 'user.password_reset_link':

@@ -64,15 +64,32 @@ Nothing about git content is copied into D1. The repository page, history, and d
 
 Each repository row has an immutable `artifacts_name` (`r_<id>`). The Artifacts repo is addressed by that name, so renaming `alice/api` changes one D1 row and never touches storage.
 
+Default-branch settings must name an existing `refs/heads/` entry. Internal branch identities (PR base/head, landing
+targets, agent default branches and learning retries) use `GitService.resolveBranch`, which resolves exactly that
+namespace even when a branch name is also a 40-character commit SHA. Generic user-supplied commit/ref resolution
+remains separate; a branch-name collision must not turn a PR's real changes into an empty review or CI filter diff.
+
 ## The git endpoint
 
 `https://host/<owner>/<repo>.git` is served by [`worker/src/git-http.ts`](../worker/src/git-http.ts):
 
-1. The client sends Basic auth with a personal access token (stored in D1 as a SHA-256 hash). A read-only token (`scope = 'read'`) clones, fetches and downloads LFS objects but never pushes; a member holds at most 50 unexpired tokens.
+1. The client sends Basic auth with a personal access token (stored in D1 as a SHA-256 hash). A read-only token (`scope = 'read'`) clones, fetches and downloads LFS objects but never pushes; one conditional D1 insert limits a member to 50 unexpired tokens, including concurrent creation requests. Expired tokens do not consume that quota.
 2. The worker checks the user's permission on the repository: read for `git-upload-pack` (clone/fetch), write for `git-receive-pack` (push).
 3. It mints a 5-minute Artifacts token scoped to that one repository (read or write) and streams the request to the Artifacts remote. Each isolate keeps a repository's remote URL and its tokens for 4 minutes ([`remote.ts`](../worker/src/git/remote.ts)), so later requests make no Artifacts control-plane calls (2,000 per 10 seconds for the whole namespace); what Artifacts refuses (401, 403, 404) is forgotten and the request sent once more after a fresh lookup, and `actions/checkout` always gets a new token.
 
 Artifacts credentials never leave the worker.
+
+Repository [deploy tokens](deploy-tokens.md) provide a separate Git/LFS identity scoped to one repository id.
+Only repository admins manage them; creation defaults to read-only with a 30-day lifetime (1–366 days, 50 stored
+tokens per repository). D1 keeps hashes, and one conditional insert checks the quota and current issuer permission.
+Every authentication joins the current issuer and repository: banned users, agents and former administrators cannot
+authorize use. These credentials never authenticate REST/MCP and always have `admin: false`. Their GitAccess has
+`deployToken` and a null personal user; pushes still record and execute `push_events`, with null personal actor ids
+and a separate `deploy_token.pushed` system audit identifying the token and issuer. The default branch must already
+exist before a deployment push, preventing first-branch adoption from bypassing the protected-default restriction.
+Revocation blocks later requests; an existing Git stream and previously issued LFS URLs (up to 15 minutes) remain
+outside that cancellation boundary. Writable tokens can push workflows and use the repository's available Actions
+secrets, so deployment machines that only pull code should receive read-only tokens.
 
 After a push lands, the worker records its ref updates in D1 (`push_events`) before it answers, then runs the
 follow-ups in the background: Actions triggers, carried approvals, the rebase sweep, PR states and an agent's

@@ -346,7 +346,7 @@ reposRouter.openapi(updateRepoRoute, async (c) => {
     patch.visibility = body.visibility;
   }
   if (body.defaultBranch !== undefined) {
-    if (!(await c.get('git').resolve(body.defaultBranch)))
+    if (!(await c.get('git').refs()).has(`refs/heads/${body.defaultBranch}`))
       return c.json({ error: 'Branch not found' }, 400);
     patch.defaultBranch = body.defaultBranch;
   }
@@ -676,7 +676,11 @@ reposRouter.openapi(contentsRoute, async (c) => {
     c.req.valid('query').refPath,
     repo.defaultBranch
   );
-  const sha = await git.resolve(ref);
+  // The configured default is a branch name, even when its name is also a valid object id.
+  const sha =
+    ref === repo.defaultBranch
+      ? (await git.refs()).get(`refs/heads/${ref}`)
+      : await git.resolve(ref);
   if (!sha) {
     if ((await git.branches()).length === 0) {
       return c.json(

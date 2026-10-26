@@ -187,8 +187,8 @@ export async function executeStacking(
     if (!found) return null;
     const git = gitFor(env, found.repo);
     const [target, head] = await Promise.all([
-      git.resolve(landTargetOf(pr)),
-      git.resolve(pr.headRef),
+      git.resolveBranch(landTargetOf(pr)),
+      git.resolveBranch(pr.headRef),
     ]);
     if (!target || !head) return null;
     const policy = stackingTuning(deps.tuning);

@@ -116,8 +116,8 @@ export async function executeSweep(
   const ids = [...byId].sort((a, b) => a[1] - b[1]).map(([id]) => id);
   const tips = async (git: GitService, pr: PullRequest) => {
     const [base, head] = await Promise.all([
-      git.resolve(landTargetOf(pr)),
-      git.resolve(pr.headRef),
+      git.resolveBranch(landTargetOf(pr)),
+      git.resolveBranch(pr.headRef),
     ]);
     return base && head ? { base, head } : null;
   };

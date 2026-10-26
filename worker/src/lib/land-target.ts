@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { sql, type SQL } from 'drizzle-orm';
 import { pullRequests, type PullRequest } from '../db/app.schema';
 import type { GitService } from '../git/service';
@@ -23,8 +24,8 @@ export async function landShas(
   pr: Pick<PullRequest, 'landTarget' | 'baseRef' | 'headRef'>
 ): Promise<{ base: string; head: string } | null> {
   const [base, head] = await Promise.all([
-    git.resolve(landTargetOf(pr)),
-    git.resolve(pr.headRef),
+    git.resolveBranch(landTargetOf(pr)),
+    git.resolveBranch(pr.headRef),
   ]);
   return base && head ? { base, head } : null;
 }

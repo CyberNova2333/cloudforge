@@ -16,6 +16,24 @@ See [Setup](setup.md) for the questions, the flags, and what it creates. State l
 
 ## Upgrade
 
+The repository deploy-token update adds migration `0049` (`repository_deploy_tokens`); apply pending migrations
+before deploying this version. No new binding or secret is required, and existing personal tokens are unchanged.
+Repository settings now offer scoped HTTPS Git/LFS credentials, read-only by default and expiring after 1–366 days.
+They cannot call REST/MCP or push protected/default branches. Initialize the repository's default branch as an admin
+first; the token issuer must remain an active repository admin. Revoking a token blocks new requests, while existing
+Git transfers and already signed LFS URLs can finish. See [部署令牌设计与使用](deploy-tokens.md), including the Actions
+secret implications of writable tokens.
+
+Personal access token creation now enforces the existing 50-active-token limit atomically under concurrent requests.
+Expired tokens still do not consume the quota; existing tokens, scopes and expiry values are not changed or revoked.
+
+Default-branch updates now require an existing branch under `refs/heads/`, rather than accepting a tag or arbitrary
+commit SHA. An existing branch whose name happens to be 40 hexadecimal characters remains valid: default-branch
+content, search, agent configuration, review/learning, relevance and omitted-ref MCP status reads resolve its branch
+tip explicitly. PR base/head and landing-target reads and learning retries also resolve branches explicitly, so a
+SHA-shaped branch name cannot cause an empty review or incorrectly skip path-filtered CI. Explicit MCP commit-status
+ref values continue to accept commit SHAs; the contents browser resolves the configured default name as a branch.
+
 ```bash
 npx @cybernova2333/cloudforge@latest upgrade
 ```

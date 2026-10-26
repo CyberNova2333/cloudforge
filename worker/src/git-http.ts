@@ -4,7 +4,12 @@ import { eq } from 'drizzle-orm';
 import { instanceName } from './lib/settings';
 import { afterPush, recordPush } from './lib/push-events';
 import { schema } from './db/schema';
-import { agents, personalAccessTokens, type Repository } from './db/app.schema';
+import {
+  agents,
+  personalAccessTokens,
+  repositoryDeployTokens,
+  type Repository,
+} from './db/app.schema';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { users } from './db/auth.schema';
 import {
@@ -15,6 +20,8 @@ import {
   type RepoPermissions,
 } from './lib/repos';
 import { hashToken } from './lib/tokens';
+import { authenticateDeployToken } from './lib/deploy-tokens';
+import { recordAudit } from './lib/audit';
 import {
   decidePush,
   needsEmptyCheck,
@@ -42,7 +49,7 @@ export function isGitRequest(url: URL) {
 
 function unauthorized(realm: string) {
   return new Response(
-    'Authentication required. Use a personal access token as the password.\n',
+    'Authentication required. Use a personal access token or repository deploy token as the password.\n',
     {
       status: 401,
       headers: {
@@ -70,8 +77,9 @@ function parseBasic(
 
 export type GitAccess = {
   db: DrizzleD1Database<typeof schema>;
-  /** Null: no credentials, reading a public repository. */
+  /** Null for anonymous reads and deployment credentials; a deploy token never impersonates its issuer. */
   user: typeof users.$inferSelect | null;
+  deployToken?: { id: string; name: string; createdById: string };
   repo: Repository;
   /** Canonical `<owner>/<name>`. */
   fullName: string;
@@ -79,7 +87,7 @@ export type GitAccess = {
 };
 
 /**
- * Auth for the git and LFS endpoints: PAT via Basic auth (either slot, like GitHub) plus read
+ * Auth for the git and LFS endpoints: PAT or repository deploy token via Basic auth plus read
  * access. With `anonymousRead`, a request without credentials may read a public repository
  * (`user` null, read-only); every other repository still answers 401, so git asks for a token.
  * Returns the context, or a 401/404 Response.
@@ -109,6 +117,31 @@ export async function authenticateRepoRequest(
   }
   const token =
     creds.pass && creds.pass !== 'x-oauth-basic' ? creds.pass : creds.user;
+  if (token.startsWith('cfd_')) {
+    const found = await findRepo(db, owner, name);
+    if (!found) return unauthorized(await realm());
+    const deploy = await authenticateDeployToken(db, found.repo, token);
+    if (!deploy) return unauthorized(await realm());
+    ctx.waitUntil(
+      db
+        .update(repositoryDeployTokens)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(repositoryDeployTokens.id, deploy.id))
+        .run()
+    );
+    return {
+      db,
+      user: null,
+      deployToken: {
+        id: deploy.id,
+        name: deploy.name,
+        createdById: deploy.createdById,
+      },
+      repo: found.repo,
+      fullName: `${found.namespace.username}/${found.repo.name}`,
+      perms: { read: true, write: deploy.scope === 'write', admin: false },
+    };
+  }
   const pat = await db
     .select({ pat: personalAccessTokens, user: users, agent: agents.userId })
     .from(personalAccessTokens)
@@ -169,7 +202,7 @@ export async function handleGitRequest(
     anonymousRead: !isPush,
   });
   if (access instanceof Response) return access;
-  const { user, repo, perms, fullName } = access;
+  const { user, deployToken, repo, perms, fullName } = access;
   // GET ref advertisement or POST pack exchange.
   const expectedMethod = endpoint === 'info/refs' ? 'GET' : 'POST';
   if (request.method !== expectedMethod) {
@@ -178,12 +211,10 @@ export async function handleGitRequest(
       headers: { Allow: expectedMethod },
     });
   }
-  // A push always carries credentials (anonymousRead was off), so `user` is set here.
-  if (isPush && (!user || !perms.write)) {
-    return new Response(
-      `Permission to ${owner}/${name}.git denied to ${user?.username}.\n`,
-      { status: 403 }
-    );
+  if (isPush && ((!user && !deployToken) || !perms.write)) {
+    return new Response(`Permission to ${owner}/${name}.git denied.\n`, {
+      status: 403,
+    });
   }
 
   const headers = new Headers();
@@ -213,13 +244,30 @@ export async function handleGitRequest(
         )
       : null;
     if (!push) return new Response('Malformed push request\n', { status: 400 });
+    // Follow-ups adopt a first branch as default. A deployment credential must not use that
+    // bootstrap behavior to turn an otherwise ordinary branch into its own protected default.
+    if (
+      deployToken &&
+      !(await git.branches()).some((b) => b.name === repo.defaultBranch)
+    ) {
+      await push.body.pipeTo(new WritableStream()).catch(() => {});
+      return refusedPush(
+        push,
+        new Map(
+          push.commands.map((c) => [
+            c.ref,
+            'A repository admin must initialize the default branch before deploy tokens can push',
+          ])
+        )
+      );
+    }
     const rules = {
       defaultBranch: repo.defaultBranch,
       protectedPatterns: repo.protectedBranches,
       admin: perms.admin,
       empty: false,
     };
-    if (needsEmptyCheck(push.commands, rules))
+    if (!deployToken && needsEmptyCheck(push.commands, rules))
       rules.empty = (await git.branches()).length === 0;
     const decision = decidePush(push.commands, rules);
     if (decision.refused.size) {
@@ -271,7 +319,7 @@ export async function handleGitRequest(
     if (v) respHeaders.set(h, v);
   }
 
-  if (isPush && user && push && upstream.ok) {
+  if (isPush && (user || deployToken) && push && upstream.ok) {
     // Receive-pack responses are small; buffer to sync metadata after the push lands.
     const reply: Uint8Array = new Uint8Array(await upstream.arrayBuffer());
     let applied: PushCommand[];
@@ -289,9 +337,24 @@ export async function handleGitRequest(
       const event = await recordPush(
         drizzle(env.DB, { schema }),
         repo.id,
-        user.id,
+        user?.id ?? null,
         applied
       );
+      if (deployToken)
+        await recordAudit(access.db, {
+          repositoryId: repo.id,
+          actorId: null,
+          actorKind: 'system',
+          via: `Deploy token: ${deployToken.name}`,
+          action: 'deploy_token.pushed',
+          target: deployToken.name,
+          data: {
+            token: deployToken.id,
+            createdById: deployToken.createdById,
+            pushEvent: event,
+            refs: applied.length,
+          },
+        });
       ctx.waitUntil(afterPush(env, event, repo.id));
     }
     return new Response(reply, {

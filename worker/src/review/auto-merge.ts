@@ -39,8 +39,8 @@ export async function autoMergeStatus(
   if (pr.state !== 'open') return { state: 'off' };
   if (!(await hasInvitedAgents(db, pr.repositoryId))) return { state: 'off' };
   const [base, head] = await Promise.all([
-    git.resolve(landTargetOf(pr)),
-    git.resolve(pr.headRef),
+    git.resolveBranch(landTargetOf(pr)),
+    git.resolveBranch(pr.headRef),
   ]);
   if (!base || !head) return { state: 'off' };
   if (pr.autoMergeDisabledAt)

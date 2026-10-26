@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   and,
   asc,
@@ -298,7 +299,7 @@ export async function search(
       out.branches = ranked(branches, (b) => b.name, term)
         .slice(0, SEARCH_LIMIT)
         .map((b) => ({ repo: full, name: b.name }));
-      const tip = await git.resolve(scoped.repo.defaultBranch);
+      const tip = await git.resolveBranch(scoped.repo.defaultBranch);
       if (tip)
         out.files = matchFiles(
           await filePaths(git, scoped.repo.id, tip),

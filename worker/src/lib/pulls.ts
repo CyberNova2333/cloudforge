@@ -50,16 +50,17 @@ export async function pullShas(
     }
     // Landed before rebase merging, as one squash commit: its first parent, and the pinned head.
     const merge = await git.commit(pr.mergeCommitSha);
-    const head = (await git.resolve(pullRef(pr.number))) ?? merge?.parents[1];
+    const head =
+      (await git.refs()).get(pullRef(pr.number)) ?? merge?.parents[1];
     if (!merge || !head) return null;
     return { base: merge.parents[0], head };
   }
   const head =
     pr.state === 'open'
-      ? await git.resolve(pr.headRef)
-      : ((await git.resolve(pullRef(pr.number))) ??
-        (await git.resolve(pr.headRef)));
-  const base = await git.resolve(pr.baseRef);
+      ? await git.resolveBranch(pr.headRef)
+      : ((await git.refs()).get(pullRef(pr.number)) ??
+        (await git.resolveBranch(pr.headRef)));
+  const base = await git.resolveBranch(pr.baseRef);
   return head && base ? { base, head } : null;
 }
 

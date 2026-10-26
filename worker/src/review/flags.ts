@@ -220,7 +220,7 @@ export async function decideFlag(
   if (opts.expectedHead) {
     const { sha, git } = opts.expectedHead;
     // The decider saw this head, and this flag belongs to it: never a commit pushed since, nor an older review.
-    if (flag.headSha !== sha || (await git.resolve(pr.headRef)) !== sha)
+    if (flag.headSha !== sha || (await git.resolveBranch(pr.headRef)) !== sha)
       return { ok: false, status: 409, error: STALE_HEAD };
   }
 

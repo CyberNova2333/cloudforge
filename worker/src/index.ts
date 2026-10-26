@@ -25,6 +25,7 @@ import { pullsRouter } from './routers/pulls-router';
 import { issuesRouter } from './routers/issues-router';
 import { statusesRouter } from './routers/statuses-router';
 import { webhooksRouter } from './routers/webhooks-router';
+import { deployTokensRouter } from './routers/deploy-tokens-router';
 import {
   notificationsRouter,
   repoNotificationsRouter,
@@ -144,7 +145,7 @@ const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
     );
     // Issues, labels, watching and subscriptions never move a pull request's state.
     if (
-      /^\/api\/repos\/[^/]+\/[^/]+\/(?:issues|labels|watch|hooks)(?:\/|$)|\/subscription$/.test(
+      /^\/api\/repos\/[^/]+\/[^/]+\/(?:issues|labels|watch|hooks|deploy-tokens)(?:\/|$)|\/subscription$/.test(
         c.req.path
       )
     )
@@ -185,6 +186,7 @@ app.route('/api/repos', issuesRouter);
 app.route('/api/repos', repoNotificationsRouter);
 app.route('/api/repos', statusesRouter);
 app.route('/api/repos', webhooksRouter);
+app.route('/api/repos', deployTokensRouter);
 app.route('/api/repos', actionsRouter);
 app.route('/api/repos', actionsVariablesRouter);
 app.route('/api/repos', agentRunsRouter);

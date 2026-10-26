@@ -191,6 +191,30 @@ export const invitations = sqliteTable(
   (t) => [index('invitations_email_idx').on(t.email)]
 );
 
+// Repository-bound Git/LFS credentials. Only hashes are kept; the creator must remain an active repository admin.
+export const repositoryDeployTokens = sqliteTable(
+  'repository_deploy_tokens',
+  {
+    id: text('id').primaryKey(),
+    repositoryId: text('repository_id')
+      .notNull()
+      .references(() => repositories.id, { onDelete: 'cascade' }),
+    createdById: text('created_by_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    scope: text('scope', { enum: ['read', 'write'] })
+      .notNull()
+      .default('read'),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('repository_deploy_tokens_repo_idx').on(t.repositoryId)]
+);
+export type RepositoryDeployToken = typeof repositoryDeployTokens.$inferSelect;
+
 export const personalAccessTokens = sqliteTable(
   'personal_access_tokens',
   {
@@ -1446,6 +1470,9 @@ export const auditActions = [
   'finding.taught',
   'token.created',
   'token.deleted',
+  'deploy_token.created',
+  'deploy_token.deleted',
+  'deploy_token.pushed',
   'visibility.changed',
   'repository.created',
   'repository.deleted',

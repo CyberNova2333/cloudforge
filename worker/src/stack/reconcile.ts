@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, inArray, or } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -61,7 +62,7 @@ export async function executeReconcile(
     const found = await findRepoById(db, params.repositoryId);
     if (!found) return null;
     const git = gitFor(env, found.repo);
-    const tip = await git.resolve(params.landTarget);
+    const tip = await git.resolveBranch(params.landTarget);
     if (!tip) return null;
     const policy = stackingTuning();
     const open = await db

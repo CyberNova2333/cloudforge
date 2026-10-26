@@ -173,7 +173,11 @@ export async function invitedAgentsAt(
       if (!r.repo)
         return { ...base, error: "The agent's repository was deleted." };
       const git = gitFor(env, r.repo);
-      const sha = await git.resolve(r.repo.defaultBranch).catch(() => null);
+      const branchRef = `refs/heads/${r.repo.defaultBranch}`;
+      const sha = await git
+        .refs()
+        .then((refs) => refs.get(branchRef) ?? null)
+        .catch(() => null);
       if (!sha)
         return { ...base, error: "The agent's repository could not be read." };
       const config = await readAgentConfig(git, sha).catch(
@@ -216,8 +220,8 @@ async function startStacking(
     if (!pr || !found) return;
     const git = gitFor(env, found.repo);
     const [base, head] = await Promise.all([
-      git.resolve(landTargetOf(pr)),
-      git.resolve(pr.headRef),
+      git.resolveBranch(landTargetOf(pr)),
+      git.resolveBranch(pr.headRef),
     ]);
     if (base && head && head === headSha)
       await ensureStacking(env, db, git, pr, { base, head });
@@ -327,7 +331,7 @@ export async function loadHead(
   const found = pr && (await findRepoById(db, pr.repositoryId));
   if (!pr || !found) return null;
   const git = gitFor(env, found.repo);
-  const baseTip = await git.resolve(pr.baseRef);
+  const baseTip = await git.resolveBranch(pr.baseRef);
   const mergeBase = baseTip && (await git.mergeBase(baseTip, headSha));
   const [from, to] = await Promise.all([
     mergeBase ? git.commit(mergeBase) : null,
@@ -347,7 +351,7 @@ export async function loadHead(
   for (const m of more) moreBytes += encoder.encode(m.path).length;
   if (moreBytes > MAX_MORE_PATH_BYTES)
     return { ok: false, error: TOO_MANY_FILES };
-  const targetTip = await git.resolve(landTargetOf(pr));
+  const targetTip = await git.resolveBranch(landTargetOf(pr));
   const ignoreText = targetTip ? await readIgnore(git, targetTip) : null;
   return {
     ok: true,

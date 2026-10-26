@@ -73,7 +73,7 @@ export async function findingDetail(
     ]),
     pr.state === 'open'
       ? gitFor(env, found.repo)
-          .resolve(pr.headRef)
+          .resolveBranch(pr.headRef)
           .catch(() => null)
       : Promise.resolve(null),
     auditEventsWhere(

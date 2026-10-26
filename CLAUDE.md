@@ -24,10 +24,23 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   access token (Basic auth), and the worker streams the request to the Artifacts remote with a
   short-lived repo-scoped token. Artifacts credentials never leave the worker. A push's follow-ups (Actions triggers,
   sweep, states) run from a `push_events` row written before the reply (`lib/push-events.ts`), retried when cut off.
+  Personal access token creation uses one conditional D1 insert to enforce at most 50 unexpired tokens per member,
+  including concurrent requests; expired tokens do not consume that quota.
+- Repository deploy tokens (`docs/deploy-tokens.md`, `lib/deploy-tokens.ts`, `routers/deploy-tokens-router.ts`,
+  `repository_deploy_tokens`, migration 0049): repository admins issue 1–366 day HTTPS Git/LFS credentials,
+  read-only by default, at most 50 stored per repository (atomic conditional insert). SHA256 hashes only; plaintext
+  is returned once with no-store. Every use checks the current issuer is a non-banned person and still repository
+  admin. The credential is scoped to one immutable repository id, never REST/MCP or inherited admin access.
+  GitAccess.deployToken identifies deployment writes with user null; push follow-ups use null actorId and a
+  deploy_token.pushed system audit records token/issuer/event ids. The default branch must already exist before
+  deployment pushes, and default/protected/internal refs remain forbidden. SPA: settings/deploy-tokens.
 - Reads use the Artifacts binding (`readTree`, `readCommit`, `readBlob`, `readFile`, `log`). Branches come
   from the smart-HTTP ref advertisement. Merges are computed in the worker (three-way tree merge in
   `worker/src/git/service.ts`) and written as a packfile pushed over `git-receive-pack`
   with compare-and-swap on the base ref.
+  Internal branch names (default branches, PR base/head, landing targets and learning retries) use
+  `GitService.resolveBranch`, an exact `refs/heads/` lookup, so SHA-shaped branch names never substitute an object
+  id. Pinned `refs/pull/*` reads are exact full-ref lookups; generic `resolve` is only for user-supplied ref/SHA input.
 - Access (`worker/src/lib/repos.ts` — `permissionsFor` and the list filter `visibleTo` must agree): personal repos are
   private (owner, collaborators, site admins) or internal; team repos (`repositories.team_id`, one shared `teams` row) are
   always internal. Owner/creator, site admins, and collaborators push and merge; the default and protected branches take

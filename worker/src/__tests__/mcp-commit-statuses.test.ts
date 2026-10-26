@@ -6,6 +6,40 @@ const repository = 'octocat/app';
 const parse = (result: { content: { text: string }[] }) =>
   JSON.parse(result.content[0].text);
 
+it('默认分支名称恰为已有提交 SHA 时仍读取分支真正的 tip 和文件', async () => {
+  const s = await crewRepo();
+  const branchName = s.main;
+  const tip = await s.branch(branchName, {
+    'deploy-marker.txt': 'current default branch',
+  });
+  await s.setRepo('default_branch', branchName);
+  const { access_token } = await connect(s.t, s.admin);
+  await tool(s.t, access_token, 'cloudforge_create_commit_status', {
+    repository,
+    sha: tip,
+    state: 'failure',
+    context: 'deploy',
+  });
+  const result = await tool(s.t, access_token, 'cloudforge_get_commit_status', {
+    repository,
+  });
+  expect(result.isError).toBeUndefined();
+  expect(parse(result)).toMatchObject({
+    sha: tip,
+    state: 'failure',
+    total_count: 1,
+  });
+  const search = await call(
+    s.t,
+    '/api/search?q=deploy-marker&repo=octocat%2Fapp',
+    { cookie: s.admin }
+  );
+  expect(search.status).toBe(200);
+  expect(await search.json()).toMatchObject({
+    files: [{ repo: repository, path: 'deploy-marker.txt' }],
+  });
+});
+
 it('reports and reads external status through OAuth MCP and enforces the merge gate', async () => {
   const s = await crewRepo();
   const head = await s.branch('feature');

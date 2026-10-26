@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * The review Workflow's side of an engine: pi review: start the AgentReviewer inside the agent's `review:<handle>`
  * step, then wait for its event (or 2 minutes) and check it, until it answers, fails, runs out of time or budget,
@@ -83,7 +84,7 @@ async function stopReason(
     .where(eq(pullRequests.id, row.pullRequestId))
     .get();
   if (pr?.state !== 'open') return { status: 'failed', message: PI_CLOSED };
-  const head = await gitFor(env, ctx.repo).resolve(pr.headRef);
+  const head = await gitFor(env, ctx.repo).resolveBranch(pr.headRef);
   if (head !== row.headSha)
     return { status: 'not_needed', message: PI_SUPERSEDED };
   return null;

@@ -45,6 +45,96 @@ describe('仓库', () => {
     ).toBe(409);
   });
 
+  it.each([
+    'v1',
+    'refs/tags/v1',
+    'refs/heads/main',
+    'refs/pull/1/head',
+    'ab'.repeat(20),
+    'existing-commit-sha',
+  ])('默认分支拒绝不是真实分支名称的引用：%s', async (value) => {
+    const { t, admin, repo } = await withRepo();
+    const main = repo.refs.get('refs/heads/main')!;
+    repo.refs.set('refs/tags/v1', main);
+    repo.refs.set('refs/pull/1/head', main);
+    const defaultBranch = value === 'existing-commit-sha' ? main : value;
+    const res = await call(t, '/api/repos/octocat/app', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { defaultBranch },
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Branch not found' });
+    const row = await t.env.DB.prepare(
+      "SELECT default_branch AS branch FROM repositories WHERE name = 'app'"
+    ).first<{ branch: string }>();
+    expect(row?.branch).toBe('main');
+    const audit = await t.env.DB.prepare(
+      "SELECT id FROM audit_events WHERE action = 'settings.changed'"
+    ).all();
+    expect(audit.results).toEqual([]);
+  });
+
+  it.each(['release/stable', 'cd'.repeat(20)])(
+    '允许选择精确存在的分支，包括完整 40 位十六进制名称：%s',
+    async (defaultBranch) => {
+      const { t, admin, repo } = await withRepo();
+      await commitFiles(repo, defaultBranch, { 'a.txt': 'a' }, 'branch');
+      const res = await call(t, '/api/repos/octocat/app', {
+        cookie: admin,
+        method: 'PATCH',
+        json: { defaultBranch },
+      });
+      expect(res.status).toBe(200);
+      expect((await res.json()) as { defaultBranch: string }).toMatchObject({
+        defaultBranch,
+      });
+      const row = await t.env.DB.prepare(
+        "SELECT default_branch AS branch FROM repositories WHERE name = 'app'"
+      ).first<{ branch: string }>();
+      expect(row?.branch).toBe(defaultBranch);
+    }
+  );
+
+  it('默认分支名与真实提交 SHA 相同时读取该分支当前头，而不是同名旧提交', async () => {
+    const { t, admin, repo } = await withRepo();
+    const defaultBranch = repo.refs.get('refs/heads/main')!;
+    const tip = await commitFiles(
+      repo,
+      defaultBranch,
+      { 'deploy.txt': 'current default branch' },
+      'default branch tip'
+    );
+    const changed = await call(t, '/api/repos/octocat/app', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { defaultBranch },
+    });
+    expect(changed.status).toBe(200);
+    const contents = await call(t, '/api/repos/octocat/app/contents?refPath=', {
+      cookie: admin,
+    });
+    expect(contents.status).toBe(200);
+    expect(await contents.json()).toMatchObject({
+      ref: defaultBranch,
+      kind: 'tree',
+      commitSha: tip,
+      entries: [{ name: 'deploy.txt' }],
+    });
+    const file = await call(
+      t,
+      `/api/repos/octocat/app/contents?refPath=${defaultBranch}/deploy.txt`,
+      { cookie: admin }
+    );
+    expect(file.status).toBe(200);
+    expect(await file.json()).toMatchObject({
+      ref: defaultBranch,
+      path: 'deploy.txt',
+      commitSha: tip,
+      file: { text: 'current default branch' },
+    });
+  });
+
   it('允许所有成员读取，但仅管理员能更改设置', async () => {
     const { t, admin } = await withRepo();
     const bob = await addMember(t, admin, 'bob');
@@ -125,6 +215,40 @@ describe('拉取请求', () => {
       json: { title: 'B', base: 'main', head: 'other' },
     });
     expect(((await b.json()) as { number: number }).number).toBe(2);
+  });
+
+  it('关闭后的 PR 使用内部快照引用，普通分支不能通过 refs/pull 名称影射它', async () => {
+    const { t, admin, repo } = await withBranch();
+    const opened = await call(t, '/api/repos/octocat/app/pulls', {
+      cookie: admin,
+      json: { title: 'Pinned changes', base: 'main', head: 'feature' },
+    });
+    expect(opened.status).toBe(201);
+    const closed = await call(t, '/api/repos/octocat/app/pulls/1', {
+      cookie: admin,
+      method: 'PATCH',
+      json: { state: 'closed' },
+    });
+    expect(closed.status).toBe(200);
+    const snapshot = repo.refs.get('refs/pull/1/head');
+    expect(snapshot).toBe(repo.refs.get('refs/heads/feature'));
+    await commitFiles(
+      repo,
+      'refs/pull/1/head',
+      { 'spoof.txt': 'Not the closed pull request' },
+      'Ordinary branch shadowing an internal ref',
+      [repo.refs.get('refs/heads/main')!]
+    );
+    const files = await call(t, '/api/repos/octocat/app/pulls/1/files', {
+      cookie: admin,
+    });
+    expect(files.status).toBe(200);
+    const paths = ((await files.json()) as { path: string }[]).map(
+      (f) => f.path
+    );
+    expect(paths).toContain('greet.py');
+    expect(paths).not.toContain('spoof.txt');
+    expect(repo.refs.get('refs/pull/1/head')).toBe(snapshot);
   });
 
   it('拒绝为相同分支对创建第二个打开的请求', async () => {

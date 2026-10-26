@@ -128,7 +128,7 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
   if (await mergingPause(db, pr.repositoryId))
     return { ok: false, status: 409, reason: 'paused', error: MERGING_PAUSED };
   const target = landTargetOf(pr);
-  const headSha = await git.resolve(pr.headRef);
+  const headSha = await git.resolveBranch(pr.headRef);
   if (!headSha)
     return {
       ok: false,

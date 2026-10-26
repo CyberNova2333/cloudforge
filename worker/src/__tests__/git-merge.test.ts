@@ -36,6 +36,32 @@ async function fileAt(git: GitService, tree: string, name: string) {
 }
 
 describe('行级合并', () => {
+  it('合并 40 位名称分支时读取两边真正的头并对目标头作 CAS', async () => {
+    const { git, repo, oursSha, theirsSha } = await diverged(
+      { 'a.txt': 'base\n' },
+      { 'a.txt': 'base\n', 'ours.txt': 'ours\n' },
+      { 'a.txt': 'base\n', 'theirs.txt': 'theirs\n' }
+    );
+    const base = repo.parseCommit(oursSha)!.parents[0];
+    const head = oursSha;
+    repo.refs.set(`refs/heads/${base}`, oursSha);
+    repo.refs.set(`refs/heads/${head}`, theirsSha);
+    const merged = await git.merge({
+      base,
+      head,
+      method: 'merge',
+      message: 'Merge named branches',
+      author: {
+        name: 'Dev',
+        email: 'dev@example.com',
+        timestamp: 1_700_000_000,
+      },
+    });
+    expect(merged.headSha).toBe(theirsSha);
+    expect(repo.parseCommit(merged.sha)!.parents).toEqual([oursSha, theirsSha]);
+    expect(repo.refs.get(`refs/heads/${base}`)).toBe(merged.sha);
+  });
+
   it('合并同一文件不同部分的编辑', async () => {
     const base = LINES(20);
     const ours = base.replace('line 2\n', 'line 2 (ours)\n');

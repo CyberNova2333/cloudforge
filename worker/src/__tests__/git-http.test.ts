@@ -219,6 +219,118 @@ describe('Git smart-HTTP 代理', () => {
     expect((await create()).status).toBe(409);
   });
 
+  it('个人令牌并发创建只能占用最后一个有效配额，失败不返回凭据或写审计', async () => {
+    const { t, admin } = await setup();
+    const userId = (await t.env.DB.prepare(
+      "SELECT id FROM users WHERE username = 'octocat'"
+    ).first<{ id: string }>())!.id;
+    const now = Math.floor(Date.now() / 1000);
+    const insert = (i: number, expiresAt: number | null) =>
+      t.env.DB.prepare(
+        'INSERT INTO personal_access_tokens (id, user_id, name, token_hash, scope, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        `seed-${i}`,
+        userId,
+        `seed-${i}`,
+        `unused-${i}`,
+        'read',
+        expiresAt,
+        now
+      );
+    await t.env.DB.batch([
+      ...Array.from({ length: MAX_ACTIVE_TOKENS - 1 }, (_, i) =>
+        insert(i, i % 2 ? null : now + 3600)
+      ),
+      insert(999, now - 1),
+    ]);
+    const inputs = Array.from({ length: 6 }, (_, i) => ({
+      name: `concurrent-${i}`,
+      scope: i % 2 ? 'write' : 'read',
+      expiresInDays: i % 2 ? null : 30,
+    }));
+    const responses = await Promise.all(
+      inputs.map((json) => call(t, '/api/tokens', { cookie: admin, json }))
+    );
+    expect(responses.map((res) => res.status).sort()).toEqual([
+      201, 409, 409, 409, 409, 409,
+    ]);
+    let createdId = '';
+    for (const [i, response] of responses.entries()) {
+      const body = (await response.json()) as {
+        token?: {
+          id: string;
+          name: string;
+          scope: string;
+          expiresAt: string | null;
+        };
+        plaintext?: string;
+      };
+      if (response.status === 409) {
+        expect(body.token).toBeUndefined();
+        expect(body.plaintext).toBeUndefined();
+        continue;
+      }
+      expect(body.token).toMatchObject({
+        name: inputs[i].name,
+        scope: inputs[i].scope,
+      });
+      expect(body.plaintext).toMatch(/^cfp_[0-9a-f]{40}$/);
+      expect(body.token!.expiresAt === null).toBe(
+        inputs[i].expiresInDays === null
+      );
+      const stored = (await t.env.DB.prepare(
+        'SELECT token_hash, expires_at FROM personal_access_tokens WHERE id = ?'
+      )
+        .bind(body.token!.id)
+        .first<{ token_hash: string; expires_at: number | null }>())!;
+      expect(stored.token_hash).toBe(await hashToken(body.plaintext!));
+      expect(stored.expires_at).toBe(
+        body.token!.expiresAt === null
+          ? null
+          : Math.floor(Date.parse(body.token!.expiresAt) / 1000)
+      );
+      createdId = body.token!.id;
+    }
+    const active = await t.env.DB.prepare(
+      'SELECT count(*) AS n FROM personal_access_tokens WHERE user_id = ? AND (expires_at IS NULL OR expires_at > ?)'
+    )
+      .bind(userId, now)
+      .first<{ n: number }>();
+    expect(active?.n).toBe(MAX_ACTIVE_TOKENS);
+    const audits = await t.env.DB.prepare(
+      "SELECT data FROM audit_events WHERE actor_id = ? AND action = 'token.created'"
+    )
+      .bind(userId)
+      .all<{ data: string }>();
+    expect(audits.results).toHaveLength(1);
+    expect(JSON.parse(audits.results[0].data).token).toBe(createdId);
+    expect(
+      (
+        await call(t, `/api/tokens/${createdId}`, {
+          cookie: admin,
+          method: 'DELETE',
+        })
+      ).status
+    ).toBe(200);
+    const permanent = await call(t, '/api/tokens', {
+      cookie: admin,
+      json: { name: 'after-revoke', expiresInDays: null },
+    });
+    expect(permanent.status).toBe(201);
+    const body = (await permanent.json()) as {
+      token: { id: string; scope: string; expiresAt: string | null };
+    };
+    expect(body.token.scope).toBe('write');
+    expect(body.token.expiresAt).toBeNull();
+    expect(
+      await t.env.DB.prepare(
+        'SELECT expires_at FROM personal_access_tokens WHERE id = ?'
+      )
+        .bind(body.token.id)
+        .first('expires_at')
+    ).toBeNull();
+  });
+
   it('拒绝过期令牌', async () => {
     const { t, admin } = await setup();
     const token = await pat(t, admin);

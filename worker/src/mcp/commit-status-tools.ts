@@ -163,12 +163,16 @@ const getCommitStatus: ToolModule = {
   },
   handler: async (args, ctx) => {
     const { repo, git, fullName } = await repoFor(ctx, args);
-    const ref = str(args, 'ref')?.trim() ?? repo.defaultBranch;
+    const requestedRef = str(args, 'ref')?.trim();
+    const ref = requestedRef ?? repo.defaultBranch;
     if (!ref || ref.length > 255)
       throw new McpToolError('ref must be from 1 to 255 characters.');
-    const sha = /^[0-9a-fA-F]{40}$/.test(ref)
-      ? ref.toLowerCase()
-      : await git.resolve(ref);
+    const sha =
+      requestedRef === undefined
+        ? await git.resolveBranch(repo.defaultBranch)
+        : /^[0-9a-fA-F]{40}$/.test(ref)
+          ? ref.toLowerCase()
+          : await git.resolve(ref);
     if (!sha || !(await git.commit(sha)))
       throw new McpToolError(
         `There is no commit or ref ${ref} in this repository.`

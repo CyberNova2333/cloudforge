@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { personalAccessTokens } from '../db/app.schema';
 import { recordAudit } from '../lib/audit';
 import { hashToken, randomToken } from '../lib/tokens';
@@ -92,26 +92,6 @@ tokensRouter.openapi(createTokenRoute, async (c) => {
   const db = c.get('db');
   const userId = c.get('user')!.id;
   const now = new Date();
-  const active = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(personalAccessTokens)
-    .where(
-      and(
-        eq(personalAccessTokens.userId, userId),
-        or(
-          isNull(personalAccessTokens.expiresAt),
-          gt(personalAccessTokens.expiresAt, now)
-        )
-      )
-    )
-    .get();
-  if (Number(active?.n ?? 0) >= MAX_ACTIVE_TOKENS)
-    return c.json(
-      {
-        error: `You have ${MAX_ACTIVE_TOKENS} active tokens. Delete the ones you no longer use first.`,
-      },
-      409
-    );
   // cfp_ = CloudForge personal access token. Tokens are looked up by hash, so ones issued before the rename
   // (gop_, from GitOrange) keep working.
   const plaintext = randomToken('cfp_');
@@ -127,7 +107,26 @@ tokensRouter.openapi(createTokenRoute, async (c) => {
       : null,
     createdAt: now,
   };
-  await db.insert(personalAccessTokens).values(row);
+  // Count and insert share one statement so concurrent requests cannot each claim the last slot.
+  // Keep the column encoders: PAT timestamps are stored in seconds, unlike deployment tokens.
+  const inserted = await db.get<{ id: string }>(sql`
+    INSERT INTO personal_access_tokens
+      (id, user_id, name, token_hash, scope, last_used_at, expires_at, created_at)
+    SELECT ${row.id}, ${userId}, ${name}, ${row.tokenHash}, ${scope}, NULL,
+      ${sql.param(row.expiresAt, personalAccessTokens.expiresAt)},
+      ${sql.param(now, personalAccessTokens.createdAt)}
+    WHERE (SELECT count(*) FROM personal_access_tokens
+      WHERE user_id = ${userId}
+        AND (expires_at IS NULL OR expires_at > ${sql.param(now, personalAccessTokens.expiresAt)})) < ${MAX_ACTIVE_TOKENS}
+    RETURNING id
+  `);
+  if (!inserted)
+    return c.json(
+      {
+        error: `You have ${MAX_ACTIVE_TOKENS} active tokens. Delete the ones you no longer use first.`,
+      },
+      409
+    );
   await recordAudit(db, {
     repositoryId: null,
     actorId: row.userId,
