@@ -481,6 +481,40 @@
   font-size: 12.5px;
 }
 
+.recent-auth-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+}
+.recent-auth-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.recent-auth-dialog h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.recent-auth-form {
+  display: grid;
+  gap: 16px;
+}
+.recent-auth-form p {
+  margin: 0;
+}
+.recent-auth-account {
+  overflow-wrap: anywhere;
+}
+.recent-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .aud-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

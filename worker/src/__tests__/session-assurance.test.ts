@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { base32 } from '@better-auth/utils/base32';
 import { createOTP } from '@better-auth/utils/otp';
 import { hashPassword } from 'better-auth/crypto';
@@ -26,6 +26,12 @@ import {
 } from './helpers/mcp';
 
 const PASSWORD = 'password123';
+// This suite intentionally reserves an earlier TOTP step for enrollment; wall-clock rollover is unrelated.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Math.floor(Date.now() / 30_000) * 30_000 + 15_000);
+});
+afterEach(() => vi.useRealTimers());
 let ip = 0;
 function request(t: TestEnv, path: string, json: unknown, cookie?: string) {
   return call(t, `/api/auth/${path}`, {
@@ -529,7 +535,7 @@ describe('持久会话认证证明', () => {
     });
   });
 
-  it('管理员模拟经过密码轮换和因子准备仍保留模拟来源', async () => {
+  it('管理员模拟不能通过敏感密码轮换门槛，因子准备也不洗掉来源', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     await addMember(t, admin, 'bob');
@@ -567,8 +573,12 @@ describe('持久会话认证证明', () => {
       },
       cookies(impersonation)
     );
-    expect(rotated.status).toBe(200);
-    const nextCookie = cookies(rotated);
+    expect(rotated.status).toBe(403);
+    expect(await rotated.json()).toMatchObject({
+      code: 'RECENT_AUTHENTICATION_REQUIRED',
+      sessionId: first!.id,
+    });
+    const nextCookie = cookies(impersonation);
     expect(
       durableSessionAssurance((await proof(t, nextCookie))!).strength
     ).toBe('impersonated');
@@ -577,7 +587,7 @@ describe('持久会话认证证明', () => {
         await request(
           t,
           'two-factor/enable',
-          { password: 'bob-new-password' },
+          { password: PASSWORD },
           nextCookie
         )
       ).status

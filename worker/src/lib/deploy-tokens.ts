@@ -9,6 +9,10 @@ import {
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { hashToken, randomToken } from './tokens';
+import {
+  recentAuthorizationGuard,
+  type RecentAuthorization,
+} from '../auth/recent';
 
 export const MAX_DEPLOY_TOKENS_PER_REPO = 50;
 
@@ -36,7 +40,8 @@ export async function createDeployToken(
   db: DrizzleDB,
   repositoryId: string,
   createdById: string,
-  input: { name: string; scope: 'read' | 'write'; expiresInDays: number }
+  input: { name: string; scope: 'read' | 'write'; expiresInDays: number },
+  permit?: RecentAuthorization
 ): Promise<{ token: RepositoryDeployToken; plaintext: string } | null> {
   const plaintext = randomToken('cfd_', 32);
   const tokenHash = await hashToken(plaintext);
@@ -59,6 +64,7 @@ export async function createDeployToken(
     SELECT ${token.id}, ${repositoryId}, ${createdById}, ${token.name}, ${tokenHash}, ${token.scope}, NULL,
       ${now.getTime()}, ${token.expiresAt.getTime()}
     WHERE ${deployTokenAdmin(repositoryId, createdById)}
+      AND ${permit ? recentAuthorizationGuard(permit.sessionId, createdById, Date.now(), permit.authVersion) : sql`1`}
       AND (SELECT count(*) FROM repository_deploy_tokens WHERE repository_id = ${repositoryId}) < ${MAX_DEPLOY_TOKENS_PER_REPO}
     RETURNING id
   `);

@@ -2,6 +2,7 @@
 import type { DrizzleDB } from './db/middleware';
 import type { createAuth } from './auth';
 import type { SessionAssurance } from './auth/assurance';
+import type { RecentAuthorization } from './auth/recent';
 
 export type SessionUser = {
   id: string;
@@ -24,6 +25,7 @@ export type Variables = {
   auth: ReturnType<typeof createAuth>;
   user?: SessionUser;
   browserSession?: BrowserSession;
+  recentAuthorization?: RecentAuthorization;
   /** Set when `user` came from a personal access token (auth/token-auth.ts) rather than a session. */
   tokenScope?: 'read' | 'write';
 };

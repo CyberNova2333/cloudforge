@@ -175,6 +175,17 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   input:false/returned:false (native internal results filter them too); read D1 authority, never cast them back in.
   The security page displays cookie-only/no-store evidence bound to its actual session id. This does not enforce MFA
   or add authentication-strength claims to existing OAuth or machine credentials.
+- Recent browser authentication (`auth/recent.ts`, `POST /api/auth/reauthenticate`): credential issuance, site
+  administration and native OAuth authorization require actual password evidence within five minutes, plus a recent
+  second factor when enabled. Joint reauthentication atomically fences the live session and credential/factor generations;
+  failed attempts do not refresh evidence, and impersonation cannot upgrade. Its persistent proof never replaces the
+  one-use `mfa_verified_at`. The SPA shares one session-bound prompt, retries only an explicit unexecuted challenge once
+  with `X-CloudForge-Session`, and keeps secrets in memory. PAT/deploy-token inserts recheck proof in their SQL.
+  OAuth grant generations (`auth/oauth-grants.ts`, `oauth_grant_generations`, migrations 0053–0055) bind consent/code/refresh/JWT
+  to a stable member/client nonce. Consent deletion rotates it atomically; reconnect cannot revive old credentials.
+  Legacy credentials remain compatible only until that pair's first revocation. Instance-wide enforced MFA remains planned.
+  Native userinfo checks the same authority; introspection restricts the provider's already-verified active results.
+  Late consent/access/refresh writes are fenced in D1, including opaque credentials without refresh tokens.
 - Crew pages' backends (`worker/src/routers/`, libs in `worker/src/lib/`): `queue-router.ts` (`GET …/queue` merge
   queue + ETA, `lib/queue.ts`; `POST`/`DELETE …/merging/pause` → `setMergingPaused`, audited, resume tries auto-merge;
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,
