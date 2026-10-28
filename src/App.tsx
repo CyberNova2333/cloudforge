@@ -64,6 +64,7 @@ import SettingsTokens from './pages/SettingsTokens';
 import SettingsEmails, { VerifyEmail } from './pages/SettingsEmails';
 import SettingsLanguage from './pages/SettingsLanguage';
 import SettingsNotifications from './pages/SettingsNotifications';
+import SettingsSecurity from './pages/SettingsSecurity';
 import Notifications from './pages/Notifications';
 import Admin from './pages/Admin';
 import AdminUsage from './pages/AdminUsage';
@@ -177,6 +178,7 @@ const App = () => (
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/approvals/:flagId" element={<Finding />} />
               <Route path="/settings/tokens" element={<SettingsTokens />} />
+              <Route path="/settings/security" element={<SettingsSecurity />} />
               <Route path="/settings/mcp" element={<SettingsMcp />} />
               <Route path="/settings/emails" element={<SettingsEmails />} />
               <Route path="/settings/language" element={<SettingsLanguage />} />

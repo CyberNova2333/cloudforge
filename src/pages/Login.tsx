@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, qk } from '@/lib/uiApi';
@@ -9,6 +9,8 @@ import { AuthLoading, AuthShell, FlashError } from './AuthShell';
 import { Notice } from '@/components/Notice';
 import { t, tServer } from '@/lib/i18n';
 import { safeReturnTo } from '@/lib/returnTo';
+import { FactorCode } from '@/components/FactorCode';
+import { factorError } from '@/lib/twoFactor';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,46 +24,172 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [challenge, setChallenge] = useState(false);
+  const [recovery, setRecovery] = useState(false);
+  const [code, setCode] = useState('');
+  const generation = useRef(0);
+  const leaving = useRef(false);
+  useEffect(() => {
+    const clear = () => {
+      generation.current++;
+      leaving.current = false;
+      setPassword('');
+      setCode('');
+      setChallenge(false);
+      setRecovery(false);
+      setBusy(false);
+    };
+    window.addEventListener('pagehide', clear);
+    return () => {
+      generation.current++;
+      window.removeEventListener('pagehide', clear);
+    };
+  }, []);
   // A self sign-up that hasn't confirmed its email yet: offer to send the link again (needs the email address).
   const [unverified, setUnverified] = useState(false);
   const [resent, setResent] = useState<'sending' | 'sent' | 'failed' | null>(
     null
   );
+  const continueTo = (url: string) => {
+    // Session refresh and the mutation response can both complete on the same tick.
+    if (leaving.current) return;
+    leaving.current = true;
+    window.location.replace(url);
+  };
   if (status.isPending || isPending) return <AuthLoading />;
   if (status.data?.setupRequired) return <Navigate to="/setup" replace />;
   // Already signed in during an OAuth flow: resume the authorization request.
   if (session && params.has('sig') && params.has('client_id')) {
-    window.location.replace(`/api/auth/oauth2/authorize?${params.toString()}`);
+    continueTo(`/api/auth/oauth2/authorize?${params.toString()}`);
     return <AuthLoading />;
   }
   if (session) return <Navigate to={returnTo} replace />;
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    const res = login.includes('@')
-      ? await signIn.email({ email: login, password })
-      : await signIn.username({ username: login, password });
-    setBusy(false);
-    setUnverified(false);
-    setResent(null);
-    if (res.error) {
-      if (res.error.code === 'EMAIL_NOT_VERIFIED') {
-        setUnverified(true);
-        setError(tServer(res.error.message ?? ''));
-      } else setError(t('Incorrect username or password.'));
+  const complete = async (data: unknown, requestGeneration: number) => {
+    // During an OAuth flow the response says where it continues.
+    const next = (data as { url?: string } | null)?.url;
+    if (next) {
+      continueTo(next);
       return;
     }
-    // During an OAuth flow the response says where it continues.
-    const next = (res.data as { url?: string } | null)?.url;
-    if (next) {
-      window.location.href = next;
+    // The provider may leave continuation to the browser after a factor challenge.
+    if (params.has('sig') && params.has('client_id')) {
+      continueTo(`/api/auth/oauth2/authorize?${params.toString()}`);
       return;
     }
     await qc.invalidateQueries();
+    if (requestGeneration !== generation.current) return;
     navigate(returnTo);
   };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    const requestGeneration = generation.current;
+    setBusy(true);
+    setError(null);
+    setUnverified(false);
+    setResent(null);
+    try {
+      if (challenge) {
+        const res = recovery
+          ? await authClient.twoFactor.verifyBackupCode({
+              code: code.trim(),
+              trustDevice: false,
+            })
+          : await authClient.twoFactor.verifyTotp({
+              code: code.trim(),
+              trustDevice: false,
+            });
+        if (requestGeneration !== generation.current) return;
+        setCode('');
+        if (res.error) {
+          setError(factorError(res.error));
+          return;
+        }
+        await complete(res.data, requestGeneration);
+        return;
+      }
+      const res = login.includes('@')
+        ? await signIn.email({ email: login, password })
+        : await signIn.username({ username: login, password });
+      if (requestGeneration !== generation.current) return;
+      setPassword('');
+      if (res.error) {
+        if (res.error.code === 'EMAIL_NOT_VERIFIED') {
+          setUnverified(true);
+          setError(tServer(res.error.message ?? ''));
+        } else setError(t('Incorrect username or password.'));
+        return;
+      }
+      // A correct password is not an authenticated login until the factor succeeds.
+      if (
+        (res.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect
+      ) {
+        setChallenge(true);
+        setCode('');
+        return;
+      }
+      await complete(res.data, requestGeneration);
+    } catch {
+      if (requestGeneration === generation.current)
+        setError(t('The request failed. Check your connection and try again.'));
+    } finally {
+      if (requestGeneration === generation.current) setBusy(false);
+    }
+  };
+
+  if (challenge)
+    return (
+      <AuthShell
+        title={t('Two-factor authentication')}
+        docTitle={t('Verify your sign-in')}
+        lede={t(
+          'Enter a code to finish signing in. This browser will be challenged on every password sign-in.'
+        )}
+      >
+        <FlashError message={error} />
+        <form className="auth-fields" onSubmit={submit}>
+          <FactorCode
+            id="login-factor"
+            value={code}
+            onChange={setCode}
+            recovery={recovery}
+            onRecoveryChange={(value) => {
+              setRecovery(value);
+              setCode('');
+              setError(null);
+            }}
+            disabled={busy}
+            autoFocus
+          />
+          <PendingButton
+            type="submit"
+            className="primary block"
+            pending={busy}
+            pendingLabel={t('Verifying…')}
+          >
+            {t('Verify and sign in')}
+          </PendingButton>
+        </form>
+        <p className="auth-foot">
+          <button
+            type="button"
+            className="btn-link"
+            disabled={busy}
+            onClick={() => {
+              setChallenge(false);
+              setRecovery(false);
+              setCode('');
+              setPassword('');
+              setError(null);
+            }}
+          >
+            {t('Use another account')}
+          </button>
+        </p>
+      </AuthShell>
+    );
 
   return (
     <AuthShell

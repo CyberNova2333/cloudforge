@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { relations, sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
@@ -22,6 +23,9 @@ export const users = sqliteTable('users', {
   banExpires: integer('ban_expires', { mode: 'timestamp_ms' }),
   username: text('username').unique(),
   displayUsername: text('display_username'),
+  twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).default(
+    false
+  ),
 });
 
 export const sessions = sqliteTable(
@@ -42,6 +46,7 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
+    mfaVerifiedAt: integer('mfa_verified_at', { mode: 'timestamp_ms' }),
   },
   (table) => [index('sessions_userId_idx').on(table.userId)]
 );
@@ -103,6 +108,24 @@ export const jwkss = sqliteTable('jwkss', {
   alg: text('alg'),
   crv: text('crv'),
 });
+
+export const twoFactors = sqliteTable(
+  'two_factors',
+  {
+    id: text('id').primaryKey(),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    verified: integer('verified', { mode: 'boolean' }).default(true),
+    failedVerificationCount: integer('failed_verification_count').default(0),
+    lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
+    lastTotpStep: integer('last_totp_step').default(0).notNull(),
+  },
+  (table) => [index('twoFactors_secret_idx').on(table.secret)]
+);
 
 export const oauthClients = sqliteTable(
   'oauth_clients',
@@ -311,6 +334,7 @@ export const rateLimits = sqliteTable('rate_limits', {
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   accounts: many(accounts),
+  twoFactors: many(twoFactors),
   oauthClients: many(oauthClients),
   oauthRefreshTokens: many(oauthRefreshTokens),
   oauthAccessTokens: many(oauthAccessTokens),
@@ -329,6 +353,13 @@ export const sessionsRelations = relations(sessions, ({ one, many }) => ({
 export const accountsRelations = relations(accounts, ({ one }) => ({
   users: one(users, {
     fields: [accounts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const twoFactorsRelations = relations(twoFactors, ({ one }) => ({
+  users: one(users, {
+    fields: [twoFactors.userId],
     references: [users.id],
   }),
 }));

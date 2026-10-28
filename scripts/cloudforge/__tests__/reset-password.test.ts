@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -183,6 +184,46 @@ function harness(
 }
 
 describe('cloudforge reset-password', () => {
+  it('撤销旧密码的未完成双因素挑战，保留因子、恢复码和其他成员挑战', async () => {
+    const h = harness({ prompts: ['brand-new-pass', 'brand-new-pass'] });
+    h.db.exec(`
+      UPDATE users SET two_factor_enabled = 1 WHERE id = 'u-admin';
+      INSERT INTO two_factors (id, user_id, secret, backup_codes, verified)
+        VALUES ('factor', 'u-admin', 'encrypted-secret', 'encrypted-recovery', 1);
+      INSERT INTO verifications (id, identifier, value, expires_at) VALUES
+        ('pending-admin', '2fa-admin', 'u-admin', 9999999999999),
+        ('pending-bob', '2fa-bob', 'u-bob', 9999999999999),
+        ('unrelated', 'email-verification', 'u-admin', 9999999999999);
+    `);
+    expect(await h.run('ada', '--database', 'gitorange-db')).toBe(0);
+    expect(
+      h.db
+        .prepare("SELECT id FROM verifications WHERE id = 'pending-admin'")
+        .get()
+    ).toBeUndefined();
+    expect(
+      h.db
+        .prepare('SELECT id FROM verifications ORDER BY id')
+        .all()
+        .map((r) => r.id)
+    ).toEqual(['pending-bob', 'unrelated']);
+    expect(
+      h.db
+        .prepare("SELECT two_factor_enabled FROM users WHERE id = 'u-admin'")
+        .get()?.two_factor_enabled
+    ).toBe(1);
+    const factor = h.db
+      .prepare(
+        "SELECT secret, backup_codes FROM two_factors WHERE id = 'factor'"
+      )
+      .get();
+    expect(factor?.secret).toBe('encrypted-secret');
+    expect(factor?.backup_codes).toBe('encrypted-recovery');
+    expect(h.text()).toContain(
+      'Two-factor authentication, if enabled, is still required.'
+    );
+  });
+
   it('用 --database 改手工部署实例的密码：better-auth 能验证新哈希，会话全部登出，写入审计', async () => {
     const h = harness({ prompts: ['brand-new-pass', 'brand-new-pass'] });
     expect(await h.run('ada', '--database', 'gitorange-db')).toBe(0);
@@ -224,7 +265,7 @@ describe('cloudforge reset-password', () => {
     expect(h.sessions('u-admin')).toBe(2);
     const batches = h.cf()!.calls.filter((c) => c.method === 'batchD1');
     expect(batches).toHaveLength(1);
-    expect((batches[0]!.args[2] as unknown[]).length).toBe(3);
+    expect((batches[0]!.args[2] as unknown[]).length).toBe(4);
   });
 
   it('按邮箱找人（不分大小写）；没有密码账户的成员会新建一个', async () => {

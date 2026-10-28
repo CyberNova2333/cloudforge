@@ -51,7 +51,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 ### 交付相关
 
 - 原始 `cloudforge-all.bundle` 已导入本地；保留四个分支的完整历史。新交付 bundle 包含导入成果与本次补修，远端推送另需明确指示。
-- 部署前依次执行迁移 0040–0049，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
+- 部署前依次执行迁移 0040–0050，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
 
 ## 规划
 
@@ -61,11 +61,11 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 2. 通知 —— 已完成。
 3. 集成接口 —— 提交状态、Webhooks 后端、网页与 MCP 工具、仓库级 HTTPS 部署令牌已完成。部署令牌默认只读、限一个仓库、1–366 天有效、可撤销并审计；管理网页和 Git/LFS 共用独立部署身份。设计与边界见 [部署令牌](deploy-tokens.md)。
 
-本阶段的议题模板、里程碑及 Webhook 扩展仍按上面的明确后续项保留。下一步进入第二阶段：先写 SSO 与双因素认证的中文设计，梳理管理员强制策略、登录恢复及既有会话/MCP 的兼容性，再分功能实现。
+本阶段的议题模板、里程碑及 Webhook 扩展仍按上面的明确后续项保留。已进入第二阶段；中文[认证设计](authentication.md)明确管理员强制策略、登录恢复、旧会话与机器凭据的边界。
 
 ### 第二阶段：单租户企业部署的门槛
 
-4. **SSO 与双因素认证**：better-auth 的 twoFactor、passkey、genericOAuth/SSO 插件；站点管理员可要求全员启用。
+4. **SSO 与双因素认证（进行中）**：第一步实现自愿 TOTP、一次性恢复码、账户安全页、登录挑战及 MCP OAuth 续接。启用/禁用撤销旧浏览器会话，密码重置保留因子并撤销旧挑战；敏感因子修改需密码与当前第二因子。之后实现离线因子恢复、统一会话认证强度和管理员强制策略，再接 OIDC SSO 与 passkey。目前不提供强制全员启用或 SSO。
 5. **多团队与细分角色**：用多个团队（或组织）替换“唯一共享团队”，引入 read / triage / write / maintain / admin 五级仓库角色；牵动 `permissionsFor`/`visibleTo` 与大量路由，先写设计文档。
 6. **分支保护规则**：必需检查（Actions 作业与提交状态 context）、所需批准人数、CODEOWNERS、受保护标签、规则是否约束管理员；替换现在的固定推送保护。
 7. **运维**：每个仓库导出 git bundle + D1 导出的备份；显示存储用量（Artifacts 1 GB 上限）；仓库归档与转移。

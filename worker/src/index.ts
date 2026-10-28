@@ -76,6 +76,13 @@ export const API_BODY_LIMIT = 1024 * 1024;
 
 app.use('*', injectDb);
 app.use('*', logger(redactedLog));
+// Authentication responses may contain enrollment secrets, recovery codes or sessions. Include
+// rejected and oversized requests too; neither a browser nor a shared cache should retain them.
+app.use('/api/auth/*', async (c, next) => {
+  await next();
+  c.header('Cache-Control', 'no-store');
+  c.header('Pragma', 'no-cache');
+});
 // Every JSON field the API takes is bounded well below these. An oversized body is refused before anything parses it:
 // validating a huge array costs memory per element (zod keeps one issue each), enough to exhaust an isolate.
 const tooLarge = (c: Context) =>

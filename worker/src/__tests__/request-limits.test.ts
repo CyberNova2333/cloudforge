@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 import { AUTH_BODY_LIMIT } from '../index';
@@ -14,6 +15,7 @@ describe('请求体大小与数组上限', () => {
       json: { redirect_uris: ['https://app.example/cb'], contacts },
     });
     expect(res.status).toBe(413);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
   it('正常大小的 OAuth 客户端注册不受影响', async () => {

@@ -4,6 +4,7 @@ import { adminSection, settingsSection } from './siteNav';
 
 describe('settingsSection：设置区域', () => {
   it('识别三个页面，验证链接归入邮箱', () => {
+    expect(settingsSection('/settings/security')).toBe('security');
     expect(settingsSection('/settings/tokens')).toBe('tokens');
     expect(settingsSection('/settings/mcp')).toBe('mcp');
     expect(settingsSection('/settings/emails')).toBe('emails');

@@ -34,6 +34,12 @@ interface NavItem<T extends string> {
 
 const SETTINGS: NavItem<SettingsSection>[] = [
   {
+    id: 'security',
+    label: t('Account security'),
+    icon: <LockIcon />,
+    to: '/settings/security',
+  },
+  {
     id: 'tokens',
     label: t('Access tokens'),
     icon: <KeyIcon />,

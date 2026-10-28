@@ -1,0 +1,907 @@
+import type { GenericEndpointContext } from '@better-auth/core';
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from 'better-auth/api';
+import { symmetricDecrypt } from 'better-auth/crypto';
+import { twoFactor } from 'better-auth/plugins';
+import { createOTP } from '@better-auth/utils/otp';
+import type { DrizzleDB } from '../db/middleware';
+import { recordAudit } from '../lib/audit';
+
+const VERIFY_TOTP = '/two-factor/verify-totp';
+const VERIFY_BACKUP = '/two-factor/verify-backup-code';
+const DISABLE = '/two-factor/disable';
+const REGENERATE = '/two-factor/generate-backup-codes';
+const PROOF_MS = 5 * 60_000;
+const ENABLE = '/two-factor/enable';
+type TotpClaim = { id: string; secret: string; step: number };
+type Generation = {
+  userId: string;
+  password: string;
+  factorId: string | null;
+  secret: string | null;
+};
+type MfaContext = GenericEndpointContext['context'] & {
+  cloudforgeTotp?: TotpClaim;
+  cloudforgeGeneration?: Generation;
+  cloudforgePasswordHash?: string;
+  cloudforgeStepUp?: { id: string; secret: string };
+  cloudforgePasswordChange?: boolean;
+};
+
+/** No browser, OAuth or administrator shortcut may replace the second factor. */
+export const mfaSessionPaths = new Set([
+  '/sign-in/email',
+  '/sign-in/username',
+  VERIFY_TOTP,
+  VERIFY_BACKUP,
+  DISABLE,
+]);
+
+function forbidden(message: string, code = 'MFA_VERIFICATION_REQUIRED'): never {
+  throw new APIError('FORBIDDEN', { message, code });
+}
+
+async function generation(
+  env: CloudflareBindings,
+  userId: string
+): Promise<Generation> {
+  const row = await env.DB.prepare(
+    `SELECT a.password, f.id AS factor_id, f.secret FROM accounts a LEFT JOIN two_factors f ON f.user_id = a.user_id WHERE a.user_id = ? AND a.provider_id = 'credential'`
+  )
+    .bind(userId)
+    .first<{
+      password: string;
+      factor_id: string | null;
+      secret: string | null;
+    }>();
+  if (!row?.password) throw new APIError('UNAUTHORIZED');
+  return {
+    userId,
+    password: row.password,
+    factorId: row.factor_id,
+    secret: row.secret,
+  };
+}
+
+async function fingerprint(value: Generation) {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(value))
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+}
+
+/** Exact credential/factor generation, checked at the write rather than only at request admission. */
+function generationGuard(value: Generation) {
+  return {
+    sql: `EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) AND ${value.factorId ? 'EXISTS (SELECT 1 FROM two_factors WHERE user_id = ? AND id = ? AND secret = ?)' : 'NOT EXISTS (SELECT 1 FROM two_factors WHERE user_id = ?)'}`,
+    args: value.factorId
+      ? [
+          value.userId,
+          value.password,
+          value.userId,
+          value.factorId,
+          value.secret,
+        ]
+      : [value.userId, value.password, value.userId],
+  };
+}
+
+/** Only a guarded password update can rotate an already authenticated MFA session. */
+export async function allowsMfaContinuation(
+  env: CloudflareBindings,
+  userId: string,
+  path: string | undefined,
+  context: GenericEndpointContext['context']
+) {
+  const state = context as MfaContext;
+  const value = state.cloudforgeGeneration;
+  if (
+    path !== '/change-password' ||
+    !state.cloudforgePasswordChange ||
+    value?.userId !== userId
+  )
+    return false;
+  const guard = generationGuard(value);
+  return !!(await env.DB.prepare(`SELECT 1 WHERE ${guard.sql}`)
+    .bind(...guard.args)
+    .first());
+}
+
+async function preparePasswordChange(
+  ctx: GenericEndpointContext,
+  env: CloudflareBindings,
+  db: DrizzleDB
+) {
+  const active = await getSessionFromCtx(ctx);
+  if (!active) return;
+  const initial = await generation(env, active.user.id);
+  const state = ctx.context as MfaContext;
+  const adapter = ctx.context.adapter;
+  const internal = ctx.context.internalAdapter;
+  state.cloudforgeGeneration = initial;
+  ctx.context.internalAdapter = {
+    ...internal,
+    updateAccount: async (
+      id: string,
+      data: Parameters<typeof internal.updateAccount>[1]
+    ) => {
+      if (typeof data.password !== 'string')
+        return internal.updateAccount(id, data);
+      const guard = generationGuard(initial);
+      const now = Date.now();
+      // Password hashing and verification can overlap an authenticator replacement. Commit
+      // only while the session and both credential/factor generations that authorized it remain current.
+      const results = await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE accounts SET password = ?, updated_at = ? WHERE id = ? AND user_id = ? AND provider_id = 'credential' AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+        ).bind(
+          data.password,
+          now,
+          id,
+          initial.userId,
+          ...guard.args,
+          active.session.id,
+          initial.userId,
+          now
+        ),
+        env.DB.prepare(
+          `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND EXISTS (SELECT 1 FROM accounts WHERE id = ? AND password = ?)`
+        ).bind(initial.userId, id, data.password),
+        env.DB.prepare(
+          `DELETE FROM sessions WHERE user_id = ? AND id != ? AND EXISTS (SELECT 1 FROM accounts WHERE id = ? AND password = ?)`
+        ).bind(initial.userId, active.session.id, id, data.password),
+      ]);
+      if (!results[0].results.length)
+        throw new APIError('UNAUTHORIZED', {
+          code: 'MFA_CHALLENGE_CHANGED',
+          message: 'Sign in again after the account credentials changed.',
+        });
+      state.cloudforgeGeneration = { ...initial, password: data.password };
+      state.cloudforgePasswordChange = true;
+      await recordAudit(db, {
+        repositoryId: null,
+        actorId: initial.userId,
+        action: 'user.password_set',
+        target: `@${active.user.username ?? active.user.name}`,
+        data: {},
+      });
+      return (await adapter.findOne({
+        model: 'account',
+        where: [{ field: 'id', value: id }],
+      })) as Awaited<ReturnType<typeof internal.updateAccount>>;
+    },
+    deleteUserSessions: async (userId) => {
+      const value = state.cloudforgeGeneration;
+      if (!state.cloudforgePasswordChange || value?.userId !== userId)
+        throw new APIError('UNAUTHORIZED');
+      const guard = generationGuard(value);
+      const removed = await env.DB.prepare(
+        `DELETE FROM sessions WHERE user_id = ? AND ${guard.sql} RETURNING id`
+      )
+        .bind(userId, ...guard.args)
+        .all();
+      if (!removed.results.length)
+        throw new APIError('UNAUTHORIZED', {
+          code: 'MFA_CHALLENGE_CHANGED',
+          message: 'Sign in again after the account credentials changed.',
+        });
+    },
+    createSession: async (
+      ...args: Parameters<typeof internal.createSession>
+    ) => {
+      const created = await internal.createSession(...args);
+      const value = state.cloudforgeGeneration;
+      if (!created || !state.cloudforgePasswordChange || !value)
+        throw new APIError('UNAUTHORIZED');
+      const guard = generationGuard(value);
+      const valid = await env.DB.prepare(
+        `SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = sessions.user_id AND COALESCE(banned, 0) = 0)`
+      )
+        .bind(created.id, value.userId, ...guard.args)
+        .first();
+      if (!valid) {
+        await internal.deleteSession(created.token);
+        throw new APIError('UNAUTHORIZED', {
+          code: 'MFA_CHALLENGE_CHANGED',
+          message: 'Sign in again after the account credentials changed.',
+        });
+      }
+      return created;
+    },
+  };
+}
+
+/** A challenge's companion expires with it and is removed by the same per-user password reset cleanup. */
+export async function recordMfaChallenge(
+  env: CloudflareBindings,
+  verification: { identifier: string; value: string; expiresAt: Date },
+  context: GenericEndpointContext['context']
+) {
+  if (
+    !verification.identifier.startsWith('2fa-') ||
+    verification.identifier.startsWith('2fa-attempts-')
+  )
+    return;
+  const proven = (context as MfaContext).cloudforgeGeneration;
+  if (!proven || proven.userId !== verification.value)
+    throw new APIError('UNAUTHORIZED');
+  await env.DB.prepare(
+    'INSERT INTO verifications (id, identifier, value, expires_at) VALUES (?, ?, ?, ?)'
+  )
+    .bind(
+      crypto.randomUUID(),
+      `2fa-generation-${verification.identifier}-${await fingerprint(proven)}`,
+      verification.value,
+      verification.expiresAt.getTime()
+    )
+    .run();
+}
+
+async function prepareVerification(
+  ctx: GenericEndpointContext,
+  env: CloudflareBindings
+) {
+  const session = await getSessionFromCtx(ctx);
+  let userId = session?.user.id;
+  let challengeId: string | undefined;
+  if (!userId) {
+    const cookie = ctx.context.createAuthCookie('two_factor');
+    challengeId =
+      (await ctx.getSignedCookie(cookie.name, ctx.context.secret)) || undefined;
+    if (!challengeId) return;
+    const challenge =
+      await ctx.context.internalAdapter.findVerificationValue(challengeId);
+    if (!challenge || challenge.expiresAt <= new Date()) return;
+    userId = challenge.value;
+  }
+  const value = await generation(env, userId);
+  if (!session && value.factorId) {
+    const locked = await env.DB.prepare(
+      'SELECT locked_until FROM two_factors WHERE id = ? AND secret = ?'
+    )
+      .bind(value.factorId, value.secret)
+      .first<{ locked_until: number | null }>();
+    if (locked?.locked_until && locked.locked_until > Date.now())
+      throw new APIError('TOO_MANY_REQUESTS', {
+        code: 'ACCOUNT_TEMPORARILY_LOCKED',
+        message: 'Too many verification attempts. Try again later.',
+      });
+  }
+  if (challengeId) {
+    const companion = await env.DB.prepare(
+      'SELECT id FROM verifications WHERE identifier = ? AND value = ? AND expires_at > ?'
+    )
+      .bind(
+        `2fa-generation-${challengeId}-${await fingerprint(value)}`,
+        userId,
+        Date.now()
+      )
+      .first();
+    if (!companion)
+      throw new APIError('UNAUTHORIZED', {
+        code: 'MFA_CHALLENGE_CHANGED',
+        message: 'Sign in again after the account credentials changed.',
+      });
+  }
+  (ctx.context as MfaContext).cloudforgeGeneration = value;
+  if (session && value.factorId && value.secret) {
+    // Reserve attempts before checking a code: concurrent requests cannot all pass an earlier counter read.
+    const now = Date.now();
+    const attempt = await env.DB.prepare(
+      `UPDATE two_factors SET
+      failed_verification_count = CASE WHEN locked_until IS NOT NULL AND locked_until <= ? THEN 1 ELSE COALESCE(failed_verification_count, 0) + 1 END,
+      locked_until = CASE WHEN (CASE WHEN locked_until IS NOT NULL AND locked_until <= ? THEN 1 ELSE COALESCE(failed_verification_count, 0) + 1 END) >= 10 THEN ? ELSE NULL END
+      WHERE id = ? AND secret = ? AND (locked_until IS NULL OR locked_until <= ?) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+    )
+      .bind(
+        now,
+        now,
+        now + 900_000,
+        value.factorId,
+        value.secret,
+        now,
+        session.session.id,
+        userId,
+        now
+      )
+      .first();
+    if (!attempt)
+      throw new APIError('TOO_MANY_REQUESTS', {
+        code: 'ACCOUNT_TEMPORARILY_LOCKED',
+        message: 'Too many verification attempts. Try again later.',
+      });
+    (ctx.context as MfaContext).cloudforgeStepUp = {
+      id: value.factorId,
+      secret: value.secret,
+    };
+  }
+}
+
+/** A successful TOTP is consumed once across all challenges and sessions, not merely per challenge. */
+async function claimTotp(ctx: GenericEndpointContext, env: CloudflareBindings) {
+  const session = await getSessionFromCtx(ctx);
+  let userId = session?.user.id;
+  if (!userId) {
+    const cookie = ctx.context.createAuthCookie('two_factor');
+    const identifier = await ctx.getSignedCookie(
+      cookie.name,
+      ctx.context.secret
+    );
+    if (!identifier) return; // The upstream endpoint supplies its normal invalid-challenge error.
+    const challenge =
+      await ctx.context.internalAdapter.findVerificationValue(identifier);
+    if (!challenge || challenge.expiresAt <= new Date()) return;
+    userId = challenge.value;
+  }
+  const row = await env.DB.prepare(
+    'SELECT id, secret, verified FROM two_factors WHERE user_id = ?'
+  )
+    .bind(userId)
+    .first<{ id: string; secret: string; verified: number }>();
+  if (!row || (!session && !row.verified) || typeof ctx.body?.code !== 'string')
+    return;
+  const secret = await symmetricDecrypt({
+    key: ctx.context.secretConfig,
+    data: row.secret,
+  });
+  const otp = createOTP(secret, { digits: 6, period: 30 });
+  const step = Math.floor(Date.now() / 30_000);
+  // Match exactly the upstream ±1 window, choosing the latest matching step if codes collide.
+  let matched = -1;
+  for (let offset = -1; offset <= 1; offset++) {
+    const expected = await otp.hotp(step + offset);
+    let difference = ctx.body.code.length ^ expected.length;
+    for (let i = 0; i < expected.length; i++)
+      difference |= ctx.body.code.charCodeAt(i) ^ expected.charCodeAt(i);
+    if (difference === 0) matched = step + offset;
+  }
+  if (matched < 0) return; // Let upstream count the invalid attempt and apply its account lock.
+  const consumed = await env.DB.prepare(
+    'UPDATE two_factors SET last_totp_step = ? WHERE id = ? AND secret = ? AND last_totp_step < ? RETURNING id'
+  )
+    .bind(matched, row.id, row.secret, matched)
+    .first();
+  if (!consumed)
+    forbidden(
+      'This authenticator code was already used. Wait for the next code.',
+      'TOTP_ALREADY_USED'
+    );
+  (ctx.context as MfaContext).cloudforgeTotp = {
+    id: row.id,
+    secret: row.secret,
+    step: matched,
+  };
+}
+
+/** Activation, its proven secret and revocation commit together in D1's transactional batch. */
+export async function activateMfa(
+  env: CloudflareBindings,
+  userId: string,
+  context: GenericEndpointContext['context']
+) {
+  const claim = (context as MfaContext).cloudforgeTotp;
+  const active = context.session?.session;
+  const proven = (context as MfaContext).cloudforgeGeneration;
+  if (!claim || !active || !proven)
+    forbidden('Verify the current authenticator setup first.');
+  const guard =
+    'SELECT 1 FROM two_factors WHERE id = ? AND user_id = ? AND secret = ? AND last_totp_step = ?';
+  const args = [claim.id, userId, claim.secret, claim.step];
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE users SET two_factor_enabled = 1 WHERE id = ? AND COALESCE(two_factor_enabled, 0) = 0 AND EXISTS (${guard} AND verified = 0) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) AND EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) RETURNING id`
+    ).bind(
+      userId,
+      ...args,
+      active.id,
+      userId,
+      Date.now(),
+      userId,
+      proven.password
+    ),
+    env.DB.prepare(
+      `DELETE FROM sessions WHERE user_id = ? AND EXISTS (${guard} AND verified = 0) AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 1)`
+    ).bind(userId, ...args, userId),
+    env.DB.prepare(
+      `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND EXISTS (${guard} AND verified = 0) AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 1)`
+    ).bind(userId, ...args, userId),
+    env.DB.prepare(
+      `UPDATE two_factors SET verified = 1 WHERE id = ? AND user_id = ? AND secret = ? AND last_totp_step = ? AND verified = 0 AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 1)`
+    ).bind(...args, userId),
+  ]);
+  if (!results[0].results.length)
+    forbidden('Authenticator setup changed. Start again.', 'MFA_SETUP_CHANGED');
+}
+
+/** Extra policy around the maintained plugin; its encryption, challenge and backup-code CAS stay upstream. */
+export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
+  const plugin = twoFactor({
+    issuer: 'CloudForge',
+    twoFactorCookieMaxAge: 600,
+    backupCodeOptions: { storeBackupCodes: 'encrypted', length: 20 },
+  });
+  return {
+    ...plugin,
+    schema: {
+      ...plugin.schema,
+      session: {
+        fields: {
+          mfaVerifiedAt: {
+            type: 'date' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
+        },
+      },
+      twoFactor: {
+        ...plugin.schema.twoFactor,
+        fields: {
+          ...plugin.schema.twoFactor.fields,
+          userId: {
+            ...plugin.schema.twoFactor.fields.userId,
+            unique: true,
+            index: false,
+          },
+          lastTotpStep: {
+            type: 'number' as const,
+            required: true,
+            defaultValue: 0,
+            input: false,
+            returned: false,
+          },
+        },
+      },
+    },
+    hooks: {
+      before: [
+        {
+          matcher: (ctx: { path?: string }) =>
+            !!ctx.path?.startsWith('/two-factor/') ||
+            ctx.path === '/sign-in/email' ||
+            ctx.path === '/sign-in/username' ||
+            ctx.path === '/change-password',
+          handler: createAuthMiddleware(async (ctx) => {
+            if (!env) return;
+            if (ctx.path === '/change-password') {
+              await preparePasswordChange(ctx, env, db);
+              return;
+            }
+            if (
+              ctx.path === '/sign-in/email' ||
+              ctx.path === '/sign-in/username'
+            ) {
+              // Do not honor a previously issued trusted-device exception if one exists.
+              const trustCookie = ctx.context.createAuthCookie('trust_device');
+              const trusted = await ctx.getSignedCookie(
+                trustCookie.name,
+                ctx.context.secret
+              );
+              const identifier =
+                typeof trusted === 'string' ? trusted.split('!')[1] : undefined;
+              if (identifier?.startsWith('trust-device-'))
+                await ctx.context.internalAdapter.deleteVerificationByIdentifier(
+                  identifier
+                );
+              const password = ctx.context.password;
+              ctx.context.password = {
+                ...password,
+                verify: async (input) => {
+                  const valid = await password.verify(input);
+                  if (valid)
+                    (ctx.context as MfaContext).cloudforgePasswordHash =
+                      input.hash;
+                  return valid;
+                },
+              };
+              return;
+            }
+            ctx.setHeader('cache-control', 'no-store');
+            if (ctx.body?.trustDevice === true)
+              forbidden(
+                'Trusted devices are not enabled.',
+                'TRUST_DEVICE_DISABLED'
+              );
+            if (ctx.body?.disableSession === true)
+              forbidden(
+                'Complete the sign-in challenge.',
+                'MFA_SESSION_REQUIRED'
+              );
+            if (
+              ctx.path === '/two-factor/get-totp-uri' ||
+              ctx.path === '/two-factor/send-otp' ||
+              ctx.path === '/two-factor/verify-otp'
+            )
+              throw new APIError('NOT_FOUND');
+            const state = ctx.context as MfaContext;
+            const adapter = ctx.context.adapter;
+            const internal = ctx.context.internalAdapter;
+            const active = await getSessionFromCtx(ctx);
+            if (ctx.path === VERIFY_TOTP || ctx.path === VERIFY_BACKUP)
+              await prepareVerification(ctx, env);
+            else if (active)
+              state.cloudforgeGeneration = await generation(
+                env,
+                active.user.id
+              );
+            // New sessions exist before their token is sent. Recheck the proof generation after the
+            // insert, so account changes either invalidate this check or revoke the already-written row.
+            ctx.context.internalAdapter = {
+              ...internal,
+              createSession: async (
+                ...args: Parameters<typeof internal.createSession>
+              ) => {
+                const created = await internal.createSession(...args);
+                const value = state.cloudforgeGeneration;
+                if (!created || !value) throw new APIError('UNAUTHORIZED');
+                const guard = generationGuard(value);
+                const valid = await env.DB.prepare(
+                  `SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = sessions.user_id AND COALESCE(banned, 0) = 0)`
+                )
+                  .bind(created.id, value.userId, ...guard.args)
+                  .first();
+                if (!valid) {
+                  await internal.deleteSession(created.token);
+                  throw new APIError('UNAUTHORIZED', {
+                    code: 'MFA_CHALLENGE_CHANGED',
+                    message:
+                      'Sign in again after the account credentials changed.',
+                  });
+                }
+                return created;
+              },
+              updateUser: async <T extends Record<string, any>>(
+                userId: string,
+                data: Parameters<typeof internal.updateUser>[1]
+              ) => {
+                if (data.twoFactorEnabled === undefined)
+                  return internal.updateUser<T>(userId, data);
+                if (!active || active.user.id !== userId)
+                  throw new APIError('UNAUTHORIZED');
+                const value = state.cloudforgeGeneration;
+                if (!value) throw new APIError('UNAUTHORIZED');
+                if (
+                  ctx.path === VERIFY_TOTP &&
+                  data.twoFactorEnabled === true
+                ) {
+                  await activateMfa(env, userId, ctx.context);
+                } else if (
+                  ctx.path === DISABLE &&
+                  data.twoFactorEnabled === false
+                ) {
+                  const guard = generationGuard(value);
+                  const guardArgs = [...guard.args];
+                  const results = await env.DB.batch([
+                    env.DB.prepare(
+                      `UPDATE users SET two_factor_enabled = 0 WHERE id = ? AND two_factor_enabled = 1 AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+                    ).bind(
+                      userId,
+                      ...guardArgs,
+                      active.session.id,
+                      userId,
+                      Date.now()
+                    ),
+                    env.DB.prepare(
+                      `DELETE FROM sessions WHERE user_id = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
+                    ).bind(userId, ...guardArgs, userId),
+                    env.DB.prepare(
+                      `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
+                    ).bind(userId, ...guardArgs, userId),
+                    env.DB.prepare(
+                      `DELETE FROM two_factors WHERE id = ? AND user_id = ? AND secret = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
+                    ).bind(value.factorId, userId, value.secret, userId),
+                  ]);
+                  if (!results[0].results.length)
+                    forbidden(
+                      'The account or authenticator changed. Verify again.',
+                      'MFA_SETUP_CHANGED'
+                    );
+                  state.cloudforgeGeneration = {
+                    ...value,
+                    factorId: null,
+                    secret: null,
+                  };
+                } else
+                  forbidden(
+                    'Use the two-factor authentication settings.',
+                    'MFA_SETTINGS_REQUIRED'
+                  );
+                const updated = await adapter.findOne<typeof active.user>({
+                  model: 'user',
+                  where: [{ field: 'id', value: userId }],
+                });
+                if (!updated) throw new APIError('UNAUTHORIZED');
+                await recordAudit(db, {
+                  repositoryId: null,
+                  actorId: userId,
+                  action: data.twoFactorEnabled
+                    ? 'user.mfa_enabled'
+                    : 'user.mfa_disabled',
+                  target: `@${updated.username ?? updated.name}`,
+                  data: {},
+                });
+                return updated as Awaited<
+                  ReturnType<typeof internal.updateUser<T>>
+                >;
+              },
+            };
+            if (ctx.path === ENABLE) {
+              if (ctx.body?.method && ctx.body.method !== 'totp')
+                forbidden('Use an authenticator app.', 'TOTP_REQUIRED');
+              const session = await getSessionFromCtx(ctx);
+              if (session?.user.twoFactorEnabled)
+                forbidden(
+                  'Disable two-factor authentication before replacing its secret.',
+                  'TOTP_ALREADY_ENABLED'
+                );
+              // Upstream first reads an unverified setup and later updates it. Guard the write itself,
+              // so it cannot replace a secret that a concurrent verification has just activated.
+              ctx.context.adapter = {
+                ...adapter,
+                create: async <T extends Record<string, any>, R = T>(args: {
+                  model: string;
+                  data: Omit<T, 'id'>;
+                  select?: string[];
+                  forceAllowId?: boolean;
+                }) => {
+                  if (args.model !== 'twoFactor')
+                    return adapter.create<T, R>(args);
+                  if (!active) throw new APIError('UNAUTHORIZED');
+                  const value = state.cloudforgeGeneration;
+                  if (!value) throw new APIError('UNAUTHORIZED');
+                  const guard = generationGuard(value);
+                  const id = crypto.randomUUID();
+                  const result = await env.DB.prepare(
+                    `INSERT INTO two_factors (id, user_id, secret, backup_codes, verified) SELECT ?, ?, ?, ?, 0 WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) AND EXISTS (SELECT 1 FROM users WHERE id = ? AND COALESCE(two_factor_enabled, 0) = 0) AND ${guard.sql} ON CONFLICT(user_id) DO NOTHING RETURNING id`
+                  )
+                    .bind(
+                      id,
+                      active.user.id,
+                      args.data.secret,
+                      args.data.backupCodes,
+                      active.session.id,
+                      active.user.id,
+                      Date.now(),
+                      active.user.id,
+                      ...guard.args
+                    )
+                    .first();
+                  if (!result)
+                    forbidden(
+                      'Authenticator setup changed. Start again.',
+                      'MFA_SETUP_CHANGED'
+                    );
+                  return { ...args.data, id } as R;
+                },
+                update: async <T>(
+                  args: Parameters<typeof adapter.update>[0]
+                ) => {
+                  if (args.model !== 'twoFactor')
+                    return adapter.update<T>(args);
+                  if (!active) throw new APIError('UNAUTHORIZED');
+                  const value = state.cloudforgeGeneration;
+                  if (!value) throw new APIError('UNAUTHORIZED');
+                  const guard = generationGuard(value);
+                  const id = args.where.find(
+                    (condition) => condition.field === 'id'
+                  )?.value;
+                  const updated = await env.DB.prepare(
+                    `UPDATE two_factors SET secret = ?, backup_codes = ?, verified = 0, last_totp_step = 0, failed_verification_count = 0, locked_until = NULL WHERE id = ? AND user_id = ? AND verified = 0 AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) AND EXISTS (SELECT 1 FROM users WHERE id = ? AND COALESCE(two_factor_enabled, 0) = 0) AND ${guard.sql} RETURNING id`
+                  )
+                    .bind(
+                      args.update.secret,
+                      args.update.backupCodes,
+                      id,
+                      active.user.id,
+                      active.session.id,
+                      active.user.id,
+                      Date.now(),
+                      active.user.id,
+                      ...guard.args
+                    )
+                    .first();
+                  if (!updated)
+                    forbidden(
+                      'Authenticator setup changed. Start again.',
+                      'MFA_SETUP_CHANGED'
+                    );
+                  return { ...args.update, id } as T;
+                },
+              };
+            }
+            if (ctx.path === DISABLE || ctx.path === REGENERATE) {
+              const session = await getSessionFromCtx(ctx);
+              if (!session) throw new APIError('UNAUTHORIZED');
+              const proof = await env.DB.prepare(
+                'UPDATE sessions SET mfa_verified_at = NULL WHERE id = ? AND user_id = ? AND expires_at > ? AND mfa_verified_at >= ? RETURNING id'
+              )
+                .bind(
+                  session.session.id,
+                  session.user.id,
+                  Date.now(),
+                  Date.now() - PROOF_MS
+                )
+                .first();
+              if (!proof)
+                forbidden(
+                  'Verify your authenticator code or a recovery code before changing two-factor authentication.'
+                );
+              const value = state.cloudforgeGeneration;
+              if (!value?.factorId || !value.secret)
+                forbidden('Verify the current authenticator first.');
+              ctx.context.adapter = {
+                ...adapter,
+                delete: async (args) => {
+                  // The atomic disable above already removed exactly the proven generation.
+                  if (ctx.path === DISABLE && args.model === 'twoFactor')
+                    return;
+                  return adapter.delete(args);
+                },
+                update: async <T>(
+                  args: Parameters<typeof adapter.update>[0]
+                ) => {
+                  if (ctx.path !== REGENERATE || args.model !== 'twoFactor')
+                    return adapter.update<T>(args);
+                  const guard = generationGuard(value);
+                  const changed = await env.DB.prepare(
+                    `UPDATE two_factors SET backup_codes = ? WHERE id = ? AND secret = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+                  )
+                    .bind(
+                      args.update.backupCodes,
+                      value.factorId,
+                      value.secret,
+                      ...guard.args,
+                      session.session.id,
+                      session.user.id,
+                      Date.now()
+                    )
+                    .first();
+                  if (!changed)
+                    forbidden(
+                      'The account or authenticator changed. Verify again.',
+                      'MFA_SETUP_CHANGED'
+                    );
+                  return { ...args.update, id: value.factorId } as T;
+                },
+              };
+            }
+            if (ctx.path === VERIFY_TOTP) {
+              await claimTotp(ctx, env);
+              ctx.context.adapter = {
+                ...adapter,
+                update: async <T>(
+                  args: Parameters<typeof adapter.update>[0]
+                ) => {
+                  // Activation already commits verified=true together with the user's flag.
+                  if (
+                    args.model === 'twoFactor' &&
+                    args.update.verified === true
+                  )
+                    return {
+                      ...args.update,
+                      id: state.cloudforgeTotp?.id,
+                    } as T;
+                  return adapter.update<T>(args);
+                },
+              };
+            }
+          }),
+        },
+      ],
+      after: [
+        {
+          matcher: (ctx: { path?: string }) =>
+            ctx.path === '/sign-in/email' || ctx.path === '/sign-in/username',
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = ctx.context.newSession;
+            if (!env || !session) return;
+            // Password hashing can overlap activation. The sign-in handler's earlier user snapshot
+            // must not decide whether the session needs a challenge after activation has committed.
+            const user = await env.DB.prepare(
+              'SELECT two_factor_enabled FROM users WHERE id = ?'
+            )
+              .bind(session.user.id)
+              .first<{ two_factor_enabled: number }>();
+            session.user.twoFactorEnabled = !!user?.two_factor_enabled;
+            const value = await generation(env, session.user.id);
+            if (
+              value.password !==
+              (ctx.context as MfaContext).cloudforgePasswordHash
+            ) {
+              await ctx.context.internalAdapter.deleteSession(
+                session.session.token
+              );
+              throw new APIError('UNAUTHORIZED', {
+                code: 'MFA_CHALLENGE_CHANGED',
+                message: 'Sign in again after the account credentials changed.',
+              });
+            }
+            (ctx.context as MfaContext).cloudforgeGeneration = value;
+          }),
+        },
+        ...plugin.hooks.after,
+        {
+          matcher: (ctx: { path?: string }) =>
+            [VERIFY_TOTP, VERIFY_BACKUP, DISABLE, REGENERATE].includes(
+              ctx.path ?? ''
+            ),
+          handler: createAuthMiddleware(async (ctx) => {
+            if (!env || ctx.context.returned instanceof APIError) return;
+            const result = ctx.context.returned as
+              | { token?: string; status?: boolean; backupCodes?: unknown }
+              | undefined;
+            if (
+              !result ||
+              (!result.token &&
+                result.status !== true &&
+                !Array.isArray(result.backupCodes))
+            )
+              return;
+            const session = ctx.context.newSession ?? ctx.context.session;
+            if (!session) return;
+            if (ctx.path === VERIFY_TOTP || ctx.path === VERIFY_BACKUP) {
+              const value = (ctx.context as MfaContext).cloudforgeGeneration;
+              if (!value) throw new APIError('UNAUTHORIZED');
+              const guard = generationGuard(value);
+              const proof = await env.DB.prepare(
+                `UPDATE sessions SET mfa_verified_at = ? WHERE id = ? AND user_id = ? AND expires_at > ? AND ${guard.sql} RETURNING id`
+              )
+                .bind(
+                  Date.now(),
+                  session.session.id,
+                  session.user.id,
+                  Date.now(),
+                  ...guard.args
+                )
+                .first();
+              if (!proof)
+                throw new APIError('UNAUTHORIZED', {
+                  message:
+                    'Sign in again after the account credentials changed.',
+                  code: 'MFA_CHALLENGE_CHANGED',
+                });
+              const stepUp = (ctx.context as MfaContext).cloudforgeStepUp;
+              if (stepUp)
+                await env.DB.prepare(
+                  `UPDATE two_factors SET failed_verification_count = 0, locked_until = NULL WHERE id = ? AND secret = ? AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?)`
+                )
+                  .bind(
+                    stepUp.id,
+                    stepUp.secret,
+                    session.session.id,
+                    session.user.id,
+                    Date.now()
+                  )
+                  .run();
+              // A newly established session is an authentication event; existing-session verification is step-up.
+              await recordAudit(db, {
+                repositoryId: null,
+                actorId: session.user.id,
+                action:
+                  ctx.path === VERIFY_BACKUP
+                    ? 'user.mfa_recovery_used'
+                    : 'user.mfa_verified',
+                target: `@${session.user.username ?? session.user.name}`,
+                data: {},
+              });
+            } else if (ctx.path === REGENERATE) {
+              await recordAudit(db, {
+                repositoryId: null,
+                actorId: session.user.id,
+                action: 'user.mfa_recovery_regenerated',
+                target: `@${session.user.username ?? session.user.name}`,
+                data: {},
+              });
+            }
+          }),
+        },
+      ],
+    },
+  };
+}

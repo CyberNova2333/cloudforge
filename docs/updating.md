@@ -16,6 +16,17 @@ See [Setup](setup.md) for the questions, the flags, and what it creates. State l
 
 ## Upgrade
 
+The optional two-factor update adds migration `0050` (`two_factors`, the user's enabled flag and a short-lived
+session proof). Apply pending migrations before deploying. No new Cloudflare binding or secret is needed.
+Account settings now offer TOTP with single-use recovery codes; password sign-in waits for the second factor.
+Enabling or disabling it revokes other browser sessions. OAuth refresh tokens retain their existing authorization
+with their session link cleared. Previously issued MCP JWTs still require a current consent and expire normally;
+disconnect an app to revoke it immediately. Personal and repository deploy tokens retain their existing rules.
+Password resets preserve the factor and recovery codes, while invalidating unfinished challenges based on the
+old password. Self-service password changes now revoke other browser sessions even when the caller omits
+`revokeOtherSessions`, while retaining the current session. Save recovery codes before relying on TOTP, especially for an administrator account.
+See [身份认证与账户恢复](authentication.md) for first-version limits and the separate plans for enforced MFA and SSO.
+
 The repository deploy-token update adds migration `0049` (`repository_deploy_tokens`); apply pending migrations
 before deploying this version. No new binding or secret is required, and existing personal tokens are unchanged.
 Repository settings now offer scoped HTTPS Git/LFS credentials, read-only by default and expiring after 1–366 days.
