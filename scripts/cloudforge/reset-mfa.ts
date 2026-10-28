@@ -3,6 +3,7 @@ import {
   RECOVERY_TRIGGER_NAME,
   RECOVERY_TRIGGER_SQL,
 } from '../../worker/src/db/recovery-trigger.ts';
+import { AUTH_TRIGGERS } from '../../worker/src/db/auth-triggers.ts';
 import type { Cloudflare } from './cloudflare.ts';
 import type { Io } from './collect.ts';
 
@@ -11,12 +12,14 @@ type Member = {
   username: string | null;
   email: string;
   enabled: number;
+  auth_version: number;
   banned: number;
   agent: number;
   credential_id: string | null;
   password: string | null;
   factor_id: string | null;
   secret: string | null;
+  recovery_version: number | null;
 };
 type Marker = { installation_id: string; ownership_nonce: string };
 
@@ -44,6 +47,10 @@ export function recoveryReasonProblem(value: string) {
 const normalizeTrigger = (sql: string) =>
   sql.replaceAll('\r', '').trim().replace(/;\s*$/, '');
 const TRIGGER_GUARD = `EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = ? AND rtrim(replace(sql, char(13), ''), char(10) || char(9) || ' ;') = ?)`;
+const requiredTriggers = [
+  { name: RECOVERY_TRIGGER_NAME, sql: RECOVERY_TRIGGER_SQL },
+  ...AUTH_TRIGGERS,
+];
 const quote = (value: string) => JSON.stringify(value);
 
 /** A single INSERT and its AFTER trigger own every mutation; no REST batch transaction is assumed. */
@@ -88,13 +95,19 @@ export async function resetMfa(
     return 1;
   }
   const triggers = await q(
-    "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?",
-    [RECOVERY_TRIGGER_NAME]
+    `SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN (${requiredTriggers.map(() => '?').join(',')})`,
+    requiredTriggers.map((trigger) => trigger.name)
   );
   if (
-    triggers.length !== 1 ||
-    typeof triggers[0].sql !== 'string' ||
-    normalizeTrigger(triggers[0].sql) !== normalizeTrigger(RECOVERY_TRIGGER_SQL)
+    triggers.length !== requiredTriggers.length ||
+    !requiredTriggers.every((expected) =>
+      triggers.some(
+        (actual) =>
+          actual.name === expected.name &&
+          typeof actual.sql === 'string' &&
+          normalizeTrigger(actual.sql) === normalizeTrigger(expected.sql)
+      )
+    )
   ) {
     io.print(
       'The database is missing the expected MFA recovery migration/trigger. Nothing was changed.'
@@ -104,9 +117,9 @@ export async function resetMfa(
   const who = opts.who.trim().replace(/^@/, '').toLowerCase();
   const members = (await q(
     `SELECT u.id, u.username, u.email, COALESCE(u.two_factor_enabled, 0) AS enabled,
-       COALESCE(u.banned, 0) AS banned,
+       COALESCE(u.banned, 0) AS banned, u.auth_version,
        EXISTS (SELECT 1 FROM agents a WHERE a.user_id = u.id) AS agent,
-       c.id AS credential_id, c.password, f.id AS factor_id, f.secret
+       c.id AS credential_id, c.password, f.id AS factor_id, f.secret, f.recovery_version
      FROM users u
      LEFT JOIN accounts c ON c.user_id = u.id AND c.provider_id = 'credential'
      LEFT JOIN two_factors f ON f.user_id = u.id
@@ -162,15 +175,20 @@ export async function resetMfa(
           username: member.username,
           email: member.email,
           enabled: member.enabled,
+          auth_version: member.auth_version,
           banned: member.banned,
           agent: member.agent,
           credential_id: member.credential_id,
           password: member.password,
           factor_id: member.factor_id,
           secret: member.secret,
+          recovery_version: member.recovery_version,
         },
         reason,
-        trigger: normalizeTrigger(RECOVERY_TRIGGER_SQL),
+        triggers: requiredTriggers.map((trigger) => ({
+          name: trigger.name,
+          sql: normalizeTrigger(trigger.sql),
+        })),
       })
     )
     .digest('hex');
@@ -212,7 +230,7 @@ export async function resetMfa(
   const id = crypto.randomUUID();
   const at = ctx.now().getTime();
   const factorGuard = member.factor_id
-    ? 'EXISTS (SELECT 1 FROM two_factors WHERE user_id = u.id AND id = ? AND secret = ?)'
+    ? 'EXISTS (SELECT 1 FROM two_factors WHERE user_id = u.id AND id = ? AND secret = ? AND recovery_version = ?)'
     : 'NOT EXISTS (SELECT 1 FROM two_factors WHERE user_id = u.id)';
   const markerGuard = marker
     ? 'EXISTS (SELECT 1 FROM install_state WHERE installation_id = ? AND ownership_nonce = ?) AND (SELECT count(*) FROM install_state) = 1'
@@ -225,20 +243,25 @@ export async function resetMfa(
     member.username,
     member.email,
     member.enabled,
+    member.auth_version,
     member.credential_id,
     member.password,
-    ...(member.factor_id ? [member.factor_id, member.secret] : []),
+    ...(member.factor_id
+      ? [member.factor_id, member.secret, member.recovery_version]
+      : []),
     ...(marker ? [marker.installation_id, marker.ownership_nonce] : []),
-    RECOVERY_TRIGGER_NAME,
-    normalizeTrigger(RECOVERY_TRIGGER_SQL),
+    ...requiredTriggers.flatMap((trigger) => [
+      trigger.name,
+      normalizeTrigger(trigger.sql),
+    ]),
   ];
   const sql = `INSERT INTO mfa_recovery_events (id, user_id, reason, created_at)
     SELECT ?, u.id, ?, ? FROM users u WHERE u.id = ? AND u.username IS ? AND u.email = ?
-      AND COALESCE(u.two_factor_enabled, 0) = ? AND COALESCE(u.banned, 0) = 0
+      AND COALESCE(u.two_factor_enabled, 0) = ? AND u.auth_version = ? AND COALESCE(u.banned, 0) = 0
       AND NOT EXISTS (SELECT 1 FROM agents WHERE user_id = u.id)
       AND EXISTS (SELECT 1 FROM accounts WHERE user_id = u.id AND provider_id = 'credential' AND id = ? AND password = ?)
       AND (SELECT count(*) FROM accounts WHERE user_id = u.id AND provider_id = 'credential') = 1
-      AND ${factorGuard} AND ${markerGuard} AND ${TRIGGER_GUARD}
+      AND ${factorGuard} AND ${markerGuard} AND ${requiredTriggers.map(() => TRIGGER_GUARD).join(' AND ')}
     RETURNING id`;
   let rows: Record<string, unknown>[] | undefined;
   let emptyResult = false;

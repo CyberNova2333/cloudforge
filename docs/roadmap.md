@@ -51,7 +51,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 ### 交付相关
 
 - 原始 `cloudforge-all.bundle` 已导入本地；保留四个分支的完整历史。新交付 bundle 包含导入成果与本次补修，远端推送另需明确指示。
-- 部署前依次执行迁移 0040–0051，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
+- 部署前依次执行迁移 0040–0052，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
 
 ## 规划
 
@@ -65,7 +65,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 ### 第二阶段：单租户企业部署的门槛
 
-4. **SSO 与双因素认证（进行中）**：已实现自愿 TOTP、一次性恢复码、账户安全页、登录挑战及 MCP OAuth 续接。启用/禁用撤销旧浏览器会话，密码重置保留因子并撤销旧挑战；敏感因子修改需密码与当前第二因子。独立 `reset-mfa` 离线恢复要求明确实例与成员、预览确认、单语句撤销和审计，保留密码与机器凭据。接下来实现统一会话认证强度和管理员强制策略，再接 OIDC SSO 与 passkey。目前不提供强制全员启用或 SSO。
+4. **SSO 与双因素认证（进行中）**：已实现自愿 TOTP、一次性恢复码、账户安全页、登录挑战及 MCP OAuth 续接。独立 `reset-mfa` 离线恢复要求明确目标、预览确认、单语句撤销和审计。会话已统一记录真实方法与完成时间，凭据代际在普通 API 与原生认证入口共用，旧证明明确未知；恢复码组更新会围栏未完成的旧证明。接下来实现管理员强制策略、策略版本与最近验证门槛，再接 OIDC SSO 与 passkey。目前不提供强制全员启用或 SSO，既有机器凭据保持原规则。
 5. **多团队与细分角色**：用多个团队（或组织）替换“唯一共享团队”，引入 read / triage / write / maintain / admin 五级仓库角色；牵动 `permissionsFor`/`visibleTo` 与大量路由，先写设计文档。
 6. **分支保护规则**：必需检查（Actions 作业与提交状态 context）、所需批准人数、CODEOWNERS、受保护标签、规则是否约束管理员；替换现在的固定推送保护。
 7. **运维**：每个仓库导出 git bundle + D1 导出的备份；显示存储用量（Artifacts 1 GB 上限）；仓库归档与转移。

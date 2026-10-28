@@ -6,6 +6,7 @@ import {
   errorSchema,
   json200Response,
   json400Response,
+  json401Response,
   validationHook,
 } from './openapi-helpers';
 import { auditEventSchema } from './schemas';
@@ -14,6 +15,50 @@ import { getUserSettings, setUserSettings } from '../lib/user-settings';
 /** The signed-in person's own preferences: `/api/me/...`. */
 export const meRouter = new OpenAPIHono<AppEnv>({
   defaultHook: validationHook,
+});
+
+const authenticationSchema = z
+  .object({
+    /** Public row id, also returned by get-session; lets clients bind evidence to the expected browser session. */
+    sessionId: z.string(),
+    strength: z.enum([
+      'unknown',
+      'password',
+      'multi_factor',
+      'email_verification',
+      'impersonated',
+    ]),
+    primary: z
+      .object({
+        method: z.enum(['password', 'email_verification', 'impersonation']),
+        verifiedAt: z.string().datetime(),
+      })
+      .nullable(),
+    secondFactor: z
+      .object({
+        method: z.enum(['totp', 'recovery_code']),
+        verifiedAt: z.string().datetime(),
+      })
+      .nullable(),
+  })
+  .openapi('SessionAuthentication');
+
+const authenticationRoute = createRoute({
+  method: 'get',
+  path: '/authentication',
+  tags: ['Users'],
+  summary: 'The authentication proved by this browser session',
+  description:
+    'Read-only, cookie-authenticated evidence for the current browser. Older sessions without recorded evidence are unknown; account enrollment alone does not prove this session completed a second factor.',
+  responses: {
+    ...json200Response(authenticationSchema, 'Current browser authentication'),
+    ...json401Response,
+  },
+});
+meRouter.openapi(authenticationRoute, async (c) => {
+  const browser = c.get('browserSession');
+  if (!browser) return c.json({ error: 'Unauthorized' }, 401);
+  return c.json({ sessionId: browser.id, ...browser.authentication }, 200);
 });
 
 const delegationsSchema = z

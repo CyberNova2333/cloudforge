@@ -453,6 +453,34 @@
   margin: 0;
   padding: 0;
 }
+.security-session-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.security-session-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+}
+.security-session-details dt {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.security-session-details dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.security-session-details time {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+
 .aud-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

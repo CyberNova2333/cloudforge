@@ -67,6 +67,14 @@ describe('数据库迁移与声明式触发器生成', () => {
           name: RECOVERY_TRIGGER_NAME,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
         },
+        {
+          name: 'cloudforge_password_auth_version_v1',
+          sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+        {
+          name: 'cloudforge_factor_auth_version_v1',
+          sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
       ],
     });
     expect(

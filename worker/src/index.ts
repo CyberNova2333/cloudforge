@@ -5,7 +5,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
 import { authFor } from './auth';
-import { currentUser } from './auth/session';
+import { currentSession } from './auth/session';
 import {
   requireAdmin,
   requireAuth,
@@ -76,13 +76,13 @@ export const API_BODY_LIMIT = 1024 * 1024;
 
 app.use('*', injectDb);
 app.use('*', logger(redactedLog));
-// Authentication responses may contain enrollment secrets, recovery codes or sessions. Include
-// rejected and oversized requests too; neither a browser nor a shared cache should retain them.
-app.use('/api/auth/*', async (c, next) => {
-  await next();
-  c.header('Cache-Control', 'no-store');
-  c.header('Pragma', 'no-cache');
-});
+// Include rejected and oversized authentication requests, and the current browser's proof display.
+for (const path of ['/api/auth/*', '/api/me/authentication'])
+  app.use(path, async (c, next) => {
+    await next();
+    c.header('Cache-Control', 'no-store');
+    c.header('Pragma', 'no-cache');
+  });
 // Every JSON field the API takes is bounded well below these. An oversized body is refused before anything parses it:
 // validating a huge array costs memory per element (zod keeps one issue each), enough to exhaust an isolate.
 const tooLarge = (c: Context) =>
@@ -101,9 +101,11 @@ app.use('*', async (c, next) => {
   if (p === '/mcp' || p.startsWith('/.well-known/')) return next();
   // Read straight from `sessions` (auth/session.ts): better-auth's own getSession costs several
   // times the two reads on every request of every page.
-  const user = await currentUser(c.get('db'), c.env, c.req.raw.headers);
-  if (user) c.set('user', user);
-  else if (acceptsToken(p)) {
+  const signedIn = await currentSession(c.get('db'), c.env, c.req.raw.headers);
+  if (signedIn) {
+    c.set('user', signedIn.user);
+    c.set('browserSession', signedIn.browserSession);
+  } else if (acceptsToken(p)) {
     // CI servers report commit statuses with a personal access token.
     const pat = await tokenUser(c.get('db'), c.req.raw.headers, (work) =>
       c.executionCtx.waitUntil(work)

@@ -18,7 +18,7 @@
     "deploy": "vite build && wrangler deploy",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p worker/tsconfig.json && tsc --noEmit -p scripts/cloudforge",
     "cf-typegen": "node scripts/cf-typegen.mjs",
-    "auth:generate": "npx --yes @better-auth/cli@latest generate --config worker/src/auth/index.ts --output worker/src/db/auth.schema.ts -y",
+    "auth:generate": "npx --yes @better-auth/cli@1.4.21 generate --config worker/src/auth/index.ts --output worker/src/db/auth.schema.ts -y",
     "auth:format": "prettier --write worker/src/db/auth.schema.ts",
     "auth:update": "yarn auth:generate && node scripts/fix-auth-schema.mjs && yarn auth:format",
     "db:generate": "node scripts/generate-db.mjs",

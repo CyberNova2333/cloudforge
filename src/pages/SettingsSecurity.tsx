@@ -8,6 +8,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Notice } from '@/components/Notice';
 import { RowsSkeleton, SettingsFrame } from '@/components/SetFrame';
 import { FactorCode } from '@/components/FactorCode';
+import { CurrentAuthentication } from '@/components/CurrentAuthentication';
 
 type Enrollment = { secret: string; backupCodes: string[] };
 type Operation = 'enable' | 'regenerate' | 'disable';
@@ -27,6 +28,7 @@ export default function SettingsSecurity() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [authenticationRefresh, setAuthenticationRefresh] = useState(0);
   const generation = useRef(0);
   const accountId = session?.user.id;
   const [displayedAccountId, setDisplayedAccountId] = useState(accountId);
@@ -98,6 +100,7 @@ export default function SettingsSecurity() {
         }
         setEnrollment({ secret, backupCodes: data.backupCodes });
         setOperation(null);
+        setAuthenticationRefresh((value) => value + 1);
       } else {
         // A current factor proof is single-use and bound to this browser session on the server.
         const verified = recovery
@@ -114,6 +117,7 @@ export default function SettingsSecurity() {
           setError(factorError(verified.error));
           return;
         }
+        setAuthenticationRefresh((value) => value + 1);
         if (operation === 'regenerate') {
           const result = await authClient.twoFactor.generateBackupCodes({
             password,
@@ -136,6 +140,7 @@ export default function SettingsSecurity() {
           clearSecrets();
           setNotice(t('Two-factor authentication is now disabled.'));
           await refetch();
+          setAuthenticationRefresh((value) => value + 1);
         }
       }
     } catch {
@@ -175,6 +180,7 @@ export default function SettingsSecurity() {
         )
       );
       await refetch();
+      setAuthenticationRefresh((value) => value + 1);
     } catch {
       if (requestGeneration === generation.current)
         setError(t('The request failed. Check your connection and try again.'));
@@ -206,6 +212,11 @@ export default function SettingsSecurity() {
           <RowsSkeleton rows={3} />
         ) : (
           <>
+            <CurrentAuthentication
+              userId={accountId}
+              sessionId={session?.session.id}
+              refreshKey={authenticationRefresh}
+            />
             <section
               className="panel formpad"
               aria-label={t('Two-factor authentication')}

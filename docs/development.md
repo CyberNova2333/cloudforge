@@ -120,6 +120,11 @@ and the script waits for it to settle.
 
 ## CI
 
+Authentication schema generation uses the pinned `@better-auth/cli@1.4.21` through `yarn auth:update`, the tool
+used for the prior schema. CLI and SDK release numbers differ; the tool reads the installed SDK's schema. Private evidence fields have both `input: false` and `returned: false`; the latter
+also removes fields from the native internal session result, so version guards read the raw fields from D1.
+Do not replace that check with a type assertion or treat session refresh timestamps as verification.
+
 `yarn db:generate` runs Drizzle and generates managed recovery triggers from
 `worker/src/db/recovery-trigger.ts`. The generated `migrations/meta/_triggers.json` records their hashes;
 its leading underscore keeps Drizzle from treating it as a schema snapshot. Only a migration created by the

@@ -9,6 +9,11 @@ import { twoFactor } from 'better-auth/plugins';
 import { createOTP } from '@better-auth/utils/otp';
 import type { DrizzleDB } from '../db/middleware';
 import { recordAudit } from '../lib/audit';
+import {
+  readSessionAuthentication,
+  isCurrentSession,
+  type SessionAuthentication,
+} from './assurance';
 
 const VERIFY_TOTP = '/two-factor/verify-totp';
 const VERIFY_BACKUP = '/two-factor/verify-backup-code';
@@ -22,11 +27,17 @@ type Generation = {
   password: string;
   factorId: string | null;
   secret: string | null;
+  authVersion: number;
+  recoveryVersion: number | null;
 };
 type MfaContext = GenericEndpointContext['context'] & {
   cloudforgeTotp?: TotpClaim;
   cloudforgeGeneration?: Generation;
   cloudforgePasswordHash?: string;
+  cloudforgePasswordVerifiedAt?: number;
+  cloudforgeLoginSnapshot?: { userId: string; authVersion: number };
+  cloudforgeAuthentication?: SessionAuthentication;
+  cloudforgeImpersonatedBy?: string;
   cloudforgeStepUp?: { id: string; secret: string };
   cloudforgePasswordChange?: boolean;
 };
@@ -49,13 +60,15 @@ async function generation(
   userId: string
 ): Promise<Generation> {
   const row = await env.DB.prepare(
-    `SELECT a.password, f.id AS factor_id, f.secret FROM accounts a LEFT JOIN two_factors f ON f.user_id = a.user_id WHERE a.user_id = ? AND a.provider_id = 'credential'`
+    `SELECT a.password, f.id AS factor_id, f.secret, u.auth_version, f.recovery_version FROM accounts a JOIN users u ON u.id = a.user_id LEFT JOIN two_factors f ON f.user_id = a.user_id WHERE a.user_id = ? AND a.provider_id = 'credential'`
   )
     .bind(userId)
     .first<{
       password: string;
       factor_id: string | null;
       secret: string | null;
+      auth_version: number;
+      recovery_version: number | null;
     }>();
   if (!row?.password) throw new APIError('UNAUTHORIZED');
   return {
@@ -63,6 +76,8 @@ async function generation(
     password: row.password,
     factorId: row.factor_id,
     secret: row.secret,
+    authVersion: row.auth_version,
+    recoveryVersion: row.recovery_version,
   };
 }
 
@@ -79,17 +94,182 @@ async function fingerprint(value: Generation) {
 /** Exact credential/factor generation, checked at the write rather than only at request admission. */
 function generationGuard(value: Generation) {
   return {
-    sql: `EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) AND ${value.factorId ? 'EXISTS (SELECT 1 FROM two_factors WHERE user_id = ? AND id = ? AND secret = ?)' : 'NOT EXISTS (SELECT 1 FROM two_factors WHERE user_id = ?)'}`,
+    sql: `EXISTS (SELECT 1 FROM users WHERE id = ? AND auth_version = ?) AND EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) AND ${value.factorId ? 'EXISTS (SELECT 1 FROM two_factors WHERE user_id = ? AND id = ? AND secret = ? AND recovery_version = ?)' : 'NOT EXISTS (SELECT 1 FROM two_factors WHERE user_id = ?)'}`,
     args: value.factorId
       ? [
+          value.userId,
+          value.authVersion,
           value.userId,
           value.password,
           value.userId,
           value.factorId,
           value.secret,
+          value.recoveryVersion,
         ]
-      : [value.userId, value.password, value.userId],
+      : [
+          value.userId,
+          value.authVersion,
+          value.userId,
+          value.password,
+          value.userId,
+        ],
   };
+}
+
+const signInPath = (path?: string) =>
+  path === '/sign-in/email' || path === '/sign-in/username';
+const changed = () =>
+  new APIError('UNAUTHORIZED', {
+    code: 'MFA_CHALLENGE_CHANGED',
+    message: 'Sign in again after the account credentials changed.',
+  });
+
+/** The caller cannot inject or inherit proof through createSession overrides. */
+export function authenticationForNewSession(
+  context: GenericEndpointContext['context'],
+  path: string | undefined,
+  userId: string,
+  authVersion: number,
+  impersonatedBy?: string | null
+) {
+  const state = context as MfaContext;
+  const empty = {
+    authVersion,
+    authMethod: null as string | null,
+    authTime: null as Date | null,
+    secondFactorMethod: null as string | null,
+    secondFactorTime: null as Date | null,
+  };
+  if (signInPath(path)) {
+    const initial = state.cloudforgeLoginSnapshot;
+    if (
+      initial?.userId !== userId ||
+      initial.authVersion !== authVersion ||
+      !state.cloudforgePasswordHash
+    )
+      throw changed();
+    // The native after hook may still replace this provisional row with a factor challenge.
+    return empty;
+  }
+  if (
+    impersonatedBy ||
+    state.cloudforgeImpersonatedBy ||
+    state.cloudforgeAuthentication?.authMethod === 'impersonation' ||
+    path === '/admin/impersonate-user'
+  )
+    return {
+      ...empty,
+      authMethod: 'impersonation',
+      authTime: new Date(),
+      impersonatedBy: impersonatedBy ?? state.cloudforgeImpersonatedBy ?? null,
+    };
+  if (path === '/verify-email')
+    return { ...empty, authMethod: 'email_verification', authTime: new Date() };
+  const value = state.cloudforgeGeneration;
+  if (value?.userId !== userId || value.authVersion !== authVersion) {
+    if (
+      path === VERIFY_TOTP ||
+      path === VERIFY_BACKUP ||
+      path === DISABLE ||
+      path === '/change-password'
+    )
+      throw changed();
+    return empty;
+  }
+  const previous = state.cloudforgeAuthentication;
+  const passwordTime =
+    state.cloudforgePasswordVerifiedAt ??
+    (previous?.authMethod === 'password' ? Number(previous.authTime) : null);
+  const primary = passwordTime
+    ? { authMethod: 'password', authTime: new Date(passwordTime) }
+    : {
+        authMethod: previous?.authMethod ?? null,
+        authTime: previous?.authTime
+          ? new Date(Number(previous.authTime))
+          : null,
+      };
+  if (path === VERIFY_TOTP || path === VERIFY_BACKUP)
+    return {
+      ...empty,
+      ...primary,
+      secondFactorMethod: path === VERIFY_TOTP ? 'totp' : 'recovery_code',
+      secondFactorTime: new Date(),
+    };
+  if (path === '/change-password')
+    return {
+      ...empty,
+      ...primary,
+      secondFactorMethod: previous?.secondFactorMethod ?? null,
+      secondFactorTime: previous?.secondFactorTime
+        ? new Date(Number(previous.secondFactorTime))
+        : null,
+    };
+  return { ...empty, ...primary };
+}
+
+function capturePassword(ctx: GenericEndpointContext, env: CloudflareBindings) {
+  const password = ctx.context.password;
+  ctx.context.password = {
+    ...password,
+    verify: async (input) => {
+      const valid = await password.verify(input);
+      if (!valid) return false;
+      const state = ctx.context as MfaContext;
+      state.cloudforgePasswordHash = input.hash;
+      state.cloudforgePasswordVerifiedAt = Date.now();
+      const value = state.cloudforgeGeneration;
+      const active = ctx.context.session;
+      if (
+        !signInPath(ctx.path) &&
+        value &&
+        active?.user.id === value.userId &&
+        !active.session.impersonatedBy &&
+        state.cloudforgeAuthentication?.authMethod !== 'impersonation' &&
+        input.hash === value.password
+      ) {
+        const guard = generationGuard(value);
+        const recorded = await env.DB.prepare(
+          `UPDATE sessions SET auth_method = 'password', auth_time = ?
+        WHERE id = ? AND user_id = ? AND auth_version = ? AND expires_at > ? AND ${guard.sql} RETURNING id`
+        )
+          .bind(
+            state.cloudforgePasswordVerifiedAt,
+            active.session.id,
+            value.userId,
+            value.authVersion,
+            Date.now(),
+            ...guard.args
+          )
+          .first();
+        if (!recorded) throw changed();
+        if (state.cloudforgeAuthentication)
+          state.cloudforgeAuthentication = {
+            ...state.cloudforgeAuthentication,
+            authMethod: 'password',
+            authTime: state.cloudforgePasswordVerifiedAt,
+          };
+      }
+      return true;
+    },
+  };
+}
+
+async function activeAuthentication(
+  env: CloudflareBindings,
+  sessionId: string,
+  value: Generation
+) {
+  const record = await readSessionAuthentication(env, sessionId);
+  if (
+    !record ||
+    record.userId !== value.userId ||
+    record.banned ||
+    record.expiresAt <= new Date() ||
+    !isCurrentSession(record, { authVersion: record.userAuthVersion }) ||
+    record.authVersion !== value.authVersion
+  )
+    throw changed();
+  return record;
 }
 
 /** Only a guarded password update can rotate an already authenticated MFA session. */
@@ -125,6 +305,12 @@ async function preparePasswordChange(
   const adapter = ctx.context.adapter;
   const internal = ctx.context.internalAdapter;
   state.cloudforgeGeneration = initial;
+  state.cloudforgeAuthentication = await activeAuthentication(
+    env,
+    active.session.id,
+    initial
+  );
+  state.cloudforgeImpersonatedBy = active.session.impersonatedBy ?? undefined;
   ctx.context.internalAdapter = {
     ...internal,
     updateAccount: async (
@@ -133,7 +319,25 @@ async function preparePasswordChange(
     ) => {
       if (typeof data.password !== 'string')
         return internal.updateAccount(id, data);
+      if (
+        state.cloudforgePasswordHash !== initial.password ||
+        !state.cloudforgePasswordVerifiedAt
+      )
+        throw changed();
       const guard = generationGuard(initial);
+      const next = {
+        ...initial,
+        password: data.password,
+        authVersion: initial.authVersion + 1,
+      };
+      const nextGuard = generationGuard(next);
+      const authentication = authenticationForNewSession(
+        ctx.context,
+        ctx.path,
+        initial.userId,
+        initial.authVersion,
+        active.session.impersonatedBy
+      );
       const now = Date.now();
       // Password hashing and verification can overlap an authenticator replacement. Commit
       // only while the session and both credential/factor generations that authorized it remain current.
@@ -151,18 +355,32 @@ async function preparePasswordChange(
           now
         ),
         env.DB.prepare(
-          `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND EXISTS (SELECT 1 FROM accounts WHERE id = ? AND password = ?)`
-        ).bind(initial.userId, id, data.password),
+          `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND ${nextGuard.sql}`
+        ).bind(initial.userId, ...nextGuard.args),
         env.DB.prepare(
-          `DELETE FROM sessions WHERE user_id = ? AND id != ? AND EXISTS (SELECT 1 FROM accounts WHERE id = ? AND password = ?)`
-        ).bind(initial.userId, active.session.id, id, data.password),
+          `DELETE FROM sessions WHERE user_id = ? AND id != ? AND ${nextGuard.sql}`
+        ).bind(initial.userId, active.session.id, ...nextGuard.args),
+        env.DB.prepare(
+          `UPDATE sessions SET auth_version = ?, auth_method = ?, auth_time = ?, second_factor_method = ?, second_factor_time = ?
+          WHERE id = ? AND user_id = ? AND auth_version = ? AND ${nextGuard.sql}`
+        ).bind(
+          next.authVersion,
+          authentication.authMethod,
+          authentication.authTime?.getTime() ?? null,
+          authentication.secondFactorMethod,
+          authentication.secondFactorTime?.getTime() ?? null,
+          active.session.id,
+          initial.userId,
+          initial.authVersion,
+          ...nextGuard.args
+        ),
       ]);
       if (!results[0].results.length)
         throw new APIError('UNAUTHORIZED', {
           code: 'MFA_CHALLENGE_CHANGED',
           message: 'Sign in again after the account credentials changed.',
         });
-      state.cloudforgeGeneration = { ...initial, password: data.password };
+      state.cloudforgeGeneration = next;
       state.cloudforgePasswordChange = true;
       await recordAudit(db, {
         repositoryId: null,
@@ -229,16 +447,18 @@ export async function recordMfaChallenge(
   )
     return;
   const proven = (context as MfaContext).cloudforgeGeneration;
-  if (!proven || proven.userId !== verification.value)
+  const passwordTime = (context as MfaContext).cloudforgePasswordVerifiedAt;
+  if (!proven || proven.userId !== verification.value || !passwordTime)
     throw new APIError('UNAUTHORIZED');
   await env.DB.prepare(
-    'INSERT INTO verifications (id, identifier, value, expires_at) VALUES (?, ?, ?, ?)'
+    'INSERT INTO verifications (id, identifier, value, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
   )
     .bind(
       crypto.randomUUID(),
-      `2fa-generation-${verification.identifier}-${await fingerprint(proven)}`,
+      `2fa-generation-v1-${verification.identifier}-${await fingerprint(proven)}`,
       verification.value,
-      verification.expiresAt.getTime()
+      verification.expiresAt.getTime(),
+      passwordTime
     )
     .run();
 }
@@ -275,21 +495,26 @@ async function prepareVerification(
   }
   if (challengeId) {
     const companion = await env.DB.prepare(
-      'SELECT id FROM verifications WHERE identifier = ? AND value = ? AND expires_at > ?'
+      'SELECT id, created_at FROM verifications WHERE identifier = ? AND value = ? AND expires_at > ?'
     )
       .bind(
-        `2fa-generation-${challengeId}-${await fingerprint(value)}`,
+        `2fa-generation-v1-${challengeId}-${await fingerprint(value)}`,
         userId,
         Date.now()
       )
-      .first();
+      .first<{ id: string; created_at: number }>();
     if (!companion)
       throw new APIError('UNAUTHORIZED', {
         code: 'MFA_CHALLENGE_CHANGED',
         message: 'Sign in again after the account credentials changed.',
       });
+    (ctx.context as MfaContext).cloudforgePasswordVerifiedAt =
+      companion.created_at;
   }
   (ctx.context as MfaContext).cloudforgeGeneration = value;
+  if (session)
+    (ctx.context as MfaContext).cloudforgeAuthentication =
+      await activeAuthentication(env, session.session.id, value);
   if (session && value.factorId && value.secret) {
     // Reserve attempts before checking a code: concurrent requests cannot all pass an earlier counter read.
     const now = Date.now();
@@ -297,7 +522,7 @@ async function prepareVerification(
       `UPDATE two_factors SET
       failed_verification_count = CASE WHEN locked_until IS NOT NULL AND locked_until <= ? THEN 1 ELSE COALESCE(failed_verification_count, 0) + 1 END,
       locked_until = CASE WHEN (CASE WHEN locked_until IS NOT NULL AND locked_until <= ? THEN 1 ELSE COALESCE(failed_verification_count, 0) + 1 END) >= 10 THEN ? ELSE NULL END
-      WHERE id = ? AND secret = ? AND (locked_until IS NULL OR locked_until <= ?) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+      WHERE id = ? AND secret = ? AND (locked_until IS NULL OR locked_until <= ?) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ? AND auth_version = ?) AND ${generationGuard(value).sql} RETURNING id`
     )
       .bind(
         now,
@@ -308,7 +533,9 @@ async function prepareVerification(
         now,
         session.session.id,
         userId,
-        now
+        now,
+        value.authVersion,
+        ...generationGuard(value).args
       )
       .first();
     if (!attempt)
@@ -362,10 +589,13 @@ async function claimTotp(ctx: GenericEndpointContext, env: CloudflareBindings) {
     if (difference === 0) matched = step + offset;
   }
   if (matched < 0) return; // Let upstream count the invalid attempt and apply its account lock.
+  const value = (ctx.context as MfaContext).cloudforgeGeneration;
+  if (!value) throw changed();
+  const guard = generationGuard(value);
   const consumed = await env.DB.prepare(
-    'UPDATE two_factors SET last_totp_step = ? WHERE id = ? AND secret = ? AND last_totp_step < ? RETURNING id'
+    `UPDATE two_factors SET last_totp_step = ? WHERE id = ? AND secret = ? AND last_totp_step < ? AND ${guard.sql} RETURNING id`
   )
-    .bind(matched, row.id, row.secret, matched)
+    .bind(matched, row.id, row.secret, matched, ...guard.args)
     .first();
   if (!consumed)
     forbidden(
@@ -395,13 +625,15 @@ export async function activateMfa(
   const args = [claim.id, userId, claim.secret, claim.step];
   const results = await env.DB.batch([
     env.DB.prepare(
-      `UPDATE users SET two_factor_enabled = 1 WHERE id = ? AND COALESCE(two_factor_enabled, 0) = 0 AND EXISTS (${guard} AND verified = 0) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) AND EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) RETURNING id`
+      `UPDATE users SET two_factor_enabled = 1 WHERE id = ? AND auth_version = ? AND COALESCE(two_factor_enabled, 0) = 0 AND EXISTS (${guard} AND verified = 0) AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ? AND auth_version = ?) AND EXISTS (SELECT 1 FROM accounts WHERE user_id = ? AND provider_id = 'credential' AND password = ?) RETURNING id`
     ).bind(
       userId,
+      proven.authVersion,
       ...args,
       active.id,
       userId,
       Date.now(),
+      proven.authVersion,
       userId,
       proven.password
     ),
@@ -417,6 +649,10 @@ export async function activateMfa(
   ]);
   if (!results[0].results.length)
     forbidden('Authenticator setup changed. Start again.', 'MFA_SETUP_CHANGED');
+  (context as MfaContext).cloudforgeGeneration = {
+    ...proven,
+    authVersion: proven.authVersion + 1,
+  };
 }
 
 /** Extra policy around the maintained plugin; its encryption, challenge and backup-code CAS stay upstream. */
@@ -430,8 +666,52 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
     ...plugin,
     schema: {
       ...plugin.schema,
+      user: {
+        ...plugin.schema.user,
+        fields: {
+          ...plugin.schema.user.fields,
+          authVersion: {
+            type: 'number' as const,
+            required: true,
+            defaultValue: 0,
+            input: false,
+            returned: false,
+          },
+        },
+      },
       session: {
         fields: {
+          authVersion: {
+            type: 'number' as const,
+            required: true,
+            defaultValue: 0,
+            input: false,
+            returned: false,
+          },
+          authMethod: {
+            type: 'string' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
+          authTime: {
+            type: 'date' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
+          secondFactorMethod: {
+            type: 'string' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
+          secondFactorTime: {
+            type: 'date' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
           mfaVerifiedAt: {
             type: 'date' as const,
             required: false,
@@ -456,6 +736,13 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
             input: false,
             returned: false,
           },
+          recoveryVersion: {
+            type: 'number' as const,
+            required: true,
+            defaultValue: 0,
+            input: false,
+            returned: false,
+          },
         },
       },
     },
@@ -469,6 +756,7 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
             ctx.path === '/change-password',
           handler: createAuthMiddleware(async (ctx) => {
             if (!env) return;
+            capturePassword(ctx, env);
             if (ctx.path === '/change-password') {
               await preparePasswordChange(ctx, env, db);
               return;
@@ -477,6 +765,21 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
               ctx.path === '/sign-in/email' ||
               ctx.path === '/sign-in/username'
             ) {
+              const field =
+                ctx.path === '/sign-in/email' ? 'email' : 'username';
+              const supplied = ctx.body?.[field];
+              if (typeof supplied === 'string') {
+                const snapshot = await env.DB.prepare(
+                  `SELECT id, auth_version FROM users WHERE ${field} = ?`
+                )
+                  .bind(supplied.toLowerCase())
+                  .all<{ id: string; auth_version: number }>();
+                if (snapshot.results.length === 1)
+                  (ctx.context as MfaContext).cloudforgeLoginSnapshot = {
+                    userId: snapshot.results[0].id,
+                    authVersion: snapshot.results[0].auth_version,
+                  };
+              }
               // Do not honor a previously issued trusted-device exception if one exists.
               const trustCookie = ctx.context.createAuthCookie('trust_device');
               const trusted = await ctx.getSignedCookie(
@@ -489,17 +792,6 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                 await ctx.context.internalAdapter.deleteVerificationByIdentifier(
                   identifier
                 );
-              const password = ctx.context.password;
-              ctx.context.password = {
-                ...password,
-                verify: async (input) => {
-                  const valid = await password.verify(input);
-                  if (valid)
-                    (ctx.context as MfaContext).cloudforgePasswordHash =
-                      input.hash;
-                  return valid;
-                },
-              };
               return;
             }
             ctx.setHeader('cache-control', 'no-store');
@@ -530,6 +822,14 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                 env,
                 active.user.id
               );
+            if (active && state.cloudforgeGeneration)
+              state.cloudforgeAuthentication = await activeAuthentication(
+                env,
+                active.session.id,
+                state.cloudforgeGeneration
+              );
+            state.cloudforgeImpersonatedBy =
+              active?.session.impersonatedBy ?? undefined;
             // New sessions exist before their token is sent. Recheck the proof generation after the
             // insert, so account changes either invalidate this check or revoke the already-written row.
             ctx.context.internalAdapter = {
@@ -577,6 +877,8 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                 ) {
                   const guard = generationGuard(value);
                   const guardArgs = [...guard.args];
+                  const next = { ...value, authVersion: value.authVersion + 1 };
+                  const nextGuard = generationGuard(next);
                   const results = await env.DB.batch([
                     env.DB.prepare(
                       `UPDATE users SET two_factor_enabled = 0 WHERE id = ? AND two_factor_enabled = 1 AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
@@ -588,11 +890,11 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                       Date.now()
                     ),
                     env.DB.prepare(
-                      `DELETE FROM sessions WHERE user_id = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
-                    ).bind(userId, ...guardArgs, userId),
+                      `DELETE FROM sessions WHERE user_id = ? AND ${nextGuard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
+                    ).bind(userId, ...nextGuard.args, userId),
                     env.DB.prepare(
-                      `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND ${guard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
-                    ).bind(userId, ...guardArgs, userId),
+                      `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%' AND ${nextGuard.sql} AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
+                    ).bind(userId, ...nextGuard.args, userId),
                     env.DB.prepare(
                       `DELETE FROM two_factors WHERE id = ? AND user_id = ? AND secret = ? AND EXISTS (SELECT 1 FROM users WHERE id = ? AND two_factor_enabled = 0)`
                     ).bind(value.factorId, userId, value.secret, userId),
@@ -603,9 +905,10 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                       'MFA_SETUP_CHANGED'
                     );
                   state.cloudforgeGeneration = {
-                    ...value,
+                    ...next,
                     factorId: null,
                     secret: null,
+                    recoveryVersion: null,
                   };
                 } else
                   forbidden(
@@ -718,23 +1021,24 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
             if (ctx.path === DISABLE || ctx.path === REGENERATE) {
               const session = await getSessionFromCtx(ctx);
               if (!session) throw new APIError('UNAUTHORIZED');
+              const value = state.cloudforgeGeneration;
+              if (!value?.factorId || !value.secret)
+                forbidden('Verify the current authenticator first.');
               const proof = await env.DB.prepare(
-                'UPDATE sessions SET mfa_verified_at = NULL WHERE id = ? AND user_id = ? AND expires_at > ? AND mfa_verified_at >= ? RETURNING id'
+                'UPDATE sessions SET mfa_verified_at = NULL WHERE id = ? AND user_id = ? AND expires_at > ? AND mfa_verified_at >= ? AND auth_version = ? RETURNING id'
               )
                 .bind(
                   session.session.id,
                   session.user.id,
                   Date.now(),
-                  Date.now() - PROOF_MS
+                  Date.now() - PROOF_MS,
+                  value.authVersion
                 )
                 .first();
               if (!proof)
                 forbidden(
                   'Verify your authenticator code or a recovery code before changing two-factor authentication.'
                 );
-              const value = state.cloudforgeGeneration;
-              if (!value?.factorId || !value.secret)
-                forbidden('Verify the current authenticator first.');
               ctx.context.adapter = {
                 ...adapter,
                 delete: async (args) => {
@@ -750,7 +1054,7 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                     return adapter.update<T>(args);
                   const guard = generationGuard(value);
                   const changed = await env.DB.prepare(
-                    `UPDATE two_factors SET backup_codes = ? WHERE id = ? AND secret = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
+                    `UPDATE two_factors SET backup_codes = ?, recovery_version = recovery_version + 1 WHERE id = ? AND secret = ? AND ${guard.sql} AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND expires_at > ?) RETURNING id`
                   )
                     .bind(
                       args.update.backupCodes,
@@ -812,7 +1116,9 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
             const value = await generation(env, session.user.id);
             if (
               value.password !==
-              (ctx.context as MfaContext).cloudforgePasswordHash
+                (ctx.context as MfaContext).cloudforgePasswordHash ||
+              value.authVersion !==
+                (ctx.context as MfaContext).cloudforgeLoginSnapshot?.authVersion
             ) {
               await ctx.context.internalAdapter.deleteSession(
                 session.session.token
@@ -826,6 +1132,37 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
           }),
         },
         ...plugin.hooks.after,
+        {
+          matcher: (ctx: { path?: string }) => signInPath(ctx.path),
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = ctx.context.newSession;
+            if (!env || !session || ctx.context.returned instanceof APIError)
+              return;
+            const state = ctx.context as MfaContext;
+            const value = state.cloudforgeGeneration;
+            if (!value || !state.cloudforgePasswordVerifiedAt) throw changed();
+            const guard = generationGuard(value);
+            const recorded = await env.DB.prepare(
+              `UPDATE sessions SET auth_method = 'password', auth_time = ?,
+              second_factor_method = NULL, second_factor_time = NULL WHERE id = ? AND user_id = ? AND auth_version = ?
+              AND ${guard.sql} RETURNING id`
+            )
+              .bind(
+                state.cloudforgePasswordVerifiedAt,
+                session.session.id,
+                value.userId,
+                value.authVersion,
+                ...guard.args
+              )
+              .first();
+            if (!recorded) {
+              await ctx.context.internalAdapter.deleteSession(
+                session.session.token
+              );
+              throw changed();
+            }
+          }),
+        },
         {
           matcher: (ctx: { path?: string }) =>
             [VERIFY_TOTP, VERIFY_BACKUP, DISABLE, REGENERATE].includes(
@@ -849,14 +1186,28 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
               const value = (ctx.context as MfaContext).cloudforgeGeneration;
               if (!value) throw new APIError('UNAUTHORIZED');
               const guard = generationGuard(value);
+              const authentication = authenticationForNewSession(
+                ctx.context,
+                ctx.path,
+                session.user.id,
+                value.authVersion,
+                session.session.impersonatedBy
+              );
               const proof = await env.DB.prepare(
-                `UPDATE sessions SET mfa_verified_at = ? WHERE id = ? AND user_id = ? AND expires_at > ? AND ${guard.sql} RETURNING id`
+                `UPDATE sessions SET mfa_verified_at = ?, auth_version = ?, auth_method = ?, auth_time = ?,
+                  second_factor_method = ?, second_factor_time = ? WHERE id = ? AND user_id = ? AND expires_at > ? AND auth_version = ? AND ${guard.sql} RETURNING id`
               )
                 .bind(
                   Date.now(),
+                  authentication.authVersion,
+                  authentication.authMethod,
+                  authentication.authTime?.getTime() ?? null,
+                  authentication.secondFactorMethod,
+                  authentication.secondFactorTime?.getTime() ?? null,
                   session.session.id,
                   session.user.id,
                   Date.now(),
+                  value.authVersion,
                   ...guard.args
                 )
                 .first();
