@@ -6,9 +6,11 @@ import {
   usernameClient,
 } from 'better-auth/client/plugins';
 import { oauthProviderClient } from '@better-auth/oauth-provider/client';
+import { recentAuthenticationFetch } from './recentAuthentication';
 
 export const authClient = createAuthClient({
   baseURL: window.location.origin,
+  fetchOptions: { customFetchImpl: recentAuthenticationFetch },
   // Sign-in during an OAuth flow carries the signed authorization request.
   // Login keeps the challenge on the same page, preserving the signed OAuth query.
   plugins: [

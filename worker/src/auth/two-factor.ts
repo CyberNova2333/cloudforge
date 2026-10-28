@@ -1,10 +1,12 @@
 import type { GenericEndpointContext } from '@better-auth/core';
 import {
   APIError,
+  createAuthEndpoint,
   createAuthMiddleware,
   getSessionFromCtx,
 } from 'better-auth/api';
-import { symmetricDecrypt } from 'better-auth/crypto';
+import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
+import { z } from 'zod';
 import { twoFactor } from 'better-auth/plugins';
 import { createOTP } from '@better-auth/utils/otp';
 import type { DrizzleDB } from '../db/middleware';
@@ -21,6 +23,9 @@ const DISABLE = '/two-factor/disable';
 const REGENERATE = '/two-factor/generate-backup-codes';
 const PROOF_MS = 5 * 60_000;
 const ENABLE = '/two-factor/enable';
+const REAUTHENTICATE = '/reauthenticate';
+const REAUTHENTICATION_WINDOW_MS = 15 * 60_000;
+const REAUTHENTICATION_ATTEMPTS = 10;
 type TotpClaim = { id: string; secret: string; step: number };
 type Generation = {
   userId: string;
@@ -551,7 +556,11 @@ async function prepareVerification(
 }
 
 /** A successful TOTP is consumed once across all challenges and sessions, not merely per challenge. */
-async function claimTotp(ctx: GenericEndpointContext, env: CloudflareBindings) {
+async function claimTotp(
+  ctx: GenericEndpointContext,
+  env: CloudflareBindings,
+  live?: () => { sql: string; args: (string | number | null)[] }
+) {
   const session = await getSessionFromCtx(ctx);
   let userId = session?.user.id;
   if (!userId) {
@@ -592,10 +601,18 @@ async function claimTotp(ctx: GenericEndpointContext, env: CloudflareBindings) {
   const value = (ctx.context as MfaContext).cloudforgeGeneration;
   if (!value) throw changed();
   const guard = generationGuard(value);
+  const current = live?.();
   const consumed = await env.DB.prepare(
-    `UPDATE two_factors SET last_totp_step = ? WHERE id = ? AND secret = ? AND last_totp_step < ? AND ${guard.sql} RETURNING id`
+    `UPDATE two_factors SET last_totp_step = ? WHERE id = ? AND secret = ? AND last_totp_step < ? AND ${guard.sql}${current ? ` AND ${current.sql}` : ''} RETURNING id`
   )
-    .bind(matched, row.id, row.secret, matched, ...guard.args)
+    .bind(
+      matched,
+      row.id,
+      row.secret,
+      matched,
+      ...guard.args,
+      ...(current?.args ?? [])
+    )
     .first();
   if (!consumed)
     forbidden(
@@ -607,6 +624,235 @@ async function claimTotp(ctx: GenericEndpointContext, env: CloudflareBindings) {
     secret: row.secret,
     step: matched,
   };
+}
+
+/** Bound the expensive password verification across every browser and IP for this account. */
+async function reserveReauthenticationAttempt(
+  env: CloudflareBindings,
+  userId: string
+) {
+  const now = Date.now();
+  const reserved = await env.DB.prepare(
+    `INSERT INTO rate_limits (id, key, count, last_request) VALUES (?, ?, 1, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      count = CASE WHEN last_request <= ? THEN 1 ELSE count + 1 END,
+      last_request = CASE WHEN last_request <= ? THEN excluded.last_request ELSE last_request END
+    WHERE last_request <= ? OR count < ? RETURNING id`
+  )
+    .bind(
+      crypto.randomUUID(),
+      `cloudforge:reauthentication:${userId}`,
+      now,
+      now - REAUTHENTICATION_WINDOW_MS,
+      now - REAUTHENTICATION_WINDOW_MS,
+      now - REAUTHENTICATION_WINDOW_MS,
+      REAUTHENTICATION_ATTEMPTS
+    )
+    .first();
+  if (!reserved)
+    throw new APIError('TOO_MANY_REQUESTS', {
+      code: 'REAUTHENTICATION_RATE_LIMITED',
+      message: 'Too many verification attempts. Try again later.',
+    });
+}
+
+/** Every proof and factor-consumption write rechecks the original live browser and account. */
+function reauthenticationGuard(
+  sessionId: string,
+  value: Generation,
+  enabled: boolean
+) {
+  return {
+    sql: `EXISTS (SELECT 1 FROM sessions reauth_session JOIN users reauth_user ON reauth_user.id = reauth_session.user_id
+      WHERE reauth_session.id = ? AND reauth_session.user_id = ? AND reauth_session.auth_version = ?
+      AND reauth_user.auth_version = ? AND reauth_session.expires_at > ? AND COALESCE(reauth_user.banned, 0) = 0
+      AND COALESCE(reauth_session.impersonated_by, '') = '' AND COALESCE(reauth_session.auth_method, '') != 'impersonation'
+      AND COALESCE(reauth_user.two_factor_enabled, 0) = ?)
+      ${enabled ? 'AND EXISTS (SELECT 1 FROM two_factors WHERE user_id = ? AND id = ? AND secret = ? AND verified = 1)' : ''}`,
+    args: [
+      sessionId,
+      value.userId,
+      value.authVersion,
+      value.authVersion,
+      Date.now(),
+      enabled ? 1 : 0,
+      ...(enabled ? [value.userId, value.factorId, value.secret] : []),
+    ],
+  };
+}
+
+/** Same encrypted backup-code codec and compare-and-swap as the maintained plugin, with our live generation fence. */
+async function claimReauthenticationRecoveryCode(
+  ctx: GenericEndpointContext,
+  env: CloudflareBindings,
+  value: Generation,
+  sessionId: string
+) {
+  const row = await env.DB.prepare(
+    'SELECT backup_codes FROM two_factors WHERE id = ? AND user_id = ? AND secret = ? AND verified = 1'
+  )
+    .bind(value.factorId, value.userId, value.secret)
+    .first<{ backup_codes: string }>();
+  if (!row) throw changed();
+  const unavailable = () =>
+    new APIError('INTERNAL_SERVER_ERROR', {
+      code: 'REAUTHENTICATION_FACTOR_UNAVAILABLE',
+      message: 'The recovery codes could not be verified.',
+    });
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(
+      await symmetricDecrypt({
+        key: ctx.context.secretConfig,
+        data: row.backup_codes,
+      })
+    );
+  } catch {
+    throw unavailable();
+  }
+  if (
+    !Array.isArray(decoded) ||
+    !decoded.every((code) => typeof code === 'string')
+  )
+    throw unavailable();
+  if (!decoded.includes(ctx.body?.code))
+    throw new APIError('UNAUTHORIZED', {
+      code: 'REAUTHENTICATION_INVALID_FACTOR',
+      message: 'The authenticator or recovery code is invalid.',
+    });
+  const next = await symmetricEncrypt({
+    key: ctx.context.secretConfig,
+    data: JSON.stringify(decoded.filter((code) => code !== ctx.body?.code)),
+  });
+  const guard = generationGuard(value);
+  const live = reauthenticationGuard(sessionId, value, true);
+  const consumed = await env.DB.prepare(
+    `UPDATE two_factors SET backup_codes = ? WHERE id = ? AND backup_codes = ? AND ${guard.sql} AND ${live.sql} RETURNING id`
+  )
+    .bind(next, value.factorId, row.backup_codes, ...guard.args, ...live.args)
+    .first();
+  if (!consumed) throw changed();
+}
+
+async function reauthenticate(
+  ctx: GenericEndpointContext,
+  env: CloudflareBindings,
+  db: DrizzleDB
+) {
+  if (!ctx.headers?.get('cookie')) throw new APIError('UNAUTHORIZED');
+  const active = await getSessionFromCtx(ctx);
+  if (!active) throw new APIError('UNAUTHORIZED');
+  if (ctx.body?.sessionId !== active.session.id)
+    forbidden(
+      'The signed-in session changed. Start verification again.',
+      'REAUTHENTICATION_SESSION_MISMATCH'
+    );
+  const value = await generation(env, active.user.id);
+  const authentication = await activeAuthentication(
+    env,
+    active.session.id,
+    value
+  );
+  if (
+    active.session.impersonatedBy ||
+    authentication.authMethod === 'impersonation'
+  )
+    forbidden(
+      'Stop impersonating before verifying your identity.',
+      'REAUTHENTICATION_IMPERSONATION_FORBIDDEN'
+    );
+  const user = await env.DB.prepare(
+    'SELECT two_factor_enabled FROM users WHERE id = ?'
+  )
+    .bind(value.userId)
+    .first<{ two_factor_enabled: number }>();
+  if (!user) throw changed();
+  const enabled = !!user.two_factor_enabled;
+  await reserveReauthenticationAttempt(env, value.userId);
+  // Deliberately do not use capturePassword: a failed second factor must not refresh the primary evidence.
+  if (
+    !(await ctx.context.password.verify({
+      hash: value.password,
+      password: ctx.body.password,
+    }))
+  )
+    throw new APIError('UNAUTHORIZED', {
+      code: 'REAUTHENTICATION_INVALID_PASSWORD',
+      message: 'The password is invalid.',
+    });
+  const passwordTime = Date.now();
+  if (enabled) {
+    if (!ctx.body?.method || !ctx.body?.code)
+      forbidden(
+        'Verify your current authenticator or a recovery code as well.',
+        'REAUTHENTICATION_FACTOR_REQUIRED'
+      );
+    await prepareVerification(ctx, env);
+    if (
+      JSON.stringify((ctx.context as MfaContext).cloudforgeGeneration) !==
+      JSON.stringify(value)
+    )
+      throw changed();
+    if (ctx.body.method === 'totp') {
+      await claimTotp(ctx, env, () =>
+        reauthenticationGuard(active.session.id, value, true)
+      );
+      if (!(ctx.context as MfaContext).cloudforgeTotp)
+        throw new APIError('UNAUTHORIZED', {
+          code: 'REAUTHENTICATION_INVALID_FACTOR',
+          message: 'The authenticator or recovery code is invalid.',
+        });
+    } else
+      await claimReauthenticationRecoveryCode(
+        ctx,
+        env,
+        value,
+        active.session.id
+      );
+  }
+  const guard = generationGuard(value);
+  const live = reauthenticationGuard(active.session.id, value, enabled);
+  const proof = env.DB.prepare(
+    `UPDATE sessions SET auth_method = 'password', auth_time = ?, second_factor_method = ?, second_factor_time = ?
+    WHERE id = ? AND user_id = ? AND ${guard.sql} AND ${live.sql} RETURNING id`
+  ).bind(
+    passwordTime,
+    enabled ? ctx.body.method : null,
+    enabled ? Date.now() : null,
+    active.session.id,
+    value.userId,
+    ...guard.args,
+    ...live.args
+  );
+  const statements = [proof];
+  statements.push(
+    env.DB.prepare(
+      `UPDATE rate_limits SET count = 0, last_request = ? WHERE key = ? AND ${guard.sql} AND ${live.sql}`
+    ).bind(
+      Date.now(),
+      `cloudforge:reauthentication:${value.userId}`,
+      ...guard.args,
+      ...live.args
+    )
+  );
+  if (enabled)
+    statements.push(
+      env.DB.prepare(
+        `UPDATE two_factors SET failed_verification_count = 0, locked_until = NULL
+      WHERE id = ? AND secret = ? AND ${guard.sql} AND ${live.sql}`
+      ).bind(value.factorId, value.secret, ...guard.args, ...live.args)
+    );
+  // Only a complete, live proof clears both budgets, in the same transaction as the evidence.
+  const [verified] = await env.DB.batch(statements);
+  if (!verified.results.length) throw changed();
+  await recordAudit(db, {
+    repositoryId: null,
+    actorId: value.userId,
+    action: 'user.reauthenticated',
+    target: `@${active.user.username ?? active.user.name}`,
+    data: { reauthentication: true, factor: enabled ? ctx.body.method : null },
+  });
+  return ctx.json({ status: true, sessionId: active.session.id });
 }
 
 /** Activation, its proven secret and revocation commit together in D1's transactional batch. */
@@ -664,6 +910,28 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
   });
   return {
     ...plugin,
+    endpoints: {
+      ...plugin.endpoints,
+      reauthenticate: createAuthEndpoint(
+        REAUTHENTICATE,
+        {
+          method: 'POST',
+          body: z
+            .object({
+              sessionId: z.string().min(1).max(256),
+              password: z.string().min(1).max(128),
+              method: z.enum(['totp', 'recovery_code']).optional(),
+              code: z.string().min(1).max(128).optional(),
+            })
+            .strict(),
+          metadata: { noStore: true },
+        },
+        async (ctx) => {
+          if (!env) throw new APIError('UNAUTHORIZED');
+          return reauthenticate(ctx, env, db);
+        }
+      ),
+    },
     schema: {
       ...plugin.schema,
       user: {

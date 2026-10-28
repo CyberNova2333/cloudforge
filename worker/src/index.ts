@@ -6,6 +6,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
 import { authFor } from './auth';
 import { currentSession } from './auth/session';
+import { recentAuthentication } from './auth/recent';
 import {
   requireAdmin,
   requireAuth,
@@ -118,6 +119,7 @@ app.use('*', async (c, next) => {
   await next();
 });
 app.use('/api/*', sameOriginWrites);
+app.use('/api/*', recentAuthentication);
 
 // The API's reference (ours and better-auth's) maps every route: for members, not for anyone who finds the instance.
 for (const path of [

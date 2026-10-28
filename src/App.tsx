@@ -74,6 +74,10 @@ import Agents from './pages/Agents';
 import AgentNew from './pages/AgentNew';
 import AgentBuiltin from './pages/AgentBuiltin';
 import { NotFound } from './pages/NotFound';
+import {
+  RecentAuthentication,
+  VerifyAuthentication,
+} from '@/components/RecentAuthentication';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +171,7 @@ const App = () => (
           >
             {/* Signed in, but an authorization page of its own: no rail. */}
             <Route path="/oauth/consent" element={<OAuthConsent />} />
+            <Route path="/login/verify" element={<VerifyAuthentication />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<HomeRoute />} />
               <Route path="/repos" element={<Repositories />} />
@@ -261,6 +266,7 @@ const App = () => (
             </Route>
           </Route>
         </Routes>
+        <RecentAuthentication />
       </BrowserRouter>
     </PageHeadProvider>
   </QueryClientProvider>

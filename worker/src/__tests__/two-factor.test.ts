@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { base32 } from '@better-auth/utils/base32';
 import { createOTP } from '@better-auth/utils/otp';
 import { createEmailVerificationToken } from 'better-auth/api';
@@ -22,6 +22,12 @@ import {
 } from './helpers/mcp';
 
 const PASSWORD = 'password123';
+// Keep the real async D1/crypto work, while preventing a period boundary between enrollment and login.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Math.floor(Date.now() / 30_000) * 30_000 + 15_000);
+});
+afterEach(() => vi.useRealTimers());
 function deferred() {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {

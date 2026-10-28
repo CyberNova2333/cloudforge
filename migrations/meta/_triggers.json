@@ -12,6 +12,26 @@
     {
       "name": "cloudforge_factor_auth_version_v1",
       "sha256": "d22b7fa8ee4374cb8452cd44978b461055268229d5dffbdac17089c64416a19b"
+    },
+    {
+      "name": "cloudforge_oauth_consent_revoked_v1",
+      "sha256": "01445fd55c1e5e0f25cc7d92aa14daf864aca0f73fa3061968980242024e6705"
+    },
+    {
+      "name": "cloudforge_oauth_consent_insert_v1",
+      "sha256": "444df859626b46e7ba5dde985d76b34f6e92308857a260f97932be7a72d9cf52"
+    },
+    {
+      "name": "cloudforge_oauth_consent_update_v1",
+      "sha256": "b45c1738539b77aa28f26d5ee267e4f016e90dba54bbccbf1926a1406711b5b5"
+    },
+    {
+      "name": "cloudforge_oauth_refresh_insert_v1",
+      "sha256": "f486a6516e6007d443460fe8df96a35e4f7077b965ab9e0b4d7d03888d80c17b"
+    },
+    {
+      "name": "cloudforge_oauth_access_insert_v1",
+      "sha256": "d23a1ffdd4ca2158c0318f2cefea25e19eed4e9f6a804538012ee660204bf2aa"
     }
   ]
 }

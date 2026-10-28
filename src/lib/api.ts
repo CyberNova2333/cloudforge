@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { tServer } from './i18n';
 import { localizeAgents } from './agentLocale';
+import { recentAuthenticationFetch } from './recentAuthentication';
 
 export class ApiError extends Error {
   status: number;
@@ -19,7 +20,7 @@ export async function apiFetch<T>(
   const headers = new Headers(init?.headers);
   const hasBody = init?.json !== undefined;
   if (hasBody) headers.set('Content-Type', 'application/json');
-  const res = await fetch(path, {
+  const res = await recentAuthenticationFetch(path, {
     ...init,
     credentials: 'include',
     body: hasBody ? JSON.stringify(init!.json) : init?.body,

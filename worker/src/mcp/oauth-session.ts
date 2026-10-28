@@ -1,10 +1,15 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { verifyJwsAccessToken } from 'better-auth/oauth2';
 import { mcpResource, oauthIssuer } from '../auth';
 import { oauthConsents, users } from '../db/auth.schema';
+import { agents, oauthGrantGenerations } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { isAgentUser } from '../agents/identity';
+import {
+  OAUTH_GRANT_CLAIM,
+  OAUTH_GRANT_PREFIX,
+  validGrantReference,
+} from '../auth/oauth-grants';
 import type { AppEnv, SessionUser } from '../variables';
 
 type Auth = AppEnv['Variables']['auth'];
@@ -74,24 +79,42 @@ export async function getMcpSession(
         : null;
   if (!userId || !clientId) return null;
 
-  const [user, consent, agent] = await Promise.all([
-    db.select().from(users).where(eq(users.id, userId)).get(),
-    db
-      .select({ id: oauthConsents.id })
-      .from(oauthConsents)
-      .where(
-        and(
-          eq(oauthConsents.userId, userId),
-          eq(oauthConsents.clientId, clientId)
-        )
+  const reference = payload[OAUTH_GRANT_CLAIM];
+  if (reference !== undefined && !validGrantReference(reference)) return null;
+  // One authority read: a disconnect cannot be observed between separate consent/generation queries.
+  const row = await db
+    .select({ user: users, grant: oauthGrantGenerations })
+    .from(users)
+    .innerJoin(
+      oauthConsents,
+      and(
+        eq(oauthConsents.userId, users.id),
+        eq(oauthConsents.clientId, clientId),
+        reference !== undefined
+          ? eq(oauthConsents.referenceId, reference)
+          : undefined
       )
-      .get(),
-    isAgentUser(db, userId),
-  ]);
-  if (!user || user.banned || agent || !consent) return null;
+    )
+    .leftJoin(
+      oauthGrantGenerations,
+      and(
+        eq(oauthGrantGenerations.userId, users.id),
+        eq(oauthGrantGenerations.clientId, clientId)
+      )
+    )
+    .leftJoin(agents, eq(agents.userId, users.id))
+    .where(and(eq(users.id, userId), isNull(agents.userId)))
+    .get();
+  if (!row || row.user.banned) return null;
+  if (
+    reference === undefined
+      ? row.grant?.legacyRevoked
+      : reference !== `${OAUTH_GRANT_PREFIX}${row.grant?.generation}`
+  )
+    return null;
   const scope = typeof payload.scope === 'string' ? payload.scope : '';
   return {
-    user: user as SessionUser,
+    user: row.user as SessionUser,
     clientId,
     scopes: scope.split(' ').filter(Boolean),
   };

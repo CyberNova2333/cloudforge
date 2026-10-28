@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth';
 import { parseSessionOutput } from 'better-auth/db';
 import { admin, jwt, openAPI, username } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
+import { guardOAuthIntrospection, oauthGrantOptions } from './oauth-grants';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
 import { oauthResources } from '../db/auth.schema';
@@ -32,6 +33,7 @@ import {
   isCurrentSession,
   readSessionAuthentication,
 } from './assurance';
+import { requireRecentNativeAuthentication } from './recent';
 import {
   checkResend,
   checkSignup,
@@ -240,6 +242,7 @@ function createAuth(env?: CloudflareBindings) {
       cloudforgeTwoFactor(db, env),
       // OAuth 2.1 server for MCP clients: dynamic registration (RFC 7591), PKCE, JWTs for /mcp.
       oauthProvider({
+        ...oauthGrantOptions(env),
         loginPage: '/login',
         consentPage: '/oauth/consent',
         scopes: OAUTH_SCOPES,
@@ -253,6 +256,7 @@ function createAuth(env?: CloudflareBindings) {
       before: createAuthMiddleware(async (ctx) => {
         if (!env) return;
         await installSessionVersionGuard(ctx, env);
+        await requireRecentNativeAuthentication(ctx, db);
         if (ctx.path === '/sign-up/email') {
           await checkSignup(db, env, ctx.body);
           return;
@@ -273,6 +277,10 @@ function createAuth(env?: CloudflareBindings) {
         }
       }),
       after: createAuthMiddleware(async (ctx) => {
+        if (env) {
+          const guarded = await guardOAuthIntrospection(ctx, env);
+          if (guarded) return guarded;
+        }
         if (
           !env ||
           !ctx.context.newSession ||

@@ -7,7 +7,7 @@ import {
   oauthConsents,
   oauthRefreshTokens,
 } from '../db/auth.schema';
-import { mcpModerators } from '../db/app.schema';
+import { mcpModerators, oauthGrantGenerations } from '../db/app.schema';
 import { mcpServerName } from '../lib/app-name';
 import { instanceName } from '../lib/settings';
 import type { AppEnv } from '../variables';
@@ -312,7 +312,28 @@ mcpApiRouter.delete('/connections/:clientId', async (c) => {
   const db = c.get('db');
   const userId = c.get('user')!.id;
   const clientId = c.req.param('clientId');
+  const client = await db
+    .select({ id: oauthClients.clientId })
+    .from(oauthClients)
+    .where(eq(oauthClients.clientId, clientId))
+    .get();
+  if (!client) return c.json({ ok: true });
   await db.batch([
+    db
+      .insert(oauthGrantGenerations)
+      .values({
+        userId,
+        clientId,
+        generation: crypto.randomUUID().replaceAll('-', ''),
+        legacyRevoked: true,
+      })
+      .onConflictDoUpdate({
+        target: [oauthGrantGenerations.userId, oauthGrantGenerations.clientId],
+        set: {
+          generation: crypto.randomUUID().replaceAll('-', ''),
+          legacyRevoked: true,
+        },
+      }),
     db
       .delete(oauthAccessTokens)
       .where(

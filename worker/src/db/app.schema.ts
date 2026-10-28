@@ -1195,6 +1195,25 @@ export const prApprovals = sqliteTable(
 );
 export type PrApproval = typeof prApprovals.$inferSelect;
 
+// Authorization generations outlive consent deletion: reconnecting must never restore an old JWT.
+export const oauthGrantGenerations = sqliteTable(
+  'oauth_grant_generations',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => oauthClients.clientId, { onDelete: 'cascade' }),
+    generation: text('generation').notNull(),
+    // Legacy tokens have no generation claim. A first revocation disables that fallback forever.
+    legacyRevoked: integer('legacy_revoked', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.clientId] })]
+);
+
 // A connected MCP app the user lets make review decisions as them (Settings → MCP server → Connected apps). Read on
 // every MCP call. Bound to the consent it was turned on under: revoking that consent anywhere (Connected apps, or
 // better-auth's own delete-consent) deletes the row, and a later re-consent is a new consent that starts as an ordinary
@@ -1492,6 +1511,7 @@ export const auditActions = [
   'user.mfa_enabled',
   'user.mfa_disabled',
   'user.mfa_verified',
+  'user.reauthenticated',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
   'user.mfa_reset',

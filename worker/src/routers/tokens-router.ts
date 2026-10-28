@@ -6,9 +6,16 @@ import { recordAudit } from '../lib/audit';
 import { hashToken, randomToken } from '../lib/tokens';
 import type { AppEnv } from '../variables';
 import {
+  recentAuthorization,
+  recentAuthorizationGuard,
+  RECENT_AUTHENTICATION_REQUIRED,
+} from '../auth/recent';
+import {
   json200Response,
   json201Response,
   json409Response,
+  json401Response,
+  json403Response,
   okSchema,
   validationHook,
 } from './openapi-helpers';
@@ -85,12 +92,16 @@ const createTokenRoute = createRoute({
       'Token created'
     ),
     ...json409Response,
+    ...json401Response,
+    ...json403Response,
   },
 });
 tokensRouter.openapi(createTokenRoute, async (c) => {
   const { name, expiresInDays, scope } = c.req.valid('json');
   const db = c.get('db');
   const userId = c.get('user')!.id;
+  const permit = c.get('recentAuthorization');
+  if (!permit) return c.json({ error: 'Unauthorized' }, 401);
   const now = new Date();
   // cfp_ = CloudForge personal access token. Tokens are looked up by hash, so ones issued before the rename
   // (gop_, from GitOrange) keep working.
@@ -115,11 +126,21 @@ tokensRouter.openapi(createTokenRoute, async (c) => {
     SELECT ${row.id}, ${userId}, ${name}, ${row.tokenHash}, ${scope}, NULL,
       ${sql.param(row.expiresAt, personalAccessTokens.expiresAt)},
       ${sql.param(now, personalAccessTokens.createdAt)}
-    WHERE (SELECT count(*) FROM personal_access_tokens
+    WHERE ${recentAuthorizationGuard(permit.sessionId, userId, Date.now(), permit.authVersion)}
+      AND (SELECT count(*) FROM personal_access_tokens
       WHERE user_id = ${userId}
         AND (expires_at IS NULL OR expires_at > ${sql.param(now, personalAccessTokens.expiresAt)})) < ${MAX_ACTIVE_TOKENS}
     RETURNING id
   `);
+  if (!inserted && !(await recentAuthorization(db, permit.sessionId, userId)))
+    return c.json(
+      {
+        error: 'Verify your identity again to continue.',
+        code: RECENT_AUTHENTICATION_REQUIRED,
+        sessionId: permit.sessionId,
+      },
+      403
+    );
   if (!inserted)
     return c.json(
       {

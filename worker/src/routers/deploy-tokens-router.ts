@@ -24,6 +24,10 @@ import {
   validationHook,
 } from './openapi-helpers';
 import { ownerRepoParams } from './schemas';
+import {
+  recentAuthorization,
+  RECENT_AUTHENTICATION_REQUIRED,
+} from '../auth/recent';
 
 export const deployTokensRouter = new OpenAPIHono<RepoEnv>({
   defaultHook: validationHook,
@@ -136,13 +140,26 @@ deployTokensRouter.openapi(createTokenRoute, async (c) => {
   const db = c.get('db');
   const repositoryId = c.get('repo').id;
   const createdById = c.get('user')!.id;
+  const permit = c.get('recentAuthorization');
+  if (!permit)
+    return c.json({ error: 'Verify your identity again to continue.' }, 403);
   const created = await createDeployToken(
     db,
     repositoryId,
     createdById,
-    c.req.valid('json')
+    c.req.valid('json'),
+    permit
   );
   if (!created) {
+    if (!(await recentAuthorization(db, permit.sessionId, createdById)))
+      return c.json(
+        {
+          error: 'Verify your identity again to continue.',
+          code: RECENT_AUTHENTICATION_REQUIRED,
+          sessionId: permit.sessionId,
+        },
+        403
+      );
     if (!(await canManageDeployTokens(db, repositoryId, createdById)))
       return c.json(
         { error: 'Only repository admins can manage deploy tokens' },

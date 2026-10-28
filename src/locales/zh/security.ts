@@ -1,5 +1,13 @@
 /** Account security and the password sign-in factor challenge. */
 export const security: Record<string, string> = {
+  'Verify your identity': '验证身份',
+  'Verify and continue': '验证并继续',
+  'Stop impersonating before changing security settings.':
+    '请先退出模拟登录，再更改安全设置。',
+  'Your sign-in changed. Close this prompt and try again.':
+    '登录身份已变更，请关闭此窗口后重试。',
+  'Confirm your current password before continuing. If you use two-factor authentication, enter a fresh code too.':
+    '继续操作前，请确认当前密码。如已开启双因素认证，还需输入新的验证码。',
   'Current sign-in': '当前登录',
   'Password and second factor': '已验证密码与第二因子',
   'Password verified': '已验证密码',
