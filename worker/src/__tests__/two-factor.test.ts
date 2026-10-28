@@ -106,6 +106,49 @@ async function session(t: TestEnv, cookie: string) {
 }
 
 describe('双因素认证与恢复码', () => {
+  it('已经消费旧组恢复码的登录请求不能跨越恢复码重生成建立会话', async () => {
+    const { t, cookie, backupCodes } = await enabled();
+    const pending = await challenge(t);
+    const context = await authFor(t.env).$context;
+    const original = context.internalAdapter.createSession;
+    const reached = deferred();
+    const resume = deferred();
+    const spy = vi
+      .spyOn(context.internalAdapter, 'createSession')
+      .mockImplementation(async (...args) => {
+        reached.resolve();
+        await resume.promise;
+        return original(...args);
+      });
+    let verifying: Promise<Response> | undefined;
+    try {
+      verifying = authCall(
+        t,
+        'two-factor/verify-backup-code',
+        { code: backupCodes[0] },
+        pending
+      );
+      await reached.promise;
+      await body(
+        await authCall(
+          t,
+          'two-factor/generate-backup-codes',
+          { password: PASSWORD },
+          cookie
+        )
+      );
+      resume.resolve();
+      const response = await verifying;
+      expect({
+        status: response.status,
+        authenticated: (await session(t, cookies(response))) !== null,
+      }).toEqual({ status: 401, authenticated: false });
+    } finally {
+      resume.resolve();
+      await verifying;
+      spy.mockRestore();
+    }
+  });
   it('跨来源的第二因子请求在消耗恢复码或账号尝试预算之前被拒绝', async () => {
     const { t, cookie, backupCodes } = await enabled();
     const before = await t.env.DB.prepare(
@@ -708,7 +751,7 @@ describe('双因素认证与恢复码', () => {
     );
   });
 
-  it('密码验证开始后才启用 MFA，旧用户快照不能跳过挑战', async () => {
+  it('密码验证开始后才启用 MFA，旧版本登录必须重新开始', async () => {
     const t = makeEnv();
     const cookie = await bootstrapAdmin(t);
     const setup = await begin(t, cookie);
@@ -740,7 +783,9 @@ describe('双因素认证与恢复码', () => {
       );
       resume.resolve();
       const response = await signing;
-      expect(await body(response)).toMatchObject({ twoFactorRedirect: true });
+      expect(await body(response, 401)).toMatchObject({
+        code: 'MFA_CHALLENGE_CHANGED',
+      });
       expect(await session(t, cookies(response))).toBeNull();
     } finally {
       resume.resolve();
@@ -923,7 +968,7 @@ describe('双因素认证与恢复码', () => {
       );
       expect(await session(t, cookie)).not.toBeNull();
       resume.resolve();
-      expect((await starting).status).toBe(403);
+      expect((await starting).status).toBe(401);
       expect(
         await t.env.DB.prepare('SELECT id FROM two_factors').first()
       ).toBeNull();

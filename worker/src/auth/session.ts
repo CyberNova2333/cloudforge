@@ -2,7 +2,8 @@
 import { eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { sessions, users } from '../db/auth.schema';
-import type { SessionUser } from '../variables';
+import type { BrowserSession, SessionUser } from '../variables';
+import { durableSessionAssurance, isCurrentSession } from './assurance';
 
 /**
  * Who a request is signed in as, read straight from `sessions`: every request of every page needs it,
@@ -89,32 +90,72 @@ async function sessionToken(secret: string, cookie: string) {
   return token;
 }
 
-/** The signed-in user of a request, or null (no cookie, a bad signature, no row, expired). */
-export async function currentUser(
+/** One authoritative browser-session read, shared by request identity and the member's proof display. */
+export async function currentSession(
   db: DrizzleDB,
   env: CloudflareBindings,
   headers: Headers
-): Promise<SessionUser | null> {
+): Promise<{ user: SessionUser; browserSession: BrowserSession } | null> {
   const cookie = signedCookie(headers, cookieName(env));
   if (!cookie) return null;
   const token = await sessionToken(env.BETTER_AUTH_SECRET, cookie);
   if (!token) return null;
   const row = await db
-    .select({ session: sessions, user: users })
+    .select({
+      session: {
+        id: sessions.id,
+        expiresAt: sessions.expiresAt,
+        authVersion: sessions.authVersion,
+        authMethod: sessions.authMethod,
+        authTime: sessions.authTime,
+        secondFactorMethod: sessions.secondFactorMethod,
+        secondFactorTime: sessions.secondFactorTime,
+      },
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        username: users.username,
+        role: users.role,
+        image: users.image,
+        banned: users.banned,
+        authVersion: users.authVersion,
+      },
+    })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(eq(sessions.token, token))
     .get();
   if (!row) return null;
   const { session, user } = row;
-  if (session.expiresAt <= new Date()) return null;
+  if (
+    user.banned ||
+    session.expiresAt <= new Date() ||
+    !isCurrentSession(session, user)
+  )
+    return null;
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    username: user.username,
-    role: user.role,
-    image: user.image,
-    banned: user.banned,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      image: user.image,
+      banned: user.banned,
+    },
+    browserSession: {
+      id: session.id,
+      authentication: durableSessionAssurance(session),
+    },
   };
+}
+
+/** Compatibility for callers that only need the request's member identity. */
+export async function currentUser(
+  db: DrizzleDB,
+  env: CloudflareBindings,
+  headers: Headers
+): Promise<SessionUser | null> {
+  return (await currentSession(db, env, headers))?.user ?? null;
 }

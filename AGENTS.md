@@ -182,6 +182,15 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   preview and confirmation fence the target snapshot. One insert into `mfa_recovery_events` invokes the generated
   recovery trigger (migration 0051), atomically removing the factor, browser sessions and second-factor challenges.
   Passwords and machine credentials remain valid. It never runs implicitly during a password reset.
+- Browser authentication evidence (`auth/assurance.ts`, `auth/session.ts`, `GET /api/me/authentication`): persistent
+  primary and second-factor methods/times stay separate from the one-use `mfa_verified_at` proof. Old evidence is
+  unknown, never inferred from enrollment or session refresh. REST and native auth session readers share the live
+  user/session auth-version check; declared password/factor triggers and offline recovery advance that version.
+  Only an authorized change may continue into its expected next generation. Recovery-code group versions fence
+  unfinished proofs without treating ordinary single-code consumption as a credential change. Private fields are
+  input:false/returned:false (native internal results filter them too); read D1 authority, never cast them back in.
+  The security page displays cookie-only/no-store evidence bound to its actual session id. This does not enforce MFA
+  or add authentication-strength claims to existing OAuth or machine credentials.
 - Crew pages' backends (`worker/src/routers/`, libs in `worker/src/lib/`): `queue-router.ts` (`GET …/queue` merge
   queue + ETA, `lib/queue.ts`; `POST`/`DELETE …/merging/pause` → `setMergingPaused`, audited, resume tries auto-merge;
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,

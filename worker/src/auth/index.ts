@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { betterAuth } from 'better-auth';
+import { parseSessionOutput } from 'better-auth/db';
 import { admin, jwt, openAPI, username } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -24,7 +25,13 @@ import {
   mfaSessionPaths,
   recordMfaChallenge,
   allowsMfaContinuation,
+  authenticationForNewSession,
 } from './two-factor';
+import {
+  installSessionVersionGuard,
+  isCurrentSession,
+  readSessionAuthentication,
+} from './assurance';
 import {
   checkResend,
   checkSignup,
@@ -245,6 +252,7 @@ function createAuth(env?: CloudflareBindings) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (!env) return;
+        await installSessionVersionGuard(ctx, env);
         if (ctx.path === '/sign-up/email') {
           await checkSignup(db, env, ctx.body);
           return;
@@ -262,6 +270,43 @@ function createAuth(env?: CloudflareBindings) {
         if (ctx.path === '/oauth2/register') {
           const body = nativeClientRegistration(ctx.body);
           if (body) return { context: { body } };
+        }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (
+          !env ||
+          !ctx.context.newSession ||
+          ctx.context.returned instanceof APIError
+        )
+          return;
+        const created = ctx.context.newSession;
+        const current = await readSessionAuthentication(
+          env,
+          created.session.id
+        );
+        if (
+          !current ||
+          current.banned ||
+          !isCurrentSession(current, { authVersion: current.userAuthVersion })
+        ) {
+          await ctx.context.internalAdapter.deleteSession(
+            created.session.token
+          );
+          throw new APIError('UNAUTHORIZED', {
+            code: 'MFA_CHALLENGE_CHANGED',
+            message: 'Sign in again after the account credentials changed.',
+          });
+        }
+        // This native endpoint returns createSession's raw row rather than the usual output projection.
+        if (ctx.path === '/admin/impersonate-user') {
+          const result = ctx.context.returned as {
+            session?: typeof created.session;
+          };
+          if (result && result.session && typeof result.session === 'object')
+            return ctx.json({
+              ...result,
+              session: parseSessionOutput(ctx.context.options, result.session),
+            });
         }
       }),
     },
@@ -292,10 +337,11 @@ function createAuth(env?: CloudflareBindings) {
               });
             if (env) {
               const user = await env.DB.prepare(
-                'SELECT two_factor_enabled FROM users WHERE id = ?'
+                'SELECT two_factor_enabled, auth_version FROM users WHERE id = ?'
               )
                 .bind(session.userId)
-                .first<{ two_factor_enabled: number }>();
+                .first<{ two_factor_enabled: number; auth_version: number }>();
+              if (!user) throw new APIError('UNAUTHORIZED');
               if (
                 user?.two_factor_enabled &&
                 !mfaSessionPaths.has(ctx?.path ?? '') &&
@@ -313,6 +359,20 @@ function createAuth(env?: CloudflareBindings) {
                   message: 'Sign in with your password and second factor.',
                   code: 'MFA_SIGN_IN_REQUIRED',
                 });
+              return {
+                data: {
+                  ...session,
+                  ...authenticationForNewSession(
+                    ctx?.context ?? ({} as any),
+                    ctx?.path,
+                    session.userId,
+                    user.auth_version,
+                    typeof session.impersonatedBy === 'string'
+                      ? session.impersonatedBy
+                      : undefined
+                  ),
+                },
+              };
             }
             return { data: session };
           },
@@ -390,7 +450,11 @@ function createAuth(env?: CloudflareBindings) {
             const target = (ctx?.body as { userId?: unknown } | undefined)
               ?.userId;
             const fields = data as Record<string, unknown>;
-            if (env && fields.twoFactorEnabled !== undefined) {
+            if (
+              env &&
+              (fields.twoFactorEnabled !== undefined ||
+                fields.authVersion !== undefined)
+            ) {
               throw new APIError('FORBIDDEN', {
                 message: 'Use the two-factor authentication settings.',
                 code: 'MFA_SETTINGS_REQUIRED',

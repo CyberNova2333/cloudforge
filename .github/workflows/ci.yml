@@ -291,6 +291,8 @@ jobs:
           worker/src/__tests__/auth-boundaries.test.ts
           worker/src/__tests__/two-factor.test.ts
           worker/src/__tests__/mfa-reset.test.ts
+          worker/src/__tests__/session-assurance.test.ts
+          worker/src/__tests__/authentication-surface.test.ts
           worker/src/__tests__/request-limits.test.ts
           worker/src/__tests__/password-reset.test.ts
           worker/src/__tests__/session-cookie.test.ts

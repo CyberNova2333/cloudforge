@@ -16,6 +16,7 @@ import {
   RECOVERY_TRIGGER_NAME,
   RECOVERY_TRIGGER_SQL,
 } from '../worker/src/db/recovery-trigger.ts';
+import { AUTH_TRIGGERS } from '../worker/src/db/auth-triggers.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -23,6 +24,7 @@ const normalized = (sql) =>
   sql.replace(/\r\n/g, '\n').trim().replace(/;+$/, '');
 const definitions = [
   { name: RECOVERY_TRIGGER_NAME, sql: RECOVERY_TRIGGER_SQL },
+  ...AUTH_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);

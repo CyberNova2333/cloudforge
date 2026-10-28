@@ -3,7 +3,15 @@
   "triggers": [
     {
       "name": "cloudforge_mfa_recovery_v1",
-      "sha256": "3f4db91b96d6fa881d568e0300388f6ea66afeaabd68cac4bc82ff61c8855f2e"
+      "sha256": "2366696a41d8207130029e557b0180ea718a688ce295c580415d192543ce630a"
+    },
+    {
+      "name": "cloudforge_password_auth_version_v1",
+      "sha256": "1c314b152359839f947f4ff63411192803a83244b50d93ed42ff57f52c165f47"
+    },
+    {
+      "name": "cloudforge_factor_auth_version_v1",
+      "sha256": "d22b7fa8ee4374cb8452cd44978b461055268229d5dffbdac17089c64416a19b"
     }
   ]
 }

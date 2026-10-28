@@ -26,6 +26,7 @@ export const users = sqliteTable('users', {
   twoFactorEnabled: integer('two_factor_enabled', { mode: 'boolean' }).default(
     false
   ),
+  authVersion: integer('auth_version').default(0).notNull(),
 });
 
 export const sessions = sqliteTable(
@@ -46,6 +47,11 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
+    authVersion: integer('auth_version').default(0).notNull(),
+    authMethod: text('auth_method'),
+    authTime: integer('auth_time', { mode: 'timestamp_ms' }),
+    secondFactorMethod: text('second_factor_method'),
+    secondFactorTime: integer('second_factor_time', { mode: 'timestamp_ms' }),
     mfaVerifiedAt: integer('mfa_verified_at', { mode: 'timestamp_ms' }),
   },
   (table) => [index('sessions_userId_idx').on(table.userId)]
@@ -123,6 +129,7 @@ export const twoFactors = sqliteTable(
     failedVerificationCount: integer('failed_verification_count').default(0),
     lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
     lastTotpStep: integer('last_totp_step').default(0).notNull(),
+    recoveryVersion: integer('recovery_version').default(0).notNull(),
   },
   (table) => [index('twoFactors_secret_idx').on(table.secret)]
 );

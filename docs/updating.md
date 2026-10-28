@@ -16,6 +16,13 @@ See [Setup](setup.md) for the questions, the flags, and what it creates. State l
 
 ## Upgrade
 
+The session-assurance update (migration `0052`) records actual primary and second-factor methods and verification times, separately
+from the existing one-use factor proof. Apply its generated session/user columns and managed version triggers
+before deploying. Existing sessions without evidence remain explicitly unknown; enrollment and sliding refresh
+do not invent verification. Password/factor changes and offline recovery advance the authentication generation;
+stale browser sessions are rejected by the API and native auth readers. Existing MCP authorizations and machine
+credentials keep their prior rules. This update does not enable an enforced MFA policy.
+
 The optional two-factor update adds migration `0050` (`two_factors`, the user's enabled flag and a short-lived
 session proof). Apply pending migrations before deploying. No new Cloudflare binding or secret is needed.
 Account settings now offer TOTP with single-use recovery codes; password sign-in waits for the second factor.

@@ -1,5 +1,23 @@
 /** Account security and the password sign-in factor challenge. */
 export const security: Record<string, string> = {
+  'Current sign-in': '当前登录',
+  'Password and second factor': '已验证密码与第二因子',
+  'Password verified': '已验证密码',
+  'Email verified': '已验证邮箱',
+  'Email verification': '邮箱验证',
+  'Administrator impersonation': '管理员模拟登录',
+  'No verification record': '暂无验证记录',
+  'Incomplete verification record': '验证记录不完整',
+  'Refresh sign-in details': '刷新登录信息',
+  'These details show what this browser actually verified. Refreshing a session does not repeat verification.':
+    '这里显示当前浏览器实际完成的验证。会话续期不会重新验证身份。',
+  'Loading sign-in details…': '正在加载登录信息…',
+  'Sign-in details could not be loaded. Refresh to try again.':
+    '无法加载登录信息，请刷新重试。',
+  'This sign-in has no complete primary verification record. Signing in again will record one.':
+    '本次登录缺少完整的主要身份验证记录。重新登录后会记录。',
+  'Primary verification': '主要身份验证',
+  'Second-factor verification': '第二因子验证',
   'Account security': '账户安全',
   'Two-factor authentication': '双因素认证',
   'Verify your sign-in': '验证登录',

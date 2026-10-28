@@ -9,7 +9,8 @@ BEGIN
     NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
     OR EXISTS (SELECT 1 FROM agents WHERE user_id = NEW.user_id)
     THEN RAISE(ABORT, 'MFA recovery requires a person') END;
-  UPDATE users SET two_factor_enabled = 0, updated_at = NEW.created_at WHERE id = NEW.user_id;
+  UPDATE users SET auth_version = auth_version + CASE WHEN COALESCE(two_factor_enabled, 0) = 0 THEN 1 ELSE 0 END,
+    two_factor_enabled = 0, updated_at = NEW.created_at WHERE id = NEW.user_id;
   DELETE FROM verifications WHERE identifier IN (
     SELECT '2fa-attempts-' || identifier FROM verifications
     WHERE value = NEW.user_id AND identifier LIKE '2fa-%'

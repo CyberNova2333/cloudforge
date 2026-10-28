@@ -223,6 +223,37 @@ function harness(
 }
 
 describe('独立离线 MFA 恢复', () => {
+  for (const name of [
+    'cloudforge_factor_auth_version_v1',
+    'cloudforge_password_auth_version_v1',
+  ]) {
+    it(`恢复触发器存在但认证代际触发器缺失时拒绝操作：${name}`, async () => {
+      const h = harness();
+      h.db.exec(`DROP TRIGGER ${name}`);
+      expect(await h.selected()).toBe(1);
+      expect(h.writes()).toBe(0);
+    });
+  }
+  it('确认之后认证代际触发器消失时，最终 SQL 不执行恢复', async () => {
+    const h = harness({
+      onWrite: (db) =>
+        db.exec('DROP TRIGGER cloudforge_factor_auth_version_v1'),
+    });
+    expect(await h.selected()).toBe(1);
+    expect(h.count('mfa_recovery_events')).toBe(0);
+    expect(h.count('two_factors')).toBe(2);
+  });
+  for (const sql of [
+    "UPDATE users SET auth_version=auth_version+1 WHERE id='ada-id'",
+    "UPDATE two_factors SET recovery_version=recovery_version+1 WHERE user_id='ada-id'",
+  ]) {
+    it(`预览后的认证或恢复码组版本变化拒绝旧恢复请求：${sql}`, async () => {
+      const h = harness({ onWrite: (db) => db.exec(sql) });
+      expect(await h.selected()).toBe(1);
+      expect(h.count('mfa_recovery_events')).toBe(0);
+      expect(h.count('two_factors')).toBe(2);
+    });
+  }
   it('相同查询值的 JSON 键顺序变化不使已确认的计划漂移', async () => {
     const options = { reverseRows: false };
     const h = harness(options);
