@@ -1494,6 +1494,7 @@ export const auditActions = [
   'user.mfa_verified',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
+  'user.mfa_reset',
   'issue.deleted',
   'issue.comment_deleted',
   'label.created',
@@ -1535,6 +1536,21 @@ export const auditEvents = sqliteTable(
   ]
 );
 export type AuditEventRow = typeof auditEvents.$inferSelect;
+
+// Inserting a recovery event runs the generated recovery trigger in the same SQL statement.
+// Keep the reason and identity only; expected credentials belong in the caller's CAS predicate.
+export const mfaRecoveryEvents = sqliteTable(
+  'mfa_recovery_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('mfa_recovery_events_user_idx').on(t.userId)]
+);
 
 // A person lets CloudForge AI answer this agent's findings on their pull requests ("Let Claude decide"). Never a
 // guarded agent's (isGuarded).

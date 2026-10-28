@@ -199,6 +199,36 @@ describe('restCloudflare：Cloudflare REST 客户端', () => {
     });
   });
 
+  for (const invalid of [
+    null,
+    {},
+    [],
+    [{}],
+    [{ results: null }],
+    [{ results: [null] }],
+    [{ success: false, results: [] }],
+  ]) {
+    it(`D1 成功信封中的损坏结果不能冒充空查询：${JSON.stringify(invalid)}`, async () => {
+      const { fetch, calls } = fakeFetch(() => ok(invalid));
+      const cf = restCloudflare('t', fetch, noSleep);
+      await expect(cf.queryD1('a', 'db', 'SELECT 1')).rejects.toThrow(
+        'invalid query response'
+      );
+      expect(calls).toHaveLength(1);
+    });
+  }
+
+  it('D1 批次缺少结果集时失败，不能将未知写入结果默认为空', async () => {
+    const { fetch, calls } = fakeFetch(() => ok([{ results: [] }]));
+    await expect(
+      restCloudflare('t', fetch, noSleep).batchD1('a', 'db', [
+        { sql: 'UPDATE one SET value = ? ', params: ['secret-not-to-log'] },
+        { sql: 'UPDATE two SET value = 1' },
+      ])
+    ).rejects.toThrow('invalid query response');
+    expect(calls).toHaveLength(1);
+  });
+
   it('R2 对象使用原始正文，404 返回 null', async () => {
     const miss = fakeFetch(() => new Response('', { status: 404 }));
     expect(

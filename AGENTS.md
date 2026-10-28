@@ -175,9 +175,13 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   email OTP and secret re-export are disabled. Factor activation/deactivation revokes older sessions; existing OAuth
   refresh tokens retain authorization with null session links, MCP JWTs require consent, and PAT/deploy-token rules stay unchanged.
   Password changes clear pending challenges but retain factors and recovery codes. Secrets stay in page memory and
-  auth responses are no-store. Forced MFA, SSO, passkeys and offline factor reset remain separate planned work.
+  auth responses are no-store. Forced MFA, SSO and passkeys remain separate planned work.
   Password changes compare the credential/factor generation and live session at the write; only that successful
   request may continue into session rotation, never an arbitrary same-user context after the old session was revoked.
+  Offline `cloudforge reset-mfa` requires an explicit installation or account/database, a member and an audited reason;
+  preview and confirmation fence the target snapshot. One insert into `mfa_recovery_events` invokes the generated
+  recovery trigger (migration 0051), atomically removing the factor, browser sessions and second-factor challenges.
+  Passwords and machine credentials remain valid. It never runs implicitly during a password reset.
 - Crew pages' backends (`worker/src/routers/`, libs in `worker/src/lib/`): `queue-router.ts` (`GET …/queue` merge
   queue + ETA, `lib/queue.ts`; `POST`/`DELETE …/merging/pause` → `setMergingPaused`, audited, resume tries auto-merge;
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,
@@ -342,6 +346,9 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
 
 - **Never create migration files manually.** Change the Drizzle schema, run `yarn db:generate`, review the
   SQL in `migrations/`, then `yarn db:migrate:local` / `yarn db:migrate:prod`.
+- Recovery triggers are declared in `worker/src/db/recovery-trigger.ts`. `scripts/generate-db.mjs` runs Drizzle and
+  adds their generated SQL only to a newly generated migration, tracking declarations in `migrations/meta/_triggers.json`.
+  Change the declaration and run `yarn db:generate`; never append triggers to an existing migration by hand.
 - `worker/src/db/auth.schema.ts` is **generated** by the better-auth CLI — do not hand-edit it. After
   changing `worker/src/auth/index.ts`, run `yarn auth:update`, then `yarn db:generate` and migrate.
 

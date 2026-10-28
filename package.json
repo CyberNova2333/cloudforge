@@ -21,7 +21,7 @@
     "auth:generate": "npx --yes @better-auth/cli@latest generate --config worker/src/auth/index.ts --output worker/src/db/auth.schema.ts -y",
     "auth:format": "prettier --write worker/src/db/auth.schema.ts",
     "auth:update": "yarn auth:generate && node scripts/fix-auth-schema.mjs && yarn auth:format",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "node scripts/generate-db.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --env dev",
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
     "db:studio:dev": "drizzle-kit studio",
