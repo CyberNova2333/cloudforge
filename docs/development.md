@@ -32,6 +32,7 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn dev`                          | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)                                                                                             |
 | `yarn seed:demo`                    | Fills a running local instance with demo data (see below)                                                                                                                    |
 | `yarn test`                         | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake; test files spread over parallel workers (`TEST_WORKERS`, default half the cores, at most 8) |
+| `yarn test:workers [files/flags]`   | Worker/pure frontend tests only, through the same runtime-diagnostic exit-status guard used by `yarn test`; accepts Vitest file filters and `--shard=1/2`                    |
 | `yarn typecheck`                    | Type-checks the SPA and the Worker                                                                                                                                           |
 | `yarn format` / `yarn format:check` | Prettier                                                                                                                                                                     |
 | `yarn db:generate`                  | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                         |
@@ -118,6 +119,13 @@ and the script waits for it to settle.
   off locally, so the demo's test runs are written the same way.
 
 ## CI
+
+Worker tests run through `scripts/test-workers.mjs`. The installed workerd/Vitest integration can emit an
+uncaught RPC teardown exception after a passing summary and still exit zero. The wrapper streams the raw output
+and makes those confirmed runtime diagnostics fail the command; it never converts a nonzero exit into success.
+Use `yarn test` or `yarn test:workers`, including for file filters and shards. A single worker can reduce file-boundary
+teardown races but does not eliminate them. Preserve failing logs and fix or drain unfinished background work;
+increasing a timeout or accepting the summary alone is not a passing verification.
 
 On [CNB](https://cnb.cool/CyberNova2333/cloudforge), [`.cnb.yml`](../.cnb.yml) runs format, typecheck, build and every test in one pipeline on each push and pull request: the tests on six workers of the runner's 8 cores (`TEST_WORKERS=6`), with `node_modules` and the yarn cache kept on the build node (copy-on-write volumes). GitHub and CloudForge instances read the workflows below instead.
 

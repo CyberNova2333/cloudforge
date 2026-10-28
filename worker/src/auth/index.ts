@@ -20,6 +20,12 @@ import {
 import { recordAudit } from '../lib/audit';
 import { emailClaimedByOther } from '../lib/email-claims';
 import {
+  cloudforgeTwoFactor,
+  mfaSessionPaths,
+  recordMfaChallenge,
+  allowsMfaContinuation,
+} from './two-factor';
+import {
   checkResend,
   checkSignup,
   mustVerifyEmail,
@@ -223,6 +229,8 @@ function createAuth(env?: CloudflareBindings) {
         usernameValidator: isValidUsername,
       }),
       jwt(),
+      // Must precede OAuth's after hook: no authorization code while the password-only session is pending MFA.
+      cloudforgeTwoFactor(db, env),
       // OAuth 2.1 server for MCP clients: dynamic registration (RFC 7591), PKCE, JWTs for /mcp.
       oauthProvider({
         loginPage: '/login',
@@ -270,7 +278,7 @@ function createAuth(env?: CloudflareBindings) {
         create: {
           // Agents are accounts without sign-in: no session by any route (password, impersonation), and so
           // no personal access tokens or OAuth consents either.
-          before: async (session) => {
+          before: async (session, ctx) => {
             if (env && (await isAgentUser(db, session.userId)))
               throw new APIError('FORBIDDEN', {
                 message: 'Agents can’t sign in.',
@@ -282,6 +290,30 @@ function createAuth(env?: CloudflareBindings) {
                   'Confirm your email first: open the link we sent you, then sign in.',
                 code: 'EMAIL_NOT_VERIFIED',
               });
+            if (env) {
+              const user = await env.DB.prepare(
+                'SELECT two_factor_enabled FROM users WHERE id = ?'
+              )
+                .bind(session.userId)
+                .first<{ two_factor_enabled: number }>();
+              if (
+                user?.two_factor_enabled &&
+                !mfaSessionPaths.has(ctx?.path ?? '') &&
+                !(
+                  ctx &&
+                  (await allowsMfaContinuation(
+                    env,
+                    session.userId,
+                    ctx.path,
+                    ctx.context
+                  ))
+                )
+              )
+                throw new APIError('FORBIDDEN', {
+                  message: 'Sign in with your password and second factor.',
+                  code: 'MFA_SIGN_IN_REQUIRED',
+                });
+            }
             return { data: session };
           },
         },
@@ -297,6 +329,26 @@ function createAuth(env?: CloudflareBindings) {
             return { data: account };
           },
         },
+        update: {
+          after: async (account, ctx) => {
+            // Includes self-service changes, emailed resets and admin set-password.
+            // A pending MFA challenge proved the old password and cannot survive its replacement.
+            if (env && account.providerId === 'credential')
+              await env.DB.batch([
+                env.DB.prepare(
+                  "DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%'"
+                ).bind(account.userId),
+                env.DB.prepare(
+                  'DELETE FROM sessions WHERE user_id = ? AND id != ?'
+                ).bind(
+                  account.userId,
+                  ctx?.context.session?.user.id === account.userId
+                    ? ctx.context.session.session.id
+                    : ''
+                ),
+              ]);
+          },
+        },
       },
       verification: {
         create: {
@@ -309,6 +361,10 @@ function createAuth(env?: CloudflareBindings) {
             )
               return false;
             return { data: verification };
+          },
+          after: async (verification, ctx) => {
+            if (env && ctx)
+              await recordMfaChallenge(env, verification, ctx.context);
           },
         },
       },
@@ -334,6 +390,12 @@ function createAuth(env?: CloudflareBindings) {
             const target = (ctx?.body as { userId?: unknown } | undefined)
               ?.userId;
             const fields = data as Record<string, unknown>;
+            if (env && fields.twoFactorEnabled !== undefined) {
+              throw new APIError('FORBIDDEN', {
+                message: 'Use the two-factor authentication settings.',
+                code: 'MFA_SETTINGS_REQUIRED',
+              });
+            }
             const touches = (keys: string[]) =>
               keys.some((k) => fields[k] !== undefined);
             if (

@@ -1,9 +1,33 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import { usersByCommitEmail } from '../lib/commit-authors';
 import { addMember, bootstrapAdmin, call, makeEnv } from './helpers/app';
 import { commitFiles } from './helpers/seed';
+
+describe('认证响应的缓存边界', () => {
+  it('会话与认证失败响应都禁止存储', async () => {
+    const t = makeEnv();
+    const cookie = await bootstrapAdmin(t);
+    const responses = [
+      await call(t, '/api/auth/get-session', { cookie }),
+      await call(t, '/api/auth/sign-in/username', {
+        json: { username: 'octocat', password: 'incorrect-password' },
+      }),
+      await call(t, '/api/auth/two-factor/enable', {
+        json: { password: 'password123' },
+      }),
+    ];
+    expect(responses[0].status).toBe(200);
+    expect(responses[1].status).toBeGreaterThanOrEqual(400);
+    expect(responses[2].status).toBeGreaterThanOrEqual(400);
+    for (const response of responses) {
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(response.headers.get('Pragma')).toBe('no-cache');
+    }
+  });
+});
 
 describe('主邮箱与备用邮箱所有权', () => {
   it('拒绝使用其他成员备用邮箱注册、由管理员创建用户或更新邮箱', async () => {

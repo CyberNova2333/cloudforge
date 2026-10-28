@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // `cloudforge reset-password`: a new password for a member, written straight into the installation's D1 database
 // over the Cloudflare API, for when nobody can sign in to create a reset link (the last site admin forgot theirs,
 // or the instance cannot send email). The hash is better-auth's own (`better-auth/crypto`), so the worker
@@ -113,6 +114,11 @@ export async function resetPassword(
         },
     { sql: `DELETE FROM sessions WHERE user_id = ?`, params: [member.id] },
     {
+      // A pending second-factor challenge proves the old password. Preserve the factor itself.
+      sql: `DELETE FROM verifications WHERE value = ? AND identifier LIKE '2fa-%'`,
+      params: [member.id],
+    },
+    {
       sql: `INSERT INTO audit_events (id, repository_id, actor_id, actor_kind, via, action, target, data, created_at)
      VALUES (?, NULL, NULL, 'system', ?, 'user.password_set', ?, '{}', ?)`,
       params: [crypto.randomUUID(), RESET_VIA, handle, now],
@@ -121,6 +127,7 @@ export async function resetPassword(
   io.print(
     `Done: ${handle} can sign in with the new password${opts.baseUrl ? ` at ${opts.baseUrl}` : ''}.`
   );
+  io.print('Two-factor authentication, if enabled, is still required.');
   return 0;
 }
 

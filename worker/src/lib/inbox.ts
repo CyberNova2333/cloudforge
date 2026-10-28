@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // A member's notification inbox (docs/notifications.md), for the web API and the MCP tools: only notifications in
 // repositories they can still read, about issues and pull requests that still exist.
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
@@ -13,7 +14,7 @@ import {
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import type { SessionUser } from '../variables';
-import { findRepo, teamNamespace, userNamespace, visibleTo } from './repos';
+import { findRepo, visibleTo } from './repos';
 import { inJsonArray } from './sql-set';
 import { toPublicUser } from './users';
 
@@ -76,13 +77,38 @@ export async function listInbox(
   const [rows, total, unread] = await Promise.all([
     db
       .select({
-        n: notifications,
-        repo: repositories,
-        owner,
-        team: teams,
-        actor,
-        issue: issues,
-        pull: pullRequests,
+        // Full-table projections across these joins exceed D1's result-column budget as
+        // the schemas grow. Fetch only the inbox payload, not bodies or private user fields.
+        n: {
+          id: notifications.id,
+          unread: notifications.unread,
+          reason: notifications.reason,
+          event: notifications.event,
+          excerpt: notifications.excerpt,
+          updatedAt: notifications.updatedAt,
+        },
+        repo: { name: repositories.name },
+        owner: { id: owner.id, username: owner.username },
+        team: { id: teams.id, slug: teams.slug },
+        actor: {
+          id: actor.id,
+          username: actor.username,
+          name: actor.name,
+          image: actor.image,
+        },
+        issue: {
+          id: issues.id,
+          number: issues.number,
+          title: issues.title,
+          state: issues.state,
+          stateReason: issues.stateReason,
+        },
+        pull: {
+          id: pullRequests.id,
+          number: pullRequests.number,
+          title: pullRequests.title,
+          state: pullRequests.state,
+        },
       })
       .from(notifications)
       .innerJoin(repositories, eq(repositories.id, notifications.repositoryId))
@@ -100,8 +126,7 @@ export async function listInbox(
     unreadCount(db, user),
   ]);
   const items = rows.flatMap((r) => {
-    const ns = r.team ? teamNamespace(r.team) : userNamespace(r.owner);
-    const fullName = `${ns.username}/${r.repo.name}`;
+    const fullName = `${r.team?.slug ?? r.owner.username ?? r.owner.id}/${r.repo.name}`;
     const subject = r.issue
       ? {
           kind: 'issue' as const,

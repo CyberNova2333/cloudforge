@@ -26,7 +26,8 @@
     "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
     "db:studio:dev": "drizzle-kit studio",
     "tail": "wrangler tail --format=pretty",
-    "test": "vitest run --config scripts/cloudforge/vitest.config.ts && vitest run --config worker/vitest.config.ts",
+    "test": "vitest run --config scripts/cloudforge/vitest.config.ts && node scripts/test-workers.mjs",
+    "test:workers": "node scripts/test-workers.mjs",
     "test:watch": "vitest --config worker/vitest.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -36,7 +37,9 @@
     "*.{js,jsx,ts,tsx,json,css,md,html}": "prettier --write"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.7",
     "@better-auth/oauth-provider": "1.7.7",
+    "@better-auth/utils": "0.4.2",
     "@cloudflare/computer": "0.4.0",
     "@earendil-works/chord": "1.0.0",
     "@earendil-works/pi-ai": "1.0.1",

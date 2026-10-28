@@ -123,6 +123,45 @@
 }
 
 /* ---------- Forms ---------- */
+.security-heading,
+.security-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.security-heading {
+  font-size: 15px;
+}
+.security-code,
+.security-secret,
+.security-recovery-codes {
+  font-family: var(--mono);
+}
+.security-code-switch {
+  justify-self: start;
+  text-align: start;
+}
+.security-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 20px;
+  padding: 14px 16px;
+  margin: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.security-recovery-codes code {
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.security-saved {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 .fld {
   display: grid;
   gap: 6px;

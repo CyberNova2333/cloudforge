@@ -60,6 +60,22 @@ The diagram is Mermaid: CNB, GitHub and CloudForge render it, and it is edited a
 
 Nothing about git content is copied into D1. The repository page, history, and diffs are read from Artifacts on each request.
 
+## Password sign-in and second factors
+
+Optional TOTP and recovery codes use better-auth's twoFactor plugin, with the CloudForge policy in
+`worker/src/auth/two-factor.ts`. The plugin runs before the OAuth provider's login continuation. Password-only
+challenges cannot authorize MCP or access the API. Enrollment confirms the pending secret before enabling it,
+and D1 conditional writes fence TOTP replay and concurrent enrollment changes. Sensitive factor changes require
+a recent, single-use proof bound to the current browser session as well as the password. Other session-creation
+paths cannot silently bypass an enabled factor. Factor changes revoke older browser sessions; existing OAuth
+refresh tokens retain authorization with their session link set to null. API/Git personal tokens and repository deploy tokens remain
+separate credentials. See [身份认证与账户恢复](authentication.md) for recovery and future SSO/forced-MFA policies.
+
+Password changes also compare the current credential, factor generation and still-live session at the write.
+Only a request that successfully commits that change may rotate its session; a stale authenticated context alone
+cannot create a session after factor replacement. Notification inbox joins select only their 24 payload columns,
+so adding user fields cannot silently exceed D1's result-column budget through whole-table projections.
+
 ## Repository identity
 
 Each repository row has an immutable `artifacts_name` (`r_<id>`). The Artifacts repo is addressed by that name, so renaming `alice/api` changes one D1 row and never touches storage.

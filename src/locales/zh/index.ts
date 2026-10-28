@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Chinese (Simplified) UI text, keyed by the English in the source (see `src/lib/i18n.ts`). One file per area of
  * the app, so they can be edited apart; a key may appear in several files only with the same translation (the
@@ -24,6 +25,7 @@ import { issues } from './issues';
 import { notifications } from './notifications';
 import { webhooks } from './webhooks';
 import { deployTokens } from './deployTokens';
+import { security } from './security';
 import { lib } from './lib';
 import { pulls } from './pulls';
 import { repo } from './repo';
@@ -40,6 +42,7 @@ export const zhAreas: Record<string, Record<string, string>> = {
   notifications,
   webhooks,
   deployTokens,
+  security,
   review,
   actions,
   agents,

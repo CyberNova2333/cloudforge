@@ -3,10 +3,11 @@
 // in-page jump (a section of /admin) rather than a page of its own.
 
 export type SettingsSection =
-  'tokens' | 'mcp' | 'emails' | 'notifications' | 'language';
+  'security' | 'tokens' | 'mcp' | 'emails' | 'notifications' | 'language';
 
 /** Which Settings page a path belongs to (`/settings/emails/verify` is part of Emails). */
 export function settingsSection(pathname: string): SettingsSection | null {
+  if (pathname === '/settings/security') return 'security';
   if (pathname === '/settings/tokens') return 'tokens';
   if (pathname === '/settings/mcp') return 'mcp';
   if (pathname === '/settings/language') return 'language';

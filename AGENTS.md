@@ -167,6 +167,17 @@ Drizzle/D1 and better-auth. Git storage is **Cloudflare Artifacts**: one Artifac
   When nobody can sign in, `cloudforge reset-password` (`scripts/cloudforge/reset-password.ts`) writes better-auth's
   hash straight into D1 over the Cloudflare API and deletes the sessions. Audited as `user.password_reset`,
   `user.password_reset_link`, `user.password_set`; agents are refused everywhere.
+- Optional TOTP (`auth/two-factor.ts`, `docs/authentication.md`, migration 0050, SPA `SettingsSecurity`):
+  better-auth's twoFactor plugin precedes OAuth login continuation; passwords alone leave a challenge, not a usable
+  session. Pending-secret confirmation and concurrent enrollment changes are fenced in D1, as is cross-challenge
+  TOTP replay. Recovery codes are single-use. Disabling or regenerating requires the password and a five-minute,
+  one-use proof bound to the current session. Other session creation cannot bypass an enabled factor; trusted devices,
+  email OTP and secret re-export are disabled. Factor activation/deactivation revokes older sessions; existing OAuth
+  refresh tokens retain authorization with null session links, MCP JWTs require consent, and PAT/deploy-token rules stay unchanged.
+  Password changes clear pending challenges but retain factors and recovery codes. Secrets stay in page memory and
+  auth responses are no-store. Forced MFA, SSO, passkeys and offline factor reset remain separate planned work.
+  Password changes compare the credential/factor generation and live session at the write; only that successful
+  request may continue into session rotation, never an arbitrary same-user context after the old session was revoked.
 - Crew pages' backends (`worker/src/routers/`, libs in `worker/src/lib/`): `queue-router.ts` (`GET …/queue` merge
   queue + ETA, `lib/queue.ts`; `POST`/`DELETE …/merging/pause` → `setMergingPaused`, audited, resume tries auto-merge;
   paused PRs get the `merging_paused` reason; `GET …/live`, `lib/live-feed.ts`), `branches-router.ts` (`GET …/branches`,
