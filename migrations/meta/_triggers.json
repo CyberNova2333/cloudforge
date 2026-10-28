@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "triggers": [
+    {
+      "name": "cloudforge_mfa_recovery_v1",
+      "sha256": "3f4db91b96d6fa881d568e0300388f6ea66afeaabd68cac4bc82ff61c8855f2e"
+    }
+  ]
+}

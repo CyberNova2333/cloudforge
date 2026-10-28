@@ -23,6 +23,7 @@ import { observe } from './observe.ts';
 import { computePlan, formatPlan } from './plan.ts';
 import { preflight } from './preflight.ts';
 import { findDatabase, resetPassword } from './reset-password.ts';
+import { recoveryReasonProblem, resetMfa } from './reset-mfa.ts';
 import { processRunner, type Runner } from './runner.ts';
 import { checkoutSource, packageSource, type Source } from './source.ts';
 import {
@@ -53,6 +54,8 @@ Commands:
   reset-password <username|email>
              Set a new password for a member, straight in the database (when nobody can
              sign in to create a reset link)
+  reset-mfa <username|email>
+             Remove a lost second factor using Cloudflare database access
 
 install options:
   --name <name>          Installation name (default: cloudforge)
@@ -99,6 +102,15 @@ reset-password options (asks for the new password, so it runs in a terminal):
   --database <name|id>   Or: the D1 database of an installation made without this CLI
   --account <id|name>    With --database: its Cloudflare account
   --yes                  Skip the confirmation (the password is still typed twice)
+
+reset-mfa options:
+  --name <name>          Explicitly select a recorded installation
+  --database <name|id>   Or: explicitly select a D1 database with --account
+  --account <id|name>    Required with --database; never inferred
+  --reason <text>        Required public audit reason (never credentials)
+  --plan                 Show a read-only recovery plan and its digest
+  --expect-plan <digest> Apply only the reviewed target/factor/installation snapshot
+  --yes                  Skip confirmation; requires --expect-plan
 `;
 
 const DEFAULT_NAME = 'cloudforge';
@@ -190,6 +202,19 @@ const RESET_OPTIONS = {
   database: { type: 'string' },
   account: { type: 'string' },
   yes: { type: 'boolean' },
+} as const;
+
+type ResetMfaFlags = ResetFlags & {
+  reason?: string;
+  plan?: boolean;
+  'expect-plan'?: string;
+};
+
+const RESET_MFA_OPTIONS = {
+  ...RESET_OPTIONS,
+  reason: { type: 'string' },
+  plan: { type: 'boolean' },
+  'expect-plan': { type: 'string' },
 } as const;
 
 /** adopt flags that only `--worker` takes. */
@@ -324,6 +349,15 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
         allowPositionals: true,
       });
       return await runResetPassword(values, positionals, deps);
+    }
+    if (command === 'reset-mfa') {
+      const { values, positionals } = parseArgs({
+        args: rest,
+        options: RESET_MFA_OPTIONS,
+        strict: true,
+        allowPositionals: true,
+      });
+      return await runResetMfa(values, positionals, deps);
     }
   } catch (e) {
     if (e instanceof UsageError || isParseArgsError(e)) {
@@ -1085,6 +1119,94 @@ async function runResetPassword(
   } catch (e) {
     if (e instanceof UsageError) throw e;
     io.print((e as Error).message);
+    return 1;
+  }
+}
+
+async function runResetMfa(
+  f: ResetMfaFlags,
+  positionals: string[],
+  deps: Deps
+): Promise<number> {
+  if (positionals.length !== 1 || !positionals[0].trim())
+    throw new UsageError('reset-mfa needs one username or email address.');
+  if (
+    (f.name === undefined) === (f.database === undefined) ||
+    (f.name !== undefined && f.account !== undefined) ||
+    (f.database !== undefined && !f.account)
+  )
+    throw new UsageError(
+      'Pass an explicit --name, or --database with --account.'
+    );
+  if (f.reason === undefined || recoveryReasonProblem(f.reason))
+    throw new UsageError(recoveryReasonProblem(f.reason ?? '')!);
+  if (!f.plan && f.yes && !f['expect-plan'])
+    throw new UsageError('--yes requires --expect-plan from a prior --plan.');
+  if (!f.plan && !deps.io.tty && (!f.yes || !f['expect-plan']))
+    throw new UsageError(
+      'Outside a terminal, use --plan then --yes --expect-plan.'
+    );
+  try {
+    const recorded =
+      f.name === undefined
+        ? null
+        : deps.home !== null
+          ? pickInstall(deps.home, f.name).state
+          : findState(deps.dir, f.name);
+    if (f.name !== undefined && !recorded) {
+      deps.io.print(
+        `No installation named ${JSON.stringify(f.name)} is recorded. Nothing was changed.`
+      );
+      return 1;
+    }
+    if (recorded?.movedTo !== undefined) {
+      deps.io.print(movedMessage(recorded.movedTo));
+      return 1;
+    }
+    const cf = deps.cloudflare(await deps.token());
+    // Verify access and the actual database even when local state records their identifiers.
+    const accountId = await resolveAccount(
+      cf,
+      deps.io,
+      recorded?.accountId ?? f.account
+    );
+    const database = await findDatabase(
+      cf,
+      accountId,
+      recorded?.resources.find((r) => r.kind === 'd1')?.id ??
+        f.database ??
+        recorded!.names.d1
+    );
+    if (!database) {
+      deps.io.print(
+        'The selected D1 database does not exist in this Cloudflare account. Nothing was changed.'
+      );
+      return 1;
+    }
+    return await resetMfa(
+      { cf, io: deps.io, now: deps.now },
+      {
+        accountId,
+        database,
+        who: positionals[0],
+        reason: f.reason,
+        ...(recorded
+          ? {
+              installation: {
+                id: recorded.installationId,
+                ownershipNonce: recorded.ownershipNonce,
+                name: recorded.inputs.name,
+              },
+            }
+          : {}),
+        plan: Boolean(f.plan),
+        expectPlan: f['expect-plan'],
+        yes: Boolean(f.yes),
+      }
+    );
+  } catch (e) {
+    if (e instanceof UsageError) throw e;
+    deps.io.print((e as Error).message);
     return 1;
   }
 }

@@ -120,6 +120,14 @@ and the script waits for it to settle.
 
 ## CI
 
+`yarn db:generate` runs Drizzle and generates managed recovery triggers from
+`worker/src/db/recovery-trigger.ts`. The generated `migrations/meta/_triggers.json` records their hashes;
+its leading underscore keeps Drizzle from treating it as a schema snapshot. Only a migration created by the
+current invocation receives trigger SQL. A trigger-only change creates a new custom migration automatically;
+table migrations reapply the managed declarations so a SQLite table rebuild cannot silently remove them.
+Never edit generated SQL or append a trigger to an old migration. The recovery CLI validates the installed
+trigger definition and refuses missing or altered definitions.
+
 Worker tests run through `scripts/test-workers.mjs`. The installed workerd/Vitest integration can emit an
 uncaught RPC teardown exception after a passing summary and still exit zero. The wrapper streams the raw output
 and makes those confirmed runtime diagnostics fail the command; it never converts a nonzero exit into success.

@@ -195,6 +195,25 @@ appears in your shell history. `--name <name>` picks a recorded installation; fo
 `--database <D1 database name>` (and `--account <id|name>` when the login sees several accounts). Agents have no
 password and are refused.
 
+## Recover a lost second factor
+
+`reset-password` keeps TOTP enabled. If the authenticator and every recovery code were lost, use the separate
+`reset-mfa` command with Cloudflare D1 write access. First review the exact account, database, member and effects:
+
+```bash
+npx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and all recovery codes" --plan
+```
+
+Then repeat without `--plan` for a confirmation that defaults to no. For a manually deployed installation pass both
+`--account <id|name>` and `--database <name|uuid>` instead of `--name`. Non-interactive execution requires
+`--yes --expect-plan <digest>` from the reviewed preview. Apply the recovery migration before using this command;
+missing or altered triggers are refused. In a checkout use `yarn cloudforge` instead of the package command.
+
+Recovery removes the factor, recovery codes, browser sessions and second-factor challenges, and records the reason.
+It preserves the password, bans, roles, PATs, deploy tokens and existing MCP authorizations. Reasons appear in the audit
+log: never include secrets. A lost response is checked by its recovery event ID without repeating the write. See the
+[authentication design](authentication.md#独立离线因子恢复) for concurrency, permissions and recovery boundaries.
+
 ## Forks and checkouts
 
 If you run a fork or prefer a clone, the original flow works: `git pull && yarn install && yarn db:migrate:prod && yarn deploy` from your checkout, or `yarn cloudforge install|status` there. Run the migrations before the deploy: new code may read new tables.

@@ -63,5 +63,17 @@ terminal; `--database <D1 database name>` for an installation made without this 
 
 State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `npx @cybernova2333/cloudforge --help` for every option.
 
+If the authenticator and every recovery code were lost, use the independent recovery command with Cloudflare
+management access and an explicitly selected installation:
+
+```bash
+npx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and recovery codes" --plan
+```
+
+Review the preview, then repeat without `--plan` to confirm. Manual deployments require both `--account` and
+`--database`; automation also requires `--yes --expect-plan <digest>`. The recovery migration must be installed.
+This clears the factor, browser sessions and challenges, records the reason, and preserves the password and
+machine credentials. Never include secrets in the reason. `reset-password` continues to preserve the second factor.
+
 Docs: [setup](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md) ·
 [updating](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`LICENSE`), over Apache-2.0 upstream work (`LICENSES/Apache-2.0.txt`).

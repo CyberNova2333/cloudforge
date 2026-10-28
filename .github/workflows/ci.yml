@@ -90,6 +90,8 @@ jobs:
           always-run-paths: |
             scripts/test-reporter.ts
             scripts/test-workers.mjs
+            scripts/generate-db.mjs
+            scripts/cloudforge/reset-mfa.ts
             worker/src/__tests__/helpers/**
             worker/test/**
             worker/src/db/**
@@ -288,6 +290,7 @@ jobs:
           worker/src/__tests__/repos-pulls.test.ts
           worker/src/__tests__/auth-boundaries.test.ts
           worker/src/__tests__/two-factor.test.ts
+          worker/src/__tests__/mfa-reset.test.ts
           worker/src/__tests__/request-limits.test.ts
           worker/src/__tests__/password-reset.test.ts
           worker/src/__tests__/session-cookie.test.ts

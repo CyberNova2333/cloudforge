@@ -79,7 +79,8 @@ export interface Cloudflare {
     sql: string,
     params?: unknown[]
   ): Promise<Record<string, unknown>[]>;
-  /** Runs `statements` in one request as a D1 batch (one transaction: all of them or none); rows per statement. */
+  /** Sends one REST batch request and returns rows per statement. The REST reference documents the request
+   * shape; do not infer the Worker binding's explicit rollback guarantee from this transport alone. */
   batchD1(
     a: string,
     id: string,
@@ -222,6 +223,31 @@ export function restCloudflare(
   ): Promise<T> {
     const res = await send(method, path, init);
     return (await envelope(res, path)).result as T;
+  }
+
+  function d1Results(value: unknown, path: string, count?: number) {
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      (count !== undefined && value.length !== count) ||
+      value.some(
+        (entry) =>
+          !entry ||
+          (entry.success !== undefined && entry.success !== true) ||
+          !Array.isArray(entry.results) ||
+          entry.results.some(
+            (row: unknown) =>
+              !row || typeof row !== 'object' || Array.isArray(row)
+          )
+      )
+    )
+      throw new CloudflareError(
+        'Cloudflare D1 returned an invalid query response; the write outcome may require verification.',
+        200,
+        [],
+        path
+      );
+    return value.map((entry) => entry.results as Record<string, unknown>[]);
   }
 
   /**
@@ -369,29 +395,25 @@ export function restCloudflare(
 
     // POST /accounts/{a}/d1/database/{id}/query {sql, params}; result is one entry per statement, `results` holds rows (wrangler cloudflare@5.2 resources/d1/database query).
     async queryD1(a, id, sql, params) {
-      const r = await call<{ results?: Record<string, unknown>[] }[]>(
-        'POST',
-        `/accounts/${a}/d1/database/${enc(id)}/query`,
-        { json: { sql, params: params ?? [] } }
-      );
-      return r[0]?.results ?? [];
+      const path = `/accounts/${a}/d1/database/${enc(id)}/query`;
+      const r = await call<unknown>('POST', path, {
+        json: { sql, params: params ?? [] },
+      });
+      return d1Results(r, path)[0];
     },
 
     // POST /accounts/{a}/d1/database/{id}/query {batch: [{sql, params}]}; one result entry per statement.
     async batchD1(a, id, statements) {
-      const r = await call<{ results?: Record<string, unknown>[] }[]>(
-        'POST',
-        `/accounts/${a}/d1/database/${enc(id)}/query`,
-        {
-          json: {
-            batch: statements.map((s) => ({
-              sql: s.sql,
-              params: s.params ?? [],
-            })),
-          },
-        }
-      );
-      return statements.map((_, i) => r[i]?.results ?? []);
+      const path = `/accounts/${a}/d1/database/${enc(id)}/query`;
+      const r = await call<unknown>('POST', path, {
+        json: {
+          batch: statements.map((s) => ({
+            sql: s.sql,
+            params: s.params ?? [],
+          })),
+        },
+      });
+      return d1Results(r, path, statements.length);
     },
 
     // GET /accounts/{a}/r2/buckets -> { buckets: [{ name }] } (wrangler src/r2/helpers/bucket.ts listR2Buckets).
