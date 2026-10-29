@@ -38,7 +38,7 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn db:generate`                  | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                         |
 | `yarn auth:update`                  | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config                                                                                              |
 | `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
-| `yarn agents:sync`                  | Regenerate `AGENTS.md` (CLAUDE.md behind a preamble) and `.agents/skills/` (a copy of `.claude/skills/`) for Codex and other agents                                          |
+| `yarn agents:sync`                  | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                   |
 
 ## Codex 与 Git 钩子
 

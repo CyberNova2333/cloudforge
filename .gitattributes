@@ -1,0 +1,7 @@
+
+
+# Portable repository maintenance hooks
+tools/repo_maintenance_guard.py text eol=lf
+.husky/pre-commit text eol=lf
+.husky/commit-msg text eol=lf
+.husky/pre-push text eol=lf

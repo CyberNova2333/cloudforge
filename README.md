@@ -170,3 +170,19 @@ flowchart LR
 相对上游修改的文件保留首行 `Modified by CyberNova for the CloudForge fork` 声明。不能承载此注释或由工具生成的例外包括 `package.json`、`migrations/meta/_journal.json`、`worker/worker-configuration.d.ts`，以及 `public/logo.png`、`public/favicon.png` 和 `public/apple-touch-icon.png`。
 
 CloudForge 与 GitHub 无隶属关系，也未获得其背书；“GitHub”是 GitHub, Inc. 的商标。以独立品牌发布衍生产品时，请更换名称和标志，避免混淆。
+
+## 源码阅读与文档站
+
+从[中文阅读路径](repo-docs/README.md)进入[一次真实主流程](repo-docs/walkthroughs/one-real-run.md)，再查[代码地图](repo-docs/code-map.md)与[源码证据](repo-docs/references/source-evidence.md)。指南明确限定覆盖范围，不把未运行的测试写成通过。
+
+文档站采用 VitePress 默认主题，依赖与业务项目分开安装。默认输出 `docs-site/.vitepress/dist/`；独立核验可在构建命令后加 `-- --outDir <仓库外绝对目录>`。指南正文只维护 `repo-docs/`，站点通过 include 读取；网页中的仓库源码链接显示为精确文件路径，不复制源码或本机资源。
+
+```sh
+yarn --cwd docs-site install --frozen-lockfile
+yarn --cwd docs-site docs:dev --host 127.0.0.1
+yarn --cwd docs-site docs:build
+```
+
+文档站采用 VitePress 默认主题；默认输出 `docs-site/.vitepress/dist/`，独立验证使用 `-- --outDir <仓库外绝对目录>`。指南正文由 repo-docs include 引入，源码链接在网页中显示为精确路径。
+
+管理员可预览并启用全员 MFA，受限会话、OAuth 撤销与离线恢复边界见 [认证说明](docs/authentication.md#管理员认证策略)。
