@@ -170,3 +170,17 @@ This fork is distributed under the [GNU GPL v3.0 or later](LICENSE). Original up
 Files modified from upstream carry a first-line `Modified by CyberNova for the CloudForge fork` notice. Exceptions that cannot carry that comment or are generated include `package.json`, `migrations/meta/_journal.json`, `worker/worker-configuration.d.ts`, and the images `public/logo.png`, `public/favicon.png`, and `public/apple-touch-icon.png`.
 
 CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. Please replace the name and logo when distributing a derivative as a separate branded product, to avoid confusion.
+
+## Documentation site
+
+The [Chinese living guide](repo-docs/README.md) follows one real workflow and states what it leaves uncovered. Build or serve it with its separate Node.js dependencies:
+
+```sh
+yarn --cwd docs-site install --frozen-lockfile
+yarn --cwd docs-site docs:dev --host 127.0.0.1
+yarn --cwd docs-site docs:build
+```
+
+The documentation site uses the default VitePress theme, with dependencies installed separately from the application. Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated build. Markdown remains in `repo-docs/` and is included by the site. Repository source links are shown as exact paths; source files and local resources are not published.
+
+Administrators can preview and require MFA for human members. See the [authentication policy](docs/authentication.md#管理员认证策略) for restricted sessions, OAuth revocation and offline recovery boundaries.
