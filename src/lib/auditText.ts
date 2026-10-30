@@ -55,6 +55,9 @@ export const AUDIT_ACTIONS = [
   'repository.created',
   'repository.deleted',
   'instance.settings',
+  'instance.oidc_configuration',
+  'user.oidc_linked',
+  'user.oidc_revoked',
   'release.created',
   'release.updated',
   'pull.version_bump',
@@ -534,6 +537,20 @@ export function auditParts(
       );
     case 'user.password_reset':
       return say(t(' set a new password with a reset link'), via());
+    case 'instance.oidc_configuration':
+      return say(
+        t(' published the OIDC provider configuration for '),
+        e.target,
+        via()
+      );
+    case 'user.oidc_linked':
+      return say(t(' linked an external identity through '), e.target, via());
+    case 'user.oidc_revoked':
+      return say(
+        t(' revoked an external identity binding for '),
+        e.target,
+        via()
+      );
     case 'user.password_set':
       return say(t(' set a new password for '), e.target, via());
     case 'user.password_reset_link':
@@ -947,6 +964,10 @@ export function auditCategory(action: string): AuditCategory {
     case 'user.password_reset':
     case 'user.password_reset_link':
     case 'user.password_set':
+      return 'access';
+    case 'instance.oidc_configuration':
+    case 'user.oidc_linked':
+    case 'user.oidc_revoked':
       return 'access';
     case 'settings.changed':
     case 'instance.settings':

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { GenericEndpointContext } from '@better-auth/core';
 import { APIError, getSessionFromCtx } from 'better-auth/api';
 import { sql } from 'drizzle-orm';
@@ -64,6 +65,8 @@ export function needsRecentRestAuthentication(method: string, path: string) {
     (method === 'PUT' &&
       /^\/api\/mcp\/connections\/[^/]+\/moderator$/.test(p)) ||
     (method === 'POST' && (p === '/api/invites' || p === '/api/agents')) ||
+    (method === 'POST' &&
+      /^\/api\/me\/oidc\/(?:preview|start|confirm|revoke)$/.test(p)) ||
     p === '/api/team' ||
     (p.startsWith('/api/admin/') && !p.startsWith('/api/admin/setup/'))
   );

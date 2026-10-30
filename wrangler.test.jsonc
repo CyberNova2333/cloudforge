@@ -51,10 +51,16 @@
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
   },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "invocation_logs": false },
+  },
   "vars": {
     "APP_NAME": "CloudForge",
     "FROM_EMAIL": "test@example.com",
     "BASE_URL": "http://test.local",
+    "OIDC_PROVIDER": "",
     "R2_ACCOUNT_ID": "0123456789abcdef0123456789abcdef",
     "LFS_BUCKET_NAME": "cloudforge-lfs-test",
     "ACTIONS_CACHE_BUCKET_NAME": "cloudforge-actions-cache-test",

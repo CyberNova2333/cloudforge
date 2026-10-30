@@ -535,6 +535,36 @@
   margin-top: 16px;
 }
 
+.oidc-section {
+  margin-top: 24px;
+}
+.oidc-section .panel + .panel {
+  margin-top: 12px;
+}
+.oidc-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px 16px;
+  margin: 16px 0;
+}
+.oidc-details dt,
+.oidc-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.oidc-details dd {
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .oidc-details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .oidc-details dd + dt {
+    margin-top: 8px;
+  }
+}
+
 .aud-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

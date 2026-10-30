@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+
 # 指南变更记录
 
 | Timestamp                      | Request                                                      | Actions                                                                    | Verification                                   | Result                                                                                                           |
@@ -53,3 +55,15 @@ Synced through f260898b93e54b6be681e65dc28a2525f63b2a54；此为复核时 HEAD�
 五个改动文档的定向格式检查通过；Lite 结构、源码链接与同步锚点校验通过（0 错误、0 警告）。本次未运行文档站构建；业务回归由实现任务单列，不以设计或文档检查替代。
 
 Synced through 8cc0692f29aaa319b6846e70858aa0f8b6a27800；这是设计的实际代码基线，新增设计与安全基础收紧仍按本次工作树分别核验，不表示未来功能已上线。
+
+## OIDC 显式绑定实现同步（2026-10-31）
+
+选择 foreground patch：旧专题仍把绑定、界面和部署配置标为未来设计，会误导维护与接入。按当前 provider/service/router、声明触发器及实际组件更新专题、认证说明、路线图、配置和开发入口。明确部署后仍须管理员预览/发布、全局配置代际和永久 registry、成员候选二次确认、own-session、身份 tombstone、每动作 state cookie，以及外部 token 不落库、严格 claims、有界出站和完成数据缓存。独立 SSO 登录及 DNS 级 SSRF 防护未据此宣称实现。
+
+本指南只补专题入口与最小代码地图；Git 主流程的输入/输出未改变，不扩展 Lite 覆盖范围。实现定向证据为真实 D1 后端 29 项、协议 52 项、独立 workerd 的 9 次真实 HTTP 调用，以及实际组件的 23 项浏览器检查；外部 IdP/API 使用受控 fixture。不能由这些结果推断真实企业 IdP、生产日期 runtime 或生产网络已验证。
+
+最终审计进一步确认，清空环境变量没有撤销 D1 active 配置，使用旧配置的实例或在途交换仍可能完成。代码增加管理员独立停用预览/发布：即使部署配置损坏或 secret 缺失，也能在原本地证明下原子写 `enabled=false`、退休 digest、推进 generation 并取消动作；确认触发器独立复核配置。文档按实际 `oidc_providers`、状态字段及生成迁移 `0057`–`0059` 同步，保留绑定读取/撤销和更高版本重启用规则。配置专题另说明平台日志模板加固及尚未验证的外部日志/metadata 边界，不称生产泄露已复现或全部日志面已解决。
+
+八个改动文档的定向 Prettier 检查通过；Lite 结构、源码链接及同步锚点校验通过（0 错误、0 警告）。完整业务回归、全部类型、生成器和构建以最终整合日志单列；本次文档检查不替代这些验收。未执行生产迁移、部署或线上配置发布，提交与推送状态另行核验。
+
+Synced through 98c22799b8a631ecc887583efc6733fd441928ea；这是本次实现的实际基线，描述的实现仍含本地工作树，不表示已合入或已上线。

@@ -11,6 +11,7 @@ import { PendingButton } from '@/components/ui/PendingButton';
 import { LoadError, Notice } from '@/components/Notice';
 import { RowsSkeleton } from '@/components/SetFrame';
 import { AdminAuthenticationPolicy } from '@/components/AdminAuthenticationPolicy';
+import { AdminOIDCProvider } from '@/components/AdminOIDCProvider';
 
 const GROUPS: InstanceSetting['group'][] = [
   'General',
@@ -227,6 +228,7 @@ export function AdminSettings() {
   return (
     <div id="settings">
       <AdminAuthenticationPolicy />
+      <AdminOIDCProvider />
       <Section
         title={
           <>

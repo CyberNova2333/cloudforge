@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+
 # CloudForge 源码阅读指南
 
 成员向仓库推送一条分支时，平台必须同时守住仓库权限、Git 引用保护和后续任务的可恢复性。本指南沿这次推送解释代码托管的一条主路径，帮助维护者区分“对象已写入”和“后续处理已完成”。
@@ -38,7 +40,7 @@ yarn typecheck
 - [既有总体架构](../docs/architecture.md)
 - [开发与完整验证](../docs/development.md)
 - [PR 审查与合并](../docs/auto-merge.md)
-- [OIDC 安全基础与显式绑定设计](../docs/oidc.md)（待实现的阶段契约，不是已开放的 SSO 登录）
+- [OIDC 显式身份绑定](../docs/oidc.md)（管理员发布/停用配置、成员预览与二次确认；独立 SSO 登录仍待实现）
 
 独立网页构建会把文档目录之外的仓库链接显示为精确文件路径，避免产生失效跳转；原始 Markdown 仍保留可核对的源码链接。站点只发布指南，源码和本机资源不会随文档打包。
 

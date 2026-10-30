@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Chinese for the lib area: see index.ts for the terms. */
 export const lib: Record<string, string> = {
   // Search: result groups, the "Jump to" list and page names
@@ -127,6 +128,11 @@ export const lib: Record<string, string> = {
     ' 从一条评审意见中教会了评审 Agent 一条规则',
   ' created the access token “': ' 创建了访问令牌 “',
   ' set a new password with a reset link': ' 通过重置链接设置了新密码',
+  ' published the OIDC provider configuration for ':
+    ' 发布了 OIDC 提供方配置：',
+  ' linked an external identity through ': ' 绑定了外部身份，提供方为 ',
+  ' revoked an external identity binding for ':
+    ' 撤销了外部身份绑定，提供方为 ',
   ' created a password reset link for ': ' 生成了密码重置链接，对象为 ',
   ' and emailed it': '，并已发送邮件',
   ' set a new password for ': ' 设置了新密码，对象为 ',

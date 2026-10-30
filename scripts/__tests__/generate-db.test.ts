@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   mkdirSync,
@@ -83,6 +84,12 @@ describe('数据库迁移与声明式触发器生成', () => {
           'cloudforge_oauth_access_insert_v1',
           'cloudforge_auth_policy_insert_v1',
           'cloudforge_auth_policy_update_v1',
+          'cloudforge_oidc_configuration_retire_v1',
+          'cloudforge_oidc_binding_owner_v1',
+          'cloudforge_oidc_binding_revoked_v1',
+          'cloudforge_oidc_registry_immutable_v1',
+          'cloudforge_oidc_configuration_publish_v1',
+          'cloudforge_oidc_binding_confirm_v1',
         ].map((name) => ({
           name,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),

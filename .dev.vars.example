@@ -1,5 +1,7 @@
 # Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 BETTER_AUTH_SECRET=change-me-to-a-long-random-string
+# Optional fixed OIDC provider client secret. Configure OIDC_PROVIDER separately; never put this secret in JSON vars.
+OIDC_CLIENT_SECRET=
 # Git LFS: an R2 API token with Object Read & Write on the LFS bucket (S3-compatible credentials).
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=

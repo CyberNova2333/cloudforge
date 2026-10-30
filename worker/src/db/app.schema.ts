@@ -62,6 +62,113 @@ export const authenticationPolicyPreviews = sqliteTable(
   }
 );
 
+/** The provider id/issuer pair is permanent; remembered version/digest prevent configuration rollback. */
+export const oidcProviders = sqliteTable('oidc_providers', {
+  id: text('id').primaryKey(),
+  issuer: text('issuer').notNull(),
+  version: integer('version').notNull(),
+  digest: text('digest').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const oidcConfiguration = sqliteTable(
+  'oidc_configuration',
+  {
+    id: integer('id').primaryKey().default(1),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    providerId: text('provider_id')
+      .notNull()
+      .references(() => oidcProviders.id),
+    version: integer('version').notNull(),
+    digest: text('digest').notNull(),
+    generation: integer('generation').notNull(),
+    actionId: text('action_id').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    check(
+      'oidc_configuration_singleton',
+      sql`${t.id} = 1 AND ${t.generation} > 0`
+    ),
+  ]
+);
+
+/** One bounded action slot per member and purpose; replacing its id fences every earlier network request. */
+export const oidcLinkActions = sqliteTable(
+  'oidc_link_actions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['configure', 'link', 'retire'] }).notNull(),
+    status: text('status').notNull(),
+    providerId: text('provider_id').notNull(),
+    issuer: text('issuer').notNull(),
+    providerVersion: integer('provider_version').notNull(),
+    providerDigest: text('provider_digest').notNull(),
+    configurationGeneration: integer('configuration_generation').notNull(),
+    capabilityHash: text('capability_hash'),
+    stateHash: text('state_hash'),
+    cookieHash: text('cookie_hash'),
+    sealed: text('sealed'),
+    authVersion: integer('auth_version').notNull(),
+    policyVersion: integer('policy_version').notNull(),
+    credentialId: text('credential_id').notNull(),
+    factorId: text('factor_id'),
+    factorEnabled: integer('factor_enabled').notNull(),
+    recoveryVersion: integer('recovery_version'),
+    authTime: integer('auth_time').notNull(),
+    factorTime: integer('factor_time'),
+    proofExpiresAt: integer('proof_expires_at').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    createdAt: integer('created_at').notNull(),
+    startedAt: integer('started_at'),
+    subject: text('subject'),
+    email: text('email'),
+    name: text('name'),
+    bindingId: text('binding_id'),
+    bindingRevision: integer('binding_revision'),
+    completedAt: integer('completed_at'),
+  },
+  (t) => [
+    uniqueIndex('oidc_actions_member_kind_uq').on(t.userId, t.kind),
+    uniqueIndex('oidc_actions_state_uq').on(t.stateHash),
+  ]
+);
+
+/** Revocation and owner deletion retain the immutable subject reservation. */
+export const oidcBindings = sqliteTable(
+  'oidc_bindings',
+  {
+    id: text('id').primaryKey(),
+    providerId: text('provider_id')
+      .notNull()
+      .references(() => oidcProviders.id),
+    issuer: text('issuer').notNull(),
+    subject: text('subject').notNull(),
+    userId: text('user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    revision: integer('revision').notNull().default(1),
+    email: text('email'),
+    name: text('name'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    uniqueIndex('oidc_bindings_identity_uq').on(t.issuer, t.subject),
+    uniqueIndex('oidc_bindings_active_member_provider_uq')
+      .on(t.userId, t.providerId)
+      .where(sql`${t.active} = 1`),
+    index('oidc_bindings_member_idx').on(t.userId),
+  ]
+);
+
 // The instance's one shared team. Its slug shares the URL namespace with usernames.
 export const teams = sqliteTable('teams', {
   id: text('id').primaryKey(),
@@ -1564,6 +1671,9 @@ export const auditActions = [
   'user.mfa_verified',
   'user.reauthenticated',
   'instance.authentication_policy',
+  'instance.oidc_configuration',
+  'user.oidc_linked',
+  'user.oidc_revoked',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
   'user.mfa_reset',

@@ -1,11 +1,20 @@
 #!/usr/bin/env node
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Regenerates worker/worker-configuration.d.ts from wrangler.jsonc.ci, not the local config.
  * `wrangler types` still reads ./wrangler.jsonc, so the CI config is swapped in and the local one
  * restored after (a crash leaves it at .wrangler.jsonc.local-backup).
  */
-import { copyFileSync, existsSync, renameSync, unlinkSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { extname, isAbsolute } from 'node:path';
+import { runYarn } from './githooks/run-yarn.mjs';
 
 const LOCAL = 'wrangler.jsonc';
 const CI = 'wrangler.jsonc.ci';
@@ -29,17 +38,31 @@ if (hadLocal) renameSync(LOCAL, BACKUP);
 let exitCode = 0;
 try {
   copyFileSync(CI, LOCAL);
-  const result = spawnSync(
-    'yarn',
-    [
-      'wrangler',
-      'types',
-      'worker/worker-configuration.d.ts',
-      '--env-interface',
-      'CloudflareBindings',
-    ],
-    { stdio: 'inherit' }
-  );
+  const args = [
+    'wrangler',
+    'types',
+    'worker/worker-configuration.d.ts',
+    '--env-interface',
+    'CloudflareBindings',
+  ];
+  let result;
+  // Yarn 1's temporary lifecycle shim is not a standard Corepack launcher. Invoke its verified JS entry directly.
+  if (/^yarn\//.test(process.env.npm_config_user_agent ?? '')) {
+    const entry = process.env.npm_execpath;
+    if (
+      !entry ||
+      !isAbsolute(entry) ||
+      !['.js', '.mjs', '.cjs'].includes(extname(entry)) ||
+      !statSync(entry).isFile()
+    )
+      throw new Error('Yarn 生命周期没有提供可用的 JavaScript 入口。');
+    result = spawnSync(process.execPath, [entry, ...args], {
+      stdio: 'inherit',
+      shell: false,
+      windowsHide: true,
+    });
+  } else result = runYarn(args, { stdio: 'inherit' });
+  if (result.error) console.error(result.error.message);
   exitCode = result.status ?? 1;
 } finally {
   if (hadLocal) renameSync(BACKUP, LOCAL);

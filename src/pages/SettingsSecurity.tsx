@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { authClient, useSession, type CurrentUser } from '@/lib/auth';
 import { enrollmentSecret, factorError } from '@/lib/twoFactor';
@@ -11,6 +12,7 @@ import { FactorCode } from '@/components/FactorCode';
 import { CurrentAuthentication } from '@/components/CurrentAuthentication';
 import { useAuthenticationPolicy } from '@/lib/useAuthenticationPolicy';
 import { notifyAuthenticationPolicyChanged } from '@/lib/authenticationPolicy';
+import { OIDCIdentities } from '@/components/OIDCIdentities';
 
 type Enrollment = { secret: string; backupCodes: string[] };
 type Operation = 'enable' | 'regenerate' | 'disable';
@@ -520,6 +522,7 @@ export default function SettingsSecurity({
               )}
           </>
         )}
+        {!restricted && <OIDCIdentities />}
       </SecurityFrame>
     </>
   );

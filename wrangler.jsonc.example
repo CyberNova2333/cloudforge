@@ -66,8 +66,16 @@
     "LiveHub": { "type": "durable-object", "storage": "sqlite" }
   },
   "workflows": [
-    { "name": "cloudforge-actions-run", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
-    { "name": "cloudforge-merge-resolution", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
+    {
+      "name": "cloudforge-actions-run",
+      "binding": "ACTIONS_RUN",
+      "class_name": "ActionsRun"
+    },
+    {
+      "name": "cloudforge-merge-resolution",
+      "binding": "MERGE_RESOLUTION",
+      "class_name": "MergeResolutionWorkflow"
+    }
   ],
   // Daily housekeeping (Actions runs past their retention), the usage sync, and every five minutes webhook retries
   // and notification emails a request was cut off before.
@@ -81,13 +89,25 @@
     "not_found_handling": "single-page-application",
     // API, auth, the git smart-HTTP endpoint (/<owner>/<repo>.git/...), the MCP server, and OAuth
     // discovery (/.well-known/...) must reach the worker.
-    "run_worker_first": ["/api/*", "/*/*.git/*", "/*/*.git", "/mcp", "/.well-known/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/*/*.git/*",
+      "/*/*.git",
+      "/mcp",
+      "/.well-known/*"
+    ]
   },
-  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "logs": { "invocation_logs": false }
+  },
   "vars": {
     "APP_NAME": "CloudForge",
     // Public URL of the instance; used in invite links and auth redirects.
     "BASE_URL": "https://<your-deployed-host>",
+    "OIDC_PROVIDER": "",
     "FROM_EMAIL": "noreply@<your-email-sending-domain>",
     // Where pre-signed LFS URLs point: https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com/<LFS_BUCKET_NAME>
     "R2_ACCOUNT_ID": "<your-cloudflare-account-id>",
@@ -120,6 +140,12 @@
 
   "env": {
     "dev": {
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1,
+        "redact_query_string": true,
+        "logs": { "invocation_logs": false }
+      },
       // Named envs do not inherit bindings; everything the worker needs is repeated here.
       "d1_databases": [
         {
@@ -129,19 +155,38 @@
           "migrations_dir": "migrations"
         }
       ],
-      "artifacts": [{ "binding": "ARTIFACTS", "namespace": "cloudforge-dev", "remote": true }],
+      "artifacts": [
+        {
+          "binding": "ARTIFACTS",
+          "namespace": "cloudforge-dev",
+          "remote": true
+        }
+      ],
       "send_email": [{ "name": "EMAIL" }],
       "r2_buckets": [
-        { "binding": "LFS", "bucket_name": "cloudforge-lfs-dev", "remote": true },
-        { "binding": "ACTIONS_LOGS", "bucket_name": "cloudforge-actions-logs-dev" },
-        { "binding": "ACTIONS_CACHE", "bucket_name": "cloudforge-actions-cache-dev", "remote": true }
+        {
+          "binding": "LFS",
+          "bucket_name": "cloudforge-lfs-dev",
+          "remote": true
+        },
+        {
+          "binding": "ACTIONS_LOGS",
+          "bucket_name": "cloudforge-actions-logs-dev"
+        },
+        {
+          "binding": "ACTIONS_CACHE",
+          "bucket_name": "cloudforge-actions-cache-dev",
+          "remote": true
+        }
       ],
       // Actions jobs run in local Docker containers in dev (Docker must be running).
       "containers": [
         {
           "class_name": "JobRunner",
           "scheduling_policy": "durable_object",
-          "images": { "runner": { "dockerfile": "./actions/runner/Dockerfile" } }
+          "images": {
+            "runner": { "dockerfile": "./actions/runner/Dockerfile" }
+          }
         }
       ],
       "durable_objects": {
@@ -154,8 +199,16 @@
         ]
       },
       "workflows": [
-        { "name": "cloudforge-actions-run-dev", "binding": "ACTIONS_RUN", "class_name": "ActionsRun" },
-        { "name": "cloudforge-merge-resolution-dev", "binding": "MERGE_RESOLUTION", "class_name": "MergeResolutionWorkflow" }
+        {
+          "name": "cloudforge-actions-run-dev",
+          "binding": "ACTIONS_RUN",
+          "class_name": "ActionsRun"
+        },
+        {
+          "name": "cloudforge-merge-resolution-dev",
+          "binding": "MERGE_RESOLUTION",
+          "class_name": "MergeResolutionWorkflow"
+        }
       ],
       // Daily housekeeping, the usage sync, and every five minutes webhook retries and notification emails.
       "triggers": { "crons": ["17 4 * * *", "30 2 * * *", "*/5 * * * *"] },
@@ -164,6 +217,7 @@
       "vars": {
         "APP_NAME": "CloudForge",
         "BASE_URL": "http://localhost:8080",
+        "OIDC_PROVIDER": "",
         "FROM_EMAIL": "noreply@<your-email-sending-domain>",
         "R2_ACCOUNT_ID": "<your-cloudflare-account-id>",
         "LFS_BUCKET_NAME": "cloudforge-lfs-dev",

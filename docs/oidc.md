@@ -1,142 +1,116 @@
 <!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
-# OIDC 安全基础与显式身份绑定设计
+# OIDC 显式身份绑定
 
-成员先用现有密码与验证器登录，再把企业身份绑定到自己的账户。绑定完成只建立身份关系；当前会话的验证方法、近期证明和仓库权限不因此改变。这是第一个完整功能里程碑，独立 SSO 登录留到后续。
+已有成员可以在账户安全页，把一个 OIDC 身份显式绑定到自己的本地账户。管理员先发布部署配置，成员再预览、前往提供商验证、核对候选身份并二次确认。绑定只建立身份关系，不创建登录会话、不刷新密码或因子的近期证明，也不改变仓库权限。
 
-本文以 `8cc0692f29aaa319b6846e70858aa0f8b6a27800` 和本地 better-auth `1.7.7` 源码为基线。当前小步只收紧 SDK 默认账户关联入口并定义下述契约，不注册生产 OIDC provider，不提供绑定或 SSO 登录界面。下文的接口、数据和验收矩阵均为待实现设计；不表示已部署、已迁移或已通过端到端企业 IdP 验证。
+本文按 `98c22799b8a631ecc887583efc6733fd441928ea` 基线上的本轮实现同步。协议、状态机和界面已有本地定向验证；完整项目验收、生产迁移、部署和真实企业 IdP 验证分别记录。独立 SSO 登录仍待实现。
 
 ## 阶段与交付边界
 
-| 阶段                       | 可交付结果                                                                                                        | 完成边界                                                                                                 |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 安全基础（当前）           | 设置 `accountLinking.enabled=false` 与 `disableImplicitLinking=true`，禁止 SDK 默认新增联结；补真实路由回归与设计 | 已有绑定的解除仍保留现有近期验证；不改变 SDK 对已有精确身份的识别；没有新增外部登录或绑定能力            |
-| 显式绑定（下一个完整功能） | 已有成员在完整、近期验证的本地会话中预览、经 OIDC 回调确认外部身份，再主动确认绑定；可查看和撤销自己的绑定        | 无自动注册、同邮箱合并、身份转移或独立 SSO 登录；不支持 IdP 主动登录、客户端直接提交 ID token 或密码替代 |
-| SSO 登录（后续）           | 只允许已显式绑定的身份建立受控登录流程                                                                            | 先实现外部主因子与本地 MFA 的统一状态机、会话代际和恢复，再开放登录按钮                                  |
-| 企业策略扩展（后续）       | 动态多 provider、受信任外部 MFA、SSO-only 或通行密钥                                                              | 各自设计发布、撤销、强度映射及最后管理员恢复；不由本次绑定阶段顺带开放                                   |
+| 阶段                 | 当前行为                                                                                                   | 完成边界                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| SDK 关联面收紧       | `accountLinking.enabled=false` 与 `disableImplicitLinking=true` 禁止默认新增联结；已有解除操作保留近期验证 | 不将这些开关视为禁止所有已有精确身份登录的通用开关                            |
+| 显式绑定             | 自有协议、管理员配置发布、成员预览与候选二次确认、查看及撤销绑定                                           | 不自动注册、不按同邮箱合并、不转移身份、不开放独立 SSO 登录                   |
+| SSO 登录（后续）     | 尚未开放                                                                                                   | 先实现外部主因子与本地 MFA 的统一状态机、会话代际、撤销及恢复，再接入登录入口 |
+| 企业策略扩展（后续） | 多 provider、受信任外部 MFA、SSO-only 和通行密钥仍属规划                                                   | 分别设计发布、强度映射和最后管理员恢复                                        |
 
-实现和测试先使用受控 OIDC 测试提供商，不以用户尚未选定企业 IdP 为阻断。真实提供商只在明确配置和授权后接入。
+当前没有向 Better Auth 注册社会化或 `genericOAuth` provider；绑定写入项目自己的表，不写 SDK 的 `accounts`，也不调用 SDK 创建会话。将来若接入 SDK 登录能力，须在服务端明确控制实际挂载的登录、直接 ID token 和回调入口，禁止没有对应自有动作的会话签发，不能只隐藏按钮。[Better Auth 账户关联文档](https://better-auth.com/docs/concepts/users-accounts#account-linking) 提供开关背景，具体行为仍以已安装源码为准：本地 `1.7.7` 的 `genericOAuth.config` 不转发 `disableIdTokenSignIn`，不能依靠该字段假定入口已关闭。
 
 ## 一个成员实际会经历什么
 
-假设本地成员 `alice` 已启用 TOTP，并在五分钟内完成密码与因子验证。她要把企业身份 `issuer=https://idp.example/tenant-a`、`sub=subject-17` 绑定到自己。
+假设本地成员 `alice` 已启用 TOTP，并在五分钟内完成密码与因子验证。她要绑定 `issuer=https://identity.example/tenant`、`sub=subject-17`。
 
-1. 页面展示本地成员、固定提供商及其 issuer、申请范围和“绑定不会替代本地认证”。服务端签发两分钟有效的操作预览，绑定当前公开会话 ID、目标 provider 和全部授权代际。
-2. 她确认预览后，服务端原子消费预览并启动一次 OIDC 跳转，生成独立随机 state、PKCE verifier 和 nonce。协议 state 的寿命至多十分钟，动作仍受原来五分钟近期证明限制；不能用更长的协议寿命延长授权。
-3. IdP 回调到固定 HTTPS 地址。服务端核对 state cookie 和操作身份，原子领取这次回调，交换授权码并验证 ID token。协议成功后，只有原会话、证明和各代际仍有效，才能在 D1 写入短期候选身份；此时尚未绑定。
-4. 页面明确展示“本地 alice ↔ 企业 subject-17”及提供商给出的可读名称，等待最终确认。候选最多保留两分钟，不能超过动作、原授权证明与 ID token 的剩余有效期；外部名称作为纯文本呈现。
-5. 最终确认的条件写同时消费候选、建立唯一绑定并记录操作收据。回调、确认、网络重试或双击都不能创建第二个绑定。页面重新查询实际结果，不自动把不确定网络失败视为未执行。
-6. 当前浏览器仍保留原本的本地认证证据；没有新登录 cookie，没有刷新密码/因子时间，也不产生一次性因子证明。
+1. 账户安全页显示当前成员、提供商、issuer 和绑定范围。服务端签发至多两分钟有效的预览，绑定原会话、提供商配置和全部授权代际，并受原近期证明到期时间限制。
+2. 她勾选确认并开始。服务端原子消费预览，产生独立随机 state、PKCE verifier、nonce 和 cookie 值。协议动作至多十分钟，不能超过原五分钟证明的剩余寿命。
+3. 提供商 GET 回调到 `/api/auth/oidc/callback/<providerId>`。服务端验证 state、该动作的 cookie 和原会话，原子领取回调，再交换授权码并校验 ID token。原授权仍有效时才写入候选，此时尚未绑定。
+4. 页面从同一会话的 API 读取候选，显示 issuer、sub、邮箱和名称。邮箱及名称仅作纯文本说明。候选最多两分钟，且不超过动作、原证明与 ID token 的到期时间。
+5. 她再次勾选并确认。条件写、唯一绑定和操作收据在 D1 原子完成。重复确认只读取原收据；网络结果不确定时查询实际状态，不自动重发写请求。
+6. 浏览器继续使用原本地会话。绑定没有完成密码验证，也不生成新会话或一次性因子证明。
 
-若 Alice 在 IdP 页面停留时退出本地会话、切换账户、改密码、重生成恢复码或遇到实例策略变更，迟到回调不得绑定。回到本地重新验证后必须重新预览，不能给旧动作自动换一份更新的证明。
+若本地会话退出、账户切换、密码或因子代际改变、恢复码重生成、策略或已发布提供商改变，旧动作失效。重新认证后必须重新预览，不能给旧动作补一份新证明。受限 MFA 会话、模拟身份、PAT、MCP 会话及 Agent 用户不能使用此流程。
 
-## 身份键与提供商身份
+## 部署配置与管理员发布
 
-外部身份的权威键是大小写敏感的 `(issuer, sub)`，不是邮箱、显示名、用户名、域名或头像。issuer 必须与配置值及发现文档完全一致；不能剥掉路径、末尾斜杠或大小写来凑成匹配。`sub` 必须是非空的受支持字符串。外部邮箱可选，只作显示，不决定本地账户所有权；与本地邮箱不同要明确展示，不自动修改本地邮箱或验证标记。[OIDC 身份与 ID token 规则](https://openid.net/specs/openid-connect-core-1_0.html#IDToken)、[发现文档验证](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationValidation)是依据。
+`OIDC_PROVIDER` 是公开的 JSON 字符串，默认空字符串表示当前部署未配置，不表示实例已经发布停用。`OIDC_CLIENT_SECRET` 是独立 Worker secret，不放入该 JSON。格式和操作步骤见 [配置](configuration.md#oidc-identity-linking)。当前只支持一个部署配置，固定授权码、S256、`openid profile email` 和 `client_secret_basic`；不申请离线访问或刷新令牌。
 
-下列数据属于拟议的独立应用表，通过 Drizzle 声明生成迁移；本阶段不手写迁移、不直接改生成的认证 schema。
+| 字段             | 约束                                                                                    |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `id`             | 1–50 位小写字母、数字、下划线或短横线，首位为字母或数字；不可复用的提供商身份           |
+| `name`           | 1–100 字符，无控制字符；用于公开界面                                                    |
+| `issuer`         | 固定 HTTPS DNS URL，无凭据、query 或 fragment；与发现文档及 ID token 的 issuer 精确一致 |
+| `clientId`       | 1–1024 字符，无控制字符                                                                 |
+| `version`        | 正的安全整数；已登记 id 的任何有效配置变更须严格提升版本                                |
+| `allowedOrigins` | 可选，最多八个额外 HTTPS DNS origin；issuer origin 自动加入，供发现结果的端点校验       |
 
-| 记录           | 必须保存的契约                                                                                                        |
-| -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 提供商记录     | 不可变 `providerId`、固定 issuer、客户端配置代数、启用/退役状态；实际操作每次检查 D1 当前权威值                       |
-| 身份绑定       | 唯一 `(issuer, sub)`、本地 `userId`、不可变 provider 身份、绑定代数、撤销状态；首版不提供转移到另一成员的流程         |
-| 预览与跳转动作 | 随机动作 ID、会话与用户、目标 provider/issuer、配置/策略/凭据/因子/恢复码代际、实际证明时间、期限、单次状态及领取身份 |
-| 候选与结果收据 | 已验证的最小 issuer/sub、动作关联、确认期限、最终成功或失败结果；不保存完整 claims、令牌或 HTTP 响应                  |
+回调由 `BASE_URL` 加固定路径生成，不接受请求或提供商指定的回调地址。公开 origin 使用 HTTPS；仅 localhost、`127.0.0.1` 和 `[::1]` 可用本地 HTTP。提供商端点始终要求 HTTPS DNS。部署者须在 IdP 登记完全相同的 GET 回调地址。
 
-同一 `(issuer, sub)` 并发绑定给两名成员必须由数据库唯一约束裁决，查询后再插入不够。撤销保留必要的代际与所有权记录；同一成员重新绑定要完成新动作，首版不能借撤销把身份静默转给另一成员。删除成员后的保留/清理另按数据策略处理，不自动把旧身份认给后来同邮箱的成员。
+写入环境变量或 secret 并部署后，配置仍须由管理员在站点设置页预览、确认和发布。管理员需要完整的真实浏览器会话，以及五分钟内的本地密码和已启用因子证明。预览绑定会话、原证明、待发布配置及全局 `configGeneration`；最终 SQL 写点再次检查管理员身份和这些条件。公开确认摘要是随机操作能力，不是 secret 或其摘要。
 
-SDK 的账户键是 `providerId + accountId`，OIDC 的默认 `accountId` 来自 `sub`，并不把 issuer 写进该键。更换 issuer 必须创建新的 provider 身份，旧 ID 永不复用；更换客户端、secret 或验证配置也推进配置代数并围栏在途操作。退役 provider 阻止新的动作及回调。显示名称可以改变，不能改变身份键。
+`oidc_providers` 永久登记 id 与 issuer，`oidc_configuration` 记录当前配置、`enabled` 和全局 generation。已有 id 不能换 issuer、降低或复用版本；切换到其他 id 后再切回，或停用后重新启用，也须提升原 id 的版本。更换 issuer 必须用新 id。内部完整摘要覆盖 secret、名称、客户端、允许的 origin、版本和回调；secret 轮换或 `BASE_URL` 改变同样须提升版本并重新发布。
 
-## 把本地授权带过跳转，再在写点核验
+发布原子增加全局 generation。旧 Worker 配置、预览、等待回调或候选即使仍有缓存，也不能通过最终 D1 围栏。可靠停用必须由仍有效的本地管理员在近期证明下预览并确认发布（管理员 API `/retire-preview`、`/retire`）。声明触发器将 D1 `enabled` 置为 false、把当前 digest 改成 `retired:<actionId>`、推进 generation，并取消及清理所有在途绑定动作。该撤权不依赖当前部署的 provider 配置或 secret 有效。只清空环境变量不能替代发布停用：它仅令当前部署不提供协议，旧 Worker 或已开始交换的动作仍可能持有原配置。
 
-预览要求现有策略通道为 `full`、非模拟身份、未封禁的人类成员，且有五分钟内真实密码证明；已启用因子时还须同样新鲜的 TOTP 或恢复码。允许绑定只表示授权这次关系变更，不是预先批准以后所有 IdP 回调。
+停用保留 registry、已绑定身份和 tombstone，成员仍能查看和按近期验证规则撤销自己的绑定。当前部署配置缺失或无效时，状态接口安全返回 `ready=false`，保留查看、撤销和管理员停用能力；管理员状态以 `active.enabled` 表示已发布启停，配置错误另见 `configurationError`。不能把“未配置”误读为“已全局停用”。重新启用须使用更高版本并再次发布。当前没有动态多 provider 或通用 D1 配置编辑入口。
 
-| 写点         | 必须原子核对的内容                                                                                                    | 失败行为                                               |
-| ------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| 预览签发     | 活会话、用户、角色/封禁/代理状态、当前策略、真实近期证明与凭据/因子代际                                               | 不签发动作能力                                         |
-| 启动跳转     | 预览摘要、用户/会话、目标、期限、未消费状态及签发时全部快照                                                           | 不生成可继续的跳转；新预览替换旧预览                   |
-| 回调领取     | state 对应的动作、原浏览器 cookie 及活会话、全部授权快照、固定 provider/issuer、期限、配置代数、未领取状态            | 一次调用领取成功；并发调用不能重复交换或写候选         |
-| 回调候选写入 | 签名和 claims 已验证；原会话仍存活；凭据/因子/恢复码/实例策略/provider 配置代数及证明时间仍与快照一致；近期证明未过期 | 丢弃协议结果，不写绑定或更新会话；不改用当前新代际继续 |
-| 最终绑定确认 | 原会话、全部快照、候选 ID/摘要、期限、单次状态、外部身份唯一性                                                        | 条件写失败或冲突返回重新预览；不能报告成功             |
-| 撤销绑定     | 当前成员拥有该关系、活且近期验证的会话、绑定当前代数                                                                  | 不代他人解绑；消费旧动作后不能重新建立关系             |
+安装器未新增 OIDC flags，默认仍为空配置。操作者明确选择接入后再手写公开配置、设置 secret、审查迁移并部署，然后由管理员发布。生成迁移 `0057` 建立绑定结构，`0058` 增加停用，`0059` 补充退休 digest 和确认触发器的配置围栏；生产迁移和部署均须另行授权，不由本地验证自动执行。
 
-动作不能只靠签名 state 或内存锁维持单次性。SDK 的数据库 state 路径读取后再删除，不能把它等同于跨 isolate 的原子消费；本地动作须用 D1 条件更新/删除返回值领取，并以成功领取收据围栏后续写入。网络调用不能放在 D1 交互式事务里：先领取，再请求外部，最后条件落库；兑换结果不确定就终止本动作并重新开始，不盲目重试授权码。
+## 身份唯一性与撤销
 
-绑定、动作消费和操作收据必须在同一条件语句/声明触发器或有依赖条件的 `batch()` 中成立；数据库失败不得留下半个绑定。通用审计继续调用项目的脱敏记录接口，记录失败不把已经完成的业务伪装失败；可恢复结果以原子收据为准。D1 [`batch()` 的官方事务语义](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)不表示支持跨请求或夹带外部 fetch 的事务。
+权威键是大小写敏感的 `(issuer, sub)`。邮箱、显示名、用户名或域名不能合并账户；回传邮箱也不成为本地已验证邮箱。每个成员同一 provider 至多一个活动绑定。
 
-## OIDC 协议要求
+身份不能移交给另一成员。撤销保留记录和 revision，仅原成员能重新走完整流程恢复自己的同一身份；账户删除后 owner 置空，留下不能被新账户接管的 tombstone。新建同名或同邮箱账户不会继承绑定。声明触发器限制身份键、provider id、owner 和版本变动，并在撤销时取消相关在途动作。
 
-第一完整功能固定为 authorization code + PKCE S256、从本地发起、GET query 回调。回调地址由实例 `BASE_URL` 与不可变 provider ID 构造并在 IdP 精确登记；拒绝客户端自选回调、动态额外 scope、IdP 主动入口、`form_post`、客户端直接提交 ID token 及泛用 OAuth 换取本地登录。绑定阶段无需请求 `offline_access`。
+撤销检查自己的完整会话、近期证明和 binding revision，部署配置移除后仍可执行。取消自己的未完成动作不要求再次提供近期证明，但仍检查当前有效会话。取消、失败及进入候选会清理动作的 state/cookie 摘要和加密状态；超时按状态和原期限拒绝使用，不表示有独立定时任务即时删除过期行。
 
-“只绑定”必须由服务端保证。将来注册 provider 或写入身份关系后，`accountLinking.enabled=false` 仍不阻止 SDK 为已经精确关联的 provider/subject 登录。因此绑定阶段必须禁止普通 `/sign-in/social`、直接 ID token 登录，以及不带自有绑定动作的 callback 建立会话；不能只隐藏登录按钮。1.7.7 的标准路由为 `/sign-in/social` 与 `/callback/:id`，没有独立 `/sign-in/oauth2`，后者按未挂载验证；将来 SDK 新增别名不能默认放行。受控回调只写候选身份，不能进入 SDK 默认的 `handleOAuthUserInfo → createSession` 路径。当前安全基础尚未注册生产 provider，不将这个未来接入条件当作当前已暴露的 SSO 漏洞。
+## 会话、动作与最终写点
 
-1.7.7 的 `genericOAuth.config` 没有把 `disableIdTokenSignIn` 转发给生成的 provider options，不能只在该 config 加同名字段就认为直接 ID token 入口已关闭。此阶段以项目服务端入口检查和真实请求拒绝为准；每次升级重新枚举实际挂载 API，并同时覆盖跳转及直接 token 分支。
+`oidc_link_actions` 按成员和动作种类保留一个有界操作槽；新预览替换旧槽，使旧动作 ID 失效。服务端只保存 state 与 cookie 的 SHA256。verifier 和 nonce 使用 `BETTER_AUTH_SECRET` 派生的专用 AES-GCM 密钥加密，AAD 绑定动作、成员、会话和完整提供商摘要。
 
-| 边界         | 必须落实的检查                                                                                                                                                                                                                     |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| State / CSRF | state、动作和原浏览器相关联，cookie 及过期检查保留；初始/确认 POST 检查同源。state 不是目标用户或新授权证明的客户端输入                                                                                                            |
-| PKCE         | 服务端生成高熵 verifier，发 S256 challenge，兑换时使用同一 verifier；保留预留参数保护，禁止降为 plain 或关闭。依据 [RFC 7636](https://www.rfc-editor.org/rfc/rfc7636)                                                              |
-| Nonce        | 每个动作随机生成；服务端保留期望值，ID token 必须包含相同 nonce。不能接受客户端提交的“期望 nonce”代替服务端状态                                                                                                                    |
-| ID token     | 必须实际存在且为受支持的签名 JWT；允许算法白名单、可信 JWKS、精确 `iss`、正确 `aud`、非空 `sub`、必填且有效的 `exp`/`iat`，检查存在的 `nbf`；限定时钟偏差与最大年龄。多 audience 或有 `azp` 时验证 authorized party 与本客户端一致 |
-| 用户资料     | 身份只由已经验签的 issuer/sub 决定；首版不依赖 userinfo 推断身份。若以后请求 userinfo，必须核对其 sub 与 ID token 相同。邮箱验证必须是明确布尔值且符合受信 IdP 语义                                                                |
-| 本地用户     | 仅预览所指向的已有成员；禁止自动建人、改本地邮箱、把 provider 的 role/groups 映射为管理员或仓库权限                                                                                                                                |
-| 秘密与跳转   | verifier 等必要动作材料加密并设期限；返回地址只允许校验过的本站路径。callback code、state、令牌、完整 claims 不进审计、应用日志或前端缓存；认证响应 `no-store`                                                                     |
+| 写点           | 原子检查与变化                                                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 预览与 start   | 活会话、未封禁且非 Agent/模拟身份、唯一密码凭据、原密码/因子证明、credential/factor/recovery/policy 代际及配置 generation；start 单次消费预览 |
+| 回调领取       | 原成员/会话、state/cookie 摘要、未过期动作、当前配置及原证明；CAS 从 `await_callback` 进入 `exchanging`，授权码只交换一次                     |
+| 候选写入       | 协议成功后再检查全部原授权条件和 generation，限制候选期限；只写最小身份信息                                                                   |
+| 最终确认       | 原会话、原证明、候选和配置仍有效；触发器原子写入唯一绑定及 binding id/revision 收据                                                           |
+| 配置发布与撤销 | 分别复核管理员或 owner、预览/CAS revision 和原授权快照；审计不含 token、secret 或完整协议响应                                                 |
 
-[OIDC Core 3.1.3.7](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation)规定 ID token 验证；这里的严格要求是本项目绑定阶段的接入契约。比如 `requireIdTokenVerification: true` 在 SDK 中保证发现元数据可用于验证，不等于“本次 token response 一定含 ID token”；项目仍须明确拒绝 userinfo 回退与缺失必填 claims，不能只看配置名称。
+绑定确认触发器还独立检查 D1 的 `enabled`、provider/issuer、version、digest 和 generation；不能仅依赖应用层已读取的旧配置。近期证明只来自真实本地密码与已启用因子，不能由外部回调、模拟身份、注册或会话刷新推断。因素未启用且策略允许时沿用密码近期门槛；策略要求 MFA 时仍检查本地因素。回调及确认不延长五分钟窗口，任何授权代际变化都使旧快照失效。
 
-## 发现文档、出站请求与凭据保存
+每个动作有独立 cookie：HTTPS 下名称为 `__Secure-cloudforge.oidc-link.<SHA256(state)>`，本地 HTTP 去掉 `__Secure-`。cookie 为 HttpOnly、SameSite=Lax，HTTPS 下 Secure，Path 精确限制为该 provider 回调路径，期限不超过原证明。旧 start 的迟到响应不能覆盖新 cookie；旧回调只删除自己的 cookie，被替换动作的残余 cookie 按原期限过期。相同回调的失败竞争者不能清掉已经领取交换的胜者。
 
-第一完整功能由部署操作者配置一个固定提供商，成员不能提交 discovery、token、JWKS 或 userinfo URL。发现文档必须使用 HTTPS，issuer 与配置完全一致；授权、token、JWKS 等端点先按允许的明确 origin/路径校验，不以发现结果扩大任意出站权限。错误、重定向、超时、超体积、无 JWKS 或不支持的签名算法均失败关闭。
+成员 API 位于 `/api/me/oidc`，管理员 API 位于 `/api/admin/oidc-provider`；写请求绑定 `X-CloudForge-Session`，响应禁止缓存。GET 回调在 SDK 的 `/api/auth/*` 通配路由之前挂载。回跳只携带动作 ID 和固定状态，页面通过同一会话查询实际候选，不信任 URL 参数作为身份或授权。请求日志脱敏回调 code/state。
 
-出站限制需覆盖 discovery/JWKS/token 各次请求，并拒绝 URL 凭据、localhost、私有/保留 IP 字面量、scheme 混淆与重定向。URL 过滤不能声称解决 DNS 重绑定；如果没有实际解析与连接目标约束，必须保留该未验证边界。首版只支持明确受信任的 HTTPS IdP 端点，私有网络 IdP 的路由策略另行设计。测试只访问受控 fixture，不接触真实内网资源。
+## OIDC 协议与出站边界
 
-绑定结束后不需要调用 IdP API，因此不保存 access token、refresh token 或 ID token，也不开通通用获取/刷新 provider token 的浏览器 API。只在本请求内验证它们；跨回调所需的短期状态另按目的加密和过期清理。SDK 的 `encryptOAuthTokens` 只处理其 access/refresh 写入路径，不能据此声称所有 ID token 都已加密或无需落库控制。
+`worker/src/oidc/provider.ts` 独立执行协议。发现文档 issuer 必须精确匹配配置；authorization、token、JWKS 端点只能使用允许的 HTTPS DNS origin。拒绝 IP 字面量、本地主机、单标签名称和常见私有后缀；当前没有 endpoint path 白名单。Worker 拉取发现文档、token 和 JWKS 时不跟重定向，正常 IdP 浏览器登录导航不属于这项 fetch 策略。
 
-## 部署配置与缓存选择
+fetch 使用 `redirect: 'manual'`，拒绝 3xx、其他非成功状态、`redirected` 或不匹配的最终 URL。Workers 不支持标准 `redirect: 'error'`，构造请求即抛错；手动模式加状态检查遵循 [Cloudflare Request 文档](https://developers.cloudflare.com/workers/runtime-apis/request/#parameters)。每次请求至多五秒、响应体至多 64 KiB；header 提前拒绝、超限、超时和迟到响应均取消未读 body。secret 仅按表单编码后用于 Basic 请求头，不写 URL 或请求体。
 
-第一完整功能使用部署时固定的公开 provider 描述与 Worker secret 保存客户端秘密；字段名和安装器 flags 在实现时一并确定。本设计没有新增可用环境变量。实现时要同时更新 example 顶层与 `env.dev`、CI/test 配置、绑定类型、配置文档及必要的安装器计划，不提交真实 ID 或 secret。
+ID token 必须存在且签名有效，仅允许 RS256 或 ES256。JWKS 至多 32 个公钥，只接受相应 RSA / P-256 签名验证键，拒绝私钥、对称键及远程 key URL。明确要求 `iss`、`sub`、`aud`、`exp`、`iat`、`nonce`，验证固定 issuer、client ID、nonce、整数时间和 token 年龄。`exp` 必须仍在未来且晚于 `iat`；`iat` 不早于动作开始前 30 秒，未来容差至多 30 秒，token 最大年龄十分钟。多 audience 必须带匹配 client ID 的 `azp`，只要出现 `azp` 就必须匹配。这是本项目在 [OIDC Core](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) 基础上的明确收紧，使用 [JOSE `jwtVerify`](https://github.com/panva/jose/blob/main/docs/jwt/verify/functions/jwtVerify.md) 校验。
 
-客户端参数与对应 D1 provider 配置代数必须匹配。轮换秘密、改 client ID、禁用或替换提供商都先产生明确计划并推进权威代数；不能让旧 Worker 或旧插件快照接受新动作。生产迁移、部署和 provider 启用分别需要明确授权；本地完成设计或代码不执行这些操作。
+缺少 ID token 时拒绝，不用 userinfo 代替。不申请或持久化外部 refresh token，也不持久化收到的 access/ID token；只提取身份键和受长度限制的可读字段。IdP 的 `amr`/`acr` 不等同于本地 MFA，不写入本地 `password` 证据。
 
-当前 `authFor` 按 env 复用认证实例，其“创建不做 I/O”的假设不适用于直接加入异步 discovery。第一完整功能优先把 OIDC 协议服务与已有认证实例分开，避免为整个本地密码认证引入网络初始化。只缓存已完成的不可变 metadata/JWK 数据，按 provider ID、配置代数和 TTL 隔离；不跨请求保存 Response、stream 或进行中的 fetch promise。冷启动同时 miss 可重复请求，先保证请求归属正确，再按实测决定是否引入外部协调。
+metadata 与原始 JWKS 分别缓存已完成的数据，各至多 16 项、TTL 五分钟，以完整配置摘要隔离。每次请求重建本地 JOSE verifier，不跨请求缓存 Promise、Response、stream 或带 I/O 的远程 key resolver，遵循 [Cloudflare 请求间 I/O 隔离](https://developers.cloudflare.com/workers/observability/errors/#cannot-perform-io-on-behalf-of-a-different-request)。并发冷请求独立拉取。未知 kid 或签名失败时，仅缓存已存在至少 30 秒才刷新 JWKS 一次；最近缓存失败直接拒绝，密钥轮换可能有短暂拒绝窗口。
 
-JWKS 轮换及未知 `kid` 允许有界刷新，失败关闭；不能无期限使用旧 key。未来若允许管理员在网页动态修改 provider，须先实现 D1 代数发布、每个写点的当前配置检查、缓存替换和回滚语义，不能只更新 settings 后继续使用旧 WeakMap 实例。Cloudflare [跨请求 I/O 限制](https://developers.cloudflare.com/workers/observability/errors/#cannot-perform-io-on-behalf-of-a-different-request)与 [Web Crypto 支持](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/)需要在 workerd 中验证，Node fixture 成功不证明 Workers 可用。
+URL 过滤和 origin 限制不等于 DNS 级 SSRF 防护。当前没有解析并固定连接 IP，未覆盖受信 DNS 解析到私网或 DNS 重绑定的全部情况；部署者须审查 issuer 和额外 origin 的控制权。真实 IdP 网络、证书和轮换行为须在明确配置后另行验证。
 
-## 保持本地证明与恢复路径
+## 界面与恢复边界
 
-| 情形                                  | 第一完整功能的行为                                                                                                                                    |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 已有密码 + 因子近期会话绑定成功       | 仅新增绑定；不把外部登录记为 `authMethod=password`，不刷新 `authTime`/`secondFactorTime`/`mfa_verified_at`                                            |
-| 只有外部身份或客户端 ID token         | 不能创建本地登录，也不能预览、确认绑定或取得近期授权                                                                                                  |
-| 当前实例要求 MFA 或成员自愿启用了因子 | 绑定仍需本地密码和对应因子；受限会话先完成现有绑定/重验通道                                                                                           |
-| IdP 不可用或配置错误                  | 本地密码、TOTP/恢复码与离线恢复路径仍按原规则可用；不增加“用邮箱当第二因子”的旁路                                                                     |
-| `reset-mfa` 离线恢复                  | 保留实例策略，清本地因子/会话并推进代际；在途 OIDC 绑定动作因此失效。既有身份关系不自动视为 MFA，也不作为恢复授权                                     |
-| 后续独立 SSO 登录                     | 使用独立真实 `oidc` 主因子证据和 provider/绑定代数；先建立本地因素挑战、撤销与受限会话模型。IdP 的 `amr`/`acr` 不自动替代本地 TOTP 或当前密码近期门槛 |
+预览、候选和确认摘要仅在当前组件内存，不进入持久存储或共享 query cache。账户/会话变化、pagehide、卸载清除确认状态并取消请求；浏览器缓存恢复后重新查询。离开页面前往 IdP 不能自动取消服务端动作。异步结果检查原会话及操作代数，旧响应不能复活候选或确认勾选。
 
-本地密码仍是第一完整功能的敏感操作重验与最后管理员恢复前提；不在此阶段创建只有 SSO 而无本地凭据的成员。SSO-only、信任外部 MFA 以及远端登出传播将改变此契约，必须单独设计，不把 SSO 会话创建时间当成密码证明。
+候选和管理员发布均须独立确认。过期候选移除执行控件，配置不再 ready 时阻止确认、保留取消。提供商和 claim 均按普通文字显示，不生成 HTML、图片或外链。仅明确尚未执行的近期验证挑战可提示重验并重试一次；策略拒绝不自动重放。
 
-## 验收矩阵
+绑定不删除密码或本地因素，不改变实例 MFA 策略。本地 `reset-password` / `reset-mfa` 保持现有语义，恢复后的代际使旧动作失效，OIDC 身份不能绕过最后管理员恢复。后续 SSO 须先明确外部主因子、本地因素挑战、restricted 会话、联合重验、撤销和离线恢复的关系，再开放登录。
 
-下表是完成标准，存在用例或 Node 探针不等于全部通过。新增 Worker 用例须登记 CI；使用 workerd 的真实 D1，外部提供商由受控 HTTP fixture 代替。
+## 验证矩阵与未覆盖边界
 
-| 阶段 / 场景                                               | 必须观察到的结果                                                                                                           | 验证方式                                                                                    |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 安全基础：SDK 新增联结与同邮箱回调                        | 未关联或仅同邮箱的外部身份不能新增 account 或建立会话；不声称关闭已有精确绑定身份的 SDK 识别，解除仍受原验证               | 真实 native route、回调、D1 行和 cookie 断言                                                |
-| 只绑定阶段：已经精确关联的身份调用通用登录或默认 callback | 即使策略关闭、身份已存在，也不能通过已挂载的 social/直接 ID token 或无自有动作 callback 获得会话；未挂载 oauth2 别名仍拒绝 | 种入合法绑定，逐入口真实调用并断言 sessions、cookie 与普通 API 访问；覆盖 callback 状态分支 |
-| 显式绑定正常流程                                          | 预览 → 跳转 → 回调候选 → 人工确认后恰好一条绑定；确认前没有绑定或新登录                                                    | workerd + D1；桌面/移动真实页面交互                                                         |
-| 原会话退出、切换成员、密码/因子/恢复码/策略/provider 变化 | 每个写点拒绝陈旧动作，候选及完成收据不能被迟到写冒充成功                                                                   | 在各异步边界注入变化；覆盖最终 SQL 检查                                                     |
-| 并发、重放与响应丢失                                      | 同一动作只有一次领取/消费；两个成员争同一身份只有一人成功；读取收据可区分完成与未知                                        | 真实 D1 并发请求及唯一约束；不依赖内存锁                                                    |
-| State/nonce/PKCE/issuer/audience/azp 任一不匹配           | 拒绝；无用户、绑定、会话或证明副作用                                                                                       | 正反例 fixture，拒绝直接客户端 ID token 路径                                                |
-| ID token 缺失、缺 exp/iat、过期、未来时间、坏签名或算法   | 拒绝；不会退到未验证 claims 或 userinfo 建立身份                                                                           | 独立签名 fixture + workerd 路由                                                             |
-| 同邮箱、外部未验证邮箱、provider/sub 重名、换 issuer      | 不自动注册/联结/转移；精确身份键与不可复用 provider 生效                                                                   | 原有成员、代理、封禁成员及重复身份用例                                                      |
-| 秘密、SSRF 与缓存                                         | 无 token/claims 持久化或日志泄漏；拒绝受控私网/重定向/超时/超体积 fixture；跨请求不共享 I/O                                | 捕获 outbound 请求、D1/日志扫描、并发冷启动和 key 轮换                                      |
-| 本地证明与离线恢复                                        | 绑定不刷新原证明；敏感写仍需原规则；最后管理员恢复后重新绑定本地因子并重验                                                 | 现有 MFA/policy/recent 套件 + 新动作失效用例                                                |
-| 工程与发布边界                                            | 生成 schema/迁移可复现；类型、格式、全套测试、构建通过；发布事实单列                                                       | 按开发说明完成实际命令并保留最终退出码；不以文档构建代替业务验收                            |
+| 范围           | 本轮定向证据                                                                                                      | 边界                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 状态机与路由   | `oidc-linking.test.ts` 29 项，含发布/停用、坏配置恢复、退休摘要、确认触发器、陈旧代际、唯一性、收据和 cookie 竞争 | 真实 workerd / D1；外部 HTTP 为受控 fixture                             |
+| 协议           | `oidc-provider.test.ts` 52 项，含 RS256/ES256、必需 claims、错误 azp、恶意 metadata/JWK、重定向、超限和超时       | 真实 WebCrypto；不是企业 IdP 联调                                       |
+| 请求隔离       | 独立 Miniflare 9 次真实 HTTP invocation，冷/热缓存、并发发现与三处重定向拒绝，攻击目标请求数为零                  | 按测试配置的兼容日期运行，不冒充生产日期或网络验证                      |
+| 界面           | 实际管理员和成员组件 23 项浏览器检查，含二次确认、会话变更、pagehide、迟到响应和策略拒绝                          | 受控 API fixture，不等同于真实 IdP 全链路                               |
+| 完整验收与上线 | 最终整合日志另行核验 `yarn test`、`yarn typecheck`、生成器、格式和构建                                            | 不将定向结果或生成器中途输出类型文本视为全套通过；生产迁移/部署另行授权 |
 
-## 源码依据与未确认范围
-
-本地已核对的 SDK 路径为 `better-auth/dist/plugins/generic-oauth/index.mjs`、`oauth2/state.mjs`、`oauth2/link-account.mjs`、`api/routes/account.mjs`，以及 `@better-auth/core/dist/oauth2/verify-id-token.mjs`。官方 [Generic OAuth](https://better-auth.com/docs/plugins/generic-oauth) 与[账户联结](https://better-auth.com/docs/concepts/users-accounts#account-linking)说明能力及开关；实现选择仍以锁定版本源码和负向测试为准。
-
-当前项目的 MFA 会话创建护栏、近期授权和策略版本检查来自 `worker/src/auth/index.ts`、`two-factor.ts`、`recent.ts`、`policy.ts`。已有因子账户的任意社会化回调不会自动获得 MFA 通过；直接接插件可能被现有护栏拒绝，不能靠放宽该护栏实现 SSO。原生 callback 的 state 所指用户也不能替代最终活会话检查。
-
-本地合成 SDK 探针确认 verifier 会拒绝错误 issuer/audience/nonce 与过期 token，但默认不要求 exp/iat 存在，也未额外拒绝多 audience 时错误 azp；元数据验证开关仍允许缺 ID token 时使用 userinfo。这些属于接入时必须补齐的契约，不是当前尚未启用 OIDC 的可利用项目漏洞。真实 IdP 行为、Workers 并发 discovery/JWKS、生产网络/密钥轮换与完整显式绑定流程尚未确认。
+源码入口为 `worker/src/oidc/`、`worker/src/routers/oidc-router.ts`、`worker/src/db/oidc-triggers.ts`、`src/components/OIDCIdentities.tsx` 和 `AdminOIDCProvider.tsx`。定向通过不能替代完整检查，也不表示已推送或线上已启用。

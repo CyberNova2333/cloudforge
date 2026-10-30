@@ -2,7 +2,7 @@
 
 # Configuration
 
-CloudForge reads its configuration from `wrangler.jsonc` (generated from [`wrangler.jsonc.example`](../wrangler.jsonc.example) by `yarn cloudforge install`, or copied from it by hand; gitignored) and from Worker secrets. **Site admin → Setup** checks all of it on the running worker (secrets set and long enough, bindings present and reachable, variables, migrations, AI Gateway) and shows how to fix what's wrong.
+CloudForge reads its configuration from `wrangler.jsonc` (generated from [`wrangler.jsonc.example`](../wrangler.jsonc.example) by `yarn cloudforge install`, or copied from it by hand; gitignored) and from Worker secrets. **Site admin → Setup** checks the installation prerequisites on the running worker (secrets, bindings, variables, migrations, AI Gateway) and shows how to fix what's wrong. Optional OIDC linking has a separate administrator preview/publication step described below; a healthy Setup page does not mean an OIDC provider is published.
 
 ## Bindings
 
@@ -89,6 +89,37 @@ The figures are estimates, not an invoice:
 | `SETUP_CODE_HASH`                          | Lowercase hex SHA-256 of the one-time setup code (dashes removed, upper-cased) that `yarn cloudforge install` prints ([Manual setup](setup.md#6-set-the-secrets) makes one by hand). The welcome page requires the code to create the first admin; while it is empty or unset, setup is refused unless both the request and `BASE_URL` use a local-only name (`localhost`, a loopback address, `.localhost`, `.local`, `.test`). No rate limiter: the installer's code carries about 99 bits, so online guessing is infeasible |
 | `CF_ANALYTICS_TOKEN`                       | Optional. An account API token with only **Account Analytics: Read**, for Usage & cost. Production: `wrangler secret put CF_ANALYTICS_TOKEN`. Without it, the page shows only what CloudForge records itself (Actions runners, Workers AI calls, emails)                                                                                                                                                                                                                                                                       |
 | `ACTIONS_SECRETS_KEY`                      | Encrypts Actions secrets (AES-256-GCM under a key derived from it) that repository admins and site admins save. `yarn cloudforge install` and `upgrade` generate it when the worker lacks it; by hand: `openssl rand -hex 32                                                                                                                                                                                                                                                                                                   | wrangler secret put ACTIONS_SECRETS_KEY`. Without it, secrets can't be saved and read as empty in jobs (variables still work). Changing it makes every saved secret unreadable until it is saved again |
+
+## OIDC identity linking
+
+OIDC currently binds an external identity to an existing member; it does not enable SSO login. The installer has no new OIDC flags and leaves it disabled. Configure this only after the operator chooses to connect a provider. See [OIDC identity linking](oidc.md) for protocol, recovery and validation boundaries.
+
+| Setting              | Location                                                           | Default and purpose                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OIDC_PROVIDER`      | Worker variable, including `env.dev.vars` when used in development | `""` leaves this deployment unconfigured; it does not retire an already published provider. Otherwise a JSON **string** containing the public fixed provider configuration below |
+| `OIDC_CLIENT_SECRET` | Worker secret; local `.dev.vars`                                   | Empty while disabled; required when `OIDC_PROVIDER` is configured. Never place it in the JSON, Git or the browser                                                                |
+
+For example, the variable value in `wrangler.jsonc` is a string, not an embedded object:
+
+```json
+{
+  "OIDC_PROVIDER": "{\"id\":\"company\",\"name\":\"Company identity\",\"issuer\":\"https://identity.example/tenant\",\"clientId\":\"replace-with-client-id\",\"version\":1}"
+}
+```
+
+`allowedOrigins` is optional: an array of at most eight additional HTTPS DNS origins for discovered endpoints. The issuer origin is already allowed. This permits origins rather than arbitrary redirects; private IP literals, local names and redirects are rejected. It does not provide DNS resolution pinning or complete DNS rebinding protection. Choose only origins controlled by the intended provider.
+
+Register the exact GET callback `<BASE_URL>/api/auth/oidc/callback/company` with the IdP. Public callbacks use HTTPS; only localhost and loopback development origins may use HTTP. The client must support authorization code + S256, `openid profile email`, `client_secret_basic`, and signed RS256 or ES256 ID tokens. Set the secret in `.dev.vars` locally, or use `yarn wrangler secret put OIDC_CLIENT_SECRET` for the intended production Worker; do not run secret or deployment commands against an unintended environment.
+
+After separately authorized migration and deployment, a site administrator opens the OIDC provider panel in **Site admin → Settings**, previews the deployed public configuration, checks it and confirms publication. Publication requires the original live browser session and local password plus any enabled factor verified within five minutes. Until the deployed configuration matches the published registry and global generation, members cannot start a link action.
+
+The provider id permanently identifies its exact issuer. Changing issuer requires a new id. Any change to an already registered id, including secret rotation, allowed origins, name, client id or callback origin, requires a strictly higher `version` and fresh administrator publication. Switching away and back does not free the old id or version. The secret participates in an internal configuration digest but is never returned by these APIs. Global `configGeneration` fencing invalidates old previews and callbacks even if an old Worker or cache remains alive.
+
+To reliably disable linking, a live local administrator must preview and confirm **publication of retirement** in the provider panel, using recent password and any enabled factor proof. The D1 trigger sets the published `enabled` flag to false, replaces its digest with a retirement marker, advances global generation and cancels in-flight linking actions. The binding confirmation trigger independently checks the enabled configuration and its generation. Retirement does not require a valid deployed provider JSON or client secret. Clearing `OIDC_PROVIDER` alone only leaves the current deployment unconfigured; it does not revoke a provider still active in D1 and cannot invalidate old Workers or already-started exchanges.
+
+Missing or invalid deployed configuration makes status safely report `ready=false`; it does not mean global retirement has been published. The administrator can still publish retirement, and members can inspect and revoke their own old bindings under the normal recent-authentication rules. Registry entries and identity tombstones remain. Re-enabling requires a strictly higher provider version and fresh publication. Generated migrations are `0057` for linking, `0058` for retirement and `0059` for the retired digest and confirmation-trigger fence; production migration and deployment require explicit authorization. This section documents configuration, not a deployment already performed.
+
+The deployment/CI templates set `observability.logs.invocation_logs=false` and `observability.redact_query_string=true`, retaining redacted application logs while hardening platform URL logging. Cloudflare's [invocation logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/#invocation-logs) otherwise include the request URL; the [Workers API](https://developers.cloudflare.com/api/resources/workers/) describes query redaction. The test configuration disables invocation logs but omits query redaction because its embedded Wrangler schema does not support that field; test-runtime results do not establish deployed platform redaction. These defaults do not rewrite an operator's ignored configuration. External Logpush/Tail, native metadata and path-token exposure through metadata have not been checked in production; these defaults do not establish that every logging surface is secret-free.
 
 ## Environments
 
