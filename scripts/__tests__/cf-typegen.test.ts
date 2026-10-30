@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   mkdtempSync,
@@ -12,6 +13,9 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 let directory: string;
+const notice =
+  '// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).';
+const generated = '/* eslint-disable */\ninterface Generated {}\n';
 const script = fileURLToPath(new URL('../cf-typegen.mjs', import.meta.url));
 const original =
   '// local configuration stays byte-for-byte intact\r\n{"local":true}\r\n';
@@ -21,7 +25,14 @@ beforeEach(() => {
   writeFileSync(join(directory, 'wrangler.jsonc.ci'), '{"ci":true}\n');
   writeFileSync(
     join(directory, 'fake-yarn.cjs'),
-    `require('node:fs').writeFileSync('trace.json', JSON.stringify(process.argv.slice(2)));process.exit(Number(process.env.TYPEGEN_TEST_EXIT || 0));`
+    `const fs = require('node:fs');
+fs.writeFileSync('trace.json', JSON.stringify(process.argv.slice(2)));
+const code = Number(process.env.TYPEGEN_TEST_EXIT || 0);
+if (!code && !process.env.TYPEGEN_TEST_MISSING) {
+  fs.mkdirSync('worker', { recursive: true });
+  fs.writeFileSync('worker/worker-configuration.d.ts', process.env.TYPEGEN_TEST_PREFIX ? ${JSON.stringify(notice + '\n' + generated)} : ${JSON.stringify(generated)});
+}
+process.exit(code);`
   );
 });
 afterEach(() => rmSync(directory, { recursive: true, force: true }));
@@ -34,6 +45,8 @@ function run(extra: Record<string, string> = {}) {
           'npm_config_user_agent',
           'npm_execpath',
           'typegen_test_exit',
+          'typegen_test_missing',
+          'typegen_test_prefix',
         ].includes(key.toLowerCase())
     )
   );
@@ -71,6 +84,20 @@ describe('绑定类型生成的跨平台执行与本地配置保护', () => {
       '--env-interface',
       'CloudflareBindings',
     ]);
+    preserved();
+    expect(
+      readFileSync(join(directory, 'worker/worker-configuration.d.ts'), 'utf8')
+    ).toBe(notice + '\n' + generated);
+  });
+  it('重新生成带已有版权头的产物时不重复添加', () => {
+    expect(run({ TYPEGEN_TEST_PREFIX: '1' }).status).toBe(0);
+    expect(
+      readFileSync(join(directory, 'worker/worker-configuration.d.ts'), 'utf8')
+    ).toBe(notice + '\n' + generated);
+    preserved();
+  });
+  it('工具零退出但未写出类型文件时不能报告生成成功，仍恢复配置', () => {
+    expect(run({ TYPEGEN_TEST_MISSING: '1' }).status).not.toBe(0);
     preserved();
   });
   it('工具返回失败仍还原本地配置并传播真实失败码', () => {
