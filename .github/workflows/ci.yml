@@ -299,7 +299,10 @@ jobs:
           worker/src/__tests__/authentication-policy-session.test.ts
           worker/src/__tests__/authentication-policy-oauth.test.ts
           worker/src/__tests__/oauth-account-linking.test.ts
+          worker/src/__tests__/oidc-provider.test.ts
+          worker/src/__tests__/oidc-linking.test.ts
           src/lib/authenticationPolicy.test.ts
+          src/lib/oidcApi.test.ts
           worker/src/__tests__/recent-authentication.test.ts
           worker/src/__tests__/mcp-grant-revocation.test.ts
           src/lib/recentAuthentication.test.ts

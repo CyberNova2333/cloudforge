@@ -53,6 +53,11 @@ import { adminSetupRouter } from './routers/admin-setup-router';
 import { adminRouter } from './routers/admin-router';
 import { authenticationPolicyRouter } from './routers/authentication-policy-router';
 import {
+  oidcMeRouter,
+  oidcAdminRouter,
+  oidcCallbackRouter,
+} from './routers/oidc-router';
+import {
   adminAgentsRouter,
   agentsRouter,
   repoAgentsRouter,
@@ -86,6 +91,10 @@ for (const path of [
   '/api/me/authentication-policy',
   '/api/admin/authentication-policy',
   '/api/admin/authentication-policy/*',
+  '/api/me/oidc',
+  '/api/me/oidc/*',
+  '/api/admin/oidc-provider',
+  '/api/admin/oidc-provider/*',
 ])
   app.use(path, async (c, next) => {
     await next();
@@ -139,6 +148,7 @@ for (const path of [
 ])
   app.use(path, requireAuth);
 
+app.route('/api/auth/oidc', oidcCallbackRouter);
 app.on(['GET', 'POST'], '/api/auth/*', (c) => c.get('auth').handler(c.req.raw));
 
 app.route('/', wellKnownRouter);
@@ -184,6 +194,7 @@ app.use('/api/repos/:owner/:repo', pingAfterChange);
 app.use('/api/repos/:owner/:repo/*', pingAfterChange);
 app.use('/api/admin/*', requireAuth);
 app.route('/api/admin/authentication-policy', authenticationPolicyRouter);
+app.route('/api/admin/oidc-provider', oidcAdminRouter);
 app.route('/api/admin', adminRouter);
 app.route('/api/admin/agents', adminAgentsRouter);
 app.route('/api/admin/audit', adminAuditRouter);
@@ -198,6 +209,7 @@ app.use('/api/notifications', requireAuth);
 app.use('/api/notifications/*', requireAuth);
 app.route('/api/notifications', notificationsRouter);
 app.use('/api/me/*', requireAuth);
+app.route('/api/me/oidc', oidcMeRouter);
 app.route('/api/me', meRouter);
 app.use('/api/live', requireAuth);
 app.get('/api/live', liveSocket);

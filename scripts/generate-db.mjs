@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Drizzle owns table migrations; these declarations add SQLite triggers it cannot represent.
 // Only append to a migration created during this invocation, never to existing history.
 import { createHash } from 'node:crypto';
@@ -19,6 +20,7 @@ import {
 import { AUTH_TRIGGERS } from '../worker/src/db/auth-triggers.ts';
 import { OAUTH_GRANT_TRIGGERS } from '../worker/src/db/oauth-grant-triggers.ts';
 import { AUTH_POLICY_TRIGGERS } from '../worker/src/db/auth-policy-triggers.ts';
+import { OIDC_TRIGGERS } from '../worker/src/db/oidc-triggers.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -29,6 +31,7 @@ const definitions = [
   ...AUTH_TRIGGERS,
   ...OAUTH_GRANT_TRIGGERS,
   ...AUTH_POLICY_TRIGGERS,
+  ...OIDC_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);

@@ -345,6 +345,36 @@ describe('每项审计操作都构成一个句子', () => {
       'System set a new password for @bob via cloudforge reset-password',
     ],
     [
+      'instance.oidc_configuration 管理员发布外部身份提供方配置',
+      {
+        action: 'instance.oidc_configuration',
+        repo: null,
+        target: 'company',
+        data: { providerId: 'company', version: 2 },
+      },
+      'mahmoud published the OIDC provider configuration for company',
+    ],
+    [
+      'user.oidc_linked 成员确认绑定外部身份',
+      {
+        action: 'user.oidc_linked',
+        repo: null,
+        target: 'company',
+        data: { providerId: 'company', actionId: 'link-action' },
+      },
+      'mahmoud linked an external identity through company',
+    ],
+    [
+      'user.oidc_revoked 成员撤销外部身份绑定',
+      {
+        action: 'user.oidc_revoked',
+        repo: null,
+        target: 'company',
+        data: { providerId: 'company', bindingId: 'binding-one' },
+      },
+      'mahmoud revoked an external identity binding for company',
+    ],
+    [
       'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in octocat/cloudforge',
@@ -769,6 +799,9 @@ describe('每项审计操作都构成一个句子', () => {
         'repository.created',
         'repository.deleted',
         'instance.settings',
+        'instance.oidc_configuration',
+        'user.oidc_linked',
+        'user.oidc_revoked',
         'release.created',
         'release.updated',
         'pull.version_bump',
@@ -1249,6 +1282,9 @@ describe('链接和分类', () => {
           /^(merging|decisions|access|settings)$/
         );
     expect(auditCategory('release.created')).toBe('merging');
+    expect(auditCategory('instance.oidc_configuration')).toBe('access');
+    expect(auditCategory('user.oidc_linked')).toBe('access');
+    expect(auditCategory('user.oidc_revoked')).toBe('access');
     expect(auditCategory('pull.version_bump')).toBe('activity');
     expect(auditCategory('pull.state_changed')).toBe('activity');
     expect(auditCategory('pull.rebased')).toBe('activity');

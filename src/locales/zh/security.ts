@@ -1,5 +1,107 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Account security and the password sign-in factor challenge. */
 export const security: Record<string, string> = {
+  'Provider status': '提供方状态',
+  'Published and active': '已发布并启用',
+  'Retired for all deployments': '已对所有部署停用',
+  'The published identity provider has been retired.':
+    '已发布的身份提供方已停用。',
+  'This deployment has an invalid identity provider configuration. You can still retire the published provider below.':
+    '本次部署的身份提供方配置无效。仍可在下方停用已发布的提供方。',
+  'Linking is retired. Reactivation requires publishing a higher configuration version.':
+    '身份绑定已停用。重新启用需部署并发布更高的配置版本。',
+  'Clearing deployment variables does not retire the published provider. Retire it here to reject earlier configurations and pending identity actions.':
+    '清空部署变量不会停用已发布的提供方。请在此发布停用，以拒绝旧配置和进行中的身份操作。',
+  'Preview provider retirement': '预览提供方停用',
+  'Provider retirement preview': '提供方停用预览',
+  'Retirement stops identity linking for this provider across deployments and invalidates pending identity actions. Existing identity ownership records remain. Reactivation requires a higher configuration version.':
+    '停用会阻止各部署继续使用此提供方绑定身份，并使进行中的身份操作失效。现有身份归属记录保留，重新启用需要更高的配置版本。',
+  'I understand the impact and want to retire this published identity provider.':
+    '我已了解影响，确认停用此已发布的身份提供方。',
+  'Confirm provider retirement': '确认停用提供方',
+  'Retiring…': '正在停用…',
+  'External identities': '外部身份',
+  'External identity provider': '外部身份提供方',
+  'Identity issuer': '身份签发者',
+  'Identity subject': '身份主体',
+  'External email': '外部邮箱',
+  'External display name': '外部显示名称',
+  'Not supplied': '未提供',
+  'Identity provider': '身份提供方',
+  'Local account': '本地账户',
+  'Local administrator': '本地管理员',
+  'Provider identifier': '提供方标识',
+  'OIDC client identifier': 'OIDC 客户端标识',
+  'Configuration version': '配置版本',
+  'OIDC callback URL': 'OIDC 回调地址',
+  'Deployed provider': '已部署的提供方',
+  'Published provider': '已发布的提供方',
+  'Link an external identity to this local account. Single sign-on remains unavailable; keep using your password and configured factors.':
+    '将外部身份绑定到当前本地账户。单点登录仍不可用，请继续使用密码和已配置的因子。',
+  'No external identity provider is configured.': '尚未配置外部身份提供方。',
+  'The deployed identity provider has not been published by an administrator. Linking is unavailable.':
+    '已部署的身份提供方尚未由管理员发布，目前无法绑定。',
+  'Preview identity linking': '预览身份绑定',
+  'Identity linking preview': '身份绑定预览',
+  'Continue to this provider to prove ownership, then review the returned identity before linking. Returning from the provider does not link it automatically.':
+    '前往此提供方验证身份归属，返回后核对身份并确认绑定。从提供方返回不会自动绑定。',
+  'I want to link an identity from this provider to this local account.':
+    '我希望将此提供方的身份绑定到当前本地账户。',
+  'Continue to identity provider': '前往身份提供方',
+  'Continuing…': '正在继续…',
+  'Returned external identity': '返回的外部身份',
+  'Review the immutable issuer and subject. Email and display name are profile text and do not select a local account.':
+    '请核对不可变的签发者和身份主体。邮箱和显示名称仅为资料文本，不用于选择本地账户。',
+  'I confirm that this external identity belongs to me and should be linked to this local account.':
+    '我确认此外部身份属于我，并将其绑定到当前本地账户。',
+  'Confirm identity linking': '确认身份绑定',
+  'Linking…': '正在绑定…',
+  'Cancel identity linking': '取消身份绑定',
+  'Cancelling…': '正在取消…',
+  'External identity linked. This did not enable single sign-on.':
+    '外部身份已绑定，单点登录仍未开启。',
+  'Identity linking cancelled.': '身份绑定已取消。',
+  'External identity revoked.': '外部身份已撤销。',
+  'This identity action is already confirmed. Check the linked identities below.':
+    '此身份操作已经确认，请查看下方的已绑定身份。',
+  'Identity verification is still pending. Refresh its status before continuing.':
+    '身份验证尚未完成，请刷新实际状态后继续。',
+  'This identity action cannot be confirmed. Start again if you still want to link an identity.':
+    '此身份操作无法确认。如仍需绑定，请重新开始。',
+  'Refresh identity status': '刷新身份状态',
+  'Linked identities': '已绑定身份',
+  'Linked external identity': '已绑定的外部身份',
+  'No external identities are linked.': '尚未绑定外部身份。',
+  'Revoke the existing identity from this provider before linking another.':
+    '绑定此提供方的另一个身份前，请先撤销现有绑定。',
+  'Revoke identity': '撤销身份',
+  'Confirm identity revocation': '确认撤销身份',
+  'Revoking…': '撤销中…',
+  'Revocation removes this active link. It does not change your password, factors, or existing machine credentials, and does not transfer the identity to another member.':
+    '撤销会移除当前有效绑定，不更改密码、因子或现有机器凭据，也不会将身份转移给其他成员。',
+  'Publish the provider supplied by this deployment before members can link identities. Publishing does not enable single sign-on.':
+    '管理员需先发布本次部署提供的配置，成员才能绑定身份。发布配置不会开启单点登录。',
+  'The client secret is managed only in deployment secrets. This page never reads, displays, or edits it.':
+    '客户端密钥只通过部署密钥管理，本页面不读取、显示或编辑密钥。',
+  'Identity provider configuration published.': '身份提供方配置已发布。',
+  'This deployment matches the published provider configuration.':
+    '本次部署与已发布的提供方配置一致。',
+  'This deployment is not the published provider configuration. Member linking is unavailable.':
+    '本次部署与已发布的提供方配置不一致，成员暂时无法绑定。',
+  'Preview provider publication': '预览提供方发布',
+  'Provider publication preview': '提供方发布预览',
+  'Publishing replaces the active provider generation. In-flight identity actions from older configurations will stop working. Linked identities remain owned by their original members.':
+    '发布会推进有效提供方的配置代数，使用旧配置的进行中身份操作将失效。已绑定身份仍归原成员所有。',
+  'I checked the deployed issuer, client identifier and callback URL and want to publish this configuration.':
+    '我已核对部署中的签发者、客户端标识和回调地址，确认发布此配置。',
+  'Confirm provider publication': '确认发布提供方',
+  'Publishing…': '正在发布…',
+  'The identity provider returned an invalid authorization address.':
+    '身份提供方返回的授权地址无效。',
+  'The identity preview expired or the provider changed. Preview again.':
+    '身份预览已过期或提供方配置已变化，请重新预览。',
+  'The identity action changed. Refresh its status.':
+    '身份操作已变化，请刷新其实际状态。',
   'Authentication policy': '认证策略',
   'the authentication policy': '认证策略',
   'Two-factor authentication is required for every member.':

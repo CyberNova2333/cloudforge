@@ -1,6 +1,8 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+
 # 身份认证与账户恢复
 
-本设计对应路线图第二阶段。代码已包含成员自愿 TOTP、一次性恢复码、敏感操作重验与管理员强制 MFA 策略；OIDC SSO 和通行密钥仍按下文边界规划。代码实现、发布和生产策略启用分别核验。
+本设计对应路线图第二阶段。代码已包含成员自愿 TOTP、一次性恢复码、敏感操作重验、管理员强制 MFA 策略及 OIDC 显式身份绑定；独立 SSO 登录和通行密钥仍按下文边界规划。代码实现、发布和生产策略启用分别核验。
 
 ## 第一版的认证边界
 
@@ -122,13 +124,15 @@ PAT 和部署令牌保留为非交互机器凭据，既有凭据使用仍按原�
 
 实现入口为 `worker/src/auth/policy.ts`、`policy-management.ts`、`worker/src/db/auth-policy-triggers.ts` 与 `worker/src/routers/authentication-policy-router.ts`。相应认证策略、会话、OAuth 与审计测试位于 `worker/src/__tests__/authentication-policy*.test.ts`，验证版本围栏、陈旧预览、联合证明及机器凭据边界。新增表、会话列和触发器来自生成迁移 `0056`；生产迁移和部署需单独明确授权。此说明描述代码行为，不将提交、推送或本地验证视为线上已启用。
 
-## OIDC 安全基础与后续登录
+## OIDC 显式绑定与后续登录
 
-下一小步先关闭 SDK 默认隐式账户联结及未受项目围栏管理的通用联结入口，不注册生产 provider，也不开放绑定或 SSO 登录 UI。完整设计和分阶段验收见 [OIDC 安全基础与显式身份绑定](oidc.md)；此处不将设计视为已实现 SSO。
+现已实现已有成员的 OIDC 显式绑定、查看与撤销，以及管理员配置预览和发布界面。公开 JSON `OIDC_PROVIDER` 与独立 secret `OIDC_CLIENT_SECRET` 默认不启用；部署配置须再由管理员确认发布，不能仅部署即视为就绪。具体流程、协议约束和验证边界见 [OIDC 显式身份绑定](oidc.md)。独立 SSO 登录仍未开放。
 
-第一个完整功能是已有成员显式绑定：成员须保持本地密码与已启用因子的近期证明，先预览，再经 OIDC 回调核对外部身份，最终主动确认。固定 `(issuer, sub)` 唯一绑定本地身份，不自动注册或凭同邮箱合并。回调和最终写点均检查原会话、证明时间、凭据/因子/策略及 provider 配置代数；不需要的 IdP token 不落库。绑定成功不颁发登录会话、不刷新近期证明，也不把外部认证冒记为密码验证。
+成员保持本地密码与已启用因子的五分钟近期证明，先消费两分钟预览，再经固定 GET 回调校验外部身份，最后在原会话核对候选并二次确认。固定 `(issuer, sub)` 唯一绑定本地身份，不自动注册或按同邮箱合并；撤销及账户删除保留不可转移的身份记录。回调领取、候选和最终 SQL 写点均检查原会话、证明、凭据/因子/恢复/策略及全局 provider 配置代际。绑定写入自有表，不写 Better Auth 的 `accounts`，不持久化外部 token，不颁发登录会话、不刷新近期证明，也不把外部认证冒记为密码验证。
 
-provider 身份不可在更换 issuer 后复用；部署配置与未来动态更新须有版本、发布和缓存失效机制。当前 `authFor` 按 env 复用实例，加入 discovery 会改变其不做网络 I/O 的假设，不能只更新 D1 settings 后继续依赖旧实例。新增提供商包前重新检查版本、CVE 和 D1 适配器事务语义。
+provider id 不可更换 issuer，已登记 id 的配置变更或停用后重新启用必须提升版本并重新发布。全局配置 generation 使旧部署、预览和候选失效。可靠停用须由活跃本地管理员用近期证明先预览、再发布 `enabled=false`，同样推进 generation；不依赖当前 provider 配置或 secret 有效。清空环境变量只影响当前部署，不替代对旧 Worker 和在途动作的发布撤权。配置缺失或无效时状态降为 `ready=false`，仍可查看/撤销自己的绑定或由管理员发布停用。停用同步退休 digest，确认触发器再次检查 enabled 与配置代际。对应生成迁移为 `0057`–`0059`。
+
+协议的 metadata/JWKS 缓存只保存已完成数据，独立于 `authFor`，不跨请求共享 I/O。SDK 的默认新增联结仍关闭，未注册社会化或 `genericOAuth` provider。将来接入登录能力时仍须服务端围住实际登录、直接 ID token 和回调入口，不能假定禁用账户联结就阻止已有身份登录。新增提供商包前重新检查版本、CVE 和 D1 适配器语义。
 
 独立 SSO 登录留到本地因素挑战、外部主因子证据、撤销与恢复状态机完成之后。现有 twoFactor 不会自动接管社会化回调，IdP 的 `amr`/`acr` 也不自动替代本地 MFA 或密码近期门槛。通行密钥仍属后续，需要固定 RP ID、可信 origin、明确 `userVerification` 和恢复边界；不能将默认 `preferred` 等同于完成强制 MFA。
 

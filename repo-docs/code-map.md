@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+
 # CloudForge 代码地图
 
 先读[主流程的输入与交接](walkthroughs/one-real-run.md)，再按责任定位修改。本页只覆盖已声明主流程，不把目录出现过当作完整模块调查。
@@ -65,6 +67,19 @@
 | 页面引导与确认               | [应用入口](../src/App.tsx) 根据通道引导；[管理员表单](../src/components/AdminAuthenticationPolicy.tsx) 先预览再确认；[账户安全页](../src/pages/SettingsSecurity.tsx) 承担首次绑定和恢复码保存                                                                         | `src/lib/authenticationPolicy.test.ts`；实际组件验证另行记录           |
 
 表中的测试名表示验证入口，不表示本轮已全部运行通过。新增数据库结构来自生成迁移 `0056`，迁移和部署分别授权与验证。
+
+## OIDC 显式绑定的修改路由
+
+完整行为见 [OIDC 显式身份绑定](../docs/oidc.md)。下表仅定位已实现绑定及配置发布，不扩展成完整登录体系；独立 SSO 登录仍待做。
+
+| 改动目标             | 入口及职责                                                                                                                                                                                                                                                   | 相关验证                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| 配置和外部协议       | [provider.ts](../worker/src/oidc/provider.ts) 校验公开配置、secret 摘要、固定回调、PKCE、ID token、出站和完成数据缓存；[errors.ts](../worker/src/oidc/errors.ts) 给出安全错误                                                                                | `oidc-provider.test.ts`；跨请求 HTTP 验证另行记录          |
+| 管理员发布与成员动作 | [service.ts](../worker/src/oidc/service.ts) 维护配置发布/停用、原证明及全局 generation 围栏、一次回调、候选和收据；[oidc-router.ts](../worker/src/routers/oidc-router.ts) 校验自己的浏览器会话、严格请求形状和 per-action cookie                             | `oidc-linking.test.ts`，真实 D1                            |
+| 身份及配置原子约束   | [app.schema.ts](../worker/src/db/app.schema.ts) 与 [oidc-triggers.ts](../worker/src/db/oidc-triggers.ts) 声明不可转移身份、永久 registry、enabled 停用、退休摘要、确认触发器配置围栏及原子收据                                                               | 生成迁移 `0057`–`0059`；`oidc-linking.test.ts`             |
+| 预览与二次确认       | [OIDCIdentities.tsx](../src/components/OIDCIdentities.tsx)、[AdminOIDCProvider.tsx](../src/components/AdminOIDCProvider.tsx) 和 [useOidcMemory.ts](../src/lib/useOidcMemory.ts) 将候选限于原会话和组件内存；[oidcApi.ts](../src/lib/oidcApi.ts) 绑定请求会话 | `src/lib/oidcApi.test.ts`；真实组件浏览器 fixture 另行记录 |
+
+这里的路径与测试名是维护入口。验证数量和明确边界见专题；生产迁移、配置发布及部署分别核验。该绑定不写 SDK `accounts`、不签发登录会话。
 
 ## 覆盖范围
 

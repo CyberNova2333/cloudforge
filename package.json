@@ -63,6 +63,7 @@
     "drizzle-orm": "^0.45",
     "highlight.js": "^11.12.0",
     "hono": "^4.12",
+    "jose": "6.2.12",
     "marked": "^18.0.14",
     "mermaid": "^12.2.0",
     "node-diff3": "3.2.1",

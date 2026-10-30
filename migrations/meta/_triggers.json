@@ -40,6 +40,30 @@
     {
       "name": "cloudforge_auth_policy_update_v1",
       "sha256": "b1c1cff67933678b06915cc17814cfd491a9512452e62cfb2f602e45dd06a28c"
+    },
+    {
+      "name": "cloudforge_oidc_configuration_retire_v1",
+      "sha256": "0e124bc025098f184d5026486045525033f001f1064bae601399a20b5561c87e"
+    },
+    {
+      "name": "cloudforge_oidc_binding_owner_v1",
+      "sha256": "f9c7077a5bae9e0aeb6d7f9fd56538e5e50fc209edb9ecb7e455c5edd159dc89"
+    },
+    {
+      "name": "cloudforge_oidc_binding_revoked_v1",
+      "sha256": "27b8383116a5722e93761f08aef572e79ba2f6ce8a48fe9b1d452de4c240e758"
+    },
+    {
+      "name": "cloudforge_oidc_registry_immutable_v1",
+      "sha256": "631470e2e0abbe362655a45f1d7fd02e7b2b8d7af52f6e1869dcb4863ec7c6d0"
+    },
+    {
+      "name": "cloudforge_oidc_configuration_publish_v1",
+      "sha256": "1312518168c1b81c2c13f2fb99c9656db82ff081a17c3d94acdd662c9e0e17ce"
+    },
+    {
+      "name": "cloudforge_oidc_binding_confirm_v1",
+      "sha256": "e209cae1195358c0c9bf07b7b0648d4d66ce609cab44d4738c592585fbdcee60"
     }
   ]
 }

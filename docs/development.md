@@ -40,6 +40,18 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
 | `yarn agents:sync`                  | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                   |
 
+## OIDC identity linking checks
+
+The optional OIDC flow uses its own protocol, D1 actions and identity bindings; it does not register a Better Auth social provider or create a login session. Keep `OIDC_PROVIDER` empty unless deliberately configuring a provider, and keep `OIDC_CLIENT_SECRET` in local secrets rather than JSON vars. See [configuration](configuration.md#oidc-identity-linking) and [the linking flow](oidc.md).
+
+```bash
+yarn test:workers worker/src/__tests__/oidc-linking.test.ts worker/src/__tests__/oidc-provider.test.ts src/lib/oidcApi.test.ts
+```
+
+The backend suites use real workerd D1 and WebCrypto; external metadata/JWKS/token HTTP may use controlled fixtures, not a mock database or a replacement protocol module. Cover final SQL authorization, immutable identities, configuration generation, one-use callbacks, separate per-action cookies, candidate confirmation and cancellation. Also test published retirement (`enabled=false`) against old Workers and in-flight actions, including an invalid/missing deployed configuration or secret, safe status/read/revoke fallback, and higher-version reactivation, retired-digest invalidation and the independent confirmation-trigger fence. Clearing an environment variable is not a substitute for a D1 revocation generation. Protocol checks must also reject missing/invalid claims, malicious endpoints and keys, redirects, oversized bodies and timeouts. Cross-request cache validation needs separate real HTTP invocations; concurrent promises in one test do not establish Workers request isolation.
+
+Browser fixtures for the actual administrator/member components cover local session changes, pagehide/bfCache, stale responses and independent confirmations. Such fixtures do not establish real IdP interoperability. Run the full `yarn test`, `yarn typecheck`, generation and formatting checks before integration. A generator printing types is not a successful run until the process exits zero. Deployment, production migration and real IdP verification remain separate operations.
+
 ## Codex 与 Git 钩子
 
 Git 的 `pre-commit` 使用 `scripts/githooks/run-yarn.mjs` 运行 lint-staged。优先使用已有 Yarn，
@@ -76,6 +88,7 @@ worker/src/
   routers/           API routes (Hono + Zod OpenAPI)
   db/                Drizzle schema (auth.schema.ts is generated)
   auth/              better-auth config and guards
+  oidc/              Explicit linking protocol and D1 state machine; no SSO session grant
   __tests__/         Vitest suites and the Artifacts fake
 migrations/          Generated D1 migrations
 ```
