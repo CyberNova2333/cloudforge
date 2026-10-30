@@ -16,6 +16,18 @@ import { getUserSettings, setUserSettings } from '../lib/user-settings';
 export const meRouter = new OpenAPIHono<AppEnv>({
   defaultHook: validationHook,
 });
+meRouter.get('/authentication-policy', (c) => {
+  c.header('Cache-Control', 'no-store');
+  const browser = c.get('browserSession');
+  if (!browser) return c.json({ error: 'Unauthorized' }, 401);
+  const { access, enrolled, version, requireMfa } = browser.policy;
+  return c.json({
+    sessionId: browser.id,
+    policy: { version, requireMfa },
+    access,
+    enrolled,
+  });
+});
 
 const authenticationSchema = z
   .object({

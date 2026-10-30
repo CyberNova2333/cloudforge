@@ -294,6 +294,11 @@ jobs:
           worker/src/__tests__/session-assurance.test.ts
           worker/src/__tests__/authentication-surface.test.ts
           worker/src/__tests__/reauthentication.test.ts
+          worker/src/__tests__/authentication-policy.test.ts
+          worker/src/__tests__/authentication-policy-audit.test.ts
+          worker/src/__tests__/authentication-policy-session.test.ts
+          worker/src/__tests__/authentication-policy-oauth.test.ts
+          src/lib/authenticationPolicy.test.ts
           worker/src/__tests__/recent-authentication.test.ts
           worker/src/__tests__/mcp-grant-revocation.test.ts
           src/lib/recentAuthentication.test.ts

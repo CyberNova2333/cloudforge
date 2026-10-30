@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { verifyJwsAccessToken } from 'better-auth/oauth2';
 import { mcpResource, oauthIssuer } from '../auth';
 import { oauthConsents, users } from '../db/auth.schema';
@@ -7,9 +7,10 @@ import { agents, oauthGrantGenerations } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import {
   OAUTH_GRANT_CLAIM,
-  OAUTH_GRANT_PREFIX,
+  currentGrantReference,
   validGrantReference,
 } from '../auth/oauth-grants';
+import { POLICY_VERSION_SQL } from '../auth/policy';
 import type { AppEnv, SessionUser } from '../variables';
 
 type Auth = AppEnv['Variables']['auth'];
@@ -83,7 +84,11 @@ export async function getMcpSession(
   if (reference !== undefined && !validGrantReference(reference)) return null;
   // One authority read: a disconnect cannot be observed between separate consent/generation queries.
   const row = await db
-    .select({ user: users, grant: oauthGrantGenerations })
+    .select({
+      user: users,
+      grant: oauthGrantGenerations,
+      policyVersion: sql<number>`${sql.raw(POLICY_VERSION_SQL)}`,
+    })
     .from(users)
     .innerJoin(
       oauthConsents,
@@ -107,9 +112,12 @@ export async function getMcpSession(
     .get();
   if (!row || row.user.banned) return null;
   if (
-    reference === undefined
-      ? row.grant?.legacyRevoked
-      : reference !== `${OAUTH_GRANT_PREFIX}${row.grant?.generation}`
+    !currentGrantReference(
+      reference,
+      row.policyVersion,
+      row.grant?.generation,
+      row.grant?.legacyRevoked
+    )
   )
     return null;
   const scope = typeof payload.scope === 'string' ? payload.scope : '';

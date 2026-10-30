@@ -1,3 +1,5 @@
+import { reportAuthenticationPolicyChallenge } from './authenticationPolicy';
+
 type PendingVerification = {
   sessionId: string;
   waiters: Set<(verified: boolean) => void>;
@@ -86,8 +88,7 @@ export async function recentAuthenticationFetch(
 ): Promise<Response> {
   const canReplay = replayable(input, init);
   const response = await fetch(input, init);
-  if (response.status !== 403 || !canReplay || typeof window === 'undefined')
-    return response;
+  if (response.status !== 403 || typeof window === 'undefined') return response;
   let url: URL;
   try {
     url = new URL(
@@ -100,7 +101,6 @@ export async function recentAuthenticationFetch(
   if (
     url.origin !== window.location.origin ||
     !url.pathname.startsWith('/api/') ||
-    url.pathname === '/api/auth/reauthenticate' ||
     !response.headers.get('content-type')?.includes('application/json')
   )
     return response;
@@ -108,6 +108,9 @@ export async function recentAuthenticationFetch(
     .clone()
     .json()
     .catch(() => null);
+  if (reportAuthenticationPolicyChallenge(body)) return response;
+  if (!canReplay || url.pathname === '/api/auth/reauthenticate')
+    return response;
   if (
     body?.code !== 'RECENT_AUTHENTICATION_REQUIRED' ||
     typeof body.sessionId !== 'string' ||

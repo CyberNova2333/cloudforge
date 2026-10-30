@@ -47,6 +47,7 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
+    policyVersion: integer('policy_version').default(0).notNull(),
     authVersion: integer('auth_version').default(0).notNull(),
     authMethod: text('auth_method'),
     authTime: integer('auth_time', { mode: 'timestamp_ms' }),

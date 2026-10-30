@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { authClient, useSession, type CurrentUser } from '@/lib/auth';
 import { enrollmentSecret, factorError } from '@/lib/twoFactor';
 import { t } from '@/lib/i18n';
@@ -9,13 +9,33 @@ import { Notice } from '@/components/Notice';
 import { RowsSkeleton, SettingsFrame } from '@/components/SetFrame';
 import { FactorCode } from '@/components/FactorCode';
 import { CurrentAuthentication } from '@/components/CurrentAuthentication';
+import { useAuthenticationPolicy } from '@/lib/useAuthenticationPolicy';
+import { notifyAuthenticationPolicyChanged } from '@/lib/authenticationPolicy';
 
 type Enrollment = { secret: string; backupCodes: string[] };
 type Operation = 'enable' | 'regenerate' | 'disable';
 
+function SecurityFrame({
+  restricted,
+  children,
+}: {
+  restricted: boolean;
+  children: ReactNode;
+}) {
+  return restricted ? (
+    <div className="policy-enrollment">{children}</div>
+  ) : (
+    <SettingsFrame>{children}</SettingsFrame>
+  );
+}
+
 /** Secrets and newly generated codes live only in this mounted page, never the query cache or storage. */
-export default function SettingsSecurity() {
+export default function SettingsSecurity({
+  restricted = false,
+  onContinue,
+}: { restricted?: boolean; onContinue?: () => void } = {}) {
   const { data: session, isPending, refetch } = useSession();
+  const policy = useAuthenticationPolicy();
   const enabled = !!(session?.user as CurrentUser | undefined)
     ?.twoFactorEnabled;
   const [operation, setOperation] = useState<Operation | null>(null);
@@ -180,6 +200,7 @@ export default function SettingsSecurity() {
         )
       );
       await refetch();
+      notifyAuthenticationPolicyChanged(session?.session.id ?? '');
       setAuthenticationRefresh((value) => value + 1);
     } catch {
       if (requestGeneration === generation.current)
@@ -194,29 +215,40 @@ export default function SettingsSecurity() {
 
   return (
     <>
-      <PageHead
-        icon="shield"
-        crumbs={[
-          { label: t('Settings'), to: '/settings/tokens' },
-          { label: t('Account security') },
-        ]}
-        title={t('Account security')}
-        lede={t(
-          'Protect password sign-ins with an authenticator app and keep recovery codes somewhere safe.'
+      {!restricted && (
+        <PageHead
+          icon="shield"
+          crumbs={[
+            { label: t('Settings'), to: '/settings/tokens' },
+            { label: t('Account security') },
+          ]}
+          title={t('Account security')}
+          lede={t(
+            'Protect password sign-ins with an authenticator app and keep recovery codes somewhere safe.'
+          )}
+        />
+      )}
+      <SecurityFrame restricted={restricted}>
+        {policy.data?.policy.requireMfa && (
+          <Notice tone="info">
+            {t(
+              'Your administrator requires two-factor authentication. It cannot be disabled while this policy is active.'
+            )}
+          </Notice>
         )}
-      />
-      <SettingsFrame>
         {error && <Notice tone="bad">{error}</Notice>}
         {notice && <Notice tone="ok">{notice}</Notice>}
         {isPending || displayedAccountId !== accountId ? (
           <RowsSkeleton rows={3} />
         ) : (
           <>
-            <CurrentAuthentication
-              userId={accountId}
-              sessionId={session?.session.id}
-              refreshKey={authenticationRefresh}
-            />
+            {!restricted && (
+              <CurrentAuthentication
+                userId={accountId}
+                sessionId={session?.session.id}
+                refreshKey={authenticationRefresh}
+              />
+            )}
             <section
               className="panel formpad"
               aria-label={t('Two-factor authentication')}
@@ -232,30 +264,36 @@ export default function SettingsSecurity() {
                   'An authenticator app generates a six-digit code. After entering your password, you will also enter this code or a single-use recovery code.'
                 )}
               </p>
-              <p className="small muted">
-                {t(
-                  'Existing personal access tokens, deployment tokens and MCP connections remain active. Review them separately if your account may be compromised.'
-                )}
-              </p>
+              {!restricted && (
+                <p className="small muted">
+                  {t(
+                    'Existing personal access tokens, deployment tokens and MCP connections remain active. Review them separately if your account may be compromised.'
+                  )}
+                </p>
+              )}
               {!operation && !enrollment && !codes && (
                 <div className="security-actions">
                   {enabled ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => begin('regenerate')}
-                      >
-                        {t('Regenerate recovery codes')}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        onClick={() => begin('disable')}
-                      >
-                        {t('Disable two-factor authentication')}
-                      </button>
-                    </>
+                    restricted ? null : (
+                      <>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => begin('regenerate')}
+                        >
+                          {t('Regenerate recovery codes')}
+                        </button>
+                        {policy.data?.policy.requireMfa === false && (
+                          <button
+                            type="button"
+                            className="btn danger"
+                            onClick={() => begin('disable')}
+                          >
+                            {t('Disable two-factor authentication')}
+                          </button>
+                        )}
+                      </>
+                    )
                   ) : (
                     <button
                       type="button"
@@ -465,9 +503,24 @@ export default function SettingsSecurity() {
                 'A password reset does not remove two-factor authentication. Keep a recovery code so you can sign in if your authenticator is lost.'
               )}
             </Notice>
+            {restricted &&
+              !codes &&
+              !enrollment &&
+              !operation &&
+              (enabled || policy.data?.policy.requireMfa === false) && (
+                <div className="security-actions">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={onContinue}
+                  >
+                    {t('Continue to verification')}
+                  </button>
+                </div>
+              )}
           </>
         )}
-      </SettingsFrame>
+      </SecurityFrame>
     </>
   );
 }

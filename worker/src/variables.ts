@@ -18,6 +18,12 @@ export type SessionUser = {
 export type BrowserSession = {
   id: string;
   authentication: SessionAssurance;
+  policy: {
+    version: number;
+    requireMfa: boolean;
+    enrolled: boolean;
+    access: 'full' | 'enroll_mfa' | 'reauthenticate';
+  };
 };
 
 export type Variables = {

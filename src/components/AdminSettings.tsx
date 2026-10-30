@@ -10,6 +10,7 @@ import { Section } from '@/components/ui/Section';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { LoadError, Notice } from '@/components/Notice';
 import { RowsSkeleton } from '@/components/SetFrame';
+import { AdminAuthenticationPolicy } from '@/components/AdminAuthenticationPolicy';
 
 const GROUPS: InstanceSetting['group'][] = [
   'General',
@@ -225,6 +226,7 @@ export function AdminSettings() {
   };
   return (
     <div id="settings">
+      <AdminAuthenticationPolicy />
       <Section
         title={
           <>

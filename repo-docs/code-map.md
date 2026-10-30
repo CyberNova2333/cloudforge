@@ -53,6 +53,19 @@
 
 [scripts/sync-agents.mjs](../scripts/sync-agents.mjs) 以 `AGENTS.md` 为唯一规则正文，生成导入它的 `CLAUDE.md`；技能仍从 `.claude/skills/` 复制到 `.agents/skills/`。`yarn agents:sync --check` 只报告差异，写入模式也不会覆盖规范源。回归见 [sync-agents.test.ts](../scripts/__tests__/sync-agents.test.ts)，覆盖缺失和过时入口、CRLF、技能副本清理以及规范源不被改写。
 
+## 认证策略的修改路由
+
+需要修改强制 MFA 时，先读[认证专题](../docs/authentication.md#管理员认证策略)。下表只定位本次复核的策略边界，不扩展为 OAuth、MFA 或 SPA 全目录地图。
+
+| 改动目标                     | 入口及职责                                                                                                                                                                                                                                                            | 相关验证                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 浏览器受限通道与原生认证入口 | [策略判断](../worker/src/auth/policy.ts) 的 `evaluatePolicyAccess`、`enforceBrowserPolicy`、`requireNativePolicy`；[认证流程](../worker/src/auth/two-factor.ts) 在真实验证完成后的写点核对策略版本                                                                    | `authentication-policy-session.test.ts`                                |
+| 管理员预览与执行             | [预览和条件写](../worker/src/auth/policy-management.ts) 的 `previewPolicy`、`applyPolicy`；[声明触发器](../worker/src/db/auth-policy-triggers.ts) 原子处理 OAuth 撤销、预览消费及审计；[管理路由](../worker/src/routers/authentication-policy-router.ts) 校验请求形状 | `authentication-policy.test.ts`、`authentication-policy-audit.test.ts` |
+| OAuth 凭据与旧授权拒绝       | [授权代际](../worker/src/auth/oauth-grants.ts)、[MCP 身份](../worker/src/mcp/oauth-session.ts) 与[数据库写入围栏](../worker/src/db/oauth-grant-triggers.ts) 共同核对当前策略和授权代际                                                                                | `authentication-policy-oauth.test.ts`                                  |
+| 页面引导与确认               | [应用入口](../src/App.tsx) 根据通道引导；[管理员表单](../src/components/AdminAuthenticationPolicy.tsx) 先预览再确认；[账户安全页](../src/pages/SettingsSecurity.tsx) 承担首次绑定和恢复码保存                                                                         | `src/lib/authenticationPolicy.test.ts`；实际组件验证另行记录           |
+
+表中的测试名表示验证入口，不表示本轮已全部运行通过。新增数据库结构来自生成迁移 `0056`，迁移和部署分别授权与验证。
+
 ## 覆盖范围
 
 覆盖 Git HTTPS 推送入口、引用保护、Artifacts 交接和持久化推送事件；只追踪这些目录内与推送有关的文件。PR 审查、合并、Actions 执行器、OAuth/MFA、MCP、安装器、SPA 与其他数据库模块留给既有 docs 专题，本包不声称完整架构覆盖。认证策略的预览、受限会话、OAuth 撤销和离线恢复边界见 [认证专题](../docs/authentication.md#管理员认证策略)。提交、远端推送与生产部署分别核验。

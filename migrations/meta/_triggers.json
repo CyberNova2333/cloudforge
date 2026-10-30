@@ -19,19 +19,27 @@
     },
     {
       "name": "cloudforge_oauth_consent_insert_v1",
-      "sha256": "444df859626b46e7ba5dde985d76b34f6e92308857a260f97932be7a72d9cf52"
+      "sha256": "21bfd52eae2371141494f1216b4dfdc5e40f0633f23c8d72dfbeae01f04a305b"
     },
     {
       "name": "cloudforge_oauth_consent_update_v1",
-      "sha256": "b45c1738539b77aa28f26d5ee267e4f016e90dba54bbccbf1926a1406711b5b5"
+      "sha256": "fcf594a46446c7b73dd21863e3bc4134f5499009f8e505482442a8ef6394dd69"
     },
     {
       "name": "cloudforge_oauth_refresh_insert_v1",
-      "sha256": "f486a6516e6007d443460fe8df96a35e4f7077b965ab9e0b4d7d03888d80c17b"
+      "sha256": "ff8da5b0ae5f668729df30c9786f930389607083229cec515a0b0c6ef17048a4"
     },
     {
       "name": "cloudforge_oauth_access_insert_v1",
-      "sha256": "d23a1ffdd4ca2158c0318f2cefea25e19eed4e9f6a804538012ee660204bf2aa"
+      "sha256": "2082023aa14714078b239cc732b642e40d8a6a08af60474fde00e2c42b50ec81"
+    },
+    {
+      "name": "cloudforge_auth_policy_insert_v1",
+      "sha256": "87e0ce6e6bfcdbc6bb850de31c94e259f8e2e485686cb9f4e6d38fd00432b144"
+    },
+    {
+      "name": "cloudforge_auth_policy_update_v1",
+      "sha256": "b1c1cff67933678b06915cc17814cfd491a9512452e62cfb2f602e45dd06a28c"
     }
   ]
 }

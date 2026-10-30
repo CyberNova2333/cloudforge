@@ -7,9 +7,60 @@ import {
   uniqueIndex,
   primaryKey,
   real,
+  check,
 } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
-import { oauthClients, oauthConsents, users } from './auth.schema';
+import { oauthClients, oauthConsents, sessions, users } from './auth.schema';
+
+/** Missing row is the migrated installation's version zero, optional-factor policy. */
+export const authenticationPolicy = sqliteTable(
+  'authentication_policy',
+  {
+    id: integer('id').primaryKey().default(1),
+    version: integer('version').notNull().default(0),
+    requireMfa: integer('require_mfa', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    changeId: text('change_id'),
+    previewId: text('preview_id'),
+    actorSessionId: text('actor_session_id'),
+    updatedById: text('updated_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    check(
+      'authentication_policy_singleton',
+      sql`${t.id} = 1 AND ${t.version} >= 0`
+    ),
+  ]
+);
+
+/** One bounded, one-use preview per browser; logout and expiry cleanup of sessions cascade it away. */
+export const authenticationPolicyPreviews = sqliteTable(
+  'authentication_policy_previews',
+  {
+    sessionId: text('session_id')
+      .primaryKey()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    id: text('id').notNull().unique(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    policyVersion: integer('policy_version').notNull(),
+    requireMfa: integer('require_mfa', { mode: 'boolean' }).notNull(),
+    authVersion: integer('auth_version').notNull(),
+    factorId: text('factor_id').notNull(),
+    recoveryVersion: integer('recovery_version').notNull(),
+    authTime: integer('auth_time').notNull(),
+    factorTime: integer('factor_time').notNull(),
+    digest: text('digest').notNull(),
+    impact: text('impact').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    usedAt: integer('used_at', { mode: 'timestamp_ms' }),
+  }
+);
 
 // The instance's one shared team. Its slug shares the URL namespace with usernames.
 export const teams = sqliteTable('teams', {
@@ -1512,6 +1563,7 @@ export const auditActions = [
   'user.mfa_disabled',
   'user.mfa_verified',
   'user.reauthenticated',
+  'instance.authentication_policy',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
   'user.mfa_reset',

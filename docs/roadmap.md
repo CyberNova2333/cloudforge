@@ -51,7 +51,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 ### 交付相关
 
 - 原始 `cloudforge-all.bundle` 已导入本地；保留四个分支的完整历史。新交付 bundle 包含导入成果与本次补修，远端推送另需明确指示。
-- 部署前依次执行迁移 0040–0052，并在自己的 `wrangler.jsonc` 的 `triggers.crons` 里加上 `*/5 * * * *`（见 `wrangler.jsonc.example`）。没有部署任何东西。
+- 部署时需按实例已应用记录执行后续迁移：集成功能至 `0048`，因子、恢复与近期认证至 `0055`，管理员强制 MFA 策略增加生成迁移 `0056`。自己的 `wrangler.jsonc` 中还需 `triggers.crons` 的 `*/5 * * * *`（见 `wrangler.jsonc.example`）。迁移、部署和线上策略变更分别授权与验证，不由本地交付自动执行。
 
 ## 规划
 
@@ -65,7 +65,7 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 ### 第二阶段：单租户企业部署的门槛
 
-4. **SSO 与双因素认证（进行中）**：已实现自愿 TOTP、一次性恢复码、账户安全页、登录挑战及 MCP OAuth 续接。独立 `reset-mfa` 离线恢复要求明确目标、预览确认、单语句撤销和审计。会话已统一记录真实方法与完成时间，凭据代际在普通 API 与原生认证入口共用，旧证明明确未知；恢复码组更新会围栏未完成的旧证明。敏感凭据创建、管理员操作及 OAuth 网页授权已有最近验证门槛和联合重验界面；MCP 授权代际阻止断开重连后旧凭据复活。接下来实现管理员强制策略、独立策略版本与影响预览，再接 OIDC SSO 与 passkey。目前不提供强制全员启用或 SSO，既有机器凭据保持原规则。
+4. **SSO 与双因素认证（进行中）**：已实现自愿 TOTP、一次性恢复码、账户安全页、登录挑战及 MCP OAuth 续接。独立 `reset-mfa` 离线恢复要求明确目标、预览确认、单语句撤销和审计。会话统一记录真实方法与完成时间，凭据代际在普通 API 与原生认证入口共用；敏感操作与 OAuth 网页授权要求近期联合重验。代码现已包含管理员强制 MFA、独立策略版本、两分钟一次性影响预览及最终写点 CAS；未绑定或证明不足的会话只获得绑定/重验通道。每次策略切换撤销既有成员 OAuth 授权，已有 PAT/部署令牌使用保持原规则，新增凭据仍受策略与近期验证约束；离线恢复不会关闭实例策略。完整边界见[认证设计](authentication.md#管理员认证策略)，生产迁移、部署及线上启用另行授权与验证。接下来接入 OIDC SSO 与 passkey，目前不提供外部 SSO 或通行密钥登录。
 5. **多团队与细分角色**：用多个团队（或组织）替换“唯一共享团队”，引入 read / triage / write / maintain / admin 五级仓库角色；牵动 `permissionsFor`/`visibleTo` 与大量路由，先写设计文档。
 6. **分支保护规则**：必需检查（Actions 作业与提交状态 context）、所需批准人数、CODEOWNERS、受保护标签、规则是否约束管理员；替换现在的固定推送保护。
 7. **运维**：每个仓库导出 git bundle + D1 导出的备份；显示存储用量（Artifacts 1 GB 上限）；仓库归档与转移。
@@ -86,4 +86,4 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 ### 工程习惯（沿用）
 
-一个功能一个分支，先写中文设计文档；每个提交带测试；改行为时同步 `docs/updating.md`、`docs/architecture.md`、`CLAUDE.md`（再 `yarn agents:sync`）；新测试文件登记到 `.github/workflows/ci.yml`；每次交付一个包含从 `origin/main` 起全部分支的完整 bundle。
+一个功能一个分支，先写中文设计文档；每个提交带相关测试；改行为时同步所属专题，涉及未来 Agent 的操作规范时更新 `AGENTS.md`，再用 `yarn agents:sync` 生成 `CLAUDE.md` 引用入口及技能副本。新测试文件登记到 `.github/workflows/ci.yml`；交付 bundle 保留从实际远端基线起的相关分支历史，并验证恢复结果。

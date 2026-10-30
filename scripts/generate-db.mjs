@@ -18,6 +18,7 @@ import {
 } from '../worker/src/db/recovery-trigger.ts';
 import { AUTH_TRIGGERS } from '../worker/src/db/auth-triggers.ts';
 import { OAUTH_GRANT_TRIGGERS } from '../worker/src/db/oauth-grant-triggers.ts';
+import { AUTH_POLICY_TRIGGERS } from '../worker/src/db/auth-policy-triggers.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -27,6 +28,7 @@ const definitions = [
   { name: RECOVERY_TRIGGER_NAME, sql: RECOVERY_TRIGGER_SQL },
   ...AUTH_TRIGGERS,
   ...OAUTH_GRANT_TRIGGERS,
+  ...AUTH_POLICY_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);

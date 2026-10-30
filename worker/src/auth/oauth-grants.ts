@@ -6,13 +6,44 @@ import {
 import { APIError } from 'better-auth/api';
 import type { GenericEndpointContext } from '@better-auth/core';
 import { isCurrentSession, readSessionAuthentication } from './assurance';
+import { evaluatePolicyAccess, POLICY_VERSION_SQL } from './policy';
 
 export const OAUTH_GRANT_CLAIM = 'cf_grant';
 export const OAUTH_GRANT_PREFIX = 'cf-grant-v1:';
+const POLICY_GRANT_PREFIX = 'cf-grant-v2:';
+
+function parseGrantReference(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const legacy = /^cf-grant-v1:([a-f0-9]{32})$/.exec(value);
+  if (legacy) return { policyVersion: 0, generation: legacy[1] };
+  const current = /^cf-grant-v2:([1-9]\d{0,15}):([a-f0-9]{32})$/.exec(value);
+  if (!current) return null;
+  const policyVersion = Number(current[1]);
+  return Number.isSafeInteger(policyVersion)
+    ? { policyVersion, generation: current[2] }
+    : null;
+}
 
 /** References are server-generated and inherited by authorization codes and every refresh rotation. */
 export function validGrantReference(value: unknown): value is string {
-  return typeof value === 'string' && /^cf-grant-v1:[a-f0-9]{32}$/.test(value);
+  return parseGrantReference(value) !== null;
+}
+
+/** A policy transition never upgrades an already-issued credential, even after the policy is disabled again. */
+export function currentGrantReference(
+  reference: unknown,
+  policyVersion: number,
+  generation: string | undefined,
+  legacyRevoked: boolean | null | undefined
+) {
+  if (!Number.isSafeInteger(policyVersion) || policyVersion < 0) return false;
+  if (reference === undefined) return policyVersion === 0 && !legacyRevoked;
+  const parsed = parseGrantReference(reference);
+  return (
+    !!parsed &&
+    parsed.policyVersion === policyVersion &&
+    parsed.generation === generation
+  );
 }
 
 function invalidGrant(): never {
@@ -27,31 +58,45 @@ function invalidGrant(): never {
 async function referenceFor(
   env: CloudflareBindings,
   userId: string,
-  clientId: string
+  clientId: string,
+  policyVersion: number
 ) {
   await env.DB.prepare(
     `INSERT INTO oauth_grant_generations (user_id, client_id, generation, legacy_revoked)
-    VALUES (?, ?, ?, 0) ON CONFLICT (user_id, client_id) DO NOTHING`
+    SELECT ?, ?, ?, ? WHERE ${POLICY_VERSION_SQL} = ?
+    ON CONFLICT (user_id, client_id) DO NOTHING`
   )
-    .bind(userId, clientId, crypto.randomUUID().replaceAll('-', ''))
+    .bind(
+      userId,
+      clientId,
+      crypto.randomUUID().replaceAll('-', ''),
+      policyVersion > 0 ? 1 : 0,
+      policyVersion
+    )
     .run();
   const row = await env.DB.prepare(
-    'SELECT generation FROM oauth_grant_generations WHERE user_id = ? AND client_id = ?'
+    `SELECT generation FROM oauth_grant_generations WHERE user_id = ? AND client_id = ? AND ${POLICY_VERSION_SQL} = ?`
   )
-    .bind(userId, clientId)
+    .bind(userId, clientId, policyVersion)
     .first<{ generation: string }>();
-  const reference = row && `${OAUTH_GRANT_PREFIX}${row.generation}`;
+  const reference =
+    row &&
+    (policyVersion === 0
+      ? `${OAUTH_GRANT_PREFIX}${row.generation}`
+      : `${POLICY_GRANT_PREFIX}${policyVersion}:${row.generation}`);
   if (!validGrantReference(reference)) invalidGrant();
   // Upgrade the existing grant in place: preserve its scopes/moderator link and avoid duplicate connected apps.
   // Legacy JWTs/refresh tokens remain unversioned until an explicit revocation leaves the permanent tombstone.
-  await env.DB.prepare(
-    `UPDATE oauth_consents SET reference_id = ? WHERE user_id = ? AND client_id = ?
+  if (policyVersion === 0)
+    await env.DB.prepare(
+      `UPDATE oauth_consents SET reference_id = ? WHERE user_id = ? AND client_id = ?
     AND reference_id IS NULL AND EXISTS (SELECT 1 FROM oauth_grant_generations g
       WHERE g.user_id = oauth_consents.user_id AND g.client_id = oauth_consents.client_id
-      AND ? = '${OAUTH_GRANT_PREFIX}' || g.generation AND g.legacy_revoked = 0)`
-  )
-    .bind(reference, userId, clientId, reference)
-    .run();
+      AND ? = '${OAUTH_GRANT_PREFIX}' || g.generation AND g.legacy_revoked = 0)
+    AND ${POLICY_VERSION_SQL} = 0`
+    )
+      .bind(reference, userId, clientId, reference)
+      .run();
   return reference;
 }
 
@@ -62,8 +107,8 @@ async function assertGrant(
   clientId: string,
   reference: string | undefined
 ) {
-  if (reference !== undefined && !validGrantReference(reference))
-    invalidGrant();
+  const parsed = parseGrantReference(reference);
+  if (reference !== undefined && !parsed) invalidGrant();
   const row = await env.DB.prepare(
     `SELECT 1 AS ok FROM users u
     LEFT JOIN oauth_grant_generations g ON g.user_id = u.id AND g.client_id = ?
@@ -71,8 +116,9 @@ async function assertGrant(
     AND NOT EXISTS (SELECT 1 FROM agents WHERE user_id = u.id)
     AND EXISTS (SELECT 1 FROM oauth_consents c WHERE c.user_id = u.id AND c.client_id = ?
       AND (? IS NULL OR c.reference_id = ?))
+    AND ${POLICY_VERSION_SQL} = ?
     AND ((? IS NULL AND COALESCE(g.legacy_revoked, 0) = 0)
-      OR (? IS NOT NULL AND ? = '${OAUTH_GRANT_PREFIX}' || g.generation))`
+      OR (? IS NOT NULL AND g.generation = ?))`
   )
     .bind(
       clientId,
@@ -80,9 +126,10 @@ async function assertGrant(
       clientId,
       reference ?? null,
       reference ?? null,
+      parsed?.policyVersion ?? 0,
       reference ?? null,
       reference ?? null,
-      reference ?? null
+      parsed?.generation ?? null
     )
     .first();
   if (!row) invalidGrant();
@@ -132,10 +179,11 @@ export function oauthGrantOptions(
           live.userId !== user.id ||
           live.banned ||
           live.expiresAt <= new Date() ||
-          !isCurrentSession(live, { authVersion: live.userAuthVersion })
+          !isCurrentSession(live, { authVersion: live.userAuthVersion }) ||
+          evaluatePolicyAccess(live, live.enrolled, live.policy) !== 'full'
         )
           invalidGrant();
-        return referenceFor(env, user.id, clientId);
+        return referenceFor(env, user.id, clientId, live.policy.version);
       },
     },
     extensions: [
@@ -158,7 +206,11 @@ export function oauthGrantOptions(
                 live.userId !== user.id ||
                 live.banned ||
                 live.expiresAt <= new Date() ||
-                !isCurrentSession(live, { authVersion: live.userAuthVersion })
+                !isCurrentSession(live, {
+                  authVersion: live.userAuthVersion,
+                }) ||
+                evaluatePolicyAccess(live, live.enrolled, live.policy) !==
+                  'full'
               )
                 invalidGrant();
             }

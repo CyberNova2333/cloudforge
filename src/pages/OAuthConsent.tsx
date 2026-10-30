@@ -134,7 +134,7 @@ export default function OAuthConsent() {
           </span>
         )}
         <SyncIcon className="muted" />
-        <img src="/logo.png" alt="" width={44} height={44} />
+        <img src="/cloudforge-mark.svg" alt="" width={44} height={44} />
       </div>
       {client.isLoading ? (
         <RowsSkeleton rows={3} />
