@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   chmodSync,
   cpSync,
@@ -193,6 +194,20 @@ describe('Codex 钩子输入校验', () => {
 });
 
 describe('Codex 修改前钩子的完整入口', () => {
+  it('允许编辑规则源AGENTS，拒绝手改实际生成入口CLAUDE及绑定类型', () => {
+    const f = fixture();
+    const allowed = f.run('PreToolUse', patch(update('AGENTS.md')));
+    expect(allowed.status, allowed.stderr).toBe(0);
+    expect(JSON.parse(allowed.stdout)).toEqual({});
+    expect(denied(f.run('PreToolUse', patch(update('CLAUDE.md'))))).toContain(
+      'Generated from AGENTS.md'
+    );
+    expect(
+      denied(
+        f.run('PreToolUse', patch(update('worker/worker-configuration.d.ts')))
+      )
+    ).toContain('yarn cf-typegen');
+  });
   it('允许同一补丁添加、修改、删除和移动普通文件，兼容空格与中文路径', () => {
     const f = fixture();
     const result = f.run(

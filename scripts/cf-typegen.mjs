@@ -8,9 +8,11 @@
 import {
   copyFileSync,
   existsSync,
+  readFileSync,
   renameSync,
   statSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { extname, isAbsolute } from 'node:path';
@@ -19,6 +21,9 @@ import { runYarn } from './githooks/run-yarn.mjs';
 const LOCAL = 'wrangler.jsonc';
 const CI = 'wrangler.jsonc.ci';
 const BACKUP = '.wrangler.jsonc.local-backup';
+const OUTPUT = 'worker/worker-configuration.d.ts';
+const NOTICE =
+  '// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).';
 
 if (!existsSync(CI)) {
   console.error(`cf-typegen: ${CI} is missing`);
@@ -41,7 +46,7 @@ try {
   const args = [
     'wrangler',
     'types',
-    'worker/worker-configuration.d.ts',
+    OUTPUT,
     '--env-interface',
     'CloudflareBindings',
   ];
@@ -64,6 +69,15 @@ try {
   } else result = runYarn(args, { stdio: 'inherit' });
   if (result.error) console.error(result.error.message);
   exitCode = result.status ?? 1;
+  if (exitCode === 0) {
+    // This header is part of the generated artifact, never a manual edit to protected output.
+    const generated = readFileSync(OUTPUT, 'utf8');
+    if (
+      !generated.startsWith(NOTICE + '\n') &&
+      !generated.startsWith(NOTICE + '\r\n')
+    )
+      writeFileSync(OUTPUT, NOTICE + '\n' + generated);
+  }
 } finally {
   if (hadLocal) renameSync(BACKUP, LOCAL);
   else if (existsSync(LOCAL)) unlinkSync(LOCAL);
