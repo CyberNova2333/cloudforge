@@ -227,6 +227,14 @@ function createAuth(env?: CloudflareBindings) {
         });
       },
     },
+    account: {
+      accountLinking: {
+        // External identities must never acquire a local account through a matching email.
+        disableImplicitLinking: true,
+        // Explicit linking stays closed until callbacks have a live, session-bound authorization fence.
+        enabled: false,
+      },
+    },
     // jwt() only signs OAuth access tokens; its session-JWT endpoint is off.
     disabledPaths: ['/token'],
     plugins: [

@@ -122,13 +122,15 @@ PAT 和部署令牌保留为非交互机器凭据，既有凭据使用仍按原�
 
 实现入口为 `worker/src/auth/policy.ts`、`policy-management.ts`、`worker/src/db/auth-policy-triggers.ts` 与 `worker/src/routers/authentication-policy-router.ts`。相应认证策略、会话、OAuth 与审计测试位于 `worker/src/__tests__/authentication-policy*.test.ts`，验证版本围栏、陈旧预览、联合证明及机器凭据边界。新增表、会话列和触发器来自生成迁移 `0056`；生产迁移和部署需单独明确授权。此说明描述代码行为，不将提交、推送或本地验证视为线上已启用。
 
-## 后续 OIDC SSO 与通行密钥
+## OIDC 安全基础与后续登录
 
-OIDC 优先只允许已有成员在已认证且最近验证的会话中显式关联。默认不自动注册，不凭同邮箱自动合并账户；将 issuer、subject 与本地身份唯一绑定，并检查签名、audience、state、nonce、PKCE 和回调地址。外部 `email_verified` 必须按受信任提供商的语义判断，不能复用当前“邀请/管理员创建账户视为已确认”的规则。
+下一小步先关闭 SDK 默认隐式账户联结及未受项目围栏管理的通用联结入口，不注册生产 provider，也不开放绑定或 SSO 登录 UI。完整设计和分阶段验收见 [OIDC 安全基础与显式身份绑定](oidc.md)；此处不将设计视为已实现 SSO。
 
-管理员配置的 provider 属于实例策略，需明确版本和失效机制；当前 `authFor` 按 env 缓存认证实例，直接更新 D1 设置不会刷新插件。新增提供商包前重新检查版本、CVE 和 D1 适配器事务语义。
+第一个完整功能是已有成员显式绑定：成员须保持本地密码与已启用因子的近期证明，先预览，再经 OIDC 回调核对外部身份，最终主动确认。固定 `(issuer, sub)` 唯一绑定本地身份，不自动注册或凭同邮箱合并。回调和最终写点均检查原会话、证明时间、凭据/因子/策略及 provider 配置代数；不需要的 IdP token 不落库。绑定成功不颁发登录会话、不刷新近期证明，也不把外部认证冒记为密码验证。
 
-SSO、社交登录、通行密钥等入口不会自动继承 twoFactor 对密码登录的挑战。接入时必须建立统一认证强度判断。通行密钥需要固定 RP ID、可信 origin、明确 `userVerification` 要求及恢复边界；不能将默认 `preferred` 等同于完成强制 MFA。
+provider 身份不可在更换 issuer 后复用；部署配置与未来动态更新须有版本、发布和缓存失效机制。当前 `authFor` 按 env 复用实例，加入 discovery 会改变其不做网络 I/O 的假设，不能只更新 D1 settings 后继续依赖旧实例。新增提供商包前重新检查版本、CVE 和 D1 适配器事务语义。
+
+独立 SSO 登录留到本地因素挑战、外部主因子证据、撤销与恢复状态机完成之后。现有 twoFactor 不会自动接管社会化回调，IdP 的 `amr`/`acr` 也不自动替代本地 MFA 或密码近期门槛。通行密钥仍属后续，需要固定 RP ID、可信 origin、明确 `userVerification` 和恢复边界；不能将默认 `preferred` 等同于完成强制 MFA。
 
 ## 依据与验证
 

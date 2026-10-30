@@ -38,6 +38,7 @@ yarn typecheck
 - [既有总体架构](../docs/architecture.md)
 - [开发与完整验证](../docs/development.md)
 - [PR 审查与合并](../docs/auto-merge.md)
+- [OIDC 安全基础与显式绑定设计](../docs/oidc.md)（待实现的阶段契约，不是已开放的 SSO 登录）
 
 独立网页构建会把文档目录之外的仓库链接显示为精确文件路径，避免产生失效跳转；原始 Markdown 仍保留可核对的源码链接。站点只发布指南，源码和本机资源不会随文档打包。
 
