@@ -1,9 +1,10 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { sessions, users } from '../db/auth.schema';
 import type { BrowserSession, SessionUser } from '../variables';
 import { durableSessionAssurance, isCurrentSession } from './assurance';
+import { evaluatePolicyAccess, POLICY_VERSION_SQL } from './policy';
 
 /**
  * Who a request is signed in as, read straight from `sessions`: every request of every page needs it,
@@ -106,6 +107,8 @@ export async function currentSession(
         id: sessions.id,
         expiresAt: sessions.expiresAt,
         authVersion: sessions.authVersion,
+        policyVersion: sessions.policyVersion,
+        impersonatedBy: sessions.impersonatedBy,
         authMethod: sessions.authMethod,
         authTime: sessions.authTime,
         secondFactorMethod: sessions.secondFactorMethod,
@@ -120,6 +123,11 @@ export async function currentSession(
         image: users.image,
         banned: users.banned,
         authVersion: users.authVersion,
+        enrolled: users.twoFactorEnabled,
+      },
+      policy: {
+        version: sql<number>`${sql.raw(POLICY_VERSION_SQL)}`,
+        requireMfa: sql<number>`COALESCE((SELECT require_mfa FROM authentication_policy WHERE id = 1), 0)`,
       },
     })
     .from(sessions)
@@ -128,6 +136,10 @@ export async function currentSession(
     .get();
   if (!row) return null;
   const { session, user } = row;
+  const policy = {
+    version: row.policy.version,
+    requireMfa: !!row.policy.requireMfa,
+  };
   if (
     user.banned ||
     session.expiresAt <= new Date() ||
@@ -147,6 +159,11 @@ export async function currentSession(
     browserSession: {
       id: session.id,
       authentication: durableSessionAssurance(session),
+      policy: {
+        ...policy,
+        enrolled: !!user.enrolled,
+        access: evaluatePolicyAccess(session, !!user.enrolled, policy),
+      },
     },
   };
 }

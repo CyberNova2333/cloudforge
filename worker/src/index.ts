@@ -7,6 +7,7 @@ import { logger } from 'hono/logger';
 import { authFor } from './auth';
 import { currentSession } from './auth/session';
 import { recentAuthentication } from './auth/recent';
+import { enforceBrowserPolicy } from './auth/policy';
 import {
   requireAdmin,
   requireAuth,
@@ -50,6 +51,7 @@ import { meRouter } from './routers/me-router';
 import { insightsRouter } from './routers/insights-router';
 import { adminSetupRouter } from './routers/admin-setup-router';
 import { adminRouter } from './routers/admin-router';
+import { authenticationPolicyRouter } from './routers/authentication-policy-router';
 import {
   adminAgentsRouter,
   agentsRouter,
@@ -78,7 +80,13 @@ export const API_BODY_LIMIT = 1024 * 1024;
 app.use('*', injectDb);
 app.use('*', logger(redactedLog));
 // Include rejected and oversized authentication requests, and the current browser's proof display.
-for (const path of ['/api/auth/*', '/api/me/authentication'])
+for (const path of [
+  '/api/auth/*',
+  '/api/me/authentication',
+  '/api/me/authentication-policy',
+  '/api/admin/authentication-policy',
+  '/api/admin/authentication-policy/*',
+])
   app.use(path, async (c, next) => {
     await next();
     c.header('Cache-Control', 'no-store');
@@ -119,6 +127,7 @@ app.use('*', async (c, next) => {
   await next();
 });
 app.use('/api/*', sameOriginWrites);
+app.use('/api/*', enforceBrowserPolicy);
 app.use('/api/*', recentAuthentication);
 
 // The API's reference (ours and better-auth's) maps every route: for members, not for anyone who finds the instance.
@@ -174,6 +183,7 @@ const pingAfterChange: MiddlewareHandler<AppEnv> = async (c, next) => {
 app.use('/api/repos/:owner/:repo', pingAfterChange);
 app.use('/api/repos/:owner/:repo/*', pingAfterChange);
 app.use('/api/admin/*', requireAuth);
+app.route('/api/admin/authentication-policy', authenticationPolicyRouter);
 app.route('/api/admin', adminRouter);
 app.route('/api/admin/agents', adminAgentsRouter);
 app.route('/api/admin/audit', adminAuditRouter);

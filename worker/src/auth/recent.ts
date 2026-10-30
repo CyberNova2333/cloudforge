@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import type { DrizzleDB } from '../db/middleware';
 import type { AppEnv } from '../variables';
+import { POLICY_VERSION_SQL } from './policy';
 
 export const RECENT_AUTHENTICATION_MS = 5 * 60_000;
 export const RECENT_SESSION_HEADER = 'X-CloudForge-Session';
@@ -27,6 +28,7 @@ export function recentAuthorizationGuard(
     WHERE recent_session.id = ${sessionId} AND recent_session.user_id = ${userId}
       AND recent_session.expires_at > ${now}
       AND recent_session.auth_version = recent_user.auth_version
+      AND recent_session.policy_version = ${sql.raw(POLICY_VERSION_SQL)}
       AND ${authVersion === undefined ? sql`1` : sql`recent_session.auth_version = ${authVersion}`}
       AND coalesce(recent_user.banned, 0) = 0
       AND coalesce(recent_session.impersonated_by, '') = ''

@@ -515,6 +515,26 @@
   gap: 8px;
 }
 
+.policy-impact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  margin: 16px 0;
+}
+.policy-impact dt {
+  overflow-wrap: anywhere;
+}
+.policy-impact dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.policy-preview {
+  margin-top: 16px;
+}
+.policy-enrollment > * + * {
+  margin-top: 16px;
+}
+
 .aud-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

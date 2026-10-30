@@ -1,4 +1,5 @@
 import type { GenericEndpointContext } from '@better-auth/core';
+import { POLICY_VERSION_SQL } from './policy';
 
 export type SessionAssurance = {
   strength:
@@ -16,6 +17,7 @@ export type SessionAssurance = {
 
 export type AuthenticationFields = {
   authVersion?: number | null;
+  policyVersion?: number | null;
   authMethod?: string | null;
   authTime?: Date | number | null;
   secondFactorMethod?: string | null;
@@ -85,6 +87,9 @@ export type SessionAuthentication = AuthenticationFields & {
   userAuthVersion: number;
   expiresAt: Date;
   banned: boolean;
+  impersonatedBy: string | null;
+  enrolled: boolean;
+  policy: { version: number; requireMfa: boolean };
 };
 
 /** Native findSession filters returned:false fields even internally, so read authority directly from D1. */
@@ -93,15 +98,19 @@ export async function readSessionAuthentication(
   sessionId: string
 ): Promise<SessionAuthentication | null> {
   const row = await env.DB.prepare(
-    `SELECT s.id, s.user_id, s.auth_version, s.auth_method, s.auth_time,
+    `SELECT s.id, s.user_id, s.auth_version, s.policy_version, s.auth_method, s.auth_time,
     s.second_factor_method, s.second_factor_time, s.expires_at, u.auth_version AS user_auth_version,
-    COALESCE(u.banned, 0) AS banned FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?`
+    COALESCE(u.banned, 0) AS banned, s.impersonated_by,
+    COALESCE(u.two_factor_enabled, 0) AS enrolled, ${POLICY_VERSION_SQL} AS policy_current_version,
+    COALESCE((SELECT require_mfa FROM authentication_policy WHERE id = 1), 0) AS policy_require_mfa
+    FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?`
   )
     .bind(sessionId)
     .first<{
       id: string;
       user_id: string;
       auth_version: number;
+      policy_version: number;
       auth_method: string | null;
       auth_time: number | null;
       second_factor_method: string | null;
@@ -109,12 +118,17 @@ export async function readSessionAuthentication(
       expires_at: number;
       user_auth_version: number;
       banned: number;
+      impersonated_by: string | null;
+      enrolled: number;
+      policy_current_version: number;
+      policy_require_mfa: number;
     }>();
   return row
     ? {
         id: row.id,
         userId: row.user_id,
         authVersion: row.auth_version,
+        policyVersion: row.policy_version,
         userAuthVersion: row.user_auth_version,
         authMethod: row.auth_method,
         authTime: row.auth_time,
@@ -122,6 +136,12 @@ export async function readSessionAuthentication(
         secondFactorTime: row.second_factor_time,
         expiresAt: new Date(row.expires_at),
         banned: !!row.banned,
+        impersonatedBy: row.impersonated_by,
+        enrolled: !!row.enrolled,
+        policy: {
+          version: row.policy_current_version,
+          requireMfa: !!row.policy_require_mfa,
+        },
       }
     : null;
 }

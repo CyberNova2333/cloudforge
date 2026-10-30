@@ -373,11 +373,12 @@ describe('持久会话认证证明', () => {
       .bind(Date.now() + 86400000, Date.now() - 4 * 86400000)
       .run();
     const context = await authFor(t.env).$context;
-    const original = context.internalAdapter.updateSession;
+    // 在真实会话读取后制造撤销竞争，不依赖策略检查是否触发滑动续期。
+    const original = context.internalAdapter.findSession;
     const reached = deferred();
     const resume = deferred();
     const spy = vi
-      .spyOn(context.internalAdapter, 'updateSession')
+      .spyOn(context.internalAdapter, 'findSession')
       .mockImplementation(async (...args) => {
         const updated = await original(...args);
         reached.resolve();
@@ -392,7 +393,12 @@ describe('持久会话认证证明', () => {
         { code: backupCodes[0] },
         cookie
       );
-      await reached.promise;
+      await Promise.race([
+        reached.promise,
+        pending.then(() => {
+          throw new Error('验证请求未经过受测的会话读取边界');
+        }),
+      ]);
       await t.env.DB.prepare(
         "UPDATE accounts SET password = ? WHERE provider_id = 'credential'"
       )

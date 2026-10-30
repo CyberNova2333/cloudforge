@@ -81,6 +81,8 @@ describe('数据库迁移与声明式触发器生成', () => {
           'cloudforge_oauth_consent_update_v1',
           'cloudforge_oauth_refresh_insert_v1',
           'cloudforge_oauth_access_insert_v1',
+          'cloudforge_auth_policy_insert_v1',
+          'cloudforge_auth_policy_update_v1',
         ].map((name) => ({
           name,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),

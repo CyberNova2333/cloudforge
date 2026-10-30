@@ -1,8 +1,11 @@
 // Declarative source: the generator adds these to a new migration; never edit migration history.
+const policyVersion =
+  'COALESCE((SELECT version FROM authentication_policy WHERE id = 1), 0)';
 const currentReference = `EXISTS (SELECT 1 FROM oauth_grant_generations g
     WHERE g.user_id = NEW.user_id AND g.client_id = NEW.client_id
-    AND NEW.reference_id = 'cf-grant-v1:' || g.generation)`;
-const legacyAllowed = `(NEW.reference_id IS NULL AND NOT EXISTS (
+    AND ((${policyVersion} = 0 AND NEW.reference_id = 'cf-grant-v1:' || g.generation)
+      OR (${policyVersion} > 0 AND NEW.reference_id = 'cf-grant-v2:' || ${policyVersion} || ':' || g.generation)))`;
+const legacyAllowed = `(NEW.reference_id IS NULL AND ${policyVersion} = 0 AND NOT EXISTS (
     SELECT 1 FROM oauth_grant_generations g WHERE g.user_id = NEW.user_id
     AND g.client_id = NEW.client_id AND g.legacy_revoked = 1))`;
 

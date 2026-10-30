@@ -34,6 +34,7 @@ import {
   readSessionAuthentication,
 } from './assurance';
 import { requireRecentNativeAuthentication } from './recent';
+import { requireNativePolicy } from './policy';
 import {
   checkResend,
   checkSignup,
@@ -256,6 +257,7 @@ function createAuth(env?: CloudflareBindings) {
       before: createAuthMiddleware(async (ctx) => {
         if (!env) return;
         await installSessionVersionGuard(ctx, env);
+        await requireNativePolicy(ctx, env);
         await requireRecentNativeAuthentication(ctx, db);
         if (ctx.path === '/sign-up/email') {
           await checkSignup(db, env, ctx.body);

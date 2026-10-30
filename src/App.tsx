@@ -15,7 +15,7 @@ import {
 import { useCurrentUser, useSession } from '@/lib/auth';
 import { openWithoutAccount } from '@/lib/signIn';
 import { syncLang } from '@/lib/i18n';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { api, qk } from '@/lib/uiApi';
 import { Spinner } from '@/components/Spinner';
 import { LiveUpdates } from '@/lib/live';
@@ -78,6 +78,12 @@ import {
   RecentAuthentication,
   VerifyAuthentication,
 } from '@/components/RecentAuthentication';
+import { useAuthenticationPolicy } from '@/lib/useAuthenticationPolicy';
+import { authenticationPolicyReturn } from '@/lib/authenticationPolicy';
+import { AuthShell } from '@/pages/AuthShell';
+import { LoadError } from '@/components/Notice';
+import { t } from '@/lib/i18n';
+import { signOut } from '@/lib/auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +101,15 @@ function Gate({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const setup = useQuery({ queryKey: qk.setup, queryFn: api.setupStatus });
   const { data: session, isPending } = useSession();
+  const policy = useAuthenticationPolicy();
+  const [enrollmentOwner, setEnrollmentOwner] = useState<string | null>(null);
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (policy.data?.access === 'enroll_mfa' && userId)
+      setEnrollmentOwner(userId);
+    else if (enrollmentOwner && enrollmentOwner !== userId)
+      setEnrollmentOwner(null);
+  }, [userId, policy.data?.access, enrollmentOwner]);
   if (setup.isPending || isPending) return <Spinner />;
   if (setup.data?.setupRequired) return <Navigate to="/setup" replace />;
   if (!session) {
@@ -106,6 +121,74 @@ function Gate({ children }: { children: React.ReactNode }) {
       />
     );
   }
+  const returnTo = authenticationPolicyReturn(
+    location.pathname,
+    location.search,
+    location.hash
+  );
+  // Enrollment rotates the cookie. Keep this account's component mounted until its one-time codes are saved.
+  if (enrollmentOwner === userId || policy.data?.access === 'enroll_mfa')
+    return (
+      <AuthShell
+        title={t('Two-factor authentication required')}
+        docTitle={t('Account security')}
+        wide
+      >
+        <SettingsSecurity
+          key={userId}
+          restricted
+          onContinue={() => {
+            window.location.assign(
+              policy.data?.access === 'full'
+                ? returnTo
+                : `/login/verify?return_to=${encodeURIComponent(returnTo)}`
+            );
+          }}
+        />
+        <button
+          type="button"
+          className="btn-link"
+          onClick={() =>
+            void signOut().then(() => window.location.assign('/login'))
+          }
+        >
+          {t('Sign out')}
+        </button>
+      </AuthShell>
+    );
+  if (policy.isPending) return <Spinner />;
+  if (policy.isError || !policy.data)
+    return (
+      <AuthShell
+        title={t('Verify your sign-in policy')}
+        docTitle={t('Account security')}
+      >
+        <LoadError
+          what={t('the authentication policy')}
+          error={policy.error}
+          onRetry={() => policy.refetch()}
+        />
+        <button
+          type="button"
+          className="btn-link"
+          onClick={() =>
+            void signOut().then(() => window.location.assign('/login'))
+          }
+        >
+          {t('Sign out')}
+        </button>
+      </AuthShell>
+    );
+  if (policy.data.access === 'reauthenticate') {
+    if (location.pathname === '/login/verify') return <>{children}</>;
+    return (
+      <Navigate
+        to={`/login/verify?return_to=${encodeURIComponent(returnTo)}`}
+        replace
+      />
+    );
+  }
+  if (location.pathname === '/login/verify') return <>{children}</>;
   return <LiveUpdates>{children}</LiveUpdates>;
 }
 

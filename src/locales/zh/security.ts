@@ -1,5 +1,44 @@
 /** Account security and the password sign-in factor challenge. */
 export const security: Record<string, string> = {
+  'Authentication policy': '认证策略',
+  'the authentication policy': '认证策略',
+  'Two-factor authentication is required for every member.':
+    '所有成员都必须使用双因素认证。',
+  'Members currently choose whether to enable two-factor authentication.':
+    '当前由成员自行选择是否启用双因素认证。',
+  'Changing this policy requires a recent password and second-factor verification. Preview the impact before confirming.':
+    '修改此策略需要最近完成的密码与第二因子验证。请先预览影响，再确认修改。',
+  'Authentication policy updated.': '认证策略已更新。',
+  'Require two-factor authentication for all members':
+    '要求所有成员启用双因素认证',
+  'Preparing preview…': '正在准备预览…',
+  'Preview policy change': '预览策略变更',
+  'Policy change preview': '策略变更预览',
+  'Members needing enrollment': '需要绑定验证器的成员',
+  'Other browser sessions requiring verification':
+    '需要重新验证的其他浏览器会话',
+  'OAuth connections to disconnect': '将断开的 OAuth 连接',
+  'Existing personal access tokens kept active': '继续有效的现有个人访问令牌',
+  'Existing deployment tokens kept active': '继续有效的现有部署令牌',
+  'Every policy change disconnects existing OAuth applications. Members must connect them again. Existing personal access tokens and deployment tokens keep their current permissions and expiry.':
+    '每次策略变更都会断开现有 OAuth 应用，成员需要重新连接。现有个人访问令牌和部署令牌保留原有权限与有效期。',
+  'Keep authenticator recovery codes outside this browser. If the last administrator loses all factors, an operator with Cloudflare management access must use the independent cloudforge reset-mfa command with an explicit target and audited reason.':
+    '请在浏览器之外保存验证器恢复码。如果最后一位管理员失去所有因子，需要拥有 Cloudflare 管理权限的运维人员使用独立的 cloudforge reset-mfa 命令，明确恢复目标并留下审计原因。',
+  'This preview is temporary. Changes to the policy, your sign-in or the affected accounts may require another preview.':
+    '此预览有有效期。策略、登录状态或受影响账户变化后，可能需要重新预览。',
+  'I understand the impact and have an independent recovery path for the last administrator.':
+    '我已了解变更影响，并为最后一位管理员准备了独立恢复方式。',
+  'Applying…': '正在应用…',
+  'Confirm policy change': '确认策略变更',
+  'Your administrator requires two-factor authentication. It cannot be disabled while this policy is active.':
+    '管理员要求使用双因素认证。策略生效期间无法关闭。',
+  'Continue to verification': '继续验证身份',
+  'Two-factor authentication required': '需要双因素认证',
+  'Verify your sign-in policy': '核对登录策略',
+  'This preview expired or the policy changed. Preview again.':
+    '预览已过期或策略已变化，请重新预览。',
+  'The signed-in session changed. Reload and try again.':
+    '登录会话已变化，请刷新后重试。',
   'Verify your identity': '验证身份',
   'Verify and continue': '验证并继续',
   'Stop impersonating before changing security settings.':
