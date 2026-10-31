@@ -5,6 +5,7 @@ import { realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { accessPreflight } from './access-preflight.ts';
 import { adoptFromCheckout, pickCheckoutState } from './adopt.ts';
 import { adoptWorker, planAdoptWorker } from './adopt-worker.ts';
 import { install, resumeInstalled, type Ctx, type Optional } from './apply.ts';
@@ -15,6 +16,7 @@ import { ConfigConflict } from './config.ts';
 import {
   cloudforgeHome,
   installDir,
+  listInstalls,
   pickInstall,
   pickResumable,
 } from './home.ts';
@@ -56,6 +58,8 @@ Commands:
              sign in to create a reset link)
   reset-mfa <username|email>
              Remove a lost second factor using Cloudflare database access
+  access-preflight
+             Inspect legacy access data without migrating or publishing roles
 
 install options:
   --name <name>          Installation name (default: cloudforge)
@@ -111,6 +115,11 @@ reset-mfa options:
   --plan                 Show a read-only recovery plan and its digest
   --expect-plan <digest> Apply only the reviewed target/factor/installation snapshot
   --yes                  Skip confirmation; requires --expect-plan
+
+access-preflight options (always read-only):
+  --name <name>          Explicitly select a recorded installation
+  --database <name|id>   Or: explicitly select a D1 database with --account
+  --account <id|name>    Required with --database; never inferred
 `;
 
 const DEFAULT_NAME = 'cloudforge';
@@ -215,6 +224,18 @@ const RESET_MFA_OPTIONS = {
   reason: { type: 'string' },
   plan: { type: 'boolean' },
   'expect-plan': { type: 'string' },
+} as const;
+
+type AccessPreflightFlags = {
+  name?: string;
+  database?: string;
+  account?: string;
+};
+
+const ACCESS_PREFLIGHT_OPTIONS = {
+  name: { type: 'string' },
+  database: { type: 'string' },
+  account: { type: 'string' },
 } as const;
 
 /** adopt flags that only `--worker` takes. */
@@ -359,8 +380,24 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
       });
       return await runResetMfa(values, positionals, deps);
     }
+    if (command === 'access-preflight') {
+      const { values } = parseArgs({
+        args: rest,
+        options: ACCESS_PREFLIGHT_OPTIONS,
+        strict: true,
+        allowPositionals: false,
+      });
+      return await runAccessPreflight(values, deps);
+    }
   } catch (e) {
     if (e instanceof UsageError || isParseArgsError(e)) {
+      if (command === 'access-preflight') {
+        io.print(
+          'access-preflight requires an explicit --name, or --database with --account. It accepts no positionals or apply flags.\n\n' +
+            usage(deps.source)
+        );
+        return 2;
+      }
       io.print(`${(e as Error).message}\n\n${usage(deps.source)}`);
       return 2;
     }
@@ -1207,6 +1244,106 @@ async function runResetMfa(
   } catch (e) {
     if (e instanceof UsageError) throw e;
     deps.io.print((e as Error).message);
+    return 1;
+  }
+}
+
+async function runAccessPreflight(
+  f: AccessPreflightFlags,
+  deps: Deps
+): Promise<number> {
+  const valid = (value: string | undefined) =>
+    value !== undefined &&
+    value.trim().length > 0 &&
+    value.length <= 256 &&
+    !/[\p{Cc}\p{Cf}]/u.test(value);
+  if (
+    (f.name === undefined) === (f.database === undefined) ||
+    (f.name !== undefined &&
+      (f.account !== undefined || !valid(f.name) || validateName(f.name))) ||
+    (f.database !== undefined && (!valid(f.database) || !valid(f.account)))
+  )
+    throw new UsageError('An explicit target is required.');
+
+  try {
+    const records =
+      f.name === undefined
+        ? []
+        : deps.home !== null
+          ? listInstalls(deps.home)
+              .filter((record) => record.slug === f.name)
+              .map((record) => record.state)
+          : listStates(deps.dir).filter(
+              (state) => state.inputs.name === f.name
+            );
+    if (f.name !== undefined && records.length !== 1) {
+      deps.io.print(
+        'Access preflight requires exactly one matching recorded installation. Nothing was changed.'
+      );
+      return 1;
+    }
+    const recorded = records[0];
+    if (recorded?.movedTo !== undefined) {
+      deps.io.print(
+        'The recorded installation was moved. Select its current installation explicitly. Nothing was changed.'
+      );
+      return 1;
+    }
+    const resources = recorded?.resources.filter((r) => r.kind === 'd1');
+    if (
+      recorded &&
+      (!valid(recorded.accountId) ||
+        !valid(recorded.installationId) ||
+        !valid(recorded.ownershipNonce) ||
+        resources?.length !== 1 ||
+        !valid(resources[0]?.id))
+    )
+      throw new Error('Invalid recorded target');
+
+    const cf = deps.cloudflare(await deps.token());
+    // Match a single real account and database; never infer the first visible target.
+    const accountSelector = recorded?.accountId ?? f.account!;
+    const accounts = await cf.listAccounts();
+    const matches = accounts.filter(
+      (account) =>
+        account.id === accountSelector ||
+        (!recorded &&
+          account.name.toLowerCase() === accountSelector.toLowerCase())
+    );
+    if (matches.length !== 1) throw new Error('Account not uniquely verified');
+    const accountId = matches[0].id;
+    if (!valid(accountId)) throw new Error('Invalid account');
+    const databaseSelector = resources?.[0]?.id ?? f.database!;
+    const databases = (await cf.listD1(accountId)).filter(
+      (database) =>
+        database.uuid === databaseSelector ||
+        (!recorded && database.name === databaseSelector)
+    );
+    if (
+      databases.length !== 1 ||
+      !valid(databases[0].uuid) ||
+      !valid(databases[0].name)
+    )
+      throw new Error('Database not uniquely verified');
+    return await accessPreflight(
+      { cf, io: deps.io },
+      {
+        accountId,
+        database: databases[0],
+        ...(recorded
+          ? {
+              installation: {
+                id: recorded.installationId,
+                ownershipNonce: recorded.ownershipNonce,
+              },
+            }
+          : {}),
+      }
+    );
+  } catch {
+    deps.io.print(
+      'Access preflight could not verify the selected installation, account or database. Nothing was changed.'
+    );
     return 1;
   }
 }

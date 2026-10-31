@@ -42,6 +42,35 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 
 本阶段保留 SQL `visibleTo` 的既有公式，用真实 D1 差分校验它与单项/批量的可读集合；没有为统一命名引入逐对象权限查询、跨请求角色缓存或自动刷新旧令牌权限。公共读取、internal 实例成员读取及团队创建者权限保持不变。新的 triage/maintain 只有后续模型、接口及发布围栏就绪后才可授予，不能仅修改这里的映射表提前启用。
 
+## 迁移前的只读预检
+
+准备改造团队和角色前，先选择一个明确实例检查旧数据。在源码 checkout 中运行：
+
+```sh
+yarn cloudforge access-preflight --name cloudforge
+# 手工部署、没有本地安装记录时，账号和数据库都必须明确：
+yarn cloudforge access-preflight --database <数据库名或UUID> --account <账号ID或名称>
+```
+
+命令核对实际账号、数据库及已有安装归属，读取一次有界 SQL 快照，输出 JSON 诊断。它不会写本地安装状态或应用数据，不需要 Docker，不接受 `--yes`、`--expect-plan` 或 apply 参数。示意输出中的状态字段如下，其余字段包含目标、摘要、计数和异常对象标识：
+
+```json
+{
+  "command": "access-preflight",
+  "blocked": false,
+  "rolePublishingAllowed": false,
+  "migrationApplied": false
+}
+```
+
+退出码0只表示这次旧数据观察未命中阻断项；1表示发现阻断项或未能取得有效快照，2表示命令参数不合法。摘要标识本次观察，不能作为以后写入的授权、最新状态证明或全实例已切换的标志。无论退出码为何，角色发布和迁移状态始终为false；本命令不实施旧Worker回滚屏障。
+
+预检报告旧共享团队的候选id、旧协作者按write保留的数量、团队创建者管理员来源、公开仓库集合及异常引用。多条旧团队、用户名/slug归一化冲突、团队private历史行或已出现的新ACL模型都需要单独处理，不能任选第一行、静默改可见性或把新read/triage当作旧write。封禁成员保留的休眠授权不自动删除；Reviewer Agent正常拥有自己的配置仓库，不能一律当坏数据，也不能计作可登录的人类恢复管理员。
+
+每类集合最多1000条，额外一条用于探测溢出；字段、schema元数据和响应大小也有界。超过边界会阻断，不能把截断列表当作完整预检。每类异常样例最多20条，数量与样例分别报告。读取不包含账户邮箱、密码、会话、因素秘密或机器令牌；安装归属秘密只参与绑定比较，不出现在输出中。当前命令针对旧模型，不能用于证明未来角色迁移、真实负载或恢复凭据可用性已验收。
+
+实现与操作说明见[升级维护](updating.md#legacy-access-preflight)，完整后续模型见[权限设计](team-access-design.md)。
+
 ## 账户资料和管理边界
 
 成员列表与用户命名空间资料使用同一个账户邮箱规则：只有站点管理员和成员本人能看到该账户邮箱；其他成员收到 null，团队和 Agent 不公开账户邮箱。命名空间 API 仍要求成员登录。Git 提交对象原本携带的作者/提交者邮箱属于提交数据，不由这个账户字段规则隐藏或改写。实现和回归见[公共成员投影](../worker/src/lib/users.ts)、[邮箱与提交归属测试](../worker/src/__tests__/commit-emails.test.ts)。
@@ -52,6 +81,6 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 
 ## 后续实施顺序
 
-阶段 A 已实现内部兼容求值和现有入口的命名能力接入，保持旧权限结果。后续按[设计草案](team-access-design.md)先做迁移预检和声明生成的兼容数据，再实现显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
+阶段 A 已实现内部兼容求值和现有入口的命名能力接入，保持旧权限结果。后续按[设计草案](team-access-design.md)在只读预检后再做声明生成的兼容数据，再实现显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
 
 当前测试入口为 `repo-permissions.test.ts`、`teams-visibility.test.ts`、`public-repos.test.ts`、`repos-pulls.test.ts` 和 `commit-emails.test.ts`；列出文件不表示本页完成全项目或生产验收。需要定位权限职责时从[源码代码地图](../repo-docs/code-map.md)继续，实际运行命令与完成标准见[开发说明](development.md)。

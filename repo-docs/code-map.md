@@ -105,6 +105,12 @@ SSO 的两个额外修改入口：
 
 这些路径解释清理或拒绝发生在哪里；测试名只表示入口，实际结果另见本轮验收记录。停止失败保留占用，不能从 HTTP 成功或 D1 逻辑终态倒推外部容器已停止。Git 推送主流程的输入与输出未改变。
 
+## 权限迁移前的只读检查入口
+
+准备升级团队模型时，先用[维护命令](../scripts/cloudforge/access-preflight.ts)选择明确账号/数据库并输出一次诊断；[快照与分析](../scripts/cloudforge/access-preflight-data.ts)负责有界单SELECT、旧模型判定和异常分类。[操作说明](../docs/updating.md#legacy-access-preflight)区分退出码、观察摘要与真正迁移授权。节点脚本测试验证目标选择和无写入，`access-preflight.test.ts`的Worker测试用真实D1验证查询及旧数据边界；CI归属仍由`ci-workflow.test.ts`检查。
+
+这个入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
+
 ## 覆盖范围
 
 覆盖 Git HTTPS 推送入口、引用保护、Artifacts 交接和持久化推送事件；只追踪这些目录内与推送有关的文件。PR 审查、合并、Actions 执行器、OAuth/MFA、MCP、安装器、SPA 与其他数据库模块留给既有 docs 专题，本包不声称完整架构覆盖。认证策略的预览、受限会话、OAuth 撤销和离线恢复边界见 [认证专题](../docs/authentication.md#管理员认证策略)。提交、远端推送与生产部署分别核验。
