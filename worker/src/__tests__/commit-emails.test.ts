@@ -248,13 +248,31 @@ describe('设置 → 邮箱', () => {
 });
 
 describe('资料邮箱', () => {
-  it('向其他成员显示用户账户邮箱，团队不显示邮箱', async () => {
+  it('账户邮箱在资料和成员列表中都只对本人及站点管理员显示', async () => {
     const t = makeEnv();
     const admin = await bootstrapAdmin(t);
     const bob = await addMember(t, admin, 'bob');
-    const res = await call(t, '/api/namespaces/octocat', { cookie: bob });
-    const body = (await res.json()) as { owner: { email: string | null } };
-    expect(body.owner.email).toBe('octocat@example.com');
+    const profile = async (username: string, cookie: string) => {
+      const res = await call(t, `/api/namespaces/${username}`, { cookie });
+      expect(res.status).toBe(200);
+      return (await res.json()) as { owner: { email: string | null } };
+    };
+    expect((await profile('octocat', bob)).owner.email).toBeNull();
+    expect((await profile('octocat', admin)).owner.email).toBe(
+      'octocat@example.com'
+    );
+    expect((await profile('bob', bob)).owner.email).toBe('bob@example.com');
+    expect((await profile('bob', admin)).owner.email).toBe('bob@example.com');
+    const directory = (await (
+      await call(t, '/api/users', { cookie: bob })
+    ).json()) as { username: string; email: string | null }[];
+    expect(
+      directory.find((user) => user.username === 'octocat')?.email
+    ).toBeNull();
+    expect(directory.find((user) => user.username === 'bob')?.email).toBe(
+      'bob@example.com'
+    );
+    expect((await call(t, '/api/namespaces/octocat')).status).toBe(401);
   });
 });
 

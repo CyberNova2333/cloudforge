@@ -15,9 +15,15 @@ const TABLES = (
   ).all<{ name: string }>()
 ).results.map((r) => r.name);
 beforeEach(async () => {
+  // Account deletion is forbidden while a repository still belongs to it, even with deferred FKs.
+  // Tear down repositories first; do not disable the production deletion trigger in tests.
+  const cleanupTables = [
+    ...TABLES.filter((name) => name === 'repositories'),
+    ...TABLES.filter((name) => name !== 'repositories'),
+  ];
   await env.DB.batch([
     env.DB.prepare('PRAGMA defer_foreign_keys = on'),
-    ...TABLES.map((t) => env.DB.prepare(`DELETE FROM "${t}"`)),
+    ...cleanupTables.map((t) => env.DB.prepare(`DELETE FROM "${t}"`)),
     // Most tests have one person open a pull request and approve it, so they run with authors allowed to decide
     // their own (`review.allow_self_approval`, off on a real instance). self-approval.test.ts removes this row to
     // test the default.

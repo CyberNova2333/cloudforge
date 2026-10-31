@@ -385,6 +385,11 @@ describe('每项审计操作都构成一个句子', () => {
       'mahmoud signed in through the OIDC provider company',
     ],
     [
+      'user.deleted 管理员原子删除无仓库成员',
+      { action: 'user.deleted', repo: null, target: 'member-id', data: {} },
+      'mahmoud deleted the member member-id',
+    ],
+    [
       'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in octocat/cloudforge',
@@ -813,6 +818,7 @@ describe('每项审计操作都构成一个句子', () => {
         'user.oidc_linked',
         'user.oidc_revoked',
         'user.oidc_signed_in',
+        'user.deleted',
         'release.created',
         'release.updated',
         'pull.version_bump',
@@ -1297,6 +1303,7 @@ describe('链接和分类', () => {
     expect(auditCategory('user.oidc_linked')).toBe('access');
     expect(auditCategory('user.oidc_revoked')).toBe('access');
     expect(auditCategory('user.oidc_signed_in')).toBe('access');
+    expect(auditCategory('user.deleted')).toBe('access');
     expect(auditCategory('pull.version_bump')).toBe('activity');
     expect(auditCategory('pull.state_changed')).toBe('activity');
     expect(auditCategory('pull.rebased')).toBe('activity');

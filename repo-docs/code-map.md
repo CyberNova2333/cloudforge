@@ -90,6 +90,20 @@ SSO 的两个额外修改入口：
 
 这里的路径与测试名是维护入口。验证数量和明确边界见专题；生产迁移、配置发布及部署分别核验。绑定不写 SDK `accounts`、不签发登录会话；独立 SSO 插件通过最终 D1 围栏后才使用 SDK cookie helper。
 
+## 权限设计与停止后清理的修改入口
+
+现行仓库权限仍使用 read/write/admin 三个布尔值。后续多团队与五级角色的兼容方案、能力矩阵及撤权边界由[权限设计草案](../docs/team-access-design.md)承载，尚未实现新角色表或 API；当前规则与账户资料说明见[权限现状](../docs/permissions.md)。
+
+| 改动目标                 | 入口与职责                                                                                                                                                                                                                          | 验证入口                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 取消、异常恢复和容量释放 | [共享停止](../worker/src/actions/abandon.ts)确认 Workflow 与每个容器停止，持久推进分批清理；[队列](../worker/src/actions/queue.ts)保留未停止者容量和恢复 alarm；[Actions 路由](../worker/src/routers/actions-router.ts)共用这一边界 | `actions.test.ts`、`actions-queue.test.ts`     |
+| 仓库删除与外部存储清理   | [删除生命周期](../worker/src/lib/repo-deletion.ts)在停止确认后写点复核新运行，真实 DELETE 后才发布清理 outbox；[仓库路由](../worker/src/routers/repos-router.ts)对停止未完成返回可重试409                                           | `repo-deletion.test.ts`                        |
+| 原生成员删除             | [受控原子删除](../worker/src/auth/user-deletion.ts)保留原管理中间件，最终写点复查授权和仓库；声明触发器由生成迁移兜底，禁止借账户级联绕过仓库停止                                                                                   | `user-deletion.test.ts`                        |
+| 执行器重启和最终清理     | [执行器](../worker/src/actions/executor.ts)在 destroy 成功后才记录停止、更新作业并释放；清理重试不重放已完成命令                                                                                                                    | `actions-log-errors.test.ts`                   |
+| 账户邮箱的查看范围       | [公共成员投影](../worker/src/lib/users.ts)的 accountEmailFor 为目录与命名空间共用管理员/本人规则；Git 原始提交邮箱不因此改写                                                                                                        | `commit-emails.test.ts`、`repos-pulls.test.ts` |
+
+这些路径解释清理或拒绝发生在哪里；测试名只表示入口，实际结果另见本轮验收记录。停止失败保留占用，不能从 HTTP 成功或 D1 逻辑终态倒推外部容器已停止。Git 推送主流程的输入与输出未改变。
+
 ## 覆盖范围
 
 覆盖 Git HTTPS 推送入口、引用保护、Artifacts 交接和持久化推送事件；只追踪这些目录内与推送有关的文件。PR 审查、合并、Actions 执行器、OAuth/MFA、MCP、安装器、SPA 与其他数据库模块留给既有 docs 专题，本包不声称完整架构覆盖。认证策略的预览、受限会话、OAuth 撤销和离线恢复边界见 [认证专题](../docs/authentication.md#管理员认证策略)。提交、远端推送与生产部署分别核验。

@@ -128,6 +128,7 @@ export const lib: Record<string, string> = {
   ' taught a reviewer a rule from a finding':
     ' 从一条评审意见中教会了评审 Agent 一条规则',
   ' created the access token “': ' 创建了访问令牌 “',
+  ' deleted the member ': ' 删除了成员 ',
   ' set a new password with a reset link': ' 通过重置链接设置了新密码',
   ' published the OIDC provider configuration for ':
     ' 发布了 OIDC 提供方配置：',

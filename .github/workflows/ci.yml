@@ -309,6 +309,7 @@ jobs:
             src/lib/oidcSignInApi.test.ts
             src/lib/signInLock.test.ts
           worker/src/__tests__/recent-authentication.test.ts
+          worker/src/__tests__/user-deletion.test.ts
           worker/src/__tests__/mcp-grant-revocation.test.ts
           src/lib/recentAuthentication.test.ts
           worker/src/__tests__/request-limits.test.ts

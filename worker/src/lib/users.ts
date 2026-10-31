@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { users } from '../db/auth.schema';
 import { inJsonArray } from './sql-set';
+import type { SessionUser } from '../variables';
 
 export type PublicUser = {
   id: string;
@@ -10,6 +11,18 @@ export type PublicUser = {
   name: string;
   image: string | null;
 };
+
+/** Account email is private member data, distinct from an address already present in a Git commit. */
+export function accountEmailFor(
+  subject: { id: string; email: string },
+  viewer: Pick<SessionUser, 'id' | 'role' | 'banned'> | undefined
+): string | null {
+  return viewer &&
+    !viewer.banned &&
+    (viewer.role === 'admin' || viewer.id === subject.id)
+    ? subject.email
+    : null;
+}
 
 export function toPublicUser(u: {
   id: string;

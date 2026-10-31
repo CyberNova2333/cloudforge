@@ -59,6 +59,7 @@ export const AUDIT_ACTIONS = [
   'user.oidc_linked',
   'user.oidc_revoked',
   'user.oidc_signed_in',
+  'user.deleted',
   'release.created',
   'release.updated',
   'pull.version_bump',
@@ -536,6 +537,8 @@ export function auditParts(
         ...on(),
         via()
       );
+    case 'user.deleted':
+      return say(t(' deleted the member '), e.target, via());
     case 'user.password_reset':
       return say(t(' set a new password with a reset link'), via());
     case 'instance.oidc_configuration':
@@ -967,6 +970,7 @@ export function auditCategory(action: string): AuditCategory {
     case 'user.password_reset':
     case 'user.password_reset_link':
     case 'user.password_set':
+    case 'user.deleted':
       return 'access';
     case 'instance.oidc_configuration':
     case 'user.oidc_linked':

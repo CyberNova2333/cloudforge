@@ -22,9 +22,13 @@ import {
   validationHook,
 } from './openapi-helpers';
 import { ownerRepoParams, publicUserSchema } from './schemas';
-import { runnersStopped } from '../usage/record';
-import { dropRun, queuePositions } from '../actions/queue';
-import { finishAbandoned } from '../actions/abandon';
+import {
+  actionsQueue,
+  dropRun,
+  queueConfigured,
+  queuePositions,
+} from '../actions/queue';
+import { stopAbandonedRun } from '../actions/abandon';
 import { deleteArtifact, listRunArtifacts } from '../actions/artifacts';
 import { recordAudit } from '../lib/audit';
 import { inJsonArray } from '../lib/sql-set';
@@ -214,6 +218,25 @@ async function getRun(
     .get();
 }
 
+/** Retain stopped-run inventory until the same bounded cleanup used by the queue confirms it. */
+async function stopRun(
+  env: CloudflareBindings,
+  db: RepoEnv['Variables']['db'],
+  runId: string,
+  conclusion: 'cancelled' | 'failure'
+) {
+  if (await stopAbandonedRun(env, db, runId, conclusion)) {
+    await dropRun(env, runId);
+  } else if (queueConfigured(env)) {
+    // Even fallback reservations without a queue entry need a durable alarm once the queue is reachable.
+    try {
+      await actionsQueue(env).reclaim();
+    } catch (error) {
+      console.warn('[actions] could not resume stop recovery', runId, error);
+    }
+  }
+}
+
 /** Reconciles an unfinished run with its Workflow, which may have died without updating it. */
 async function reconcile(
   env: CloudflareBindings,
@@ -225,12 +248,12 @@ async function reconcile(
   try {
     const { status } = await (await env.ACTIONS_RUN.get(run.id)).status();
     if (status !== 'errored' && status !== 'terminated') return run;
-    await finishAbandoned(
+    await stopRun(
+      env,
       db,
       run.id,
       status === 'terminated' ? 'cancelled' : 'failure'
     );
-    await dropRun(env, run.id);
     return (await db
       .select()
       .from(workflowRuns)
@@ -507,24 +530,9 @@ actionsRouter.openapi(cancelRoute, async (c) => {
   const db = c.get('db');
   const run = await getRun(c, c.req.valid('param').number);
   if (!run) return c.json({ error: 'Not Found' }, 404);
-  if (run.status === 'completed')
+  if (run.status === 'completed' && run.conclusion !== 'cancelled')
     return c.json({ error: 'This run has already finished' }, 400);
-  if (actionsConfigured(c.env)) {
-    try {
-      await (await c.env.ACTIONS_RUN.get(run.id)).terminate();
-    } catch (e) {
-      console.error('[actions] terminate failed', run.id, e);
-    }
-  }
-  const jobIds = await finishAbandoned(db, run.id, 'cancelled');
-  if (actionsConfigured(c.env))
-    c.executionCtx.waitUntil(
-      Promise.allSettled(
-        jobIds.map((id) => c.env.JOB_RUNNER.getByName(id).destroy())
-      )
-        .then(() => runnersStopped(db, jobIds))
-        .then(() => dropRun(c.env, run.id))
-    );
+  await stopRun(c.env, db, run.id, 'cancelled');
   return c.json({ ok: true as const }, 200);
 });
 

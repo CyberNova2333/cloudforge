@@ -1,9 +1,11 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { repositories, reviewerStatuses, teams } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import { requireAdmin } from '../auth/guards';
 import { isValidSlug, namespaceTaken } from '../lib/namespaces';
+import { accountEmailFor } from '../lib/users';
 import { getTeam, teamNamespace, userNamespace, visibleTo } from '../lib/repos';
 import type { AppEnv } from '../variables';
 import { serializeRepo } from './repos-router';
@@ -134,7 +136,7 @@ const namespaceRoute = createRoute({
         kind: z.enum(['user', 'team']),
         owner: publicUserSchema.extend({
           createdAt: z.string(),
-          // A member's account email, shown to every signed-in member; null for the team.
+          // Account email is visible only to site admins and the member themself; null for teams and agents.
           email: z.string().nullable(),
         }),
         repositories: z.array(repoSchema),
@@ -239,7 +241,7 @@ namespacesRouter.openapi(namespaceRoute, async (c) => {
         name: ns.name,
         image: ns.image,
         createdAt: user.createdAt.toISOString(),
-        email: agent ? null : user.email,
+        email: agent ? null : accountEmailFor(user, viewer),
       },
       repositories: repos.map((r) => serializeRepo(r, ns)),
       agent,

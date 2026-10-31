@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
@@ -366,6 +367,22 @@ describe('部署令牌当前授权', () => {
     ).toBe(200);
     await db.update(users).set({ role: 'admin' }).where(eq(users.id, bob.id));
     const second = await issue(t, bobCookie);
+    // Account deletion must not bypass an owned repository's stop and cleanup lifecycle.
+    expect(
+      (
+        await call(t, '/api/repos/bob/owned', {
+          cookie: admin,
+          method: 'DELETE',
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      await db
+        .select()
+        .from(repositoryDeployTokens)
+        .where(eq(repositoryDeployTokens.id, second.token.id))
+        .get()
+    ).toBeDefined();
     await db.delete(users).where(eq(users.id, bob.id));
     expect(
       await db

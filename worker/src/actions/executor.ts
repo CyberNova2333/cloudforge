@@ -73,6 +73,7 @@ import {
   type ActionRef,
 } from './remote';
 import { runnerStarted, runnersStopped } from '../usage/record';
+import { markStoppedJob } from './abandon';
 import { getSetting, getSettings } from '../lib/settings';
 import {
   actionsQueue,
@@ -825,17 +826,15 @@ async function runJob(
           .from(workflowRuns)
           .where(eq(workflowRuns.id, ctx.runId))
           .get();
-        // A cancelled run is already marked finished; its containers were stopped on purpose.
+        // A cancellation fences the run before stopping its containers. A failed
+        // destroy must retry this cleanup step while D1 and queue capacity stay held.
+        await runner.destroy();
+        await runnersStopped(db, [job.id]);
         if (!run || run.status === 'completed') {
+          await markStoppedJob(db, job.id, 'cancelled');
           await releaseSlot(env, job.id);
           return 'cancelled' as const;
         }
-        try {
-          await runner.destroy();
-        } catch (e) {
-          console.warn('[actions] runner destroy failed', job.id, e);
-        }
-        await runnersStopped(db, [job.id]);
         // The container is gone: the restart queues again, and meanwhile someone else may use the slot.
         await db
           .update(workflowJobs)
@@ -1014,11 +1013,9 @@ async function runJob(
 
   // ── Complete job ──
   const completed = await step.do(`${name}:complete`, async () => {
-    try {
-      await runner.destroy();
-    } catch (e) {
-      console.error('[actions] runner destroy failed', job.id, e);
-    }
+    // Retrying this durable cleanup cannot replay completed commands. Until
+    // destruction succeeds the job remains in progress and keeps its reservation.
+    await runner.destroy();
     await runnersStopped(db, [job.id]);
     const outputs: Record<string, string> = {};
     const withheld: string[] = [];
@@ -1097,6 +1094,19 @@ async function runJob(
           completedAt: now,
         })
         .where(and(eq(workflowJobs.id, job.id), activeRunForJob(db, job.id)));
+    // Cancellation may fence the run while a command or its cleanup was in flight.
+    // Its normal writes deliberately refuse to revive the run; now that this
+    // container is confirmed stopped, finish this job without touching other jobs.
+    const run = await db
+      .select({
+        status: workflowRuns.status,
+        conclusion: workflowRuns.conclusion,
+      })
+      .from(workflowRuns)
+      .where(eq(workflowRuns.id, ctx.runId))
+      .get();
+    if (!run || run.status === 'completed')
+      await markStoppedJob(db, job.id, run?.conclusion ?? 'cancelled');
     // Publish the D1 completion before waking the next queue holder.
     await releaseSlot(env, job.id);
     return saved;

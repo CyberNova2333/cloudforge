@@ -93,6 +93,7 @@ describe('数据库迁移与声明式触发器生成', () => {
           'cloudforge_oidc_session_source_immutable_v1',
           'cloudforge_oidc_login_cancel_v1',
           'cloudforge_oidc_login_complete_v1',
+          'cloudforge_user_repository_delete_v1',
         ].map((name) => ({
           name,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
