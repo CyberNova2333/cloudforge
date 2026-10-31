@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from './lib/repo-permissions';
 import { and, eq } from 'drizzle-orm';
 import { inJsonArray } from './lib/sql-set';
 import { lfsObjects } from './db/app.schema';
@@ -161,7 +162,7 @@ async function handleBatch(
   if (body.objects.length > 1000)
     return lfsError(422, 'At most 1000 objects per batch request');
   const upload = body.operation === 'upload';
-  if (upload && !access.perms.write)
+  if (upload && !can(access.perms, 'push'))
     return lfsError(403, 'You do not have push access to this repository');
 
   const { db, repo, user } = access;
@@ -276,7 +277,7 @@ async function handleVerify(
   env: CloudflareBindings,
   access: GitAccess
 ) {
-  if (!access.perms.write)
+  if (!can(access.perms, 'push'))
     return lfsError(403, 'You do not have push access to this repository');
   const o = await readJson<BatchObject>(request);
   if (!o || !OID_RE.test(o.oid) || !Number.isSafeInteger(o.size))
@@ -308,7 +309,7 @@ function handleLocks(request: Request, endpoint: string, access: GitAccess) {
   if (endpoint === 'locks' && request.method === 'GET')
     return lfsJson({ locks: [] });
   if (endpoint === 'locks/verify' && request.method === 'POST') {
-    if (!access.perms.write)
+    if (!can(access.perms, 'push'))
       return lfsError(403, 'You do not have push access to this repository');
     return lfsJson({ ours: [], theirs: [] });
   }

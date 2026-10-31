@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { rebase, REBASE_COMMITTER } from '../git/rebase';
 import { and, asc, desc, eq, or, sql } from 'drizzle-orm';
@@ -321,7 +322,7 @@ const updateRepoRoute = createRoute({
   },
 });
 reposRouter.openapi(updateRepoRoute, async (c) => {
-  if (!c.get('perms').admin)
+  if (!can(c.get('perms'), 'editSettings'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const db = c.get('db');
   const repo = c.get('repo');
@@ -426,7 +427,7 @@ const deleteRepoRoute = createRoute({
   },
 });
 reposRouter.openapi(deleteRepoRoute, async (c) => {
-  if (!c.get('perms').admin)
+  if (!can(c.get('perms'), 'deleteRepository'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const repo = c.get('repo');
   const deleted = await deleteRepository(
@@ -488,7 +489,7 @@ const addCollabRoute = createRoute({
   },
 });
 reposRouter.openapi(addCollabRoute, async (c) => {
-  if (!c.get('perms').admin)
+  if (!can(c.get('perms'), 'manageAccess'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const user = await userByUsername(c.get('db'), c.req.valid('param').username);
   if (!user) return c.json({ error: 'User not found' }, 404);
@@ -532,7 +533,7 @@ const removeCollabRoute = createRoute({
   },
 });
 reposRouter.openapi(removeCollabRoute, async (c) => {
-  if (!c.get('perms').admin)
+  if (!can(c.get('perms'), 'manageAccess'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const user = await userByUsername(c.get('db'), c.req.valid('param').username);
   if (!user) return c.json({ error: 'User not found' }, 404);
@@ -572,7 +573,7 @@ const deleteBranchRoute = createRoute({
   },
 });
 reposRouter.openapi(deleteBranchRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'push'))
     return c.json({ error: 'You do not have push access' }, 403);
   const { name } = c.req.valid('query');
   const repo = c.get('repo');

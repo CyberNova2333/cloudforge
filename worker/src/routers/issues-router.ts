@@ -1,6 +1,8 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Issues and labels (docs/issues.md). Readers of the repository see them; signed-in readers open issues and comment;
 // the author or a person with push access edits, closes and reopens; push access sets labels and assignees and manages
 // the repository's labels; an admin deletes an issue.
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context, MiddlewareHandler } from 'hono';
 import { and, asc, eq, sql } from 'drizzle-orm';
@@ -239,7 +241,7 @@ const notifyCtx = (c: Context<RepoEnv>): NotifyCtx => ({
 
 /** The author, or someone with push access. */
 const mayEdit = (c: Context<RepoEnv>, authorId: string) =>
-  c.get('perms').write || c.get('user')?.id === authorId;
+  can(c.get('perms'), 'manageIssues') || c.get('user')?.id === authorId;
 
 // ── list / create ────────────────────────────────────────────────────────────
 
@@ -344,7 +346,10 @@ issuesRouter.openapi(createRouteDef, async (c) => {
   const db = c.get('db');
   const repo = c.get('repo');
   const body = c.req.valid('json');
-  if ((body.labels?.length || body.assignees?.length) && !c.get('perms').write)
+  if (
+    (body.labels?.length || body.assignees?.length) &&
+    !can(c.get('perms'), 'manageIssues')
+  )
     return c.json(
       {
         error:
@@ -533,7 +538,7 @@ issuesRouter.openapi(updateRouteDef, async (c) => {
     );
   if (
     (body.labels !== undefined || body.assignees !== undefined) &&
-    !c.get('perms').write
+    !can(c.get('perms'), 'manageIssues')
   )
     return c.json(
       {
@@ -582,7 +587,7 @@ const deleteRouteDef = createRoute({
 issuesRouter.openapi(deleteRouteDef, async (c) => {
   const db = c.get('db');
   const repo = c.get('repo');
-  if (!c.get('perms').admin)
+  if (!can(c.get('perms'), 'deleteIssues'))
     return c.json({ error: 'Only repository admins can delete an issue' }, 403);
   const issue = await getIssue(db, repo.id, c.req.valid('param').number);
   if (!issue) return c.json({ error: 'Not Found' }, 404);
@@ -809,7 +814,7 @@ issuesRouter.openapi(listLabelsRoute, async (c) => {
 });
 
 const pushOnly = (c: Context<RepoEnv>) =>
-  c.get('perms').write
+  can(c.get('perms'), 'manageIssues')
     ? null
     : c.json({ error: 'Only people with push access can manage labels' }, 403);
 

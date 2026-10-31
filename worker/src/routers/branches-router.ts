@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import {
   MAP_DAYS_DEFAULT,
@@ -143,7 +145,7 @@ const cleanRoute = createRoute({
   },
 });
 branchesRouter.openapi(cleanRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'push'))
     return c.json({ error: 'You do not have push access' }, 403);
   const deleted = await cleanBranches(
     c.get('db'),

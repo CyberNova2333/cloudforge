@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 /**
  * "Let Claude decide": CloudForge AI answers a reviewer agent's findings for a person, as that person, with the
@@ -343,7 +344,7 @@ export async function decideFinding(
   if (
     !found ||
     !person ||
-    !(await permissionsFor(db, found.repo, person)).write
+    !can(await permissionsFor(db, found.repo, person), 'managePulls')
   )
     return {
       ok: false,
@@ -568,9 +569,10 @@ async function decisionsToday(
     [...found.values()].map((f) => f.repo),
     user
   );
-  const readable = events.filter(
-    (e) => e.repositoryId && perms.get(e.repositoryId)?.read
-  );
+  const readable = events.filter((e) => {
+    const access = e.repositoryId ? perms.get(e.repositoryId) : undefined;
+    return access && can(access, 'read');
+  });
   const ids = [
     ...new Set(
       readable.flatMap((e) =>
@@ -611,6 +613,7 @@ async function decisionsToday(
   // Only a finding's newest answer can still stand: an older one was undone, or replaced.
   const seen = new Set<string>();
   return readable.map(({ repositoryId, ...e }) => {
+    const access = repositoryId ? perms.get(repositoryId) : undefined;
     const id = typeof e.data.finding === 'string' ? e.data.finding : '';
     const newest = !seen.has(id);
     seen.add(id);
@@ -634,7 +637,8 @@ async function decisionsToday(
           applied &&
           holds &&
           f?.prState === 'open' &&
-          !!perms.get(repositoryId!)?.write,
+          !!access &&
+          can(access, 'managePulls'),
       },
     };
   });

@@ -1,5 +1,7 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Repository webhooks (docs/webhooks.md): repository admins add, change and remove them, read their recent deliveries,
 // send one again, and send a test ping. Secrets are write-only.
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { and, eq, sql } from 'drizzle-orm';
@@ -105,7 +107,7 @@ const deliveryOut = (d: WebhookDelivery) => ({
 });
 
 const adminOnly = (c: Context<RepoEnv>) =>
-  c.get('perms').admin
+  can(c.get('perms'), 'manageWebhooks')
     ? null
     : c.json({ error: 'Only repository admins can manage webhooks' }, 403);
 

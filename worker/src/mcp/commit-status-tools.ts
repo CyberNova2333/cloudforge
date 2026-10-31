@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 // External CI status reporting over MCP, with the same permissions and validation as the REST API.
 import { commitStatusStates, type CommitStatus } from '../db/app.schema';
 import {
@@ -76,7 +78,7 @@ const createCommitStatus: ToolModule = {
   },
   handler: async (args, ctx) => {
     const { repo, perms, git, fullName } = await repoFor(ctx, args);
-    if (!perms.write)
+    if (!can(perms, 'publishStatus'))
       throw new McpToolError(
         'You need push access to report statuses on this repository.'
       );

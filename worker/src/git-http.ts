@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can, withTokenScope } from './lib/repo-permissions';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { instanceName } from './lib/settings';
@@ -165,7 +166,7 @@ export async function authenticateRepoRequest(
   );
   const found = await findRepo(db, owner, name);
   const perms = found ? await permissionsFor(db, found.repo, pat.user) : null;
-  if (!found || !perms?.read)
+  if (!found || !perms || !can(perms, 'read'))
     return new Response('Repository not found.\n', { status: 404 });
   return {
     db,
@@ -173,10 +174,7 @@ export async function authenticateRepoRequest(
     repo: found.repo,
     fullName: `${found.namespace.username}/${found.repo.name}`,
     // A read-only token reads whatever its member may, and changes nothing.
-    perms:
-      pat.pat.scope === 'read'
-        ? { ...perms, write: false, admin: false }
-        : perms,
+    perms: withTokenScope(perms, pat.pat.scope),
   };
 }
 
@@ -211,7 +209,7 @@ export async function handleGitRequest(
       headers: { Allow: expectedMethod },
     });
   }
-  if (isPush && ((!user && !deployToken) || !perms.write)) {
+  if (isPush && ((!user && !deployToken) || !can(perms, 'push'))) {
     return new Response(`Permission to ${owner}/${name}.git denied.\n`, {
       status: 403,
     });
@@ -264,7 +262,7 @@ export async function handleGitRequest(
     const rules = {
       defaultBranch: repo.defaultBranch,
       protectedPatterns: repo.protectedBranches,
-      admin: perms.admin,
+      admin: can(perms, 'manageProtection'),
       empty: false,
     };
     if (!deployToken && needsEmptyCheck(push.commands, rules))

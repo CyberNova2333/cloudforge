@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { attributeCommits } from '../lib/commit-authors';
 import {
@@ -158,7 +159,7 @@ const listRepositories: ToolModule = {
       description: repo.description,
       visibility: repo.visibility,
       owner_type: ns.kind,
-      can_push: perms.get(repo.id)!.write,
+      can_push: can(perms.get(repo.id)!, 'push'),
       default_branch: repo.defaultBranch,
       updated_at: repo.updatedAt.toISOString(),
       ...urls(ctx.baseURL, fullName),
@@ -208,7 +209,7 @@ const getRepository: ToolModule = {
     const found = await findRepo(ctx.db, owner, name);
     if (!found) throw notFound;
     const perms = await permissionsFor(ctx.db, found.repo, ctx.user);
-    if (!perms.read) throw notFound;
+    if (!can(perms, 'read')) throw notFound;
     const repo = found.repo;
     const canonical = `${found.namespace.username}/${repo.name}`;
     const git = gitFor(ctx.env, repo);
@@ -331,7 +332,7 @@ const getRepositoryInsights: ToolModule = {
     const found = await findRepo(ctx.db, owner, name);
     if (!found) throw notFound;
     const perms = await permissionsFor(ctx.db, found.repo, ctx.user);
-    if (!perms.read) throw notFound;
+    if (!can(perms, 'read')) throw notFound;
     const canonical = `${found.namespace.username}/${found.repo.name}`;
     const insights = await repoInsights(
       ctx.env,

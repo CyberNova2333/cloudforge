@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { eq } from 'drizzle-orm';
 import { releases } from '../db/app.schema';
@@ -197,7 +199,7 @@ const createReleaseRoute = createRoute({
   },
 });
 releasesRouter.openapi(createReleaseRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'publishRelease'))
     return c.json({ error: 'You do not have push access' }, 403);
   const { owner, repo: name } = c.req.valid('param');
   const body = c.req.valid('json');
@@ -254,7 +256,7 @@ const updateRoute = createRoute({
   },
 });
 releasesRouter.openapi(updateRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'publishRelease'))
     return c.json({ error: 'You do not have push access' }, 403);
   const release = await updateRelease(
     c.get('db'),

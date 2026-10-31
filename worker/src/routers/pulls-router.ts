@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { selfApprovalRefused } from '../review/self-approval';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
@@ -632,7 +633,7 @@ const createPullRoute = createRoute({
   },
 });
 pullsRouter.openapi(createPullRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json(
       { error: 'You do not have push access to this repository' },
       403
@@ -918,9 +919,9 @@ pullsRouter.openapi(getPullRoute, async (c) => {
       mergeable,
       rebase,
       review,
-      canMerge: c.get('perms').write,
+      canMerge: can(c.get('perms'), 'managePulls'),
       canApprove:
-        c.get('perms').write &&
+        can(c.get('perms'), 'managePulls') &&
         !(await selfApprovalRefused(db, c.env, pr, c.get('user')?.id ?? '')),
       approvals: approvals.map((a) => ({
         user: people.get(a.userId) ?? ghost,
@@ -974,13 +975,13 @@ pullsRouter.openapi(updatePullRoute, async (c) => {
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
   const user = c.get('user')!;
-  if (!c.get('perms').write && pr.authorId !== user.id)
+  if (!can(c.get('perms'), 'editPullMetadata') && pr.authorId !== user.id)
     return c.json({ error: 'Forbidden' }, 403);
   const body = c.req.valid('json');
   // Its author may still edit the title and description; closing, reopening and the version bump take push access
   // (a reopened pull request is rebased, reviewed and may auto-merge).
   if (
-    !c.get('perms').write &&
+    !can(c.get('perms'), 'managePulls') &&
     (body.state !== undefined || body.versionBump !== undefined)
   )
     return c.json(
@@ -1193,7 +1194,7 @@ const mergeRoute = createRoute({
   },
 });
 pullsRouter.openapi(mergeRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to merge' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1270,7 +1271,7 @@ const retryRebaseRoute = createRoute({
   },
 });
 pullsRouter.openapi(retryRebaseRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1311,7 +1312,7 @@ const revertRoute = createRoute({
   },
 });
 pullsRouter.openapi(revertRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have push access' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1365,7 +1366,7 @@ const approveRoute = createRoute({
 });
 pullsRouter.openapi(approveRoute, async (c) => {
   // Approving lets a pull request land, so it takes merge permission (agents never hold a session).
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to approve' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1392,7 +1393,7 @@ const withdrawRoute = createRoute({
   responses: approvalResponses,
 });
 pullsRouter.openapi(withdrawRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to approve' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1463,7 +1464,7 @@ const approveFlagRoute = createRoute({
 });
 pullsRouter.openapi(approveFlagRoute, async (c) => {
   // Approving clears a pull request for auto-merge, so it takes merge permission.
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to approve' }, 403);
   const { number, flagId } = c.req.valid('param');
   const pr = await getPull(c, number);
@@ -1514,7 +1515,7 @@ const requestChangesFlagRoute = createRoute({
 });
 pullsRouter.openapi(requestChangesFlagRoute, async (c) => {
   // Whoever can approve a flag can request changes on it instead.
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json(
       { error: 'You do not have permission to request changes' },
       403
@@ -1565,7 +1566,7 @@ const assignFlagRoute = createRoute({
   },
 });
 pullsRouter.openapi(assignFlagRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const { number, flagId } = c.req.valid('param');
   const pr = await getPull(c, number);
@@ -1599,7 +1600,7 @@ const undoFlagRoute = createRoute({
   },
 });
 pullsRouter.openapi(undoFlagRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const { number, flagId } = c.req.valid('param');
   const pr = await getPull(c, number);
@@ -1645,7 +1646,7 @@ const delegateFlagRoute = createRoute({
   },
 });
 pullsRouter.openapi(delegateFlagRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const { number, flagId } = c.req.valid('param');
   const pr = await getPull(c, number);
@@ -1684,7 +1685,7 @@ const retryReviewRoute = createRoute({
   },
 });
 pullsRouter.openapi(retryReviewRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
@@ -1715,7 +1716,7 @@ const retryReviewerRoute = createRoute({
   },
 });
 pullsRouter.openapi(retryReviewerRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const { number, reviewerId } = c.req.valid('param');
   const pr = await getPull(c, number);
@@ -1755,7 +1756,7 @@ const retryStackRoute = createRoute({
   },
 });
 pullsRouter.openapi(retryStackRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr || pr.state !== 'open') return c.json({ error: 'Not Found' }, 404);
@@ -1792,7 +1793,7 @@ const unstackRoute = createRoute({
 });
 pullsRouter.openapi(unstackRoute, async (c) => {
   // A maintainer's decision, like approving a flag: merge permission, and never offered to agents (no MCP tool).
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr || pr.state !== 'open') return c.json({ error: 'Not Found' }, 404);
@@ -1842,7 +1843,7 @@ const dismissRoute = createRoute({
   },
 });
 pullsRouter.openapi(dismissRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr || pr.state !== 'open') return c.json({ error: 'Not Found' }, 404);
@@ -1877,7 +1878,7 @@ const autoMergeRoute = createRoute({
   },
 });
 pullsRouter.openapi(autoMergeRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have permission to do that' }, 403);
   const db = c.get('db');
   const pr = await getPull(c, c.req.valid('param').number);

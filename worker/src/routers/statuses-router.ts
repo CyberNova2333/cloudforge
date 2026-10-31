@@ -1,5 +1,7 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Commit statuses (docs/webhooks.md): CI servers report checks on commits, with a session or a personal access token
 // (auth/token-auth.ts). Field names follow GitHub's statuses API, so CI plugins written for it work unchanged.
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { commitStatusStates, type CommitStatus } from '../db/app.schema';
@@ -95,7 +97,7 @@ const createRouteDef = createRoute({
   },
 });
 statusesRouter.openapi(createRouteDef, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'publishStatus'))
     return c.json(
       { error: 'You need push access to report statuses on this repository' },
       403
