@@ -14,6 +14,22 @@ npx @cybernova2333/cloudforge install
 
 See [Setup](setup.md) for the questions, the flags, and what it creates. State lives in `~/.cloudforge/<name>/` (override the directory with `CLOUDFORGE_HOME`).
 
+## Legacy access preflight
+
+Before changing the legacy team/collaborator model, inspect one explicitly selected installation. From a checkout:
+
+```bash
+yarn cloudforge access-preflight --name cloudforge
+# For a manual deployment, select both the account and database:
+yarn cloudforge access-preflight --database <name-or-uuid> --account <id-or-name>
+```
+
+This command verifies the actual account/database and recorded installation marker, then reads a single bounded SQL snapshot. It does not run Docker, write local state, migrate or deploy. It accepts no apply, `--yes` or `--expect-plan` flags. Exit 0 means only that this legacy-data observation has no blocking findings; 1 means blocked or unreadable data, and 2 means invalid arguments. The JSON always reports `rolePublishingAllowed: false` and `migrationApplied: false`.
+
+The report checks legacy-team selection, collaborator/write compatibility, creator administration, namespaces, public repositories and anomalous references. Each collection is limited to 1000 rows with an overflow sentinel; fields, schema metadata, output size and finding samples are also bounded. Overflow, malformed results or a newer access schema fail closed. The digest identifies the observation; it is not a later apply authorization or proof that the database is still unchanged. No account emails, credentials or installation ownership nonce are printed.
+
+A successful preflight does not implement new roles or prevent an old Worker from running against future ACL data. Generated migrations, final write authorization, global publication and rollback barriers remain separate work. See the [current access behavior](permissions.md) and [migration design](team-access-design.md).
+
 ## Upgrade
 
 The session-assurance update (migration `0052`) records actual primary and second-factor methods and verification times, separately

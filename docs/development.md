@@ -27,18 +27,19 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 
 ## Scripts
 
-| Script                              | What it does                                                                                                                                                                 |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `yarn dev`                          | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)                                                                                             |
-| `yarn seed:demo`                    | Fills a running local instance with demo data (see below)                                                                                                                    |
-| `yarn test`                         | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake; test files spread over parallel workers (`TEST_WORKERS`, default half the cores, at most 8) |
-| `yarn test:workers [files/flags]`   | Worker/pure frontend tests only, through the same runtime-diagnostic exit-status guard used by `yarn test`; accepts Vitest file filters and `--shard=1/2`                    |
-| `yarn typecheck`                    | Type-checks the SPA and the Worker                                                                                                                                           |
-| `yarn format` / `yarn format:check` | Prettier                                                                                                                                                                     |
-| `yarn db:generate`                  | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                         |
-| `yarn auth:update`                  | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config                                                                                              |
-| `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
-| `yarn agents:sync`                  | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                   |
+| Script                                           | What it does                                                                                                                                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn dev`                                       | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)                                                                                                                                 |
+| `yarn seed:demo`                                 | Fills a running local instance with demo data (see below)                                                                                                                                                        |
+| `yarn test`                                      | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake; test files spread over parallel workers (`TEST_WORKERS`, default half the cores, at most 8)                                     |
+| `yarn test:workers [files/flags]`                | Worker/pure frontend tests only, through the same runtime-diagnostic exit-status guard used by `yarn test`; accepts Vitest file filters and `--shard=1/2`                                                        |
+| `yarn typecheck`                                 | Type-checks the SPA and the Worker                                                                                                                                                                               |
+| `yarn format` / `yarn format:check`              | Prettier                                                                                                                                                                                                         |
+| `yarn db:generate`                               | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                                                             |
+| `yarn auth:update`                               | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config                                                                                                                                  |
+| `yarn cf-typegen`                                | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                                                           |
+| `yarn agents:sync`                               | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                                                       |
+| `yarn cloudforge access-preflight --name <name>` | Read-only legacy-access snapshot and compatibility diagnostics; no migration or role publication. Manual deployments require `--database` plus `--account`; see [updating](updating.md#legacy-access-preflight). |
 
 ## OIDC linking and sign-in checks
 
