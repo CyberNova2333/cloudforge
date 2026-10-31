@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Chinese for the lib area: see index.ts for the terms. */
 export const lib: Record<string, string> = {
+  ' signed in through the OIDC provider ': ' 通过 OIDC 提供方登录：',
   // Search: result groups, the "Jump to" list and page names
   'Pull requests': '拉取请求',
   People: '人员',

@@ -1,6 +1,50 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Account security and the password sign-in factor challenge. */
 export const security: Record<string, string> = {
+  'Single sign-on': '单点登录',
+  'Complete single sign-on': '完成单点登录',
+  'This browser cannot safely coordinate single sign-on. Use your password instead.':
+    '此浏览器无法安全协调单点登录，请改用密码登录。',
+  'Sign in with an identity already linked to your local account. Your local second factor is still required when enabled.':
+    '使用已绑定到本地账户的外部身份登录。已启用本地第二因子时，仍需完成验证。',
+  'Continue with {provider}': '使用 {provider} 继续',
+  'Your external identity is verified. Enter your local second factor to finish signing in.':
+    '外部身份已验证，请输入本地第二因子以完成登录。',
+  'Your external identity is verified. Confirm this local account to finish signing in.':
+    '外部身份已验证，请确认此本地账户以完成登录。',
+  'Confirm and sign in': '确认并登录',
+  'Cancel single sign-on': '取消单点登录',
+  'Single sign-on is still pending. Refresh its status before continuing.':
+    '单点登录尚未完成，请刷新实际状态后继续。',
+  'This instance requires a local second factor. Sign in with your password to set it up, then try single sign-on again.':
+    '此实例要求本地第二因子。请先用密码登录并完成设置，再尝试单点登录。',
+  'This sign-in action cannot be completed. Start a new sign-in if needed.':
+    '此登录操作无法完成。如仍需登录，请重新开始。',
+  'Refresh sign-in status': '刷新登录状态',
+  'Sign in with your password': '使用密码登录',
+  'Sign-in was cancelled.': '登录已取消。',
+  'Could not check the current sign-in. Reload and try again.':
+    '无法核对当前登录状态，请重新加载后重试。',
+  'Single sign-on could not be completed. Check its status or sign in with your password.':
+    '无法完成单点登录，请检查实际状态或使用密码登录。',
+  'External identity': '外部身份',
+  'External identity and local second factor': '外部身份与本地第二因子',
+  'External identity verified': '外部身份已验证',
+  'This session originated from a linked external identity. Revoking that identity or changing its published provider can end this session, including after password verification.':
+    '此会话来源于已绑定的外部身份。撤销该身份或变更其已发布提供方可使此会话退出，即使已完成密码重验。',
+  'Link an external identity to this local account. Single sign-on requires an explicitly published login configuration and your local factors when enabled.':
+    '将外部身份绑定到当前本地账户。单点登录需要明确发布的登录配置；已启用本地因子时仍须验证。',
+  'External identity linked. You can use the published single sign-on entry with your local factors when enabled.':
+    '外部身份已绑定。可通过已发布的单点登录入口登录；已启用本地因子时仍须验证。',
+  'Browser sessions originating from this external identity will be signed out.':
+    '来源于此外部身份的浏览器会话将退出登录。',
+  'Single sign-on callback URL': '单点登录回调地址',
+  'This deployment explicitly enables single sign-on for already linked identities. Publishing it also requires the displayed login callback to be registered with the provider.':
+    '本次部署明确为已绑定身份开启单点登录。发布前还需在提供方注册下方显示的登录回调地址。',
+  'This publication enables single sign-on for existing linked identities. It does not register new members or match members by email. Local second factors remain required when enabled.':
+    '此次发布将为已有绑定身份开启单点登录，不会注册新成员或按邮箱匹配成员。已启用本地第二因子时仍需验证。',
+  'Retirement stops identity linking and single sign-on across deployments, invalidates pending identity actions, and signs out sessions originating from this provider. Identity ownership records remain. Reactivation requires a higher configuration version.':
+    '停用会阻止各部署继续绑定身份及单点登录，使进行中的操作失效，并退出来源于此提供方的会话。身份归属记录保留，重新启用需更高配置版本。',
   'Provider status': '提供方状态',
   'Published and active': '已发布并启用',
   'Retired for all deployments': '已对所有部署停用',
@@ -90,8 +134,8 @@ export const security: Record<string, string> = {
     '本次部署与已发布的提供方配置不一致，成员暂时无法绑定。',
   'Preview provider publication': '预览提供方发布',
   'Provider publication preview': '提供方发布预览',
-  'Publishing replaces the active provider generation. In-flight identity actions from older configurations will stop working. Linked identities remain owned by their original members.':
-    '发布会推进有效提供方的配置代数，使用旧配置的进行中身份操作将失效。已绑定身份仍归原成员所有。',
+  'Publishing replaces the active provider generation, stops older pending identity actions, and signs out sessions originating from this provider, including after password verification. Linked identities remain owned by their original members.':
+    '发布会推进有效提供方的配置代数，使旧配置的进行中操作失效，并退出来源于此提供方的会话，即使已完成密码重验。已绑定身份仍归原成员所有。',
   'I checked the deployed issuer, client identifier and callback URL and want to publish this configuration.':
     '我已核对部署中的签发者、客户端标识和回调地址，确认发布此配置。',
   'Confirm provider publication': '确认发布提供方',

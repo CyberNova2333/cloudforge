@@ -375,6 +375,16 @@ describe('每项审计操作都构成一个句子', () => {
       'mahmoud revoked an external identity binding for company',
     ],
     [
+      'user.oidc_signed_in 成员以已绑定外部身份完成本地登录',
+      {
+        action: 'user.oidc_signed_in',
+        repo: null,
+        target: 'company',
+        data: { providerId: 'company' },
+      },
+      'mahmoud signed in through the OIDC provider company',
+    ],
+    [
       'artifact.deleted 删除产物',
       { action: 'artifact.deleted', target: 'dist', data: { run: 12 } },
       'mahmoud deleted the artifact dist of run #12 in octocat/cloudforge',
@@ -802,6 +812,7 @@ describe('每项审计操作都构成一个句子', () => {
         'instance.oidc_configuration',
         'user.oidc_linked',
         'user.oidc_revoked',
+        'user.oidc_signed_in',
         'release.created',
         'release.updated',
         'pull.version_bump',
@@ -1285,6 +1296,7 @@ describe('链接和分类', () => {
     expect(auditCategory('instance.oidc_configuration')).toBe('access');
     expect(auditCategory('user.oidc_linked')).toBe('access');
     expect(auditCategory('user.oidc_revoked')).toBe('access');
+    expect(auditCategory('user.oidc_signed_in')).toBe('access');
     expect(auditCategory('pull.version_bump')).toBe('activity');
     expect(auditCategory('pull.state_changed')).toBe('activity');
     expect(auditCategory('pull.rebased')).toBe('activity');

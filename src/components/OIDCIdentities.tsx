@@ -227,7 +227,11 @@ function IdentityForm() {
         setConfirmAcknowledged(false);
         clearActionQuery();
         setNotice(
-          t('External identity linked. This did not enable single sign-on.')
+          t(
+            status?.provider?.loginEnabled
+              ? 'External identity linked. You can use the published single sign-on entry with your local factors when enabled.'
+              : 'External identity linked. This did not enable single sign-on.'
+          )
         );
         await load();
       } else if (operation === 'cancel' && action) {
@@ -272,7 +276,9 @@ function IdentityForm() {
     <Section title={t('External identities')} className="oidc-section">
       <p>
         {t(
-          'Link an external identity to this local account. Single sign-on remains unavailable; keep using your password and configured factors.'
+          status?.provider?.loginEnabled
+            ? 'Link an external identity to this local account. Single sign-on requires an explicitly published login configuration and your local factors when enabled.'
+            : 'Link an external identity to this local account. Single sign-on remains unavailable; keep using your password and configured factors.'
         )}
       </p>
       {error && <Notice tone="bad">{error}</Notice>}
@@ -513,6 +519,9 @@ function IdentityForm() {
               <p>
                 {t(
                   'Revocation removes this active link. It does not change your password, factors, or existing machine credentials, and does not transfer the identity to another member.'
+                )}{' '}
+                {t(
+                  'Browser sessions originating from this external identity will be signed out.'
                 )}
               </p>
               <div className="security-actions">

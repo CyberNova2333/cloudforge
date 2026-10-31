@@ -28,6 +28,7 @@ export type BindingDTO = Identity & {
 };
 type Configuration = {
   enabled: number;
+  login_enabled: number;
   provider_id: string;
   issuer: string;
   version: number;
@@ -147,20 +148,24 @@ async function authority(
 }
 export async function currentConfiguration(env: CloudflareBindings) {
   return env.DB.prepare(
-    `SELECT c.enabled,c.provider_id,p.issuer,c.version,c.digest,c.generation FROM oidc_configuration c
+    `SELECT c.enabled,c.login_enabled,c.provider_id,p.issuer,c.version,c.digest,c.generation FROM oidc_configuration c
     JOIN oidc_providers p ON p.id=c.provider_id WHERE c.id=1`
   ).first<Configuration>();
 }
 const matches = (
   c: Configuration | null,
-  p: Pick<ProviderConfig, 'id' | 'issuer' | 'version' | 'digest'>
+  p: Pick<
+    ProviderConfig,
+    'id' | 'issuer' | 'version' | 'digest' | 'loginEnabled'
+  >
 ) =>
   !!c &&
   !!c.enabled &&
   c.provider_id === p.id &&
   c.issuer === p.issuer &&
   c.version === p.version &&
-  c.digest === p.digest;
+  c.digest === p.digest &&
+  !!c.login_enabled === p.loginEnabled;
 async function requiredProvider(env: CloudflareBindings, ready: boolean) {
   const p = await providerFrom(env);
   if (!p) denied('OIDC_NOT_CONFIGURED', 409);
@@ -176,6 +181,7 @@ function activeDTO(a: Configuration | null) {
         version: a.version,
         generation: a.generation,
         enabled: !!a.enabled,
+        loginEnabled: !!a.login_enabled,
       }
     : null;
 }
@@ -239,6 +245,7 @@ export async function preview(
     issuer: active!.issuer,
     version: active!.version,
     digest: active!.digest,
+    loginEnabled: !!active!.login_enabled,
   };
   if (kind === 'configure' && matches(active, p)) denied('OIDC_ALREADY_READY');
   if (kind === 'configure') {
@@ -259,10 +266,10 @@ export async function preview(
     generation = active?.generation ?? 0;
   const result = await env.DB.prepare(
     `INSERT INTO oidc_link_actions
-    (id,user_id,session_id,kind,status,provider_id,issuer,provider_version,provider_digest,configuration_generation,
+    (id,user_id,session_id,kind,status,provider_id,issuer,provider_version,provider_digest,configuration_generation,login_enabled,
     capability_hash,auth_version,policy_version,credential_id,factor_id,factor_enabled,recovery_version,
     auth_time,factor_time,proof_expires_at,expires_at,created_at)
-    SELECT ?,u.id,s.id,?,'preview',?,?,?,?,?,?,u.auth_version,s.policy_version,c.id,f.id,coalesce(u.two_factor_enabled,0),
+    SELECT ?,u.id,s.id,?,'preview',?,?,?,?,?,?,?,u.auth_version,s.policy_version,c.id,f.id,coalesce(u.two_factor_enabled,0),
       f.recovery_version,s.auth_time,s.second_factor_time,?,?,? FROM sessions s JOIN users u ON u.id=s.user_id
       JOIN accounts c ON c.user_id=u.id AND c.provider_id='credential' LEFT JOIN two_factors f ON f.user_id=u.id
     WHERE s.id=? AND u.id=? AND ${baseAuthority(Date.now(), kind !== 'link')} AND ${GENERATION}=?
@@ -270,7 +277,7 @@ export async function preview(
       AND coalesce(u.two_factor_enabled,0)=? AND s.auth_time=? AND s.second_factor_time IS ?
     ON CONFLICT(user_id,kind) DO UPDATE SET id=excluded.id,session_id=excluded.session_id,status='preview',
       provider_id=excluded.provider_id,issuer=excluded.issuer,provider_version=excluded.provider_version,provider_digest=excluded.provider_digest,
-      configuration_generation=excluded.configuration_generation,capability_hash=excluded.capability_hash,
+      configuration_generation=excluded.configuration_generation,login_enabled=excluded.login_enabled,capability_hash=excluded.capability_hash,
       auth_version=excluded.auth_version,policy_version=excluded.policy_version,credential_id=excluded.credential_id,
       factor_id=excluded.factor_id,factor_enabled=excluded.factor_enabled,recovery_version=excluded.recovery_version,
       auth_time=excluded.auth_time,factor_time=excluded.factor_time,proof_expires_at=excluded.proof_expires_at,
@@ -286,6 +293,7 @@ export async function preview(
       p.version,
       p.digest,
       generation,
+      Number(p.loginEnabled),
       digest,
       a.proof_expires_at,
       expires,

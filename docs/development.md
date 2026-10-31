@@ -40,17 +40,20 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn cf-typegen`                   | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                       |
 | `yarn agents:sync`                  | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                   |
 
-## OIDC identity linking checks
+## OIDC linking and sign-in checks
 
-The optional OIDC flow uses its own protocol, D1 actions and identity bindings; it does not register a Better Auth social provider or create a login session. Keep `OIDC_PROVIDER` empty unless deliberately configuring a provider, and keep `OIDC_CLIENT_SECRET` in local secrets rather than JSON vars. See [configuration](configuration.md#oidc-identity-linking) and [the linking flow](oidc.md).
+OIDC uses its own protocol, D1 actions and explicit identity bindings. Linking never creates a session; the separate native sign-in plugin grants an SDK session only after final D1 authorization and required local MFA. It does not register a Better Auth social provider. Keep `OIDC_PROVIDER` empty unless deliberately configuring it; `loginEnabled` defaults false and needs higher-version administrator publication. Keep `OIDC_CLIENT_SECRET` in secrets rather than JSON vars. See [configuration](configuration.md#oidc-identity-linking) and [the flows](oidc.md).
 
 ```bash
-yarn test:workers worker/src/__tests__/oidc-linking.test.ts worker/src/__tests__/oidc-provider.test.ts src/lib/oidcApi.test.ts
+yarn test:workers worker/src/__tests__/oidc-linking.test.ts worker/src/__tests__/oidc-provider.test.ts worker/src/__tests__/oidc-sign-in.test.ts worker/src/__tests__/oidc-session-source.test.ts worker/src/__tests__/session-secret-cache.test.ts
+yarn test:workers src/lib/oidcApi.test.ts src/lib/oidcSignInApi.test.ts src/lib/signInLock.test.ts
 ```
 
 The backend suites use real workerd D1 and WebCrypto; external metadata/JWKS/token HTTP may use controlled fixtures, not a mock database or a replacement protocol module. Cover final SQL authorization, immutable identities, configuration generation, one-use callbacks, separate per-action cookies, candidate confirmation and cancellation. Also test published retirement (`enabled=false`) against old Workers and in-flight actions, including an invalid/missing deployed configuration or secret, safe status/read/revoke fallback, and higher-version reactivation, retired-digest invalidation and the independent confirmation-trigger fence. Clearing an environment variable is not a substitute for a D1 revocation generation. Protocol checks must also reject missing/invalid claims, malicious endpoints and keys, redirects, oversized bodies and timeouts. Cross-request cache validation needs separate real HTTP invocations; concurrent promises in one test do not establish Workers request isolation.
 
-Browser fixtures for the actual administrator/member components cover local session changes, pagehide/bfCache, stale responses and independent confirmations. Such fixtures do not establish real IdP interoperability. Run the full `yarn test`, `yarn typecheck`, generation and formatting checks before integration. A generator printing types is not a successful run until the process exits zero. Deployment, production migration and real IdP verification remain separate operations.
+Sign-in checks must also cover strict anonymous Origin, `__Host-` proof cookies, candidate confirmation, optional-policy local MFA, one-use factors, generation changes during exchange/issuance and immutable source inheritance across real password reauthentication and session replacement. No SSO/IdP timestamp may satisfy recent local-password rules. Key rotation must invalidate a signature memo even in a reused isolate; continuous hits cannot extend old-key acceptance.
+
+Actual browser fixtures cover Domain-cookie injection, Web Locks across tabs, pagehide/bfCache, stale responses and unknown completion receipts. Unsupported browsers retain password login; the lock coordinates normal same-origin password/MFA and SSO UI, not every native automatic login flow (such as email verification), and is not a server authorization guarantee for arbitrary raw HTTP races. Fixtures do not establish real IdP interoperability. Run full `yarn test`, `yarn typecheck`, generation and formatting checks before integration. A generator printing types is not success until exit zero. Deployment, production migration and real IdP verification remain separate.
 
 ## Codex 与 Git 钩子
 
@@ -88,7 +91,7 @@ worker/src/
   routers/           API routes (Hono + Zod OpenAPI)
   db/                Drizzle schema (auth.schema.ts is generated)
   auth/              better-auth config and guards
-  oidc/              Explicit linking protocol and D1 state machine; no SSO session grant
+  oidc/              Explicit linking/sign-in protocol, D1 actions and native session bridge
   __tests__/         Vitest suites and the Artifacts fake
 migrations/          Generated D1 migrations
 ```

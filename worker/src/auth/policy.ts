@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { GenericEndpointContext } from '@better-auth/core';
 import { APIError, getSessionFromCtx } from 'better-auth/api';
 import type { MiddlewareHandler } from 'hono';
@@ -5,6 +6,7 @@ import type { AppEnv } from '../variables';
 import { isPublicRepoRead } from './guards';
 import {
   readSessionAuthentication,
+  hasOidcOrigin,
   type AuthenticationFields,
 } from './assurance';
 
@@ -30,6 +32,18 @@ export function evaluatePolicyAccess(
   enrolled: boolean,
   policy: AuthenticationPolicy
 ): PolicyAccess {
+  const hasAnyOrigin =
+    record.oidcBindingId != null ||
+    record.oidcBindingRevision != null ||
+    record.oidcConfigurationGeneration != null;
+  if ((record.authMethod === 'oidc' || hasAnyOrigin) && !hasOidcOrigin(record))
+    return 'reauthenticate';
+  if (
+    hasAnyOrigin &&
+    record.authMethod !== 'oidc' &&
+    record.authMethod !== 'password'
+  )
+    return 'reauthenticate';
   if (policy.requireMfa && !enrolled) return 'enroll_mfa';
   if (
     !Number.isSafeInteger(record.policyVersion) ||
@@ -48,7 +62,10 @@ export function evaluatePolicyAccess(
     };
     if (
       record.impersonatedBy ||
-      record.authMethod !== 'password' ||
+      !(
+        record.authMethod === 'password' ||
+        (record.authMethod === 'oidc' && hasOidcOrigin(record))
+      ) ||
       !validTime(record.authTime) ||
       !['totp', 'recovery_code'].includes(record.secondFactorMethod ?? '') ||
       !validTime(record.secondFactorTime)
@@ -86,6 +103,9 @@ const INDEPENDENT_AUTH_POSTS = new Set([
   '/oauth2/introspect',
   '/oauth2/revoke',
   '/oauth2/userinfo',
+  '/oidc-sign-in/start',
+  '/oidc-sign-in/complete',
+  '/oidc-sign-in/cancel',
 ]);
 
 function limitedPathAllowed(method: string, path: string) {
@@ -102,6 +122,10 @@ function limitedPathAllowed(method: string, path: string) {
     if (
       method === 'GET' &&
       (native === '/verify-email' ||
+        native === '/oidc-sign-in/status' ||
+        /^\/oidc-sign-in\/(?:callback\/[^/]+|actions\/[a-zA-Z0-9-]+)$/.test(
+          native
+        ) ||
         native.startsWith('/reset-password/') ||
         native === '/jwks' ||
         native === '/oauth2/userinfo' ||
@@ -172,6 +196,12 @@ export async function requireNativePolicy(
   if (!live) return;
   const access = evaluatePolicyAccess(live, live.enrolled, live.policy);
   if (ctx.path === '/admin/impersonate-user') {
+    if (hasOidcOrigin(live))
+      throw new APIError('FORBIDDEN', {
+        code: 'SSO_SOURCE_IMPERSONATION_FORBIDDEN',
+        message:
+          'Start an independent local password sign-in to impersonate a member.',
+      });
     if (live.policy.requireMfa)
       throw new APIError('FORBIDDEN', {
         code: 'MFA_POLICY_IMPERSONATION_FORBIDDEN',

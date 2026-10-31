@@ -36,13 +36,19 @@ const authenticationSchema = z
     strength: z.enum([
       'unknown',
       'password',
+      'oidc',
       'multi_factor',
       'email_verification',
       'impersonated',
     ]),
     primary: z
       .object({
-        method: z.enum(['password', 'email_verification', 'impersonation']),
+        method: z.enum([
+          'password',
+          'oidc',
+          'email_verification',
+          'impersonation',
+        ]),
         verifiedAt: z.string().datetime(),
       })
       .nullable(),
@@ -53,6 +59,7 @@ const authenticationSchema = z
       })
       .nullable(),
   })
+  .extend({ source: z.object({ method: z.literal('oidc') }).optional() })
   .openapi('SessionAuthentication');
 
 const authenticationRoute = createRoute({

@@ -58,6 +58,7 @@ export const AUDIT_ACTIONS = [
   'instance.oidc_configuration',
   'user.oidc_linked',
   'user.oidc_revoked',
+  'user.oidc_signed_in',
   'release.created',
   'release.updated',
   'pull.version_bump',
@@ -545,6 +546,8 @@ export function auditParts(
       );
     case 'user.oidc_linked':
       return say(t(' linked an external identity through '), e.target, via());
+    case 'user.oidc_signed_in':
+      return say(t(' signed in through the OIDC provider '), e.target, via());
     case 'user.oidc_revoked':
       return say(
         t(' revoked an external identity binding for '),
@@ -968,6 +971,8 @@ export function auditCategory(action: string): AuditCategory {
     case 'instance.oidc_configuration':
     case 'user.oidc_linked':
     case 'user.oidc_revoked':
+      return 'access';
+    case 'user.oidc_signed_in':
       return 'access';
     case 'settings.changed':
     case 'instance.settings':

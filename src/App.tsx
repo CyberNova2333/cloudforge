@@ -24,6 +24,7 @@ import { AppShell } from '@/components/shell/AppShell';
 import { PageHeadProvider, useCurrentPageHead } from '@/components/ui/PageHead';
 import Setup from './pages/Setup';
 import Login from './pages/Login';
+import OIDCSignIn from './pages/OIDCSignIn';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -241,6 +242,7 @@ const App = () => (
           {/* Public and auth pages: no rail. */}
           <Route path="/setup" element={<Setup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/login/oidc" element={<OIDCSignIn />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

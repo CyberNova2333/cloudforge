@@ -1,9 +1,13 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { sessions, users } from '../db/auth.schema';
 import type { BrowserSession, SessionUser } from '../variables';
-import { durableSessionAssurance, isCurrentSession } from './assurance';
+import {
+  durableSessionAssurance,
+  isCurrentSession,
+  oidcSessionSourceSql,
+} from './assurance';
 import { evaluatePolicyAccess, POLICY_VERSION_SQL } from './policy';
 
 /**
@@ -62,7 +66,8 @@ function signedCookie(headers: Headers, name: string) {
 
 /**
  * Signed cookies already verified in this isolate, for 30 s: a page makes many requests with one
- * cookie, and each signature is an HMAC. An expired token is not special-cased — the session row
+ * cookie, and each signature is an HMAC. Entries include a fingerprint of the current signing secret:
+ * Cloudflare can reuse an isolate after bindings change. An expired token is not special-cased — the session row
  * decides — and the entry only spares the HMAC, never a read.
  */
 const verified = new Map<string, number>();
@@ -70,7 +75,16 @@ const VERIFIED_MS = 30_000;
 const VERIFIED_MAX = 1000;
 
 async function sessionToken(secret: string, cookie: string) {
-  const seenUntil = verified.get(cookie);
+  const keyDigest = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
+  );
+  const cacheKey =
+    Array.from(keyDigest, (byte) => byte.toString(16).padStart(2, '0')).join(
+      ''
+    ) +
+    ':' +
+    cookie;
+  const seenUntil = verified.get(cacheKey);
   let value: string;
   try {
     value = decodeURIComponent(cookie);
@@ -82,8 +96,8 @@ async function sessionToken(secret: string, cookie: string) {
   const token = value.slice(0, dot);
   if (!(seenUntil && seenUntil > Date.now()))
     if (!(await verifies(secret, token, value.slice(dot + 1)))) return null;
-  verified.delete(cookie);
-  verified.set(cookie, Date.now() + VERIFIED_MS);
+  verified.delete(cacheKey);
+  verified.set(cacheKey, Date.now() + VERIFIED_MS);
   if (verified.size > VERIFIED_MAX)
     for (const [k, until] of verified)
       if (until <= Date.now() || verified.size > VERIFIED_MAX)
@@ -113,6 +127,11 @@ export async function currentSession(
         authTime: sessions.authTime,
         secondFactorMethod: sessions.secondFactorMethod,
         secondFactorTime: sessions.secondFactorTime,
+        oidcBindingId: sql<string | null>`sessions.oidc_binding_id`,
+        oidcBindingRevision: sql<number | null>`sessions.oidc_binding_revision`,
+        oidcConfigurationGeneration: sql<
+          number | null
+        >`sessions.oidc_configuration_generation`,
       },
       user: {
         id: users.id,
@@ -132,7 +151,9 @@ export async function currentSession(
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(eq(sessions.token, token))
+    .where(
+      and(eq(sessions.token, token), sql.raw(oidcSessionSourceSql('sessions')))
+    )
     .get();
   if (!row) return null;
   const { session, user } = row;

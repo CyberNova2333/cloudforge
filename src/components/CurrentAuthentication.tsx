@@ -10,17 +10,19 @@ type Authentication = {
   strength:
     | 'unknown'
     | 'password'
+    | 'oidc'
     | 'multi_factor'
     | 'email_verification'
     | 'impersonated';
   primary: {
-    method: 'password' | 'email_verification' | 'impersonation';
+    method: 'password' | 'oidc' | 'email_verification' | 'impersonation';
     verifiedAt: string;
   } | null;
   secondFactor: {
     method: 'totp' | 'recovery_code';
     verifiedAt: string;
   } | null;
+  source?: { method: 'oidc' };
 };
 type Result =
   | { key: string; status: 'ready'; data: Authentication }
@@ -30,6 +32,8 @@ const methodName = (method: string) => {
   switch (method) {
     case 'password':
       return t('Password');
+    case 'oidc':
+      return t('External identity');
     case 'email_verification':
       return t('Email verification');
     case 'impersonation':
@@ -87,14 +91,18 @@ export function CurrentAuthentication({
   const data = current?.status === 'ready' ? current.data : null;
   const label =
     data?.strength === 'multi_factor'
-      ? t('Password and second factor')
+      ? data.primary?.method === 'oidc'
+        ? t('External identity and local second factor')
+        : t('Password and second factor')
       : data?.strength === 'password'
         ? t('Password verified')
-        : data?.strength === 'email_verification'
-          ? t('Email verified')
-          : data?.strength === 'impersonated'
-            ? t('Administrator impersonation')
-            : t('Incomplete verification record');
+        : data?.strength === 'oidc'
+          ? t('External identity verified')
+          : data?.strength === 'email_verification'
+            ? t('Email verified')
+            : data?.strength === 'impersonated'
+              ? t('Administrator impersonation')
+              : t('Incomplete verification record');
   return (
     <section className="panel formpad" aria-label={t('Current sign-in')}>
       <div className="security-session-heading">
@@ -120,6 +128,13 @@ export function CurrentAuthentication({
           'These details show what this browser actually verified. Refreshing a session does not repeat verification.'
         )}
       </p>
+      {data?.source?.method === 'oidc' && (
+        <Notice>
+          {t(
+            'This session originated from a linked external identity. Revoking that identity or changing its published provider can end this session, including after password verification.'
+          )}
+        </Notice>
+      )}
       {!current ? (
         <p role="status">{t('Loading sign-in details…')}</p>
       ) : current.status === 'error' ? (

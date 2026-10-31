@@ -43,7 +43,7 @@
     },
     {
       "name": "cloudforge_oidc_configuration_retire_v1",
-      "sha256": "0e124bc025098f184d5026486045525033f001f1064bae601399a20b5561c87e"
+      "sha256": "1a0199c0c874483a285ada66c9accd09f9085fcc173c7c3a7aefe7821fc13e49"
     },
     {
       "name": "cloudforge_oidc_binding_owner_v1",
@@ -51,7 +51,7 @@
     },
     {
       "name": "cloudforge_oidc_binding_revoked_v1",
-      "sha256": "27b8383116a5722e93761f08aef572e79ba2f6ce8a48fe9b1d452de4c240e758"
+      "sha256": "7891d54174d59ba9430dcacb661d4b14bf2843e35b77c7f9e97d8e027bf0ed57"
     },
     {
       "name": "cloudforge_oidc_registry_immutable_v1",
@@ -59,11 +59,23 @@
     },
     {
       "name": "cloudforge_oidc_configuration_publish_v1",
-      "sha256": "1312518168c1b81c2c13f2fb99c9656db82ff081a17c3d94acdd662c9e0e17ce"
+      "sha256": "069a41a09112ea5f5c43598a9bbb83f2960692d143bb743d3bc8bf7170edbbc2"
     },
     {
       "name": "cloudforge_oidc_binding_confirm_v1",
       "sha256": "e209cae1195358c0c9bf07b7b0648d4d66ce609cab44d4738c592585fbdcee60"
+    },
+    {
+      "name": "cloudforge_oidc_session_source_immutable_v1",
+      "sha256": "4976dc743f164ed82f90bff7c404407e2a372432a57d1d491fceab1bbb0a2ff1"
+    },
+    {
+      "name": "cloudforge_oidc_login_cancel_v1",
+      "sha256": "f48e8c03dc7e431171ffe6e4b2ea11960f52e0b94e47f95612f16d0f50154b14"
+    },
+    {
+      "name": "cloudforge_oidc_login_complete_v1",
+      "sha256": "33dc8fc9223f3ed4d3403a82784b4a8826387d2185f9c1e75d8890ba1f656a21"
     }
   ]
 }

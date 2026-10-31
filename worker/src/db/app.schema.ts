@@ -76,6 +76,9 @@ export const oidcConfiguration = sqliteTable(
   {
     id: integer('id').primaryKey().default(1),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    loginEnabled: integer('login_enabled', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     providerId: text('provider_id')
       .notNull()
       .references(() => oidcProviders.id),
@@ -109,6 +112,9 @@ export const oidcLinkActions = sqliteTable(
     providerId: text('provider_id').notNull(),
     issuer: text('issuer').notNull(),
     providerVersion: integer('provider_version').notNull(),
+    loginEnabled: integer('login_enabled', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     providerDigest: text('provider_digest').notNull(),
     configurationGeneration: integer('configuration_generation').notNull(),
     capabilityHash: text('capability_hash'),
@@ -166,6 +172,48 @@ export const oidcBindings = sqliteTable(
       .on(t.userId, t.providerId)
       .where(sql`${t.active} = 1`),
     index('oidc_bindings_member_idx').on(t.userId),
+  ]
+);
+
+/** Anonymous, browser-bound SSO actions. Inventory, per-address limits and expiration bound this table. */
+export const oidcLoginActions = sqliteTable(
+  'oidc_login_actions',
+  {
+    id: text('id').primaryKey(),
+    status: text('status').notNull(),
+    stateHash: text('state_hash').notNull().unique(),
+    cookieHash: text('cookie_hash').notNull(),
+    sealed: text('sealed'),
+    providerId: text('provider_id').notNull(),
+    providerName: text('provider_name').notNull(),
+    issuer: text('issuer').notNull(),
+    providerVersion: integer('provider_version').notNull(),
+    providerDigest: text('provider_digest').notNull(),
+    configurationGeneration: integer('configuration_generation').notNull(),
+    policyVersion: integer('policy_version').notNull(),
+    returnTo: text('return_to').notNull(),
+    createdAt: integer('created_at').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    primaryTime: integer('primary_time'),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    bindingId: text('binding_id'),
+    bindingRevision: integer('binding_revision'),
+    authVersion: integer('auth_version'),
+    factorEnabled: integer('factor_enabled'),
+    factorId: text('factor_id'),
+    factorSecret: text('factor_secret'),
+    recoveryVersion: integer('recovery_version'),
+    factorMethod: text('factor_method'),
+    factorStep: integer('factor_step'),
+    backupBefore: text('backup_before'),
+    backupAfter: text('backup_after'),
+    sessionId: text('session_id'),
+    completedAt: integer('completed_at'),
+  },
+  (t) => [
+    index('oidc_login_expiry_idx').on(t.expiresAt),
+    index('oidc_login_member_idx').on(t.userId),
+    index('oidc_login_binding_idx').on(t.bindingId),
   ]
 );
 
@@ -1674,6 +1722,7 @@ export const auditActions = [
   'instance.oidc_configuration',
   'user.oidc_linked',
   'user.oidc_revoked',
+  'user.oidc_signed_in',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
   'user.mfa_reset',

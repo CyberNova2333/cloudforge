@@ -9,7 +9,10 @@ export type PublicProvider = {
   clientId: string;
   version: number;
   callbackUrl: string;
+  loginEnabled: boolean;
+  loginCallbackUrl: string | null;
 };
+export type OidcPurpose = 'link' | 'login';
 export type ProviderConfig = PublicProvider & {
   allowedOrigins: string[];
   secret: string;
@@ -52,6 +55,7 @@ const configSchema = z
       .max(1024)
       .regex(/^[^\u0000-\u001f\u007f]+$/),
     version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    loginEnabled: z.boolean().optional(),
     allowedOrigins: z.array(z.string().max(2048)).max(8).optional(),
   })
   .strict();
@@ -117,7 +121,11 @@ function endpoint(input: unknown, config: ProviderConfig) {
     throw new OidcError('OIDC_ENDPOINT_NOT_ALLOWED', 502);
   return url.toString();
 }
-function callbackUrl(baseURL: string, id: string) {
+function callbackUrl(
+  baseURL: string,
+  id: string,
+  purpose: OidcPurpose = 'link'
+) {
   const url = new URL(baseURL);
   if (
     !['http:', 'https:'].includes(url.protocol) ||
@@ -132,7 +140,8 @@ function callbackUrl(baseURL: string, id: string) {
   if (!loopback) {
     url.protocol = 'https:';
   }
-  return `${url.origin}/api/auth/oidc/callback/${id}`;
+  const path = purpose === 'login' ? 'oidc-sign-in' : 'oidc';
+  return `${url.origin}/api/auth/${path}/callback/${id}`;
 }
 export async function providerFrom(
   env: OidcEnv
@@ -154,7 +163,8 @@ export async function providerFrom(
         ),
       ]),
     ].sort();
-    const publicConfig: PublicProvider = {
+    // Keep this property order and the disabled digest byte-for-byte compatible with binding-only deployments.
+    const bindingConfig = {
       id: parsed.id,
       name: parsed.name,
       issuer: parsed.issuer,
@@ -162,8 +172,20 @@ export async function providerFrom(
       version: parsed.version,
       callbackUrl: callbackUrl(env.BASE_URL, parsed.id),
     };
+    const loginEnabled = parsed.loginEnabled === true;
+    const publicConfig: PublicProvider = {
+      ...bindingConfig,
+      loginEnabled,
+      loginCallbackUrl: loginEnabled
+        ? callbackUrl(env.BASE_URL, parsed.id, 'login')
+        : null,
+    };
     const digest = await hashValue(
-      JSON.stringify({ ...publicConfig, allowedOrigins, secret })
+      JSON.stringify({
+        ...(loginEnabled ? publicConfig : bindingConfig),
+        allowedOrigins,
+        secret,
+      })
     );
     return { ...publicConfig, allowedOrigins, secret, digest };
   } catch {
@@ -171,8 +193,33 @@ export async function providerFrom(
   }
 }
 export function publicProvider(config: ProviderConfig): PublicProvider {
-  const { id, name, issuer, clientId, version, callbackUrl } = config;
-  return { id, name, issuer, clientId, version, callbackUrl };
+  const {
+    id,
+    name,
+    issuer,
+    clientId,
+    version,
+    callbackUrl,
+    loginEnabled,
+    loginCallbackUrl,
+  } = config;
+  return {
+    id,
+    name,
+    issuer,
+    clientId,
+    version,
+    callbackUrl,
+    loginEnabled,
+    loginCallbackUrl,
+  };
+}
+function purposeCallback(config: ProviderConfig, purpose: OidcPurpose) {
+  if (purpose === 'link') return config.callbackUrl;
+  if (purpose !== 'login') throw new OidcError('OIDC_PURPOSE_INVALID');
+  if (config.loginEnabled !== true || !config.loginCallbackUrl)
+    throw new OidcError('OIDC_LOGIN_DISABLED', 409);
+  return config.loginCallbackUrl;
 }
 function cached<T>(cache: Map<string, { data: T; at: number }>, key: string) {
   const entry = cache.get(key);
@@ -354,8 +401,10 @@ async function jwks(config: ProviderConfig, url: string) {
 export async function authorizationRequest(
   _env: OidcEnv,
   config: ProviderConfig,
-  state: State & { state: string }
+  state: State & { state: string },
+  purpose: OidcPurpose = 'link'
 ): Promise<string> {
+  const redirectUri = purposeCallback(config, purpose);
   if (
     !stateSchema.safeParse({ verifier: state.verifier, nonce: state.nonce })
       .success ||
@@ -366,7 +415,7 @@ export async function authorizationRequest(
   const url = new URL(discovered.authorization_endpoint);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', config.clientId);
-  url.searchParams.set('redirect_uri', config.callbackUrl);
+  url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('scope', 'openid profile email');
   url.searchParams.set('state', state.state);
   url.searchParams.set('nonce', state.nonce);
@@ -384,7 +433,8 @@ export async function authorizationRequest(
 export async function exchangeIdentity(
   _env: OidcEnv,
   config: ProviderConfig,
-  input: State & { code: string; startedAt: number }
+  input: State & { code: string; startedAt: number },
+  purpose: OidcPurpose = 'link'
 ): Promise<{
   issuer: string;
   sub: string;
@@ -392,6 +442,7 @@ export async function exchangeIdentity(
   name: string | null;
   expiresAt: number;
 }> {
+  const redirectUri = purposeCallback(config, purpose);
   const now = Date.now();
   if (
     !stateSchema.safeParse({ verifier: input.verifier, nonce: input.nonce })
@@ -407,7 +458,7 @@ export async function exchangeIdentity(
   const form = new URLSearchParams({
     grant_type: 'authorization_code',
     code: input.code,
-    redirect_uri: config.callbackUrl,
+    redirect_uri: redirectUri,
     code_verifier: input.verifier,
   });
   const encode = (value: string) =>
@@ -549,10 +600,15 @@ async function stateKey(env: OidcEnv) {
     ['encrypt', 'decrypt']
   );
 }
+function stateAdditionalData(aad: string, purpose: OidcPurpose) {
+  if (purpose !== 'link' && purpose !== 'login') throw new Error();
+  return text.encode(`cloudforge-oidc-${purpose}-state-v1\0` + aad);
+}
 export async function sealState(
   env: OidcEnv,
   aad: string,
-  payload: State
+  payload: State,
+  purpose: OidcPurpose = 'link'
 ): Promise<string> {
   try {
     const value = stateSchema.parse(payload);
@@ -562,7 +618,7 @@ export async function sealState(
       {
         name: 'AES-GCM',
         iv,
-        additionalData: text.encode('cloudforge-oidc-link-state-v1\0' + aad),
+        additionalData: stateAdditionalData(aad, purpose),
       },
       await stateKey(env),
       text.encode(JSON.stringify(value))
@@ -575,7 +631,8 @@ export async function sealState(
 export async function openState(
   env: OidcEnv,
   aad: string,
-  sealed: string
+  sealed: string,
+  purpose: OidcPurpose = 'link'
 ): Promise<State> {
   try {
     if (!aad || aad.length > 4096 || sealed.length > 2048) throw new Error();
@@ -588,7 +645,7 @@ export async function openState(
       {
         name: 'AES-GCM',
         iv,
-        additionalData: text.encode('cloudforge-oidc-link-state-v1\0' + aad),
+        additionalData: stateAdditionalData(aad, purpose),
       },
       await stateKey(env),
       unbase64url(value)

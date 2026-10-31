@@ -1,5 +1,10 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { betterAuth } from 'better-auth';
+import {
+  oidcSignInPlugin,
+  isOidcProvisionalSession,
+  supersedeOidcSignIn,
+} from '../oidc/sign-in';
 import { parseSessionOutput } from 'better-auth/db';
 import { admin, jwt, openAPI, username } from 'better-auth/plugins';
 import { oauthProvider } from '@better-auth/oauth-provider';
@@ -249,6 +254,7 @@ function createAuth(env?: CloudflareBindings) {
       jwt(),
       // Must precede OAuth's after hook: no authorization code while the password-only session is pending MFA.
       cloudforgeTwoFactor(db, env),
+      oidcSignInPlugin(env),
       // OAuth 2.1 server for MCP clients: dynamic registration (RFC 7591), PKCE, JWTs for /mcp.
       oauthProvider({
         ...oauthGrantOptions(env),
@@ -291,6 +297,14 @@ function createAuth(env?: CloudflareBindings) {
           const guarded = await guardOAuthIntrospection(ctx, env);
           if (guarded) return guarded;
         }
+        if (
+          env &&
+          ctx.path === '/sign-out' &&
+          !(ctx.context.returned instanceof APIError) &&
+          (ctx.context.returned as { success?: boolean } | undefined)
+            ?.success === true
+        )
+          await supersedeOidcSignIn(ctx, env);
         if (
           !env ||
           !ctx.context.newSession ||
@@ -363,6 +377,9 @@ function createAuth(env?: CloudflareBindings) {
               if (
                 user?.two_factor_enabled &&
                 !mfaSessionPaths.has(ctx?.path ?? '') &&
+                !(
+                  ctx && isOidcProvisionalSession(ctx.context, session.userId)
+                ) &&
                 !(
                   ctx &&
                   (await allowsMfaContinuation(
