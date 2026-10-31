@@ -1,4 +1,6 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { expect, it } from 'vitest';
+import { runInDurableObject } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import {
@@ -195,6 +197,10 @@ jobs:
   );
   expect(cancelled.status).toBe(200);
   await settle(s.t);
+  // The cancellation cannot claim the runner stopped while Workflow termination
+  // failed. Simulate the runner's independent hard stop before its late diagnostic.
+  expect(container.running).toBe(true);
+  await runner.destroy();
   await pending;
   const detail = await runDetail(s.t, s.admin, run.runNumber);
   expect(detail.run.conclusion).toBe('cancelled');
@@ -408,5 +414,150 @@ it.each(['stdout', 'exception'])(
     expect(result.exitCode).toBe(1);
     expect(result.interrupted).toBeTruthy();
     expect(await runner.live(2)).toBeNull();
+  }
+);
+
+it.each(['complete', 'restart', 'cancelled-restart'])(
+  '执行器%s销毁失败保留容量和使用量，仅重试清理后才释放',
+  async (mode) => {
+    const s = await setup();
+    await pushFiles(s, 'main', {
+      '.github/workflows/ci.yml': `on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo stop-proof
+`,
+    });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    const job = (await s.t.env.DB.prepare(
+      'SELECT id FROM workflow_jobs WHERE run_id=?'
+    )
+      .bind(run.id)
+      .first<{ id: string }>())!;
+    const stopError = new Error('injected container stop failure');
+    let failStop = true;
+    let commands = 0;
+    let stops = 0;
+    let boots = 0;
+    const completed = new Map<string, unknown>();
+    const failedCommands = new Map<string, unknown>();
+    // A completed durable step is replayed from its saved value. The already failed
+    // interrupted command remains failed; only its distinct cleanup step is retried.
+    const step = {
+      do: async (name: string, a: unknown, b?: unknown) => {
+        if (completed.has(name)) return completed.get(name);
+        if (failedCommands.has(name)) throw failedCommands.get(name);
+        try {
+          const result = await ((b ?? a) as () => Promise<unknown>)();
+          completed.set(name, result);
+          return result;
+        } catch (error) {
+          if (/^job:.*:step:\d+$/.test(name)) failedCommands.set(name, error);
+          throw error;
+        }
+      },
+    } as StepRunner;
+    const deps = {
+      env: s.t.env,
+      db: drizzle(s.t.env.DB, { schema }),
+      step,
+      restartDelayMs: 0,
+      runner: () => ({
+        boot: async () => {
+          boots++;
+          return { ms: 0 };
+        },
+        destroy: async () => {
+          stops++;
+          if (failStop) throw stopError;
+        },
+        runStep: async () => {
+          commands++;
+          if (mode !== 'complete' && commands === 1) {
+            if (mode === 'cancelled-restart') {
+              await s.t.env.DB.prepare(
+                "UPDATE workflow_runs SET status='completed',conclusion='cancelled',completed_at=? WHERE id=?"
+              )
+                .bind(Date.now(), run.id)
+                .run();
+            }
+            throw new Error('injected command interruption');
+          }
+          return {
+            exitCode: 0,
+            timedOut: false,
+            log: 'done',
+            outputs: {},
+            envAdds: {},
+            pathAdds: [],
+          };
+        },
+      }),
+    };
+    const outcome = await executeRun(deps, run.id).catch(
+      (error: unknown) => error
+    );
+    const retained = await s.t.env.DB.prepare(
+      'SELECT status FROM workflow_jobs WHERE id=?'
+    )
+      .bind(job.id)
+      .first();
+    const usage = await s.t.env.DB.prepare(
+      'SELECT stopped_at FROM runner_sessions WHERE job_id=? ORDER BY id'
+    )
+      .bind(job.id)
+      .all();
+    const stub = s.t.env.ACTIONS_QUEUE.getByName('actions');
+    const slot = await runInDurableObject(stub, async (_obj, state) =>
+      state.storage.sql
+        .exec<{ job_id: string }>(
+          'SELECT job_id FROM entries WHERE job_id=?',
+          job.id
+        )
+        .toArray()
+    );
+    expect({
+      threwStopError: outcome === stopError,
+      job: retained,
+      usage: usage.results,
+      slot,
+    }).toEqual({
+      threwStopError: true,
+      job: { status: 'in_progress' },
+      usage: [{ stopped_at: null }],
+      slot: [{ job_id: job.id }],
+    });
+    expect(commands).toBe(1);
+    expect(boots).toBe(1);
+    failStop = false;
+    expect(await executeRun(deps, run.id)).toBe(
+      mode === 'cancelled-restart' ? 'cancelled' : 'success'
+    );
+    expect(commands).toBe(mode === 'restart' ? 2 : 1);
+    expect(boots).toBe(mode === 'restart' ? 2 : 1);
+    expect(stops).toBeGreaterThanOrEqual(2);
+    expect(
+      await s.t.env.DB.prepare('SELECT status FROM workflow_jobs WHERE id=?')
+        .bind(job.id)
+        .first()
+    ).toEqual({ status: 'completed' });
+    expect(
+      (
+        await s.t.env.DB.prepare(
+          'SELECT stopped_at FROM runner_sessions WHERE job_id=?'
+        )
+          .bind(job.id)
+          .all<{ stopped_at: number | null }>()
+      ).results.every((session) => session.stopped_at !== null)
+    ).toBe(true);
+    expect(
+      await runInDurableObject(stub, async (_obj, state) =>
+        state.storage.sql
+          .exec('SELECT job_id FROM entries WHERE job_id=?', job.id)
+          .toArray()
+      )
+    ).toEqual([]);
   }
 );

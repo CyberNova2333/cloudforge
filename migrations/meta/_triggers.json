@@ -76,6 +76,10 @@
     {
       "name": "cloudforge_oidc_login_complete_v1",
       "sha256": "33dc8fc9223f3ed4d3403a82784b4a8826387d2185f9c1e75d8890ba1f656a21"
+    },
+    {
+      "name": "cloudforge_user_repository_delete_v1",
+      "sha256": "d5386de2bbd365788fea748ec94f874cd2bc772dafd5593d613e9f70a641c25a"
     }
   ]
 }

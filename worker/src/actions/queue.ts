@@ -4,9 +4,8 @@ import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { workflowJobs, workflowRuns } from '../db/app.schema';
 import { schema } from '../db/schema';
-import { finishAbandoned } from './abandon';
+import { stopAbandonedRun } from './abandon';
 import type { DrizzleDB } from '../db/middleware';
-import { runnersStopped } from '../usage/record';
 
 /**
  * The instance's Actions job queue: at most `actions.max_concurrent_jobs` jobs hold a slot (run a
@@ -357,69 +356,15 @@ export class ActionsQueue
     return out;
   }
 
-  /** Fence the executor first, but keep its D1 capacity until every container is confirmed stopped. */
+  /** HTTP cancellation and queue recovery use the same confirmed-stop boundary. */
   private async stopAbandonedRun(
     db: DrizzleDB,
     runId: string,
     conclusion: 'failure' | 'cancelled'
   ): Promise<boolean> {
-    if (!this.env.ACTIONS_RUN || !this.env.JOB_RUNNER) return false;
-    try {
-      await db
-        .update(workflowRuns)
-        .set({
-          status: 'completed',
-          conclusion,
-          completedAt: new Date(),
-          errorMessage:
-            conclusion === 'failure'
-              ? 'The run stopped unexpectedly. Try re-running it.'
-              : null,
-        })
-        .where(
-          and(
-            eq(workflowRuns.id, runId),
-            inArray(workflowRuns.status, ['queued', 'in_progress'])
-          )
-        );
-      const instance = await this.env.ACTIONS_RUN.get(runId);
-      const { status } = await instance.status();
-      if (!['errored', 'terminated', 'complete'].includes(status))
-        await instance.terminate();
-      const progressKey = `stop-run:${runId}`;
-      const cursor = (await this.ctx.storage.get<string>(progressKey)) ?? '';
-      const jobs = await db
-        .select({ id: workflowJobs.id })
-        .from(workflowJobs)
-        .where(
-          and(
-            eq(workflowJobs.runId, runId),
-            eq(workflowJobs.status, 'in_progress'),
-            gt(workflowJobs.id, cursor)
-          )
-        )
-        .orderBy(asc(workflowJobs.id))
-        .limit(CHUNK + 1)
-        .all();
-      // A failed destroy is not proof of a stopped container. Retain all reservations and retry later.
-      // Stop at most CHUNK containers per visit; a large matrix resumes without clearing capacity early.
-      for (const { id } of jobs.slice(0, CHUNK)) {
-        await this.env.JOB_RUNNER.getByName(id).destroy();
-        await runnersStopped(db, [id]);
-        await this.ctx.storage.put(progressKey, id);
-      }
-      if (jobs.length > CHUNK) return false;
-      await finishAbandoned(db, runId, conclusion);
-      await this.ctx.storage.delete(progressKey);
-      return true;
-    } catch (error) {
-      console.warn(
-        '[actions] could not stop abandoned run; retaining capacity',
-        runId,
-        error
-      );
-      return false;
-    }
+    const stopped = await stopAbandonedRun(this.env, db, runId, conclusion);
+    if (stopped) await this.ctx.storage.delete(`stop-run:${runId}`);
+    return stopped;
   }
 
   /**

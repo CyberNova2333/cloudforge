@@ -1723,6 +1723,7 @@ export const auditActions = [
   'user.oidc_linked',
   'user.oidc_revoked',
   'user.oidc_signed_in',
+  'user.deleted',
   'user.mfa_recovery_used',
   'user.mfa_recovery_regenerated',
   'user.mfa_reset',

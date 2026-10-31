@@ -22,6 +22,7 @@ import { OAUTH_GRANT_TRIGGERS } from '../worker/src/db/oauth-grant-triggers.ts';
 import { AUTH_POLICY_TRIGGERS } from '../worker/src/db/auth-policy-triggers.ts';
 import { OIDC_TRIGGERS } from '../worker/src/db/oidc-triggers.ts';
 import { OIDC_SIGN_IN_TRIGGERS } from '../worker/src/db/oidc-sign-in-triggers.ts';
+import { USER_DELETION_TRIGGERS } from '../worker/src/db/user-deletion-triggers.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -34,6 +35,7 @@ const definitions = [
   ...AUTH_POLICY_TRIGGERS,
   ...OIDC_TRIGGERS,
   ...OIDC_SIGN_IN_TRIGGERS,
+  ...USER_DELETION_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);

@@ -422,19 +422,28 @@ const deleteRepoRoute = createRoute({
     ...json200Response(okSchema, 'Deleted'),
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 reposRouter.openapi(deleteRepoRoute, async (c) => {
   if (!c.get('perms').admin)
     return c.json({ error: 'You must be an admin of this repository' }, 403);
   const repo = c.get('repo');
-  await deleteRepository(
+  const deleted = await deleteRepository(
     c.env,
     c.get('db'),
     repo,
     c.get('user')!.id,
     `${c.get('namespace').username}/${repo.name}`
   );
+  if (!deleted)
+    return c.json(
+      {
+        error:
+          'Actions are still stopping or changed. Retry deleting the repository.',
+      },
+      409
+    );
   return c.json({ ok: true as const }, 200);
 });
 

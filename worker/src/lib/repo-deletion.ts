@@ -1,20 +1,19 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Deleting a repository. Its D1 row goes in one batch with a `repository_deletions` row; its storage (the Artifacts
 // repo, LFS bytes in R2, Actions logs, caches and artifacts) is then removed step by step, each step recorded once
 // done, so a step that fails is run again by the daily retention instead of leaving the bytes behind for good.
-import { and, eq, isNotNull, isNull, lt, ne } from 'drizzle-orm';
-import { actionsConfigured, deleteRepositoryLogs } from '../actions/trigger';
-import { dropRun } from '../actions/queue';
+import { and, eq, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { deleteRepositoryLogs } from '../actions/trigger';
+import { stopAbandonedRun } from '../actions/abandon';
+import { actionsQueue, dropRun, queueConfigured } from '../actions/queue';
 import {
-  repositories,
   repositoryDeletions,
-  workflowJobs,
   workflowRuns,
   type Repository,
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { recordAudit } from './audit';
 import { deleteRepositoryObjects } from './lfs';
-import { inJsonArray } from './sql-set';
 
 /** Attempts at a deletion's cleanup before it is left alone (each failure is logged). */
 export const MAX_DELETION_ATTEMPTS = 10;
@@ -53,43 +52,60 @@ export async function deleteRepository(
   actorId: string,
   fullName: string
 ) {
-  // Read before the rows go with the repository.
-  const active = actionsConfigured(env)
-    ? await db
-        .select({ id: workflowRuns.id })
-        .from(workflowRuns)
-        .where(
-          and(
-            eq(workflowRuns.repositoryId, repo.id),
-            ne(workflowRuns.status, 'completed')
-          )
+  // A fenced run can still hold containers. Keep its jobs and capacity until stop is confirmed.
+  const active = await db
+    .select({ id: workflowRuns.id })
+    .from(workflowRuns)
+    .where(
+      and(
+        eq(workflowRuns.repositoryId, repo.id),
+        or(
+          ne(workflowRuns.status, 'completed'),
+          sql`EXISTS (SELECT 1 FROM workflow_jobs j WHERE j.run_id=workflow_runs.id AND j.status='in_progress')`
         )
-        .all()
-    : [];
-  const jobs = active.length
-    ? await db
-        .select({ id: workflowJobs.id })
-        .from(workflowJobs)
-        .where(
-          inJsonArray(
-            workflowJobs.runId,
-            active.map((r) => r.id)
-          )
-        )
-        .all()
-    : [];
-  await db.batch([
-    db
-      .insert(repositoryDeletions)
-      .values({
-        id: repo.id,
-        artifactsName: repo.artifactsName,
-        fullName,
-        createdAt: new Date(),
-      })
-      .onConflictDoNothing(),
-    db.delete(repositories).where(eq(repositories.id, repo.id)),
+      )
+    )
+    .orderBy(workflowRuns.id)
+    .limit(21)
+    .all();
+  let stopped = active.length <= 20;
+  for (const run of active.slice(0, 20)) {
+    if (!(await stopAbandonedRun(env, db, run.id, 'cancelled'))) {
+      stopped = false;
+      break;
+    }
+    await dropRun(env, run.id);
+  }
+  if (!stopped) {
+    if (queueConfigured(env)) {
+      try {
+        await actionsQueue(env).reclaim();
+      } catch (error) {
+        console.warn('[repos] could not schedule Actions stop recovery', error);
+      }
+    }
+    return false;
+  }
+
+  // D1 executes this batch atomically: a run inserted after the stop snapshot must block deletion.
+  const idle = `NOT EXISTS (SELECT 1 FROM workflow_runs r WHERE r.repository_id=?
+    AND (r.status!='completed' OR EXISTS (SELECT 1 FROM workflow_jobs j WHERE j.run_id=r.id AND j.status='in_progress')))`;
+  const [, deleted] = await env.DB.batch<{ id: string }>([
+    env.DB.prepare(
+      `INSERT INTO repository_deletions (id,artifacts_name,full_name,created_at)
+       SELECT id,artifacts_name,?,? FROM repositories WHERE id=? AND ${idle}
+       ON CONFLICT(id) DO NOTHING`
+    ).bind(fullName, Date.now(), repo.id, repo.id),
+    env.DB.prepare(
+      `DELETE FROM repositories WHERE id=? AND ${idle}
+       AND EXISTS (SELECT 1 FROM repository_deletions d WHERE d.id=repositories.id) RETURNING id`
+    ).bind(repo.id, repo.id),
+    // A zero-row DELETE must not leave an outbox that retention could mistake for a deleted repo.
+    env.DB.prepare(
+      'DELETE FROM repository_deletions WHERE id=? AND EXISTS (SELECT 1 FROM repositories WHERE id=?)'
+    ).bind(repo.id, repo.id),
   ]);
+  if (!deleted.results.length) return false;
   // An instance event: the repository's own log went with it.
   await recordAudit(db, {
     repositoryId: null,
@@ -98,15 +114,8 @@ export async function deleteRepository(
     target: fullName,
     data: { repository: repo.id },
   });
-  // As cancelling a run does; best effort, as a runner whose run is gone also destroys itself.
-  await Promise.allSettled([
-    ...active.map(async (r) => {
-      await (await env.ACTIONS_RUN.get(r.id)).terminate();
-    }),
-    ...jobs.map((j) => env.JOB_RUNNER.getByName(j.id).destroy()),
-    ...active.map((r) => dropRun(env, r.id)),
-  ]);
   await finishRepositoryDeletion(env, db, repo.id);
+  return true;
 }
 
 /**

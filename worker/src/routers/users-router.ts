@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { asc, notInArray } from 'drizzle-orm';
 import { agents } from '../db/app.schema';
 import { users } from '../db/auth.schema';
-import { toPublicUser } from '../lib/users';
+import { accountEmailFor, toPublicUser } from '../lib/users';
 import type { AppEnv } from '../variables';
 import {
   json200Response,
@@ -46,7 +47,7 @@ usersRouter.openapi(listRoute, async (c) => {
   return c.json(
     rows.map((u) => ({
       ...toPublicUser(u),
-      email: viewer.role === 'admin' || viewer.id === u.id ? u.email : null,
+      email: accountEmailFor(u, viewer),
       role: u.role ?? 'user',
       createdAt: u.createdAt.toISOString(),
     })),

@@ -160,6 +160,66 @@ async function sourcedSession() {
 }
 
 describe('SSO来源的真实D1读取与撤权', () => {
+  it.each([
+    [
+      '清空全部来源并改记密码',
+      "oidc_binding_id=NULL,oidc_binding_revision=NULL,oidc_configuration_generation=NULL,auth_method='password'",
+    ],
+    ['替换绑定', "oidc_binding_id='replacement-binding'"],
+    ['更换绑定代数', 'oidc_binding_revision=2'],
+    ['更换配置代数', 'oidc_configuration_generation=2'],
+  ])('真实D1拒绝%s，整条更新回滚且原会话仍有效', async (_, change) => {
+    const f = await sourcedSession();
+    // Use an existing binding so a foreign-key failure cannot stand in for the source guard.
+    await f.t.env.DB.prepare(
+      "INSERT INTO oidc_bindings (id,provider_id,issuer,subject,user_id,active,revision,created_at,updated_at) SELECT 'replacement-binding',provider_id,issuer,'replacement-subject',user_id,0,1,created_at,updated_at FROM oidc_bindings WHERE id=?"
+    )
+      .bind(f.bindingId)
+      .run();
+    const read = () =>
+      f.t.env.DB.prepare(
+        'SELECT id,oidc_binding_id,oidc_binding_revision,oidc_configuration_generation,auth_method,auth_time FROM sessions WHERE id=?'
+      )
+        .bind(f.sessionId)
+        .first();
+    const before = await read();
+    expect(before).toMatchObject({
+      oidc_binding_id: f.bindingId,
+      oidc_binding_revision: 1,
+      oidc_configuration_generation: 1,
+      auth_method: 'oidc',
+    });
+    expect(
+      await f.t.env.DB.prepare(
+        'UPDATE sessions SET oidc_binding_id=oidc_binding_id,oidc_binding_revision=oidc_binding_revision,oidc_configuration_generation=oidc_configuration_generation WHERE id=? RETURNING id'
+      )
+        .bind(f.sessionId)
+        .first()
+    ).toEqual({ id: f.sessionId });
+    await expect(
+      f.t.env.DB.prepare(`UPDATE sessions SET ${change} WHERE id=?`)
+        .bind(f.sessionId)
+        .run()
+    ).rejects.toThrow('OIDC session source is immutable');
+    expect(await read()).toEqual(before);
+    expect(await readSessionAuthentication(f.t.env, f.sessionId)).toMatchObject(
+      {
+        authMethod: 'oidc',
+        oidcBindingId: f.bindingId,
+        oidcBindingRevision: 1,
+        oidcConfigurationGeneration: 1,
+      }
+    );
+    expect(
+      (await call(f.t, '/api/me/authentication', { cookie: f.cookie })).status
+    ).toBe(200);
+    expect(
+      await (
+        await call(f.t, '/api/auth/get-session', { cookie: f.cookie })
+      ).json()
+    ).toMatchObject({ session: { id: f.sessionId } });
+  });
+
   it('非法百分号编码的站内回跳安全返回400，不变成原生500', async () => {
     const t = makeEnv();
     Object.assign(t.env, { BASE_URL: 'https://test.local' });
@@ -313,6 +373,107 @@ describe('SSO来源的真实D1读取与撤权', () => {
       source: { method: 'oidc' },
     });
   });
+
+  it('真实禁用MFA后的新会话保留来源，解绑同时撤销REST与SDK访问', async () => {
+    const f = await sourcedSession();
+    expect(
+      (
+        await call(f.t, '/api/auth/reauthenticate', {
+          cookie: f.cookie,
+          json: { sessionId: f.sessionId, password: 'password123' },
+        })
+      ).status
+    ).toBe(200);
+    const begin = await call(f.t, '/api/auth/two-factor/enable', {
+      cookie: f.cookie,
+      json: { password: 'password123' },
+      headers: { 'X-CloudForge-Session': f.sessionId },
+    });
+    expect(begin.status).toBe(200);
+    const data = (await begin.json()) as { totpURI: string };
+    const secret = new TextDecoder().decode(
+      base32.decode(new URL(data.totpURI).searchParams.get('secret')!)
+    );
+    const verify = await call(f.t, '/api/auth/two-factor/verify-totp', {
+      cookie: f.cookie,
+      json: { code: await createOTP(secret).totp() },
+    });
+    expect(verify.status).toBe(200);
+    const enrolledCookie = responseCookies(verify);
+    const enrolled = (await (
+      await call(f.t, '/api/auth/get-session', { cookie: enrolledCookie })
+    ).json()) as {
+      session: { id: string };
+      user: { twoFactorEnabled: boolean };
+    };
+    expect(enrolled.user.twoFactorEnabled).toBe(true);
+    expect(
+      await readSessionAuthentication(f.t.env, enrolled.session.id)
+    ).toMatchObject({
+      oidcBindingId: f.bindingId,
+      secondFactorMethod: 'totp',
+    });
+
+    const disabled = await call(f.t, '/api/auth/two-factor/disable', {
+      cookie: enrolledCookie,
+      json: { password: 'password123' },
+      headers: { 'X-CloudForge-Session': enrolled.session.id },
+    });
+    expect(disabled.status).toBe(200);
+    const cookie = responseCookies(disabled);
+    const next = (await (
+      await call(f.t, '/api/auth/get-session', { cookie })
+    ).json()) as {
+      session: { id: string };
+      user: { twoFactorEnabled: boolean };
+    };
+    expect(next.session.id).not.toBe(enrolled.session.id);
+    expect(next.user.twoFactorEnabled).toBe(false);
+    const live = await readSessionAuthentication(f.t.env, next.session.id);
+    expect(live).toMatchObject({
+      authMethod: 'password',
+      secondFactorMethod: null,
+      secondFactorTime: null,
+      oidcBindingId: f.bindingId,
+      oidcBindingRevision: 1,
+      oidcConfigurationGeneration: 1,
+    });
+    expect(durableSessionAssurance(live!)).toMatchObject({
+      strength: 'password',
+      source: { method: 'oidc' },
+    });
+    expect(
+      await (
+        await call(f.t, '/api/auth/get-session', { cookie: enrolledCookie })
+      ).json()
+    ).toBeNull();
+    expect(
+      await f.t.env.DB.prepare('SELECT id FROM two_factors WHERE user_id=?')
+        .bind(f.userId)
+        .first()
+    ).toBeNull();
+    expect((await call(f.t, '/api/me/authentication', { cookie })).status).toBe(
+      200
+    );
+    const revoke = await call(f.t, '/api/me/oidc/revoke', {
+      cookie,
+      json: { bindingId: f.bindingId, revision: 1 },
+      headers: { 'X-CloudForge-Session': next.session.id },
+    });
+    expect(revoke.status).toBe(200);
+    expect(
+      await f.t.env.DB.prepare('SELECT id FROM sessions WHERE id=?')
+        .bind(next.session.id)
+        .first()
+    ).toBeNull();
+    expect((await call(f.t, '/api/me/authentication', { cookie })).status).toBe(
+      401
+    );
+    expect(
+      await (await call(f.t, '/api/auth/get-session', { cookie })).json()
+    ).toBeNull();
+  });
+
   it('REST与SDK都读取有效来源，公开证明不会泄漏私有来源字段', async () => {
     const f = await sourcedSession();
     const res = await call(f.t, '/api/me/authentication', { cookie: f.cookie });

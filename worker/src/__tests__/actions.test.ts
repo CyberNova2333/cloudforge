@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
+import { runInDurableObject } from 'cloudflare:test';
 import {
   addMember,
   bootstrapAdmin,
@@ -9,6 +10,8 @@ import {
   type TestEnv,
 } from './helpers/app';
 import { commitPaths } from './helpers/seed';
+import { actionsQueue } from '../actions/queue';
+import type { ActionsQueue } from '../actions/queue';
 import {
   CI,
   harness,
@@ -628,6 +631,186 @@ describe('Actions 中断后的重启', () => {
 });
 
 describe('Actions 接口', () => {
+  it('读取已崩溃运行时停止失败保留容量，真实队列alarm成功停止后才回收', async () => {
+    const s = await setup();
+    await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
+    const [run] = (await runs(s.t, s.admin)).runs;
+    const jobId = (await runDetail(s.t, s.admin, 1)).jobs[0].id;
+    await s.t.env.DB.batch([
+      s.t.env.DB.prepare(
+        "UPDATE workflow_jobs SET status='in_progress' WHERE id=?"
+      ).bind(jobId),
+      s.t.env.DB.prepare(
+        'UPDATE workflow_runs SET created_at=created_at-600 WHERE id=?'
+      ).bind(run.id),
+      s.t.env.DB.prepare(
+        "INSERT INTO runner_sessions(id,job_id,instance_type,started_at,deadline_at) VALUES (?,?,'standard-2',?,?)"
+      ).bind(`${jobId}:1`, jobId, Date.now(), Date.now() + 3_600_000),
+    ]);
+    const queue = actionsQueue(s.t.env);
+    await queue.acquire({ jobId, runId: run.id, maxMinutes: 60, limit: 1 });
+    const waiter = {
+      jobId: crypto.randomUUID(),
+      runId: crypto.randomUUID(),
+      maxMinutes: 60,
+      limit: 1,
+    };
+    await queue.acquire(waiter);
+    s.t.actions.instanceStatus.set(run.id, 'errored');
+    let fails = true;
+    const getRunner = s.t.env.JOB_RUNNER.getByName.bind(s.t.env.JOB_RUNNER);
+    Object.assign(s.t.env, {
+      JOB_RUNNER: {
+        getByName: (id: string) => ({
+          ...getRunner(id),
+          destroy: async () => {
+            if (fails) throw new Error('container stop unavailable');
+            await getRunner(id).destroy();
+          },
+        }),
+      },
+    });
+    const response = await call(s.t, '/api/repos/octocat/app/actions/runs/1', {
+      cookie: s.admin,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      run: { status: 'completed', conclusion: 'failure' },
+    });
+    expect(
+      await s.t.env.DB.prepare('SELECT status FROM workflow_jobs WHERE id=?')
+        .bind(jobId)
+        .first('status')
+    ).toBe('in_progress');
+    expect(
+      await s.t.env.DB.prepare(
+        'SELECT stopped_at FROM runner_sessions WHERE job_id=?'
+      )
+        .bind(jobId)
+        .first('stopped_at')
+    ).toBeNull();
+    expect((await queue.acquire(waiter)).granted).toBe(false);
+    const stub = s.t.env.ACTIONS_QUEUE.getByName('instance');
+    expect(
+      await runInDurableObject(stub, async (_obj, state) =>
+        state.storage.getAlarm()
+      )
+    ).not.toBeNull();
+    fails = false;
+    await runInDurableObject(stub, async (obj) => {
+      (obj as unknown as { env: CloudflareBindings }).env = s.t.env;
+      await (obj as unknown as ActionsQueue).alarm();
+    });
+    expect(
+      await s.t.env.DB.prepare('SELECT status FROM workflow_jobs WHERE id=?')
+        .bind(jobId)
+        .first('status')
+    ).toBe('completed');
+    expect(
+      await s.t.env.DB.prepare(
+        'SELECT stopped_at FROM runner_sessions WHERE job_id=?'
+      )
+        .bind(jobId)
+        .first('stopped_at')
+    ).toBeGreaterThan(0);
+    expect((await queue.acquire(waiter)).granted).toBe(true);
+  });
+
+  it.each(['terminate', 'destroy'])(
+    '取消运行的%s失败时保留真实容量与停止追踪，重试成功后才释放',
+    async (failure) => {
+      const s = await setup();
+      await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
+      const [run] = (await runs(s.t, s.admin)).runs;
+      const { jobs } = await runDetail(s.t, s.admin, 1);
+      const jobId = jobs[0].id;
+      await s.t.env.DB.prepare(
+        "UPDATE workflow_jobs SET status='in_progress' WHERE id=?"
+      )
+        .bind(jobId)
+        .run();
+      await s.t.env.DB.prepare(
+        "INSERT INTO runner_sessions (id,job_id,instance_type,started_at,deadline_at) VALUES (?,?,'standard-2',?,?)"
+      )
+        .bind(`${jobId}:1`, jobId, Date.now(), Date.now() + 3_600_000)
+        .run();
+      const queue = actionsQueue(s.t.env);
+      await queue.acquire({ jobId, runId: run.id, maxMinutes: 60, limit: 1 });
+      const waiter = {
+        jobId: crypto.randomUUID(),
+        runId: crypto.randomUUID(),
+        maxMinutes: 60,
+        limit: 1,
+      };
+      expect((await queue.acquire(waiter)).granted).toBe(false);
+      let fails = true;
+      const get = s.t.env.ACTIONS_RUN.get.bind(s.t.env.ACTIONS_RUN);
+      const runner = s.t.env.JOB_RUNNER.getByName.bind(s.t.env.JOB_RUNNER);
+      Object.assign(s.t.env, {
+        ACTIONS_RUN: {
+          ...s.t.env.ACTIONS_RUN,
+          get: async (id: string) => {
+            const instance = await get(id);
+            return {
+              ...instance,
+              terminate: async () => {
+                if (fails && failure === 'terminate')
+                  throw new Error('Workflow stop unavailable');
+                await instance.terminate();
+              },
+            };
+          },
+        },
+        JOB_RUNNER: {
+          getByName: (id: string) => ({
+            ...runner(id),
+            destroy: async () => {
+              if (fails && failure === 'destroy')
+                throw new Error('Container stop unavailable');
+              await runner(id).destroy();
+            },
+          }),
+        },
+      });
+      const path = '/api/repos/octocat/app/actions/runs/1/cancel';
+      expect(
+        (await call(s.t, path, { cookie: s.admin, method: 'POST' })).status
+      ).toBe(200);
+      await settle(s.t);
+      expect(
+        await s.t.env.DB.prepare('SELECT status FROM workflow_jobs WHERE id=?')
+          .bind(jobId)
+          .first('status')
+      ).toBe('in_progress');
+      expect(
+        await s.t.env.DB.prepare(
+          'SELECT stopped_at FROM runner_sessions WHERE job_id=?'
+        )
+          .bind(jobId)
+          .first('stopped_at')
+      ).toBeNull();
+      expect((await queue.acquire(waiter)).granted).toBe(false);
+      fails = false;
+      expect(
+        (await call(s.t, path, { cookie: s.admin, method: 'POST' })).status
+      ).toBe(200);
+      await settle(s.t);
+      expect(
+        await s.t.env.DB.prepare('SELECT status FROM workflow_jobs WHERE id=?')
+          .bind(jobId)
+          .first('status')
+      ).toBe('completed');
+      expect(
+        await s.t.env.DB.prepare(
+          'SELECT stopped_at FROM runner_sessions WHERE job_id=?'
+        )
+          .bind(jobId)
+          .first('stopped_at')
+      ).toBeGreaterThan(0);
+      expect((await queue.acquire(waiter)).granted).toBe(true);
+    }
+  );
+
   it('取消运行并终止其 Workflow 和容器', async () => {
     const s = await setup();
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
@@ -639,6 +822,12 @@ describe('Actions 接口', () => {
       { cookie: bob, method: 'POST' }
     );
     expect(denied.status).toBe(403);
+    const running = (await runDetail(s.t, s.admin, 1)).jobs[0];
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_jobs SET status='in_progress' WHERE id=?"
+    )
+      .bind(running.id)
+      .run();
     const res = await call(
       s.t,
       '/api/repos/octocat/app/actions/runs/1/cancel',
@@ -664,6 +853,11 @@ describe('Actions 接口', () => {
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [run] = (await runs(s.t, s.admin)).runs;
     const { jobs } = await runDetail(s.t, s.admin, 1);
+    await s.t.env.DB.prepare(
+      "UPDATE workflow_jobs SET status='in_progress' WHERE id=?"
+    )
+      .bind(jobs[0].id)
+      .run();
     await s.t.env.DB.prepare(
       `INSERT INTO runner_sessions (id, job_id, repository_id, instance_type, started_at, stopped_at, deadline_at)
        VALUES (?, ?, NULL, 'standard-2', ?, NULL, ?)`

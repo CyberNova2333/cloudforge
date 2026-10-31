@@ -115,7 +115,10 @@ The security update adds migrations `0040` through `0044` and changes behaviour;
   one repository from holding every Actions slot. Normal queue grants and the queue-outage fallback reserve capacity
   atomically in D1 before booting, enforcing both limits even when only some jobs can reach the queue.
   Recovery includes reservations without queue entries and retains capacity if Workflow/container shutdown cannot
-  be confirmed. Failed container destruction preserves the runner's hard-stop alarm.
+  be confirmed. Failed container destruction preserves the runner's hard-stop alarm. HTTP cancellation and terminal
+  Workflow reconciliation now share this confirmed-stop boundary with queue recovery. Repository deletion returns
+  retryable HTTP 409 until its bounded stop passes complete; it keeps D1 capacity and checks for new runs again in
+  the final deletion batch. A zero-row deletion does not publish a storage-cleanup outbox.
 - **Guarded reviewer agents review every pull request**: Clef no longer decides whether a guarded agent (`guarded:
 true`, or the security or data facet) is requested, so such agents review changes they used to skip.
 
@@ -245,3 +248,9 @@ Releases come from the CloudForge instance that hosts the repository, and are pu
    ```
 
 Cut, publish and upgrade only when a person says so.
+
+### 成员删除与运行清理的后续加固（2026-10-31）
+
+生成迁移 `0062_auth_triggers.sql` 增加用户删除的最终数据库防线：拥有个人仓库或作为团队仓库创建者的成员必须先通过正常仓库删除流程处理资源。原生管理接口对该情况拒绝删除，不预先清掉其密码账户或会话；无仓库成员的成功删除原子级联并记录不含邮箱的审计事件。迁移和 Worker 部署需要分别授权、按实例实际已应用记录操作，本地测试不表示生产已应用。
+
+执行器重启及最终清理也以容器 destroy 成功作为记录停止和释放容量的前提。停止失败只重试相应持久清理步骤，保留占用及恢复追踪；不会为重新清理而重放已经完成的用户命令。用户看到 run 逻辑结束不代表所有容器已经停止，容量可能继续保留到停止确认。

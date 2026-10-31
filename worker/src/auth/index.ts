@@ -6,7 +6,8 @@ import {
   supersedeOidcSignIn,
 } from '../oidc/sign-in';
 import { parseSessionOutput } from 'better-auth/db';
-import { admin, jwt, openAPI, username } from 'better-auth/plugins';
+import { jwt, openAPI, username } from 'better-auth/plugins';
+import { repositorySafeAdmin } from './user-deletion';
 import { oauthProvider } from '@better-auth/oauth-provider';
 import { guardOAuthIntrospection, oauthGrantOptions } from './oauth-grants';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -244,7 +245,7 @@ function createAuth(env?: CloudflareBindings) {
     disabledPaths: ['/token'],
     plugins: [
       openAPI(),
-      admin(),
+      repositorySafeAdmin(env, db),
       username({
         minUsernameLength: 1,
         maxUsernameLength: 39,
@@ -542,6 +543,19 @@ function createAuth(env?: CloudflareBindings) {
             if (env && (await isAgentUser(db, user.id)))
               throw new APIError('FORBIDDEN', {
                 message: 'Delete agents from Site admin → Agents.',
+              });
+            if (
+              env &&
+              (await env.DB.prepare(
+                'SELECT 1 FROM repositories WHERE owner_id=? LIMIT 1'
+              )
+                .bind(user.id)
+                .first())
+            )
+              throw new APIError('FORBIDDEN', {
+                code: 'USER_OWNS_REPOSITORIES',
+                message:
+                  'Delete this member’s repositories through their normal deletion flow first.',
               });
           },
         },

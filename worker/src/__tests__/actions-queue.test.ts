@@ -251,6 +251,79 @@ const seedRun = async (jobs: [string, string][], runStatus?: string) =>
   (await runSeeder())(jobs, runStatus);
 
 describe('ActionsQueue 空位回收', () => {
+  it('停止超过一页的作业会持久推进，后页失败保留容量并在恢复后收尾', async () => {
+    const seed = await runSeeder();
+    const runId = await seed([]);
+    const nextRunId = await seed([['next', 'queued']]);
+    const ids = Array.from(
+      { length: 53 },
+      (_, i) => `stop-page-${String(i).padStart(3, '0')}`
+    );
+    await env.DB.prepare(
+      "INSERT INTO workflow_jobs (id,run_id,job_key,name,runs_on,needs,status) SELECT value,?,value,value,'ubuntu-latest','[]','in_progress' FROM json_each(?)"
+    )
+      .bind(runId, JSON.stringify(ids))
+      .run();
+    const stopped: string[] = [];
+    let fails = true;
+    const stub = env.ACTIONS_QUEUE.getByName(`unit-${crypto.randomUUID()}`);
+    await runInDurableObject(stub, async (obj) => {
+      (obj as unknown as { env: CloudflareBindings }).env = {
+        ...env,
+        ACTIONS_RUN: {
+          get: async () => ({
+            status: async () => ({ status: 'terminated' }),
+            sendEvent: async () => {},
+          }),
+        },
+        JOB_RUNNER: {
+          getByName: (id: string) => ({
+            destroy: async () => {
+              if (fails && id === ids[50])
+                throw new Error('later page stop unavailable');
+              stopped.push(id);
+            },
+          }),
+        },
+      } as unknown as CloudflareBindings;
+    });
+    const q = stub as unknown as ActionsQueueApi;
+    await q.acquire(ask(ids[52], 1, { runId }));
+    await q.acquire(ask('next', 1, { runId: nextRunId }));
+    await env.DB.prepare(
+      "UPDATE workflow_runs SET status='completed',conclusion='cancelled' WHERE id=?"
+    )
+      .bind(runId)
+      .run();
+    expect((await q.reclaim()).reclaimed).toEqual([]);
+    expect(stopped).toEqual(ids.slice(0, 50));
+    const remaining = () =>
+      env.DB.prepare(
+        "SELECT count(*) AS n FROM workflow_jobs WHERE run_id=? AND status='in_progress'"
+      )
+        .bind(runId)
+        .first('n');
+    expect(await remaining()).toBe(3);
+    expect((await q.reclaim()).reclaimed).toEqual([]);
+    expect(stopped).toHaveLength(50);
+    expect(await remaining()).toBe(3);
+    expect(
+      await runInDurableObject(stub, async (_obj, state) =>
+        state.storage.getAlarm()
+      )
+    ).not.toBeNull();
+    expect(
+      (await q.acquire(ask('next', 1, { runId: nextRunId }))).granted
+    ).toBe(false);
+    fails = false;
+    expect((await q.reclaim()).reclaimed).toContain(ids[52]);
+    expect(stopped).toEqual(ids);
+    expect(await remaining()).toBe(0);
+    expect(
+      (await q.acquire(ask('next', 1, { runId: nextRunId }))).granted
+    ).toBe(true);
+  });
+
   it('在 5、10、20 分钟后重新检查，之后每 30 分钟检查一次', () => {
     expect([1, 2, 3, 4, 5, 50].map(slotRecheck)).toEqual([
       '5 minutes',
