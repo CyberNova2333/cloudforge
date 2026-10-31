@@ -301,8 +301,13 @@ jobs:
           worker/src/__tests__/oauth-account-linking.test.ts
           worker/src/__tests__/oidc-provider.test.ts
           worker/src/__tests__/oidc-linking.test.ts
+            worker/src/__tests__/oidc-session-source.test.ts
+            worker/src/__tests__/session-secret-cache.test.ts
+            worker/src/__tests__/oidc-sign-in.test.ts
           src/lib/authenticationPolicy.test.ts
           src/lib/oidcApi.test.ts
+            src/lib/oidcSignInApi.test.ts
+            src/lib/signInLock.test.ts
           worker/src/__tests__/recent-authentication.test.ts
           worker/src/__tests__/mcp-grant-revocation.test.ts
           src/lib/recentAuthentication.test.ts

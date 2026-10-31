@@ -11,7 +11,7 @@ import { LANGUAGES } from '@/components/shell/AccountMenu';
 function Brand() {
   return (
     <div className="auth-brand">
-      <img src="/cloudforge-mark.svg" width={32} height={32} alt="" />
+      <img src="/logo.png" width={32} height={32} alt="" />
       <span className="brand-wordmark">CloudForge</span>
     </div>
   );

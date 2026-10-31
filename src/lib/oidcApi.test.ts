@@ -19,6 +19,8 @@ const provider: OidcProvider = {
   clientId: 'public-client-id',
   version: 1,
   callbackUrl: 'https://forge.example/api/auth/oidc/callback/work',
+  loginEnabled: false,
+  loginCallbackUrl: null,
 };
 const actionId = 'f75041f2-bbe1-4b2c-8a9c-2275e07ec05d';
 const now = 1_900_000_000_000;
@@ -38,6 +40,7 @@ describe('外部身份的临时确认与浏览器请求', () => {
       version: 3,
       generation: 9,
       enabled: true,
+      loginEnabled: false,
     };
     const retirement: OidcRetirementPreview = {
       previewId: 'opaque-retirement',
@@ -51,6 +54,9 @@ describe('外部身份的临时确认与浏览器请求', () => {
     ).toBe(false);
     expect(
       liveOidcRetirement(retirement, { ...active, enabled: false }, now)
+    ).toBe(false);
+    expect(
+      liveOidcRetirement(retirement, { ...active, loginEnabled: true }, now)
     ).toBe(false);
     expect(
       liveOidcRetirement(
@@ -69,6 +75,7 @@ describe('外部身份的临时确认与浏览器请求', () => {
       version: 3,
       generation: 9,
       enabled: true,
+      loginEnabled: false,
     };
     const retirement: OidcRetirementPreview = {
       previewId: 'opaque-retirement',
@@ -133,6 +140,16 @@ describe('外部身份的临时确认与浏览器请求', () => {
     expect(liveOidcPreview(preview(), { ...provider, version: 2 }, now)).toBe(
       false
     );
+    expect(
+      liveOidcPreview(preview(), { ...provider, loginEnabled: true }, now)
+    ).toBe(false);
+    expect(
+      liveOidcPreview(
+        preview(),
+        { ...provider, loginCallbackUrl: 'https://forge.example/changed' },
+        now
+      )
+    ).toBe(false);
     expect(
       liveOidcPreview({ ...preview(), expiresAt: 'invalid' }, provider, now)
     ).toBe(false);

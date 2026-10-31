@@ -38,6 +38,16 @@ function ProviderDetails({ provider }: { provider: OidcProvider }) {
       <dd>
         <code>{provider.callbackUrl}</code>
       </dd>
+      <dt>{t('Single sign-on')}</dt>
+      <dd>{provider.loginEnabled ? t('Enabled') : t('Disabled')}</dd>
+      {provider.loginEnabled && provider.loginCallbackUrl && (
+        <>
+          <dt>{t('Single sign-on callback URL')}</dt>
+          <dd>
+            <code>{provider.loginCallbackUrl}</code>
+          </dd>
+        </>
+      )}
     </dl>
   );
 }
@@ -222,7 +232,9 @@ function ProviderForm() {
     <Section title={t('External identity provider')} className="oidc-section">
       <p>
         {t(
-          'Publish the provider supplied by this deployment before members can link identities. Publishing does not enable single sign-on.'
+          status?.provider?.loginEnabled
+            ? 'This deployment explicitly enables single sign-on for already linked identities. Publishing it also requires the displayed login callback to be registered with the provider.'
+            : 'Publish the provider supplied by this deployment before members can link identities. Publishing does not enable single sign-on.'
         )}
       </p>
       <p className="small muted">
@@ -290,6 +302,10 @@ function ProviderForm() {
                 <dd>{status.active.issuer}</dd>
                 <dt>{t('Configuration version')}</dt>
                 <dd>{status.active.version}</dd>
+                <dt>{t('Single sign-on')}</dt>
+                <dd>
+                  {status.active.loginEnabled ? t('Enabled') : t('Disabled')}
+                </dd>
                 <dt>{t('Provider status')}</dt>
                 <dd>
                   {status.active.enabled === false
@@ -330,13 +346,20 @@ function ProviderForm() {
             >
               <h3>{t('Provider publication preview')}</h3>
               <ProviderDetails provider={preview.provider} />
+              {preview.provider.loginEnabled && (
+                <Notice tone="warn">
+                  {t(
+                    'This publication enables single sign-on for existing linked identities. It does not register new members or match members by email. Local second factors remain required when enabled.'
+                  )}
+                </Notice>
+              )}
               <p>
                 {t('Local administrator')}:{' '}
                 <strong>{session?.user.email}</strong>
               </p>
               <Notice tone="warn">
                 {t(
-                  'Publishing replaces the active provider generation. In-flight identity actions from older configurations will stop working. Linked identities remain owned by their original members.'
+                  'Publishing replaces the active provider generation, stops older pending identity actions, and signs out sessions originating from this provider, including after password verification. Linked identities remain owned by their original members.'
                 )}
               </Notice>
               <label className="security-saved">
@@ -391,7 +414,7 @@ function ProviderForm() {
               </p>
               <Notice tone="warn">
                 {t(
-                  'Retirement stops identity linking for this provider across deployments and invalidates pending identity actions. Existing identity ownership records remain. Reactivation requires a higher configuration version.'
+                  'Retirement stops identity linking and single sign-on across deployments, invalidates pending identity actions, and signs out sessions originating from this provider. Identity ownership records remain. Reactivation requires a higher configuration version.'
                 )}
               </Notice>
               <label className="security-saved">

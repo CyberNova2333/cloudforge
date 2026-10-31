@@ -421,6 +421,20 @@
       "when": 1793377590761,
       "tag": "0059_auth_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1793383211246,
+      "tag": "0060_workable_otto_octavius",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1793383834651,
+      "tag": "0061_overconfident_ben_parker",
+      "breakpoints": true
     }
   ]
 }

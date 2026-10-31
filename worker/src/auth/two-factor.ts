@@ -17,6 +17,7 @@ import {
   type SessionAuthentication,
 } from './assurance';
 import { POLICY_VERSION_SQL, readPolicy } from './policy';
+import { supersedeOidcSignIn } from '../oidc/sign-in';
 
 const VERIFY_TOTP = '/two-factor/verify-totp';
 const VERIFY_BACKUP = '/two-factor/verify-backup-code';
@@ -152,6 +153,9 @@ export function authenticationForNewSession(
   const state = context as MfaContext;
   const empty = {
     authVersion,
+    oidcBindingId: null as string | null,
+    oidcBindingRevision: null as number | null,
+    oidcConfigurationGeneration: null as number | null,
     policyVersion: 0,
     authMethod: null as string | null,
     authTime: null as Date | null,
@@ -199,6 +203,11 @@ export function authenticationForNewSession(
     return empty;
   }
   const previous = state.cloudforgeAuthentication;
+  const origin = {
+    oidcBindingId: previous?.oidcBindingId ?? null,
+    oidcBindingRevision: previous?.oidcBindingRevision ?? null,
+    oidcConfigurationGeneration: previous?.oidcConfigurationGeneration ?? null,
+  };
   const policyVersion = previous?.policyVersion ?? value.policyVersion;
   const passwordTime =
     state.cloudforgePasswordVerifiedAt ??
@@ -215,6 +224,7 @@ export function authenticationForNewSession(
     return {
       ...empty,
       ...primary,
+      ...origin,
       // A signed-in single-factor step-up and first enrollment cannot acknowledge a newer policy.
       policyVersion,
       secondFactorMethod: path === VERIFY_TOTP ? 'totp' : 'recovery_code',
@@ -224,13 +234,14 @@ export function authenticationForNewSession(
     return {
       ...empty,
       ...primary,
+      ...origin,
       policyVersion,
       secondFactorMethod: previous?.secondFactorMethod ?? null,
       secondFactorTime: previous?.secondFactorTime
         ? new Date(Number(previous.secondFactorTime))
         : null,
     };
-  return { ...empty, ...primary, policyVersion };
+  return { ...empty, ...primary, ...origin, policyVersion };
 }
 
 function capturePassword(ctx: GenericEndpointContext, env: CloudflareBindings) {
@@ -976,6 +987,25 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
       },
       session: {
         fields: {
+          oidcBindingId: {
+            type: 'string' as const,
+            index: true,
+            required: false,
+            input: false,
+            returned: false,
+          },
+          oidcBindingRevision: {
+            type: 'number' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
+          oidcConfigurationGeneration: {
+            type: 'number' as const,
+            required: false,
+            input: false,
+            returned: false,
+          },
           policyVersion: {
             type: 'number' as const,
             required: true,
@@ -1445,6 +1475,8 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
               });
             }
             (ctx.context as MfaContext).cloudforgeGeneration = value;
+            // This hook follows real password verification and exact generation validation.
+            await supersedeOidcSignIn(ctx, env);
           }),
         },
         ...plugin.hooks.after,
@@ -1548,6 +1580,12 @@ export function cloudforgeTwoFactor(db: DrizzleDB, env?: CloudflareBindings) {
                     Date.now()
                   )
                   .run();
+              const native = ctx.context as MfaContext;
+              if (
+                !native.cloudforgeAuthentication &&
+                native.cloudforgePasswordVerifiedAt
+              )
+                await supersedeOidcSignIn(ctx, env);
               // A newly established session is an authentication event; existing-session verification is step-up.
               await recordAudit(db, {
                 repositoryId: null,

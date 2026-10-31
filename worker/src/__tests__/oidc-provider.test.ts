@@ -40,7 +40,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function fixture() {
+async function fixture(loginEnabled?: boolean) {
   const issuer = 'https://identity.example/' + crypto.randomUUID();
   const description = {
     id: 'company',
@@ -48,6 +48,7 @@ async function fixture() {
     issuer,
     clientId: 'local-client',
     version: 1,
+    ...(loginEnabled === undefined ? {} : { loginEnabled }),
   };
   const bindings = {
     ...env,
@@ -144,6 +145,8 @@ describe('OIDC 部署配置与状态加密', () => {
     expect(publicProvider(t.config)).toEqual({
       ...t.description,
       callbackUrl: 'https://test.local/api/auth/oidc/callback/company',
+      loginEnabled: false,
+      loginCallbackUrl: null,
     });
     expect(JSON.stringify(publicProvider(t.config))).not.toMatch(
       /secret|digest/
@@ -160,6 +163,102 @@ describe('OIDC 部署配置与状态加密', () => {
         OIDC_PROVIDER: JSON.stringify({ ...t.description, version: 2 }),
       }))!.digest
     ).not.toBe(t.config.digest);
+  });
+  it('省略与显式false保持旧digest固定向量；true纳入新能力与独立callback', async () => {
+    const bindings = {
+      ...env,
+      BASE_URL: 'http://test.local',
+      OIDC_CLIENT_SECRET: 'test-client-secret',
+    };
+    const description = {
+      id: 'company',
+      name: 'Company identity',
+      issuer: 'https://identity.example/legacy',
+      clientId: 'local-client',
+      version: 1,
+    };
+    for (const loginEnabled of [undefined, false]) {
+      const config = (await providerFrom({
+        ...bindings,
+        OIDC_PROVIDER: JSON.stringify({ ...description, loginEnabled }),
+      }))!;
+      // Independent Node SHA256 of the pre-SSO serialization, not computed from the current implementation.
+      expect(config.digest).toBe(
+        '93d632f5ff5058de375808907d7ef87cbe583898687d3f2c7e749f97e880605e'
+      );
+      expect(publicProvider(config)).toMatchObject({
+        loginEnabled: false,
+        loginCallbackUrl: null,
+      });
+    }
+    const config = (await providerFrom({
+      ...bindings,
+      OIDC_PROVIDER: JSON.stringify({ ...description, loginEnabled: true }),
+    }))!;
+    expect(config.digest).not.toBe(
+      '93d632f5ff5058de375808907d7ef87cbe583898687d3f2c7e749f97e880605e'
+    );
+    expect(publicProvider(config)).toMatchObject({
+      loginEnabled: true,
+      callbackUrl: 'https://test.local/api/auth/oidc/callback/company',
+      loginCallbackUrl:
+        'https://test.local/api/auth/oidc-sign-in/callback/company',
+    });
+    expect(JSON.stringify(publicProvider(config))).not.toMatch(/secret|digest/);
+    const local = (await providerFrom({
+      ...bindings,
+      BASE_URL: 'http://127.0.0.1:8080',
+      OIDC_PROVIDER: JSON.stringify({ ...description, loginEnabled: true }),
+    }))!;
+    expect(local.loginCallbackUrl).toBe(
+      'http://127.0.0.1:8080/api/auth/oidc-sign-in/callback/company'
+    );
+  });
+  it.each([null, 'true', 'false', 0, 1, {}, []])(
+    'loginEnabled拒绝非boolean %j',
+    async (loginEnabled) => {
+      const t = await fixture();
+      await expect(
+        providerFrom({
+          ...t.bindings,
+          OIDC_PROVIDER: JSON.stringify({ ...t.description, loginEnabled }),
+        })
+      ).rejects.toMatchObject({
+        code: 'OIDC_CONFIGURATION_INVALID',
+        status: 503,
+      });
+    }
+  );
+  it('旧绑定密文仍可读，显式link与默认用途相同，login相同AAD不能互解', async () => {
+    const bindings = {
+      ...env,
+      BASE_URL: 'http://test.local',
+      BETTER_AUTH_SECRET: 'state-compatibility-secret-no-real-environment',
+    };
+    const aad = 'legacy-action/user/session/provider';
+    const payload = { verifier: 'v'.repeat(43), nonce: 'n'.repeat(43) };
+    // Fixed IV fixture produced independently with the pre-SSO HKDF and AES-GCM AAD.
+    const legacy =
+      'v1.AAECAwQFBgcICQoL.yyDCF2fJk34d2feQkTJ3O_Cfd_R_ZjU5zXYjEQnFUBUbMFTq9W8n2mKI0-WbDBOjCSaB1SLucMZT6oJvsYrVmCs2goIrgv_TDli0fMm0oehcyanhUPVnDM_aC1L1dqKEUm_ZcnthrsFtShOJZ7a7snb23VTlQvLX85WLUZpBVVk';
+    expect(await openState(bindings, aad, legacy)).toEqual(payload);
+    expect(await openState(bindings, aad, legacy, 'link')).toEqual(payload);
+    await expect(
+      openState(bindings, aad, legacy, 'login')
+    ).rejects.toMatchObject({ code: 'OIDC_STATE_INVALID' });
+    const login = await sealState(bindings, aad, payload, 'login');
+    expect(await openState(bindings, aad, login, 'login')).toEqual(payload);
+    await expect(openState(bindings, aad, login)).rejects.toMatchObject({
+      code: 'OIDC_STATE_INVALID',
+    });
+    await expect(openState(bindings, aad, login, 'link')).rejects.toMatchObject(
+      { code: 'OIDC_STATE_INVALID' }
+    );
+    await expect(
+      openState(bindings, aad, login, 'unknown' as never)
+    ).rejects.toMatchObject({ code: 'OIDC_STATE_INVALID' });
+    await expect(
+      sealState(bindings, aad, payload, 'unknown' as never)
+    ).rejects.toMatchObject({ code: 'OIDC_STATE_UNAVAILABLE' });
   });
   it.each([
     'http://identity.example',
@@ -263,6 +362,109 @@ describe('OIDC 部署配置与状态加密', () => {
         sealed.slice(0, -2) + 'AA'
       )
     ).rejects.toBeInstanceOf(OidcError);
+  });
+});
+
+describe('OIDC 显式登录用途', () => {
+  it('未显式启用时在任何HTTP之前拒绝登录用途，绑定默认仍有效', async () => {
+    const t = await fixture();
+    await expect(
+      authorizationRequest(t.bindings, t.config, t.input, 'login')
+    ).rejects.toMatchObject({ code: 'OIDC_LOGIN_DISABLED' });
+    await expect(
+      exchangeIdentity(t.bindings, t.config, t.input, 'login')
+    ).rejects.toMatchObject({ code: 'OIDC_LOGIN_DISABLED' });
+    await expect(
+      authorizationRequest(t.bindings, t.config, t.input, 'unknown' as never)
+    ).rejects.toMatchObject({ code: 'OIDC_PURPOSE_INVALID' });
+    await expect(
+      exchangeIdentity(t.bindings, t.config, t.input, 'unknown' as never)
+    ).rejects.toMatchObject({ code: 'OIDC_PURPOSE_INVALID' });
+    expect(t.fetcher).not.toHaveBeenCalled();
+    expect(
+      new URL(
+        await authorizationRequest(t.bindings, t.config, t.input)
+      ).searchParams.get('redirect_uri')
+    ).toBe(t.config.callbackUrl);
+  });
+  it('两用途只复用完成metadata，授权与token交换分别使用固定同用途回调', async () => {
+    const t = await fixture(true);
+    for (const purpose of ['link', 'login'] as const) {
+      const callback =
+        purpose === 'login' ? t.config.loginCallbackUrl : t.config.callbackUrl;
+      const authorization = new URL(
+        await authorizationRequest(t.bindings, t.config, t.input, purpose)
+      );
+      expect(authorization.searchParams.get('redirect_uri')).toBe(callback);
+      expect(authorization.searchParams.get('code_challenge_method')).toBe(
+        'S256'
+      );
+      expect(authorization.searchParams.get('nonce')).toBe(t.input.nonce);
+      const result = await exchangeIdentity(
+        t.bindings,
+        t.config,
+        t.input,
+        purpose
+      );
+      expect(result.sub).toBe('stable-subject');
+      const token = t.requests
+        .filter((request) => request.url.endsWith('/token'))
+        .at(-1)!;
+      expect(
+        new URLSearchParams(String(token.init?.body)).get('redirect_uri')
+      ).toBe(callback);
+      expect(
+        new URLSearchParams(String(token.init?.body)).get('code_verifier')
+      ).toBe(t.input.verifier);
+    }
+    expect(
+      t.requests.filter((request) =>
+        request.url.endsWith('/.well-known/openid-configuration')
+      )
+    ).toHaveLength(1);
+  });
+  it.each(['exp', 'iat', 'nonce', 'issuer', 'azp', 'id-token'])(
+    '登录用途继续拒绝无效%s，不用userinfo替代',
+    async (invalid) => {
+      const t = await fixture(true);
+      if (invalid === 'exp' || invalid === 'iat') delete t.claims[invalid];
+      if (invalid === 'nonce') t.claims.nonce = 'wrong-nonce';
+      if (invalid === 'issuer') t.claims.iss = 'https://wrong.example';
+      if (invalid === 'azp') {
+        t.claims.aud = ['local-client', 'other'];
+        t.claims.azp = 'other';
+      }
+      if (invalid === 'id-token')
+        t.setResponse({ access_token: 'not-identity' });
+      await expect(
+        exchangeIdentity(t.bindings, t.config, t.input, 'login')
+      ).rejects.toMatchObject({
+        code:
+          invalid === 'id-token'
+            ? 'OIDC_ID_TOKEN_REQUIRED'
+            : 'OIDC_ID_TOKEN_INVALID',
+      });
+      expect(
+        t.requests.some((request) => request.url.includes('userinfo'))
+      ).toBe(false);
+    }
+  );
+  it('IdP的iat/auth_time/amr不返回成本地password或因素证明', async () => {
+    const t = await fixture(true);
+    Object.assign(t.claims, {
+      auth_time: 1,
+      amr: ['pwd', 'mfa'],
+      acr: 'external-level',
+    });
+    expect(
+      await exchangeIdentity(t.bindings, t.config, t.input, 'login')
+    ).toEqual({
+      issuer: t.issuer,
+      sub: 'stable-subject',
+      email: 'member@example.invalid',
+      name: 'Member',
+      expiresAt: (t.claims.exp as number) * 1000,
+    });
   });
 });
 

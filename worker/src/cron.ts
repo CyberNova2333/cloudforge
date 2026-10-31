@@ -9,6 +9,7 @@ import { schema } from './db/schema';
 import { syncUsageCron } from './usage/sync';
 import { deliverDueWebhooks } from './lib/webhooks';
 import { deliverNotificationEmails } from './lib/notification-email';
+import { cleanupOidcSignIn } from './oidc/sign-in';
 
 /** Usage & cost: pulls the previous days' Cloudflare analytics (02:30 UTC). */
 export const USAGE_SYNC_CRON = '30 2 * * *';
@@ -25,6 +26,9 @@ export async function runFrequentJobs(env: CloudflareBindings) {
   );
   await deliverNotificationEmails(env, db).catch((e: unknown) =>
     console.error('[cron] notification emails failed', e)
+  );
+  await cleanupOidcSignIn(env).catch((e: unknown) =>
+    console.error('[cron] OIDC sign-in cleanup failed', e)
   );
 }
 

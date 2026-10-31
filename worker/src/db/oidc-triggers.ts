@@ -14,6 +14,8 @@ BEGIN
   UPDATE oidc_link_actions SET status='cancelled',capability_hash=NULL,state_hash=NULL,cookie_hash=NULL,sealed=NULL,
     subject=NULL,email=NULL,name=NULL
     WHERE kind='link' AND status IN ('preview','await_callback','exchanging','candidate');
+  DELETE FROM sessions WHERE oidc_binding_id IS NOT NULL;
+  UPDATE oidc_login_actions SET status='cancelled',sealed=NULL,factor_secret=NULL WHERE status IN ('pending','exchanging','ready','enrollment_required');
 END`,
   },
   {
@@ -33,6 +35,8 @@ BEGIN
     subject=NULL,email=NULL,name=NULL
     WHERE user_id=OLD.user_id AND provider_id=OLD.provider_id AND kind='link'
       AND status IN ('preview','await_callback','exchanging','candidate');
+  DELETE FROM sessions WHERE oidc_binding_id=OLD.id;
+  UPDATE oidc_login_actions SET status='cancelled',sealed=NULL,factor_secret=NULL WHERE binding_id=OLD.id AND status IN ('pending','exchanging','ready','enrollment_required');
 END`,
   },
   {
@@ -55,13 +59,15 @@ BEGIN
   INSERT INTO oidc_providers (id,issuer,version,digest,created_at)
     VALUES (NEW.provider_id,NEW.issuer,NEW.provider_version,NEW.provider_digest,NEW.completed_at)
     ON CONFLICT(id) DO UPDATE SET version=excluded.version,digest=excluded.digest;
-  INSERT INTO oidc_configuration (id,enabled,provider_id,version,digest,generation,action_id,updated_at)
-    VALUES (1,1,NEW.provider_id,NEW.provider_version,NEW.provider_digest,NEW.configuration_generation+1,NEW.id,NEW.completed_at)
+  INSERT INTO oidc_configuration (id,enabled,login_enabled,provider_id,version,digest,generation,action_id,updated_at)
+    VALUES (1,1,NEW.login_enabled,NEW.provider_id,NEW.provider_version,NEW.provider_digest,NEW.configuration_generation+1,NEW.id,NEW.completed_at)
     ON CONFLICT(id) DO UPDATE SET provider_id=excluded.provider_id,version=excluded.version,digest=excluded.digest,
-      enabled=1,generation=excluded.generation,action_id=excluded.action_id,updated_at=excluded.updated_at
+      enabled=1,login_enabled=excluded.login_enabled,generation=excluded.generation,action_id=excluded.action_id,updated_at=excluded.updated_at
     WHERE oidc_configuration.generation=NEW.configuration_generation;
   SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM oidc_configuration WHERE action_id=NEW.id)
     THEN RAISE(ABORT, 'OIDC configuration changed') END;
+  DELETE FROM sessions WHERE oidc_binding_id IS NOT NULL;
+  UPDATE oidc_login_actions SET status='cancelled',sealed=NULL,factor_secret=NULL WHERE status IN ('pending','exchanging','ready','enrollment_required');
 END`,
   },
   {

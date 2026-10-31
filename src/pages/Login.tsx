@@ -11,6 +11,9 @@ import { t, tServer } from '@/lib/i18n';
 import { safeReturnTo } from '@/lib/returnTo';
 import { FactorCode } from '@/components/FactorCode';
 import { factorError } from '@/lib/twoFactor';
+import { nativeSignIn } from '@/lib/signInLock';
+import { loginReturnTo } from '@/lib/oidcSignInApi';
+import { OIDCSignInEntry } from '@/components/OIDCSignInEntry';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,9 +32,11 @@ export default function Login() {
   const [code, setCode] = useState('');
   const generation = useRef(0);
   const leaving = useRef(false);
+  const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     const clear = () => {
       generation.current++;
+      controller.current?.abort();
       leaving.current = false;
       setPassword('');
       setCode('');
@@ -42,6 +47,7 @@ export default function Login() {
     window.addEventListener('pagehide', clear);
     return () => {
       generation.current++;
+      controller.current?.abort();
       window.removeEventListener('pagehide', clear);
     };
   }, []);
@@ -86,40 +92,69 @@ export default function Login() {
     e.preventDefault();
     if (busy) return;
     const requestGeneration = generation.current;
+    const active = new AbortController();
+    controller.current = active;
     setBusy(true);
     setError(null);
     setUnverified(false);
     setResent(null);
     try {
       if (challenge) {
-        const res = recovery
-          ? await authClient.twoFactor.verifyBackupCode({
-              code: code.trim(),
-              trustDevice: false,
-            })
-          : await authClient.twoFactor.verifyTotp({
-              code: code.trim(),
-              trustDevice: false,
-            });
+        const res = await nativeSignIn(
+          async () =>
+            recovery
+              ? await authClient.twoFactor.verifyBackupCode(
+                  {
+                    code: code.trim(),
+                    trustDevice: false,
+                  },
+                  { signal: active.signal, customFetchImpl: fetch }
+                )
+              : await authClient.twoFactor.verifyTotp(
+                  {
+                    code: code.trim(),
+                    trustDevice: false,
+                  },
+                  { signal: active.signal, customFetchImpl: fetch }
+                ),
+          active.signal
+        );
         if (requestGeneration !== generation.current) return;
         setCode('');
         if (res.error) {
-          setError(factorError(res.error));
+          setError(
+            res.error.code?.startsWith('SIGN_IN_') ||
+              res.error.code === 'SESSION_CHANGED'
+              ? tServer(res.error.message ?? '')
+              : factorError(res.error)
+          );
           return;
         }
         await complete(res.data, requestGeneration);
         return;
       }
       const res = login.includes('@')
-        ? await signIn.email({ email: login, password })
-        : await signIn.username({ username: login, password });
+        ? await signIn.email(
+            { email: login, password },
+            { signal: active.signal }
+          )
+        : await signIn.username(
+            { username: login, password },
+            { signal: active.signal }
+          );
       if (requestGeneration !== generation.current) return;
       setPassword('');
       if (res.error) {
         if (res.error.code === 'EMAIL_NOT_VERIFIED') {
           setUnverified(true);
           setError(tServer(res.error.message ?? ''));
-        } else setError(t('Incorrect username or password.'));
+        } else
+          setError(
+            res.error.code?.startsWith('SIGN_IN_') ||
+              res.error.code === 'SESSION_CHANGED'
+              ? tServer(res.error.message ?? '')
+              : t('Incorrect username or password.')
+          );
         return;
       }
       // A correct password is not an authenticated login until the factor succeeds.
@@ -265,6 +300,7 @@ export default function Login() {
           {t('Sign in')}
         </PendingButton>
       </form>
+      <OIDCSignInEntry returnTo={loginReturnTo(window.location.search)} />
       {status.data?.passwordReset && (
         <p className="auth-foot">
           <Link to="/forgot-password">{t('Forgot password?')}</Link>

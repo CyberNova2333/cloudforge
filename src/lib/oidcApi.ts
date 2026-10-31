@@ -7,6 +7,8 @@ export type OidcProvider = {
   clientId: string;
   version: number;
   callbackUrl: string;
+  loginEnabled: boolean;
+  loginCallbackUrl: string | null;
 };
 export type OidcIdentity = {
   issuer: string;
@@ -31,6 +33,7 @@ export type OidcActive = {
   version: number;
   generation: number;
   enabled: boolean;
+  loginEnabled: boolean;
 };
 export type OidcAdminStatus = {
   sessionId: string;
@@ -85,7 +88,9 @@ export function sameOidcProvider(
     a.issuer === b.issuer &&
     a.clientId === b.clientId &&
     a.version === b.version &&
-    a.callbackUrl === b.callbackUrl
+    a.callbackUrl === b.callbackUrl &&
+    a.loginEnabled === b.loginEnabled &&
+    a.loginCallbackUrl === b.loginCallbackUrl
   );
 }
 
@@ -135,6 +140,7 @@ export function liveOidcRetirement(
     preview.active.issuer === active.issuer &&
     preview.active.version === active.version &&
     preview.active.generation === active.generation &&
+    preview.active.loginEnabled === active.loginEnabled &&
     typeof preview.previewId === 'string' &&
     !!preview.previewId &&
     typeof preview.digest === 'string' &&

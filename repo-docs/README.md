@@ -40,7 +40,7 @@ yarn typecheck
 - [既有总体架构](../docs/architecture.md)
 - [开发与完整验证](../docs/development.md)
 - [PR 审查与合并](../docs/auto-merge.md)
-- [OIDC 显式身份绑定](../docs/oidc.md)（管理员发布/停用配置、成员预览与二次确认；独立 SSO 登录仍待实现）
+- [OIDC 身份绑定与 SSO](../docs/oidc.md)（先显式绑定，再发布登录能力；本地 MFA、来源撤权及近期密码边界）
 
 独立网页构建会把文档目录之外的仓库链接显示为精确文件路径，避免产生失效跳转；原始 Markdown 仍保留可核对的源码链接。站点只发布指南，源码和本机资源不会随文档打包。
 

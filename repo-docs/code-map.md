@@ -68,9 +68,9 @@
 
 表中的测试名表示验证入口，不表示本轮已全部运行通过。新增数据库结构来自生成迁移 `0056`，迁移和部署分别授权与验证。
 
-## OIDC 显式绑定的修改路由
+## OIDC 绑定与 SSO 的修改路由
 
-完整行为见 [OIDC 显式身份绑定](../docs/oidc.md)。下表仅定位已实现绑定及配置发布，不扩展成完整登录体系；独立 SSO 登录仍待做。
+完整行为见 [OIDC 身份绑定与 SSO](../docs/oidc.md)。下表只定位显式绑定、配置发布、已有绑定登录及来源撤权，不扩展为整个认证目录调查。
 
 | 改动目标             | 入口及职责                                                                                                                                                                                                                                                   | 相关验证                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
@@ -79,7 +79,16 @@
 | 身份及配置原子约束   | [app.schema.ts](../worker/src/db/app.schema.ts) 与 [oidc-triggers.ts](../worker/src/db/oidc-triggers.ts) 声明不可转移身份、永久 registry、enabled 停用、退休摘要、确认触发器配置围栏及原子收据                                                               | 生成迁移 `0057`–`0059`；`oidc-linking.test.ts`             |
 | 预览与二次确认       | [OIDCIdentities.tsx](../src/components/OIDCIdentities.tsx)、[AdminOIDCProvider.tsx](../src/components/AdminOIDCProvider.tsx) 和 [useOidcMemory.ts](../src/lib/useOidcMemory.ts) 将候选限于原会话和组件内存；[oidcApi.ts](../src/lib/oidcApi.ts) 绑定请求会话 | `src/lib/oidcApi.test.ts`；真实组件浏览器 fixture 另行记录 |
 
-这里的路径与测试名是维护入口。验证数量和明确边界见专题；生产迁移、配置发布及部署分别核验。该绑定不写 SDK `accounts`、不签发登录会话。
+SSO 的两个额外修改入口：
+
+| 改动目标             | 入口及职责                                                                                                                                                                                                                                                                                    | 相关验证                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 匿名登录、因素及签发 | [sign-in.ts](../worker/src/oidc/sign-in.ts) 是自有原生插件，执行严格 Origin、候选、完成和 SDK cookie 桥；[oidc-sign-in-triggers.ts](../worker/src/db/oidc-sign-in-triggers.ts) 原子消费动作/因素并写来源和收据                                                                                | `oidc-sign-in.test.ts`；生成迁移 `0060`、`0061`                                            |
+| 会话来源及界面协调   | [assurance.ts](../worker/src/auth/assurance.ts)、[session.ts](../worker/src/auth/session.ts)、[two-factor.ts](../worker/src/auth/two-factor.ts) 保留并实时核对来源；[OIDCSignIn.tsx](../src/pages/OIDCSignIn.tsx) 只完成自己的候选，[signInLock.ts](../src/lib/signInLock.ts) 协调正常同源 UI | `oidc-session-source.test.ts`、`session-secret-cache.test.ts`、前端 API/锁与实际浏览器验证 |
+
+[session.ts](../worker/src/auth/session.ts) 的签名 memo 仅省 HMAC，不省活 D1 读取；缓存键绑定当前 secret 指纹与原始 cookie，避免 Cloudflare 仅改 bindings 而复用 isolate 时借用旧验签。该密钥轮换边界由 `session-secret-cache.test.ts` 约束，不把 TTL 当作撤权保证。
+
+这里的路径与测试名是维护入口。验证数量和明确边界见专题；生产迁移、配置发布及部署分别核验。绑定不写 SDK `accounts`、不签发登录会话；独立 SSO 插件通过最终 D1 围栏后才使用 SDK cookie helper。
 
 ## 覆盖范围
 

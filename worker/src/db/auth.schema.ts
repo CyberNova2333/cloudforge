@@ -47,6 +47,9 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
+    oidcBindingId: text('oidc_binding_id'),
+    oidcBindingRevision: integer('oidc_binding_revision'),
+    oidcConfigurationGeneration: integer('oidc_configuration_generation'),
     policyVersion: integer('policy_version').default(0).notNull(),
     authVersion: integer('auth_version').default(0).notNull(),
     authMethod: text('auth_method'),
@@ -55,7 +58,10 @@ export const sessions = sqliteTable(
     secondFactorTime: integer('second_factor_time', { mode: 'timestamp_ms' }),
     mfaVerifiedAt: integer('mfa_verified_at', { mode: 'timestamp_ms' }),
   },
-  (table) => [index('sessions_userId_idx').on(table.userId)]
+  (table) => [
+    index('sessions_userId_idx').on(table.userId),
+    index('sessions_oidcBindingId_idx').on(table.oidcBindingId),
+  ]
 );
 
 export const accounts = sqliteTable(
