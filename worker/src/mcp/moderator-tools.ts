@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { approvePull } from '../review/approvals';
 import {
   DECISION_REASON_MAX,
@@ -53,7 +55,7 @@ async function moderatedPull(
   const moderator = moderatorOf(ctx);
   const { repo, fullName, perms, git } = await repoFor(ctx, args);
   // The same permission as the web's approve and dismiss: merge (push) access.
-  if (!perms.write)
+  if (!can(perms, 'managePulls'))
     throw new McpToolError(
       `You don't have permission to ${verb} in ${fullName}.`
     );

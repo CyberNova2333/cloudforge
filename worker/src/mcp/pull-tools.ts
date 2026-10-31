@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, asc, desc, eq } from 'drizzle-orm';
+import { can } from '../lib/repo-permissions';
 import {
   prEvents,
   pullRequestComments,
@@ -120,7 +121,7 @@ export async function repoFor(ctx: ToolContext, args: Record<string, unknown>) {
   const found = await findRepo(ctx.db, owner, name);
   if (!found) throw notFound;
   const perms = await permissionsFor(ctx.db, found.repo, ctx.user);
-  if (!perms.read) throw notFound;
+  if (!can(perms, 'read')) throw notFound;
   const fullNameCanonical = `${found.namespace.username}/${found.repo.name}`;
   return {
     repo: found.repo,
@@ -630,7 +631,7 @@ const getPullRequest: ToolModule = {
             body: x.body,
             created_at: x.createdAt.toISOString(),
           })),
-          can_merge: perms.write,
+          can_merge: can(perms, 'managePulls'),
           url: pullUrl(ctx, fullName, pr.number),
         }),
       ],
@@ -700,7 +701,7 @@ const createPullRequest: ToolModule = {
   },
   handler: async (args, ctx) => {
     const { repo, git, fullName, perms } = await repoFor(ctx, args);
-    if (!perms.write)
+    if (!can(perms, 'managePulls'))
       throw new McpToolError(`You don't have push access to ${fullName}.`);
     // Checked before anything is opened: a refused call leaves no pull request behind.
     const sessionLabel = optionalText(args, 'session', SESSION_MAX, true);
@@ -815,7 +816,7 @@ const mergePullRequest: ToolModule = {
   },
   handler: async (args, ctx) => {
     const { repo, git, fullName, perms } = await repoFor(ctx, args);
-    if (!perms.write)
+    if (!can(perms, 'managePulls'))
       throw new McpToolError(
         `You don't have permission to merge in ${fullName}.`
       );
@@ -876,7 +877,7 @@ const retryRebaseTool: ToolModule = {
   handler: async (args, ctx) => {
     const { repo, git, fullName, perms } = await repoFor(ctx, args);
     // The same check as the web UI (merge permission).
-    if (!perms.write)
+    if (!can(perms, 'managePulls'))
       throw new McpToolError(
         `You don't have permission to rebase pull requests in ${fullName}.`
       );
@@ -920,7 +921,7 @@ const rerunChecksTool: ToolModule = {
   handler: async (args, ctx) => {
     const { repo, git, fullName, perms } = await repoFor(ctx, args);
     // The same check as the re-run route.
-    if (!perms.write)
+    if (!can(perms, 'runActions'))
       throw new McpToolError(
         `You don't have permission to re-run checks in ${fullName}.`
       );
@@ -1154,7 +1155,7 @@ async function decideFlagTool(
 ) {
   const { repo, fullName, perms } = await repoFor(ctx, args);
   // The same check as the web UI.
-  if (!perms.write)
+  if (!can(perms, 'managePulls'))
     throw new McpToolError(
       `You don't have permission to review flags in ${fullName}.`
     );

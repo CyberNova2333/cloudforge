@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -101,7 +102,7 @@ async function authorCanPush(
     findRepoById(db, pr.repositoryId),
   ]);
   if (!author || !found) return false;
-  return (await permissionsFor(db, found.repo, author)).write;
+  return can(await permissionsFor(db, found.repo, author), 'push');
 }
 
 /** Merges a pull request if ready. Failures are logged; a lost race waits for the next trigger. */

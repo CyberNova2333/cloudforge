@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 // Issues over MCP (docs/issues.md), with the web's permissions: readers list, read, open and comment; the author or
 // someone with push access edits, closes and reopens; push access sets labels and assignees.
 import { asc, eq } from 'drizzle-orm';
@@ -285,7 +287,7 @@ const createIssueTool: ToolModule = {
     const body = limited(args, 'body', ISSUE_BODY_MAX) ?? '';
     const labelNames = names(args, 'labels', MAX_ISSUE_LABELS) ?? [];
     const usernames = names(args, 'assignees', MAX_ISSUE_ASSIGNEES) ?? [];
-    if ((labelNames.length || usernames.length) && !perms.write)
+    if ((labelNames.length || usernames.length) && !can(perms, 'manageIssues'))
       throw new McpToolError(
         `You don't have push access to ${fullName}, so you can't set labels or assignees. Open the issue without them.`
       );
@@ -345,7 +347,7 @@ const updateIssueTool: ToolModule = {
   handler: async (args, ctx) => {
     const { repo, perms, fullName } = await issuesRepo(ctx, args);
     const issue = await issueFor(ctx, repo.id, fullName, prNumber(args));
-    if (!perms.write && issue.authorId !== ctx.user.id)
+    if (!can(perms, 'manageIssues') && issue.authorId !== ctx.user.id)
       throw new McpToolError(
         `Only its author or people with push access to ${fullName} can change issue #${issue.number}.`
       );
@@ -366,7 +368,7 @@ const updateIssueTool: ToolModule = {
       throw new McpToolError('state_reason must be completed or not_planned.');
     const labelNames = names(args, 'labels', MAX_ISSUE_LABELS);
     const usernames = names(args, 'assignees', MAX_ISSUE_ASSIGNEES);
-    if ((labelNames || usernames) && !perms.write)
+    if ((labelNames || usernames) && !can(perms, 'manageIssues'))
       throw new McpToolError(
         `You don't have push access to ${fullName}, so you can't set labels or assignees.`
       );

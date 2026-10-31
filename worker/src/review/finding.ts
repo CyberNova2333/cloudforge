@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { and, eq, sql } from 'drizzle-orm';
 import { agentColor } from '../agents/presets';
 import {
@@ -59,7 +60,7 @@ export async function findingDetail(
   const found = await findRepoById(db, row.pr.repositoryId);
   if (!found) return null;
   const perms = await permissionsFor(db, found.repo, user);
-  if (!perms.read) return null;
+  if (!can(perms, 'read')) return null;
   const { flag: f, pr, agent } = row;
   const handle = row.handle ?? f.agentId ?? 'agent';
   const [refs, tip, history, delegation] = await Promise.all([
@@ -103,7 +104,7 @@ export async function findingDetail(
   const deciderId = approved ? f.approvedById : f.changesRequestedById;
   const guarded = agent?.guarded ?? false;
   const open = pr.state === 'open';
-  const write = perms.write && open;
+  const write = can(perms, 'managePulls') && open;
   return {
     id: f.id,
     kind: f.kind,

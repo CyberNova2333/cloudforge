@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Notifications (docs/notifications.md): who hears about an event on an issue or pull request, and their inbox rows.
 // One event writes every recipient's row in one statement; the email it owes is sent afterwards
 // (lib/notification-email.ts). Never throws: a notification that cannot be written is logged and the change it
@@ -23,7 +24,7 @@ import { emailConfigured } from './email';
 import { deliverNotificationEmails } from './notification-email';
 import { emitThreadEvent } from './webhook-events';
 import { mentionedUsernames } from './mentions';
-import { readableByMembers } from './repos';
+import { can, permissionsOf } from './repo-permissions';
 import { inJsonArray } from './sql-set';
 
 /** What a notification is about: an issue or a pull request of a repository. */
@@ -126,10 +127,7 @@ export async function readersAmong(
       read:
         !r.banned &&
         !r.agent &&
-        (r.role === 'admin' ||
-          r.id === repo.ownerId ||
-          !!r.collaborator ||
-          readableByMembers(repo)),
+        can(permissionsOf(repo, r, !!r.collaborator), 'read'),
       email: !!r.verified,
     });
   return out;

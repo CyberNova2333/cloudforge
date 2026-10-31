@@ -22,11 +22,25 @@
 | 其他有效实例成员           | 团队、internal、public 仓库 | 拒绝           | 拒绝     |
 | 匿名或封禁成员             | 仅 public 仓库              | 拒绝           | 拒绝     |
 
-[仓库权限实现](../worker/src/lib/repos.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者声明只有仓库/成员联合键和创建时间，没有 role 列；旧记录一律提供 write，未来不能虚构其原先具有 read/admin 等级。
+[仓库权限入口](../worker/src/lib/repos.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合；单项、批量与通知候选复用[权限兼容内核](../worker/src/lib/repo-permissions.ts)的 `permissionsOf` 规则。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者声明只有仓库/成员联合键和创建时间，没有 role 列；旧记录一律提供 write，未来不能虚构其原先具有 read/admin 等级。
 
 Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集；read scope 不因签发者是管理员而变成写。仓库部署令牌有独立身份，只能用于其不可变仓库 id 的 Git/LFS，签发者仍须是有效管理员，不能继承 REST/MCP 或受保护引用权限。具体限制见[部署令牌](deploy-tokens.md)。
 
 默认及受保护分支继续只接受管理员快进，禁止删除/强推；内部 pull refs 禁外写。仓库写权限不跳过合并门禁、作者自批限制、Agent 邀请、guarded 人类逐项决策或代决规则。MCP Moderator 每次检查当前 consent 与真实审批权限，只能处理仍被允许委派的未决事项，见[自动合并](auto-merge.md)。
+
+## 阶段 A：命名能力兼容层
+
+当前已增加内部 `can(perms, capability)`。调用方声明要做什么，再由兼容内核映射到原 read/write/admin；返回给现有客户端的三个布尔值不增加字段。此阶段不接受新的角色输入，不新增团队成员表或权限迁移。
+
+| 当前门槛 | 内部操作能力                                                                                                                                                                 | 既有额外约束                                                                    |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| read     | read                                                                                                                                                                         | 私有仓库不可见统一404；列表与通知使用同一可读集合。                             |
+| write    | push、manageIssues、editPullMetadata、managePulls、runActions、publishStatus、publishRelease                                                                                 | 作者例外、PR状态/审查、MCP Moderator与提交状态入口限制仍分别检查。              |
+| admin    | editSettings、manageProtection、manageAccess、manageAgents、manageWebhooks、manageActionsSecrets、manageActionsVariables、manageDeployTokens、deleteRepository、deleteIssues | 不等于站点管理员；近期证明、默认/保护分支规则、专用部署令牌写点不由能力名替代。 |
+
+例如普通协作者仍能维护 Issue、推送普通分支及运行 Actions，却不能因为出现 `editSettings` 能力名而修改仓库设置。read scope 通过共用 `withTokenScope` 去除 write/admin，再求所有命名能力，因此管理员签发的只读成员令牌也不能借新名称写入。部署令牌继续走独立的签发者/仓库/引用检查，不经这一成员 scope helper 变成可登录身份。
+
+本阶段保留 SQL `visibleTo` 的既有公式，用真实 D1 差分校验它与单项/批量的可读集合；没有为统一命名引入逐对象权限查询、跨请求角色缓存或自动刷新旧令牌权限。公共读取、internal 实例成员读取及团队创建者权限保持不变。新的 triage/maintain 只有后续模型、接口及发布围栏就绪后才可授予，不能仅修改这里的映射表提前启用。
 
 ## 账户资料和管理边界
 
@@ -38,6 +52,6 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 
 ## 后续实施顺序
 
-先按[设计草案](team-access-design.md)核对旧权限集合与能力矩阵，再实现统一能力求值、声明生成的兼容迁移、显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
+阶段 A 已实现内部兼容求值和现有入口的命名能力接入，保持旧权限结果。后续按[设计草案](team-access-design.md)先做迁移预检和声明生成的兼容数据，再实现显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
 
-当前测试入口为 `teams-visibility.test.ts`、`public-repos.test.ts`、`repos-pulls.test.ts` 和 `commit-emails.test.ts`；列出文件不表示本页完成全项目或生产验收。需要定位权限职责时从[源码代码地图](../repo-docs/code-map.md)继续，实际运行命令与完成标准见[开发说明](development.md)。
+当前测试入口为 `repo-permissions.test.ts`、`teams-visibility.test.ts`、`public-repos.test.ts`、`repos-pulls.test.ts` 和 `commit-emails.test.ts`；列出文件不表示本页完成全项目或生产验收。需要定位权限职责时从[源码代码地图](../repo-docs/code-map.md)继续，实际运行命令与完成标准见[开发说明](development.md)。

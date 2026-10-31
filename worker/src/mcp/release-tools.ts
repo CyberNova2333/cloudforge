@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { cutRelease, listReleases, unreleased } from '../lib/releases';
 import { publishChange } from '../live/publish';
 import { McpToolError } from './errors';
@@ -97,7 +99,7 @@ const createRelease: ToolModule = {
   },
   handler: async (args, ctx) => {
     const { repo, fullName, perms } = await repoFor(ctx, args);
-    if (!perms.write)
+    if (!can(perms, 'publishRelease'))
       throw new McpToolError(
         `You don't have push access to ${fullName}, so you can't cut a release.`
       );

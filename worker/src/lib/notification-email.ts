@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from './repo-permissions';
 // The emails notifications owe (docs/notifications.md): a row's `email_pending_at` is cleared before its email goes
 // out, so a retry never sends it twice (a send that fails after that is lost, never duplicated). Rows waiting longer
 // than a day are dropped rather than sent late.
@@ -150,7 +152,7 @@ export async function deliverNotificationEmails(
     if (
       r.agent ||
       r.recipient.banned ||
-      !(await permissionsFor(db, found.repo, r.recipient)).read ||
+      !can(await permissionsFor(db, found.repo, r.recipient), 'read') ||
       r.emailChoice === 'off' ||
       (r.emailChoice !== 'all' && r.n.reason === 'watching') ||
       r.watch === 'ignoring' ||

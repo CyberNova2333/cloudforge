@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { requireAdmin } from '../auth/guards';
 import {
@@ -201,7 +203,13 @@ for (const [path, kind] of KINDS) {
       },
     }),
     async (c) => {
-      if (!c.get('perms').admin) return c.json({ error: NOT_ADMIN }, 403);
+      if (
+        !can(
+          c.get('perms'),
+          kind === 'secret' ? 'manageActionsSecrets' : 'manageActionsVariables'
+        )
+      )
+        return c.json({ error: NOT_ADMIN }, 403);
       return c.json(
         await listBody(c.env, c.get('db'), c.get('repo').id, kind),
         200
@@ -231,7 +239,13 @@ for (const [path, kind] of KINDS) {
       },
     }),
     async (c) => {
-      if (!c.get('perms').admin) return c.json({ error: NOT_ADMIN }, 403);
+      if (
+        !can(
+          c.get('perms'),
+          kind === 'secret' ? 'manageActionsSecrets' : 'manageActionsVariables'
+        )
+      )
+        return c.json({ error: NOT_ADMIN }, 403);
       const repo = c.get('repo');
       const user = c.get('user')!;
       const r = await save(c.env, c.get('db'), {
@@ -267,7 +281,13 @@ for (const [path, kind] of KINDS) {
       },
     }),
     async (c) => {
-      if (!c.get('perms').admin) return c.json({ error: NOT_ADMIN }, 403);
+      if (
+        !can(
+          c.get('perms'),
+          kind === 'secret' ? 'manageActionsSecrets' : 'manageActionsVariables'
+        )
+      )
+        return c.json({ error: NOT_ADMIN }, 403);
       const repo = c.get('repo');
       const name = normalizeName(c.req.valid('param').name);
       if (!(await deleteVariable(c.get('db'), repo.id, kind, name)))

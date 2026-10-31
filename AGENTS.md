@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | SPA 与样式 | `src/lib/theme.ts`、`index.html`、`public/_headers`、`src/lib/csp.test.ts` | 登录后路由在 AppShell 内；Primer 读取同一 tokens。主题启动逻辑与 rootAttributes 同步，变更内联脚本时同步 CSP 哈希。用户 Markdown 清洗不允许样式、表单或应用类名。 |
 | 存储与 Git | [架构](docs/architecture.md)、`worker/src/git-http.ts`、`worker/src/git/service.ts` | D1 只存元数据；对象/ref 在 Artifacts。仓库名绑定不可变 repository id。短期仓库令牌不离开 Worker；推送成功引用在回复前写 push_events。 |
-| 引用与权限 | `worker/src/lib/repos.ts`、`worker/src/git/push-protection.ts` | permissionsFor 与 visibleTo 必须一致；团队仓库默认 internal；仓库管理员可明确设为 public，禁止设为 private。默认/保护分支只收管理员 fast-forward，禁止删除/强推；内部 pull refs 禁外部写。内部分支用 resolveBranch 精确 heads 查找，固定 pull refs 用完整 ref；泛用 resolve 仅给用户 ref/SHA。用户名/团队 slug 共享命名空间。 |
+| 引用与权限 | `worker/src/lib/repo-permissions.ts`、`worker/src/lib/repos.ts`、`worker/src/git/push-protection.ts` | 操作门槛用 can 的具体能力，成员 scope 用 withTokenScope；当前仅映射原 read/write/admin，不据能力名提前授予新角色。permissionsFor 与 visibleTo 必须一致；团队仓库默认 internal；仓库管理员可明确设为 public，禁止设为 private。默认/保护分支只收管理员 fast-forward，禁止删除/强推；内部 pull refs 禁外部写。内部分支用 resolveBranch 精确 heads 查找，固定 pull refs 用完整 ref；泛用 resolve 仅给用户 ref/SHA。用户名/团队 slug 共享命名空间。 |
 | 部署凭据 | [部署令牌](docs/deploy-tokens.md) | 仅 Git/LFS、绑定不可变仓库、默认只读，1–366 天、每仓原子限制 50 个，只存 SHA256，明文只返回一次且 no-store。每次检查签发者仍未封禁且是管理员；不继承用户或 REST/MCP 身份。先由管理员初始化默认分支，禁止默认/保护/内部引用；actor 为 null 并审计系统动作。 |
 | 成员 PAT / 作者归属 | `worker/src/git-http.ts`、`worker/src/lib/commit-authors.ts` | PAT 每成员至多 50 个未过期，使用条件 INSERT 防并发；过期不占额度。作者匹配只认已验证邮箱/备用邮箱并按响应批量查询，禁止逐 commit 查询。 |
 | Git LFS | `worker/src/lfs-http.ts`、`worker/src/lib/lfs.ts` | 与 Git 共用鉴权；字节经预签名 URL 在客户端/R2 间传输；D1 仅存裸对象 key，每仓独立且随仓删除。 |

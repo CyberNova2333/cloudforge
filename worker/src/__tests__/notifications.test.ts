@@ -1,5 +1,14 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
+import {
+  agents,
+  repositories,
+  repositoryCollaborators,
+} from '../db/app.schema';
+import { users } from '../db/auth.schema';
+import { readersAmong } from '../lib/notifications';
 import {
   addMember,
   bootstrapAdmin,
@@ -73,6 +82,79 @@ const comment = (t: TestEnv, cookie: string, n: number, body: string) =>
   call(t, `${base}/issues/${n}/comments`, { cookie, json: { body } });
 
 describe('通知：谁会收到', () => {
+  it('通知候选跟随即时仓库读取权限，封禁与Agent不因公开或管理员身份收信', async () => {
+    const { t, admin } = await world('private');
+    const db = drizzle(t.env.DB, { schema });
+    const people = await db.select().from(users).all();
+    const bob = people.find((person) => person.username === 'bob')!;
+    const carol = people.find((person) => person.username === 'carol')!;
+    const owner = people.find((person) => person.username === 'octocat')!;
+    const blocked = {
+      ...carol,
+      id: crypto.randomUUID(),
+      username: 'blocked',
+      email: 'blocked@example.com',
+      role: 'admin',
+      banned: true,
+    };
+    const agent = {
+      ...carol,
+      id: crypto.randomUUID(),
+      username: 'reviewer',
+      email: 'reviewer@agent.invalid',
+      role: 'admin',
+    };
+    await db.insert(users).values([blocked, agent]);
+    await db.insert(agents).values({
+      userId: agent.id,
+      name: 'Reviewer',
+      triggerAsk: 'Review?',
+      triggerAbove: 0.5,
+      createdAt: new Date(),
+    });
+    expect(
+      (
+        await call(t, `${base}/collaborators/bob`, {
+          cookie: admin,
+          method: 'PUT',
+        })
+      ).status
+    ).toBe(200);
+    let repo = (await db.select().from(repositories).get())!;
+    const ids = [owner.id, bob.id, carol.id, blocked.id, agent.id, 'missing'];
+    const candidates = async () => readersAmong(db, repo, ids);
+    const first = await candidates();
+    expect(
+      [...first]
+        .filter(([, person]) => person.read)
+        .map(([id]) => id)
+        .sort()
+    ).toEqual([owner.id, bob.id].sort());
+    expect(first.has('missing')).toBe(false);
+    await db
+      .delete(repositoryCollaborators)
+      .where(eq(repositoryCollaborators.userId, bob.id));
+    expect((await candidates()).get(bob.id)?.read).toBe(false);
+    await db
+      .update(repositories)
+      .set({ visibility: 'public' })
+      .where(eq(repositories.id, repo.id));
+    repo = (await db.select().from(repositories).get())!;
+    const published = await candidates();
+    expect(published.get(carol.id)?.read).toBe(true);
+    expect(published.get(blocked.id)?.read).toBe(false);
+    expect(published.get(agent.id)?.read).toBe(false);
+    await db
+      .update(repositories)
+      .set({ visibility: 'private' })
+      .where(eq(repositories.id, repo.id));
+    repo = (await db.select().from(repositories).get())!;
+    await db.update(users).set({ role: 'admin' }).where(eq(users.id, bob.id));
+    expect((await candidates()).get(bob.id)?.read).toBe(true);
+    await db.update(users).set({ banned: true }).where(eq(users.id, bob.id));
+    expect((await candidates()).get(bob.id)?.read).toBe(false);
+  });
+
   it('作者和参与者收到评论；@ 提及的人收到并订阅；行动者自己不收到', async () => {
     const { t, admin, bob, carol } = await world();
     const n = await openIssue(t, admin, { title: 'Crash', body: 'It breaks' });

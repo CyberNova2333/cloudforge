@@ -14,6 +14,19 @@ import { ArtifactsRepoClient } from '../git/remote';
 import { GitService } from '../git/service';
 import type { AppEnv, SessionUser } from '../variables';
 import { inJsonArray } from './sql-set';
+import {
+  can,
+  needsCollaboration,
+  permissionsOf,
+  withTokenScope,
+  type RepoPermissions,
+} from './repo-permissions';
+
+export {
+  isPublic,
+  readableByMembers,
+  type RepoPermissions,
+} from './repo-permissions';
 
 export const REPO_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 
@@ -140,12 +153,6 @@ export async function findReposByIds(db: DrizzleDB, ids: string[]) {
 
 export type FoundRepo = NonNullable<Awaited<ReturnType<typeof findRepoById>>>;
 
-export interface RepoPermissions {
-  read: boolean;
-  write: boolean;
-  admin: boolean;
-}
-
 /**
  * Admins and owner/creator: everything. Collaborators: read and push. Other members: read team,
  * internal and public repos only. No account: read public repos only. Must agree with `visibleTo`.
@@ -208,37 +215,6 @@ export async function permissionsForMany(
   );
 }
 
-/** Whether `user`'s access to `repo` depends on being a collaborator. */
-function needsCollaboration(repo: Repository, user: SessionUser) {
-  return user.role !== 'admin' && repo.ownerId !== user.id;
-}
-
-/** The permission rule itself, given whether the user collaborates on the repository. */
-function permissionsOf(
-  repo: Repository,
-  user: SessionUser | undefined,
-  collaborator: boolean
-): RepoPermissions {
-  if (!user || user.banned)
-    return { read: isPublic(repo), write: false, admin: false };
-  if (!needsCollaboration(repo, user))
-    return { read: true, write: true, admin: true };
-  if (collaborator) return { read: true, write: true, admin: false };
-  return { read: readableByMembers(repo), write: false, admin: false };
-}
-
-/** Whether anyone, signed in or not, can read `repo`. */
-export const isPublic = (repo: Pick<Repository, 'visibility'>) =>
-  repo.visibility === 'public';
-
-/** Whether every member can read `repo`: team, internal and public repositories (not a private personal one). */
-export const readableByMembers = (
-  repo: Pick<Repository, 'teamId' | 'visibility'>
-) =>
-  repo.teamId !== null ||
-  repo.visibility === 'internal' ||
-  repo.visibility === 'public';
-
 /** SQL filter for listings; mirrors permissionsFor's read rule. No user: public repositories only. */
 export function visibleTo(user: SessionUser | undefined): SQL | undefined {
   if (!user || user.banned) return eq(repositories.visibility, 'public');
@@ -279,12 +255,9 @@ export const loadRepo: MiddlewareHandler<RepoEnv> = async (c, next) => {
   const found = await findRepo(c.get('db'), owner, name);
   if (!found) return c.json({ error: 'Not Found' }, 404);
   const full = await permissionsFor(c.get('db'), found.repo, c.get('user'));
-  if (!full.read) return c.json({ error: 'Not Found' }, 404);
+  if (!can(full, 'read')) return c.json({ error: 'Not Found' }, 404);
   // A read-only token reads whatever its member may, and changes nothing.
-  const perms =
-    c.get('tokenScope') === 'read'
-      ? { ...full, write: false, admin: false }
-      : full;
+  const perms = withTokenScope(full, c.get('tokenScope'));
   c.set('repo', found.repo);
   c.set('repoOwner', found.owner);
   c.set('namespace', found.namespace);

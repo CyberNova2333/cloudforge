@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { requireAdmin } from '../auth/guards';
@@ -464,7 +465,8 @@ const inviteRoute = createRoute({
   },
 });
 repoAgentsRouter.openapi(inviteRoute, async (c) => {
-  if (!c.get('perms').admin) return c.json({ error: ADMIN_ONLY }, 403);
+  if (!can(c.get('perms'), 'manageAgents'))
+    return c.json({ error: ADMIN_ONLY }, 403);
   const result = await inviteAgent(
     c.get('db'),
     c.get('repo').id,
@@ -487,7 +489,8 @@ const removeRoute = createRoute({
   },
 });
 repoAgentsRouter.openapi(removeRoute, async (c) => {
-  if (!c.get('perms').admin) return c.json({ error: ADMIN_ONLY }, 403);
+  if (!can(c.get('perms'), 'manageAgents'))
+    return c.json({ error: ADMIN_ONLY }, 403);
   const result = await removeAgent(
     c.env,
     c.get('db'),

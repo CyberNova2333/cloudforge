@@ -325,6 +325,7 @@ jobs:
           worker/src/__tests__/setup-invites.test.ts
           worker/src/__tests__/invitation-concurrency.test.ts
           worker/src/__tests__/teams-visibility.test.ts
+          worker/src/__tests__/repo-permissions.test.ts
           worker/src/__tests__/admin-setup.test.ts
           worker/src/__tests__/settings.test.ts
           worker/src/__tests__/commit-emails.test.ts

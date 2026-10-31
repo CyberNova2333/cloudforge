@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { DrizzleDB } from '../db/middleware';
@@ -137,7 +139,7 @@ export async function approvalsFor(
       repos.set(repoId, {
         repo: f.repo,
         fullName: `${f.namespace.username}/${f.repo.name}`,
-        canMerge: perms.get(repoId)!.write,
+        canMerge: can(perms.get(repoId)!, 'managePulls'),
       });
   }
   const openIds = new Set(open.map((p) => p.id));

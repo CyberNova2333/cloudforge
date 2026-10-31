@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 import { and, eq, exists, isNull, or } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
@@ -450,7 +451,7 @@ export async function assignFlag(
         status: 422,
         error: 'Reviewer agents raise findings: ask a person to decide them.',
       };
-    if (!(await permissionsFor(db, repo.repo, user)).write)
+    if (!can(await permissionsFor(db, repo.repo, user), 'managePulls'))
       return {
         ok: false,
         status: 422,

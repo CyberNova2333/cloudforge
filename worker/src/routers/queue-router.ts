@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Context } from 'hono';
 import { liveFeed } from '../lib/live-feed';
@@ -131,7 +132,7 @@ const pauseRoute = createRoute({
   responses: pauseResponses,
 });
 queueRouter.openapi(pauseRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have push access' }, 403);
   // The body is optional.
   const body = (c.req.valid('json') ?? {}) as { reason?: string };
@@ -159,7 +160,7 @@ const resumeRoute = createRoute({
   responses: pauseResponses,
 });
 queueRouter.openapi(resumeRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'managePulls'))
     return c.json({ error: 'You do not have push access' }, 403);
   const paused = await setMergingPaused({
     env: c.env,

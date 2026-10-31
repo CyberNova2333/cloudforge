@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import type { Handler } from 'hono';
 import type { AppEnv } from '../variables';
 import { findRepo, permissionsFor } from '../lib/repos';
@@ -27,7 +28,7 @@ export const liveSocket: Handler<AppEnv> = async (c) => {
       owner && name ? await findRepo(c.get('db'), owner, name) : null;
     if (!found) return c.json({ error: 'Not Found' }, 404);
     const perms = await permissionsFor(c.get('db'), found.repo, c.get('user'));
-    if (!perms.read) return c.json({ error: 'Not Found' }, 404);
+    if (!can(perms, 'read')) return c.json({ error: 'Not Found' }, 404);
     channels.push(repoChannel(found.repo.id));
   }
   return connectLive(c.env, c.req.raw, channels);

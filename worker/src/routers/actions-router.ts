@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../lib/repo-permissions';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import {
@@ -487,7 +488,7 @@ const deleteArtifactRoute = createRoute({
   },
 });
 actionsRouter.openapi(deleteArtifactRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'runActions'))
     return c.json(
       { error: 'You do not have permission to delete artifacts' },
       403
@@ -525,7 +526,7 @@ const cancelRoute = createRoute({
   },
 });
 actionsRouter.openapi(cancelRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'runActions'))
     return c.json({ error: 'You do not have permission to cancel runs' }, 403);
   const db = c.get('db');
   const run = await getRun(c, c.req.valid('param').number);
@@ -549,7 +550,7 @@ const rerunRoute = createRoute({
   },
 });
 actionsRouter.openapi(rerunRoute, async (c) => {
-  if (!c.get('perms').write)
+  if (!can(c.get('perms'), 'runActions'))
     return c.json({ error: 'You do not have permission to re-run runs' }, 403);
   if (!actionsConfigured(c.env))
     return c.json({ error: 'Actions is not set up on this server' }, 400);
