@@ -1,0 +1,18 @@
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+FROM mcr.microsoft.com/playwright:v1.52.0-jammy
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV NODE_PATH=/opt/playwright/node_modules
+ENV PATH="/opt/playwright/node_modules/.bin:${PATH}"
+
+RUN mkdir -p /opt/playwright && \
+    cd /opt/playwright && \
+    npm init -y && \
+    npm install --no-audit --no-fund @playwright/test@1.52.0 @axe-core/playwright@4.10.2 axe-core@4.10.2
+
+RUN printf '#!/usr/bin/env bash\nset -e\nif [ -d /work/node_modules ]; then\n  for pkg in "@playwright" "playwright" "playwright-core" "@axe-core" "axe-core"; do\n    if [ ! -e "/work/node_modules/${pkg}" ] && [ -e "/opt/playwright/node_modules/${pkg}" ]; then\n      ln -s "/opt/playwright/node_modules/${pkg}" "/work/node_modules/${pkg}" || true\n    fi\n  done\nfi\nexec "$@"\n' > /usr/local/bin/playwright-entrypoint.sh && \
+    chmod +x /usr/local/bin/playwright-entrypoint.sh
+
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/playwright-entrypoint.sh"]
+CMD ["playwright", "test"]
