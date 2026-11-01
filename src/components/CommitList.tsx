@@ -33,7 +33,6 @@ function CommitRow({
           <Link to={`${base}/commit/${c.hash}`} className="cl-subj">
             {message.subject}
           </Link>
-          {repo && <ChecksBadge repo={repo} checks={checks} />}
           {more && (
             <button
               type="button"
@@ -52,7 +51,7 @@ function CommitRow({
         </div>
         {expanded && <CommitBody message={message} />}
         <p className="cl-by small muted">
-          <CommitAuthor commit={c} size={16} repo={repo} />
+          <CommitAuthor commit={c} size={20} repo={repo} />
           <CoAuthored trailers={message.trailers} />
           <span className="no-wrap">
             {t('committed {when}', { when: timeAgo(c.committedAt) })}
@@ -60,21 +59,24 @@ function CommitRow({
         </p>
       </div>
       <div className="cl-side">
-        <Link
-          to={`${base}/commit/${c.hash}`}
-          className="shabtn mono"
-          title={t('Open this commit')}
-        >
-          {shortSha(c.hash)}
-        </Link>
-        <CopyButton
-          text={c.hash}
-          className="btn small quiet"
-          label={t('Copy full SHA')}
-        />
+        {repo && <ChecksBadge repo={repo} checks={checks} />}
+        <div className="cl-sha-group">
+          <CopyButton
+            text={c.hash}
+            className="btn small cl-copy-btn"
+            label={t('Copy full SHA')}
+          />
+          <Link
+            to={`${base}/commit/${c.hash}`}
+            className="shabtn mono"
+            title={t('Open this commit')}
+          >
+            {shortSha(c.hash)}
+          </Link>
+        </div>
         <Link
           to={`${base}/tree/${c.hash}`}
-          className="btn small quiet"
+          className="btn small cl-tree-btn"
           aria-label={t('Browse the code at {sha}', { sha: shortSha(c.hash) })}
           title={t('Browse the code at this commit')}
         >
@@ -103,9 +105,12 @@ export function CommitList({
   return (
     <div className="commit-days">
       {groupByDay(commits).map((g) => (
-        <section key={g.day} className="section">
+        <section key={g.day} className="commit-day-group">
           <h3 className="daylabel">
-            <GitCommitIcon /> {t('Commits on {day}', { day: g.day })}
+            <span className="daylabel-node" aria-hidden="true">
+              <GitCommitIcon size={16} />
+            </span>
+            <span>{t('Commits on {day}', { day: g.day })}</span>
           </h3>
           <ul className="commitlist panel">
             {g.commits.map((c) => (

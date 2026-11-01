@@ -1,22 +1,55 @@
 /* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
-/* Commits and a single commit. Ported from the upstream design prototype's repo.css (Commits). Tokens only. The commit list is
-   also used by pull requests, so its rules do not depend on a page class. */
+/* Commits and a single commit. Follows DESIGN.md Section 3 (Commit Timeline) & Section 4 (Diff Viewer). */
 
 .commit-days {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5, 24px);
+  min-width: 0;
+}
+.commit-days::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 0;
+  left: 13px;
+  width: 2px;
+  background: var(--border-default);
+}
+.commit-day-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  padding-left: 36px;
   min-width: 0;
 }
 .daylabel {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
+  min-height: 28px;
+  margin: 0;
+  font-size: var(--text-body-size, 14px);
+  font-weight: 400;
+  color: var(--fg-muted);
 }
-.daylabel > svg {
+.daylabel-node {
+  position: absolute;
+  left: -36px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--canvas-default);
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.daylabel-node > svg {
   flex: none;
 }
 .commitlist {
@@ -24,37 +57,51 @@
   margin: 0;
   padding: 0;
   min-width: 0;
+  background: var(--canvas-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
 }
 .commitlist > li {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3, 12px);
   align-items: center;
-  padding: 10px 14px;
-  border-top: 1px solid var(--line);
+  justify-content: space-between;
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-top: 1px solid var(--border-muted);
+  background: var(--canvas-default);
+  transition: background-color var(--duration-fast, 120ms)
+    var(--easing-default, ease-out);
 }
 .commitlist > li:first-child {
   border-top: 0;
+}
+.commitlist > li:hover {
+  background: var(--canvas-subtle);
 }
 .cl-main {
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: var(--space-1, 4px);
 }
 .cl-top {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2, 8px);
   flex-wrap: wrap;
   min-width: 0;
 }
 .cl-subj {
+  font-size: var(--text-body-size, 14px);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--fg-default);
   overflow-wrap: anywhere;
+  text-decoration: none;
 }
 .cl-subj:hover {
-  color: var(--accent);
+  color: var(--accent-fg);
+  text-decoration: underline;
 }
 .cl-by {
   display: flex;
@@ -62,39 +109,94 @@
   flex-wrap: wrap;
   column-gap: 6px;
   row-gap: 2px;
+  font-size: var(--text-small-size, 12px);
+  color: var(--fg-muted);
 }
 .cl-by .text-bold {
   font-weight: 600;
+  color: var(--fg-default);
 }
 .cl-side {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2, 8px);
   flex: none;
 }
+.cl-sha-group {
+  display: inline-flex;
+  align-items: stretch;
+  height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
+  background: var(--canvas-subtle);
+  overflow: hidden;
+}
+.cl-sha-group .cl-copy-btn {
+  height: 100%;
+  min-height: 0;
+  padding: 0 var(--space-2, 8px);
+  border: 0;
+  border-right: 1px solid var(--border-default);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg-muted);
+}
+.cl-sha-group .cl-copy-btn:hover {
+  background: var(--neutral-muted);
+  color: var(--fg-default);
+}
 .shabtn {
-  font-size: 12px;
-  padding: 3px 8px;
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size, 12px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
+  background: var(--canvas-subtle);
+  color: var(--fg-default);
+  text-decoration: none;
+}
+.cl-sha-group .shabtn {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .shabtn:hover {
-  color: var(--ink);
-  background: var(--surface-3);
+  color: var(--accent-fg);
+  background: var(--neutral-muted);
   text-decoration: none;
+}
+.cl-tree-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 var(--space-2, 8px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
+  background: var(--canvas-subtle);
+  color: var(--fg-muted);
+}
+.cl-tree-btn:hover {
+  background: var(--neutral-muted);
+  color: var(--fg-default);
 }
 
 /* The rest of a message: prose, then trailers (Dismissed-Finding, Co-Authored-By) kept quiet and apart. */
 .commit-body {
-  margin: 4px 0 0;
+  margin: var(--space-1, 4px) 0 0;
   padding: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size, 12px);
+  line-height: 1.5;
+  color: var(--fg-muted);
   background: none;
   border: 0;
 }
@@ -103,10 +205,10 @@
   padding: 6px 0 0;
   display: grid;
   gap: 2px;
-  border-top: 1px dashed var(--line-2);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--muted);
+  border-top: 1px dashed var(--border-default);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-muted);
   min-width: 0;
 }
 .trailers > div {
@@ -116,7 +218,7 @@
 }
 .trailers dt {
   flex: none;
-  color: var(--faint);
+  color: var(--fg-subtle);
 }
 .trailers dt::after {
   content: ':';
@@ -127,27 +229,56 @@
   overflow-wrap: anywhere;
 }
 .trailers a {
-  color: var(--muted);
+  color: var(--fg-muted);
   text-decoration: underline;
 }
 .co-authors {
-  color: var(--ink-2);
+  color: var(--fg-muted);
 }
 
 /* ---------- Paging ---------- */
 .pager {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2, 8px);
 }
 
 /* ---------- One commit ---------- */
 .commitbox {
   min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
+  background: var(--canvas-default);
+  overflow: hidden;
+}
+.cb-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
+}
+.cb-head-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2, 8px);
+}
+.cb-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg-default);
+  overflow-wrap: anywhere;
+}
+.cb-head-actions {
+  flex: none;
 }
 .cb-message {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
+  padding-top: var(--space-1, 4px);
 }
 .cb-message .commit-body {
   margin-top: 0;
@@ -157,13 +288,10 @@
   align-items: center;
   gap: 10px 14px;
   flex-wrap: wrap;
-  padding: 10px 16px;
-  background: var(--surface-2);
-  border-radius: 0 0 var(--r) var(--r);
-  font-size: 13px;
-}
-.commitbox > .cb-foot:first-child {
-  border-radius: var(--r);
+  padding: 10px var(--space-4, 16px);
+  background: var(--canvas-default);
+  font-size: var(--text-small-size, 12px);
+  color: var(--fg-muted);
 }
 .cb-who {
   display: inline-flex;
@@ -174,6 +302,7 @@
 }
 .cb-who .text-bold {
   font-weight: 600;
+  color: var(--fg-default);
 }
 .cb-parents {
   display: inline-flex;
@@ -192,6 +321,7 @@
 }
 .cb-sha .mono {
   min-width: 0;
+  color: var(--fg-default);
   overflow-wrap: anywhere;
 }
 .file-summary {
@@ -209,19 +339,28 @@
   text-align: right;
 }
 .fs-add {
-  color: var(--ok);
+  color: var(--success-fg);
 }
 .fs-del {
-  color: var(--bad);
+  color: var(--danger-fg);
 }
 
 @media (max-width: 640px) {
+  .commit-day-group {
+    padding-left: 28px;
+  }
+  .daylabel-node {
+    left: -28px;
+  }
   .commitlist > li {
     flex-wrap: wrap;
     align-items: flex-start;
   }
   .cl-main {
     flex-basis: 100%;
+  }
+  .cb-head {
+    flex-direction: column;
   }
   .cb-sha {
     flex-basis: 100%;

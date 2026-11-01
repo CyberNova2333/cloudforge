@@ -1,3 +1,4 @@
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* Notifications: the inbox, the watch choice in a repository's header, and the subscribe box. */
 
 .notif-rows {
@@ -68,23 +69,34 @@
   align-items: center;
   gap: 6px;
   margin-left: auto;
-  padding: 2px 6px 2px 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink-2);
-  font-size: 12px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--canvas-subtle);
+  color: var(--fg-default);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  box-shadow: var(--shadow-resting);
+  transition: background 0.12s ease-out;
+}
+.watch-select:hover {
+  background: var(--canvas-muted);
 }
 .watch-select select {
   border: 0;
   background: none;
-  color: var(--ink);
+  color: var(--fg-default);
   font: inherit;
   padding: 2px 0;
+  cursor: pointer;
 }
 .watch-select select:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-fg);
   outline-offset: 2px;
+}
+.watch-select .count {
+  border-radius: var(--radius-pill);
 }
 
 .notify-sub {

@@ -10,6 +10,7 @@ import type { FileDiff } from '@/lib/uiApi';
 import { languageFor } from '@/lib/languages';
 import { useHighlighter } from '@/lib/useHighlight';
 import { EmptyState } from './ui/EmptyState';
+import { CopyButton } from './CopyButton';
 
 /** Five blocks split by ratio; a non-zero side always gets at least one block. */
 function blocks(additions: number, deletions: number): ('add' | 'del' | '')[] {
@@ -62,6 +63,9 @@ const STATUS_CHIP: Record<
 
 function FileBlock({ file }: { file: FileDiff }) {
   const [open, setOpen] = useState(true);
+  const [collapsedHunks, setCollapsedHunks] = useState<Record<number, boolean>>(
+    {}
+  );
   const language = languageFor(file.path);
   const highlighted = useHighlighter(
     !!language && open && file.hunks.length > 0,
@@ -73,20 +77,53 @@ function FileBlock({ file }: { file: FileDiff }) {
   file.hunks.forEach((h, hi) => {
     let o = h.oldStart;
     let n = h.newStart;
+    const isHunkCollapsed = !!collapsedHunks[hi];
     rows.push(
-      <tr key={`h${hi}`} className="dh">
-        <td className="dn" colSpan={2} />
+      <tr
+        key={`h${hi}`}
+        className={`dh${isHunkCollapsed ? ' dh-collapsed' : ''}`}
+      >
+        <td className="dn dh-gutter" colSpan={2}>
+          <button
+            type="button"
+            className="diff-hunk-toggle"
+            aria-expanded={!isHunkCollapsed}
+            aria-label={
+              isHunkCollapsed
+                ? t('Expand hunk {n}', { n: hi + 1 })
+                : t('Collapse hunk {n}', { n: hi + 1 })
+            }
+            onClick={() =>
+              setCollapsedHunks((prev) => ({
+                ...prev,
+                [hi]: !prev[hi],
+              }))
+            }
+          >
+            {isHunkCollapsed ? (
+              <ChevronRightIcon size={12} />
+            ) : (
+              <ChevronDownIcon size={12} />
+            )}
+          </button>
+        </td>
         <td className="dc">{`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`}</td>
       </tr>
     );
+    if (isHunkCollapsed) return;
     h.lines.forEach((line, li) => {
       if (line.startsWith('\\')) return;
       const kind = line[0];
       const cls = kind === '+' ? 'da' : kind === '-' ? 'dd' : undefined;
       rows.push(
         <tr key={`${hi}-${li}`} className={cls}>
-          <td className="dn">{kind === '+' ? '' : o++}</td>
-          <td className="dn">{kind === '-' ? '' : n++}</td>
+          <td className="dn dn-old">{kind === '+' ? '' : o++}</td>
+          <td className="dn dn-new">
+            {kind === '-' ? '' : n++}
+            <span className="diff-add-line-cue" aria-hidden="true">
+              +
+            </span>
+          </td>
           <td className="dc">
             <span className="dsign">{kind === ' ' ? ' ' : kind}</span>
             {highlighted?.[hi]?.[li] != null ? (
@@ -135,6 +172,11 @@ function FileBlock({ file }: { file: FileDiff }) {
             </Fragment>
           ))}
         </span>
+        <CopyButton
+          text={file.path}
+          className="btn small quiet diff-copy-path"
+          label={t('Copy file path')}
+        />
         {status && (
           <span className={`chip ${status.tone}`}>{status.label}</span>
         )}

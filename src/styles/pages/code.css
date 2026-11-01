@@ -5,7 +5,7 @@
 .code-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
+  gap: var(--space-4);
   min-width: 0;
 }
 .code-page .grow {
@@ -16,8 +16,9 @@
 .codebar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
+  min-height: 32px;
 }
 .branch-count {
   display: inline-flex;
@@ -25,7 +26,7 @@
   gap: 5px;
 }
 .codebar .btn > b {
-  color: var(--ink);
+  color: var(--fg-default);
 }
 .codebar .css-truncate-target {
   max-width: 160px;
@@ -33,19 +34,25 @@
 
 /* ---------- Path ---------- */
 .pathbar {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   min-width: 0;
+  margin-left: var(--space-1);
   overflow-wrap: anywhere;
 }
 .pathbar a {
-  color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 500;
+}
+.pathbar b {
+  color: var(--fg-default);
+  font-weight: 600;
 }
 .pathbar .sep {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .pathbar-part {
   display: inline-flex;
@@ -61,12 +68,12 @@
 .ft-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-  border-radius: var(--r) var(--r) 0 0;
-  font-size: 13px;
+  gap: var(--space-2);
+  padding: 10px 16px;
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: var(--font-size-body);
   min-width: 0;
 }
 .ft-head .authors {
@@ -81,40 +88,42 @@
 .ft-msg {
   flex: 1;
   min-width: 0;
-  color: var(--muted);
+  color: var(--fg-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 a.ft-msg:hover {
-  color: var(--accent);
+  color: var(--accent-fg);
 }
 .ft-meta {
   flex: none;
-  color: var(--muted);
-  font-size: 12.5px;
+  color: var(--fg-muted);
+  font-size: var(--font-size-small);
   white-space: nowrap;
 }
 .ft-meta .ft-sha {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .ft-count {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--ink-2);
-  font-size: 12.5px;
+  color: var(--fg-default);
+  font-size: var(--font-size-small);
+  font-weight: 600;
 }
 .ft {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: var(--font-size-body);
   table-layout: fixed;
 }
 .ft td {
-  padding: 7px 14px;
-  border-top: 1px solid var(--line);
+  padding: 8px 16px;
+  height: 38px;
+  border-top: 1px solid var(--border-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -123,40 +132,55 @@ a.ft-msg:hover {
   border-top: 0;
 }
 .ft tr:hover {
-  background: var(--surface-2);
+  background: var(--canvas-subtle);
 }
 .ft tr:last-child td:first-child {
-  border-bottom-left-radius: var(--r);
+  border-bottom-left-radius: var(--radius-md);
 }
 .ft tr:last-child td:last-child {
-  border-bottom-right-radius: var(--r);
+  border-bottom-right-radius: var(--radius-md);
 }
 .ft-col-name {
-  width: 34%;
+  width: 38%;
 }
 .ft-col-date {
-  width: 136px;
+  width: 128px;
 }
 .ft-name {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--ink);
+  gap: var(--space-2);
+  max-width: 100%;
+  min-width: 0;
+  color: var(--fg-default);
 }
 .ft-name:hover {
-  color: var(--accent);
+  color: var(--accent-fg);
+}
+.ft-name .icon {
+  flex: none;
 }
 .ft-name .icon.dir {
-  color: #54aeff;
+  color: var(--accent-fg);
 }
 .ft-name .icon.file {
-  color: var(--muted);
+  color: var(--fg-muted);
+}
+.ft-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .ft-subj a {
-  color: var(--muted);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
 }
 .ft-subj a:hover {
-  color: var(--accent);
+  color: var(--accent-fg);
 }
 .ft-subj .sk {
   display: block;
@@ -164,11 +188,11 @@ a.ft-msg:hover {
 }
 .ft-date {
   text-align: right;
-  color: var(--muted);
-  font-size: 12.5px;
+  color: var(--fg-muted);
+  font-size: var(--font-size-small);
 }
 .ft-empty {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 
 /* ---------- README and rendered Markdown ---------- */
@@ -178,7 +202,7 @@ a.ft-msg:hover {
   gap: 8px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .readme-head > svg {
   color: var(--muted);
@@ -190,7 +214,7 @@ a.ft-msg:hover {
 }
 .md .markdown-body {
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--ink);
   background: transparent;
@@ -209,7 +233,7 @@ a.ft-msg:hover {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 /* A leading YAML block, such as an agent's AGENT.md settings. */
 .frontmatter {
@@ -222,7 +246,7 @@ a.ft-msg:hover {
   padding: 6px 12px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .frontmatter pre {
@@ -239,80 +263,82 @@ a.ft-msg:hover {
 .fb-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-2);
+  padding: 8px 16px;
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
   flex-wrap: wrap;
 }
 .fb-stat {
-  color: var(--muted);
+  color: var(--fg-muted);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-family: var(--mono);
 }
 .fb-stat b {
-  color: var(--ink);
+  color: var(--fg-default);
   font-weight: 600;
 }
 .lfs-label {
   margin-left: 8px;
   padding: 0 8px;
-  border: 1px solid var(--line-2);
-  border-radius: 99px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
   font-family: var(--font);
-  font-size: 11.5px;
+  font-size: var(--font-size-small);
   font-weight: 600;
   line-height: 20px;
 }
 .codeview {
   overflow-x: auto;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 .code-t {
   border-collapse: collapse;
   width: 100%;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--font-size-small);
   line-height: 20px;
   tab-size: 4;
 }
 .code-t .ln {
   width: 1%;
-  min-width: 50px;
+  min-width: 52px;
   padding: 0 12px 0 16px;
   text-align: right;
   vertical-align: top;
   user-select: none;
+  border-right: 1px solid var(--border-subtle);
 }
 .code-t .ln a {
-  color: var(--faint);
+  color: var(--fg-subtle);
 }
 .code-t .ln a:hover {
-  color: var(--ink);
+  color: var(--fg-default);
   text-decoration: none;
 }
 .code-t .lc {
-  padding: 0 16px 0 8px;
+  padding: 0 16px 0 12px;
   white-space: pre;
-  color: var(--ink);
+  color: var(--fg-default);
 }
 .code-t tr:hover .lc,
 .code-t tr:hover .ln {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: var(--canvas-subtle);
 }
 /* The lines a #L12 or #L12-L20 link points at. */
 .code-t tr.hit .lc,
 .code-t tr.hit .ln {
-  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  background: var(--attention-subtle);
 }
 .code-t tr.hit .ln {
-  box-shadow: inset 2px 0 0 var(--warn);
+  box-shadow: inset 2px 0 0 var(--attention-fg);
 }
 .fb-note {
   padding: 36px 24px;
   text-align: center;
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .fb-image {
   max-width: 100%;
@@ -322,6 +348,11 @@ a.ft-msg:hover {
 /* ---------- Beside the files ---------- */
 .about {
   min-width: 0;
+}
+.about-desc {
+  font-size: var(--font-size-body);
+  color: var(--fg-default);
+  line-height: 1.5;
 }
 .about-agent {
   display: flex;
@@ -417,27 +448,35 @@ a.ft-msg:hover {
 .setup-steps {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  max-width: 920px;
+  gap: var(--space-4);
+  max-width: 960px;
+  margin-inline: auto;
   min-width: 0;
+}
+.setup-blankslate {
+  background: var(--canvas-default);
+}
+.setup-clone-bar {
+  width: min(100%, 560px);
+  margin-top: var(--space-1);
 }
 .setup-step {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-  padding: 16px 18px;
+  padding: var(--space-4) var(--space-5);
   min-width: 0;
 }
 .setup-step h2 {
-  font-size: 15px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .setup-step.setup-agent {
-  background: var(--accent-tint);
-  border-color: var(--accent-tint-2);
+  background: var(--canvas-subtle);
+  border-color: var(--border-default);
 }
 .setup-step .seg {
   justify-self: start;
@@ -453,7 +492,7 @@ a.ft-msg:hover {
   border-radius: var(--r-sm);
   background: var(--surface-2);
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--ink);
 }

@@ -1,11 +1,12 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SparkleFillIcon } from '@primer/octicons-react';
+import { RepoIcon, SparkleFillIcon } from '@primer/octicons-react';
 import { t, tx } from '@/lib/i18n';
 import type { RepoDetail } from '@/lib/uiApi';
 import { AgentPrompt } from '@/components/AgentPrompt';
 import { CopyButton } from '@/components/CopyButton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Seg } from '@/components/ui/Seg';
 
 /** A command block with its copy button. */
@@ -32,6 +33,37 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
   const [kind, setKind] = useState<'work' | 'import'>('work');
   return (
     <div className="setup-steps">
+      <section className="panel setup-blankslate">
+        <EmptyState
+          picture={<RepoIcon size={24} />}
+          title={t("Quick setup — if you've done this kind of thing before")}
+          body={tx(
+            'Authenticate with your username and a {token} as the password.',
+            {
+              token: (
+                <Link to="/settings/tokens">{t('personal access token')}</Link>
+              ),
+            }
+          )}
+          action={
+            <div className="clone-url setup-clone-bar">
+              <span className="chip">HTTPS</span>
+              <input
+                className="form-control input-monospace input-sm"
+                readOnly
+                aria-label={t('HTTPS clone URL')}
+                value={url}
+                onFocus={(e) => e.target.select()}
+              />
+              <CopyButton
+                text={url}
+                className="btn primary small"
+                label={t('Copy clone URL')}
+              />
+            </div>
+          }
+        />
+      </section>
       <section className="panel setup-step setup-agent">
         <h2>
           <SparkleFillIcon /> {t('Set up with an AI agent')}
@@ -46,34 +78,6 @@ export function QuickSetup({ repo }: { repo: RepoDetail }) {
           ]}
         />
         <AgentPrompt repo={repo} kind={kind} />
-      </section>
-      <section className="panel setup-step">
-        <h2>{t("Quick setup — if you've done this kind of thing before")}</h2>
-        <div className="clone-url">
-          <span className="chip">HTTPS</span>
-          <input
-            className="form-control input-monospace input-sm"
-            readOnly
-            aria-label={t('HTTPS clone URL')}
-            value={url}
-            onFocus={(e) => e.target.select()}
-          />
-          <CopyButton
-            text={url}
-            className="btn small"
-            label={t('Copy clone URL')}
-          />
-        </div>
-        <p className="small muted">
-          {tx(
-            'Authenticate with your username and a {token} as the password.',
-            {
-              token: (
-                <Link to="/settings/tokens">{t('personal access token')}</Link>
-              ),
-            }
-          )}
-        </p>
       </section>
       <section className="panel setup-step">
         <h2>{t('…or create a new repository on the command line')}</h2>
