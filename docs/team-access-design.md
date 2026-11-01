@@ -176,6 +176,8 @@ LFS 900秒来自[签名实现](../worker/src/lib/lfs.ts)；Artifacts令牌与che
 
 Workflow 的 run、定时任务、队列推进、容器启动/步骤/日志读取、审查与合并代理的入口和恢复 alarm、实时连接/发布都加入当前状态准入。检查不放入可复用的 durable step，不跨请求缓存。停止容器、销毁和纯本地停止/过期清理保留；会启动下一个任务的队列 release/cancel 不属于纯清理。拒绝恢复时可能暂留容量，需要兼容运行时后续回收，不能为了清理继续调用未知 schema 的业务写入。
 
+Actions 执行器自身也在读取缓存步骤前检查协议；队列请求失败时先重新读取 D1，只有仍就绪才允许走容量降级。等待容量的每轮及取得缓存/实际预留后的放行再次检查，防止错误地把协议拒绝当作普通队列故障。该检查没有把单独 SELECT 变成最终写点 CAS：已通过检查后再升版、已写入预留以及其他在途失败/清理仍需后续收敛。
+
 这只是让今后支持协议检查的版本具备拒绝能力。**完全不认识该表的早期 Worker 不受这道检查约束**；已经跨过入口、停在 await 或已执行 durable step 中的操作，也没有因此获得完整的逐写点围栏。新角色仍由数据库保持关闭，下一阶段必须完成写点授权、在途任务排空及真实部署范围核验，才能讨论开启角色。
 
 Cloudflare 的部署模型必须逐面核验：当前部署中 0% 流量的版本仍可被 version override 选中；实现 Durable Objects 的 Worker 不生成 Version URLs，因此不能把通用预览 URL 风险直接记为当前 CloudForge 的已存在入口。2026-10-30 官方变更说明 Durable Object 代码默认延迟 300 秒更新，最多可配置 86400 秒，最新 HTTP 可以调用仍运行旧代码的对象；一次 HTTP 探针通过不是全局切换证据。[版本覆盖](https://developers.cloudflare.com/workers/versions-and-deployments/version-overrides/)、[版本 URL 限制](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/)、[Durable Object 延迟更新](https://developers.cloudflare.com/changelog/post/2026-10-30-durable-objects-deferred-code-updates/)
