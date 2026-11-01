@@ -1,8 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { ReactNode } from 'react';
 import { AlertIcon } from '@primer/octicons-react';
-import { errorMessage } from '@/lib/api';
-import { t } from '@/lib/i18n';
+import { errorMessage } from '@/lib/api/api';
+import { t } from '@/lib/i18n/i18n';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 /** Placeholder rows for a list's first load (the page header is already on screen). */

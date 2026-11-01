@@ -9,10 +9,10 @@ import {
   SyncIcon,
   XIcon,
 } from '@primer/octicons-react';
-import { api, qk } from '@/lib/uiApi';
-import { askCandidates } from '@/lib/approvalsInbox';
-import { errorMessage } from '@/lib/api';
-import { t, tx } from '@/lib/i18n';
+import { api, qk } from '@/lib/api/uiApi';
+import { askCandidates } from '@/lib/approvals/approvalsInbox';
+import { errorMessage } from '@/lib/api/api';
+import { t, tx } from '@/lib/i18n/i18n';
 import { PendingButton } from '@/components/ui/PendingButton';
 
 /** The server's limits for a note, a reason and a teach note. */

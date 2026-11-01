@@ -10,14 +10,14 @@ import {
   type PullDetail,
   type QueueTarget,
   type RepoDetail,
-} from '@/lib/uiApi';
-import { fullDate, timeAgo } from '@/lib/format';
-import { t, tServer, tx } from '@/lib/i18n';
-import { fixerAttempts, queueLine, type QueueSpot } from '@/lib/pullPage';
-import { runAvatarStatus, runStatusLook } from '@/lib/agentRuns';
-import { AgentAvatar } from '@/components/AgentAvatar';
-import { AgentRunLink } from '@/components/AgentRunLink';
-import { StackSidebar } from '@/components/StackSidebar';
+} from '@/lib/api/uiApi';
+import { fullDate, timeAgo } from '@/lib/utils/format';
+import { t, tServer, tx } from '@/lib/i18n/i18n';
+import { fixerAttempts, queueLine, type QueueSpot } from '@/lib/pulls/pullPage';
+import { runAvatarStatus, runStatusLook } from '@/lib/agents/agentRuns';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
+import { AgentRunLink } from '@/components/agents/AgentRunLink';
+import { StackSidebar } from '@/components/pull/StackSidebar';
 import { QueryError } from '@/components/actions/states';
 import { Chip } from '@/components/ui/Chip';
 import { Section } from '@/components/ui/Section';

@@ -3,9 +3,9 @@ import {
   IssueOpenedIcon,
   SkipIcon,
 } from '@primer/octicons-react';
-import { labelInk, normalizeColor } from '@/lib/issuesView';
-import { t } from '@/lib/i18n';
-import type { Issue, Label } from '@/lib/uiApi';
+import { labelInk, normalizeColor } from '@/lib/issues/issuesView';
+import { t } from '@/lib/i18n/i18n';
+import type { Issue, Label } from '@/lib/api/uiApi';
 
 /** A label in its own colour, with text that reads on it. */
 export function LabelChip({

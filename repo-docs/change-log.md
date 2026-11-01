@@ -151,3 +151,16 @@ Synced through 7ca392012fac3f688ee747e9a138eac39c35a526；该权限修补提交�
 验证：`DESIGN.md` 规范校验（0 错误、0 警告）、`yarn agents:sync --check`、`yarn typecheck`、客户端生产构建、Docker Playwright 12 项视觉与无障碍回归（`maxDiffPixels: 0`，critical 违规 0）、`ci-workflow.test.ts` 与前端库单元测试（82 项）及脚本/钩子测试（112 项）通过。
 
 Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95；以上设计规范、UI 改造与视觉基线已变基至最新 main 分支。
+
+## 前端目录分层结构重构（2026-11-01）
+
+选择 foreground patch：整理前端消除无层次平铺散落现象。将 `src/pages/`（55 文件）、`src/components/`（49 根文件）和 `src/lib/`（133 文件）全量按领域职能归类至下级子目录（保留 git 历史追溯并由 `git mv` 实施）。根目录下零平铺散落文件：
+
+- `src/pages/` 划分至 `admin/`、`agents/`、`auth/`、`issues/`、`overview/`、`pulls/`、`repo/`、`settings/`
+- `src/components/` 划分至 `actions/`、`admin/`、`agents/`、`approvals/`、`auth/`、`code/`、`health/`、`issue/`、`notifications/`、`pull/`、`repo/`、`shell/`、`ui/`
+- `src/lib/` 划分至 `actions/`、`admin/`、`agents/`、`api/`、`approvals/`、`auth/`、`i18n/`、`issues/`、`notifications/`、`pulls/`、`repo/`、`search/`、`theme/`、`ui/`、`utils/`
+  同步更新各文件 import 导入路径、`AGENTS.md` 规则契约表路径、`repo-docs/code-map.md` 代码地图定位，并补全 `src/locales/zh/repo.ts` 缺少的 3 项 DiffView 差异块国际化词条。避免触碰后端 `worker/` 与迁移，为正在开发中的 `codex/access-*` 分支保留零冲突干净边界。
+
+验证：`yarn typecheck` 全量通过；`yarn test:workers src/lib/`（59 测试文件、815 用例）全部通过；`yarn test:workers` Git 主流程定向测试（3 文件、38 用例）全部通过；`yarn build` Vite 生产打包通过；`yarn format:check` 格式检查通过。
+
+Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85；前端目录分层已完成，当前为本地工作树。

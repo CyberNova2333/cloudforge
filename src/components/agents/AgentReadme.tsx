@@ -3,11 +3,11 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookIcon } from '@primer/octicons-react';
-import { t } from '@/lib/i18n';
-import { api, qk } from '@/lib/uiApi';
-import { splitFrontmatter } from '@/lib/codeView';
-import { Markdown } from '@/components/Markdown';
-import { LoadError } from '@/components/Notice';
+import { t } from '@/lib/i18n/i18n';
+import { api, qk } from '@/lib/api/uiApi';
+import { splitFrontmatter } from '@/lib/repo/codeView';
+import { Markdown } from '@/components/ui/Markdown';
+import { LoadError } from '@/components/ui/Notice';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 /** The agent's AGENT.md on its default branch, read from its instruction repository. */

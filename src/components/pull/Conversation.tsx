@@ -14,18 +14,18 @@ import {
   type PullEvent,
   type RepoDetail,
   type Reviewer,
-} from '@/lib/uiApi';
-import { useCurrentUser } from '@/lib/auth';
-import { useSignInHref } from '@/lib/signIn';
-import { errorMessage } from '@/lib/api';
-import { fullDate, timeAgo } from '@/lib/format';
-import { t, tx } from '@/lib/i18n';
-import type { ShownStatus, TimelineItem } from '@/lib/reviewTimeline';
-import { Avatar } from '@/components/Avatar';
-import { Markdown } from '@/components/Markdown';
-import { MarkdownEditor } from '@/components/CommentForm';
-import { AgentReview, EarlierReview } from '@/components/ReviewersBox';
-import { EventRow, PullEventItem } from '@/components/PullEvents';
+} from '@/lib/api/uiApi';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { useSignInHref } from '@/lib/auth/signIn';
+import { errorMessage } from '@/lib/api/api';
+import { fullDate, timeAgo } from '@/lib/utils/format';
+import { t, tx } from '@/lib/i18n/i18n';
+import type { ShownStatus, TimelineItem } from '@/lib/pulls/reviewTimeline';
+import { Avatar } from '@/components/ui/Avatar';
+import { Markdown } from '@/components/ui/Markdown';
+import { MarkdownEditor } from '@/components/ui/CommentForm';
+import { AgentReview, EarlierReview } from '@/components/pull/ReviewersBox';
+import { EventRow, PullEventItem } from '@/components/pull/PullEvents';
 import { PanelError } from '@/components/approvals/Panels';
 import { PendingButton } from '@/components/ui/PendingButton';
 

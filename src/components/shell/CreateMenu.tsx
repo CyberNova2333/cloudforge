@@ -7,10 +7,10 @@ import {
   PlusIcon,
   RepoIcon,
 } from '@primer/octicons-react';
-import { useCurrentUser } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/auth/auth';
 import type { ShellMenu } from './AppShell';
 import { CrewIcon } from './icons';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 
 /** The "+" menu: New repository, New reviewer and Invite member (site admins create those), New access token. */
 export function CreateMenu({

@@ -1,9 +1,9 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { agentKindLabel, AGENT_RUN_KINDS } from '@/lib/agentRuns';
-import { t } from '@/lib/i18n';
-import type { AgentRunKind } from '@/lib/uiApi';
+import { agentKindLabel, AGENT_RUN_KINDS } from '@/lib/agents/agentRuns';
+import { t } from '@/lib/i18n/i18n';
+import type { AgentRunKind } from '@/lib/api/uiApi';
 
 /** The title block of a run page: an optional lead (a status mark or an avatar), the title, a line under it. */
 export function RunHeader({

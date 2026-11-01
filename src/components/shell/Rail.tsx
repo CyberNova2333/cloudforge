@@ -11,15 +11,15 @@ import {
   SidebarExpandIcon,
   SlidersIcon,
 } from '@primer/octicons-react';
-import { AgentAvatar } from '@/components/AgentAvatar';
-import { useAppName } from '@/lib/appName';
-import { useApprovalCount } from '@/lib/approvals';
-import { useCurrentUser } from '@/lib/auth';
-import { railClasses } from '@/lib/rail';
-import type { RecentRepo } from '@/lib/recentRepos';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
+import { useAppName } from '@/lib/utils/appName';
+import { useApprovalCount } from '@/lib/approvals/approvals';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { railClasses } from '@/lib/ui/rail';
+import type { RecentRepo } from '@/lib/repo/recentRepos';
 import type { ShellMenu, ShellRepo } from './AppShell';
 import { CrewIcon } from './icons';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 
 /** Which rail entry the current page belongs to. */
 function railKey(pathname: string, repo: ShellRepo | null): string | null {

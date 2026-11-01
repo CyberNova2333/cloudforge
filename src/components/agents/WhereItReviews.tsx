@@ -7,12 +7,12 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { api, qk, type AgentStats, type Namespace } from '@/lib/uiApi';
-import { errorMessage } from '@/lib/api';
-import { useCurrentUser } from '@/lib/auth';
-import { t, tn } from '@/lib/i18n';
-import { inviteChoices } from '@/lib/agentPage';
-import { InlineConfirm } from '@/components/InlineConfirm';
+import { api, qk, type AgentStats, type Namespace } from '@/lib/api/uiApi';
+import { errorMessage } from '@/lib/api/api';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { t, tn } from '@/lib/i18n/i18n';
+import { inviteChoices } from '@/lib/agents/agentPage';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { Section } from '@/components/ui/Section';

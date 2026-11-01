@@ -1,11 +1,11 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link } from 'react-router-dom';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 import { ClockIcon } from '@primer/octicons-react';
-import { firstLine, shortSha, timeAgo } from '@/lib/format';
-import type { Contents, RepoDetail } from '@/lib/uiApi';
-import { CommitAuthor } from '@/components/CommitAuthor';
-import { CommitStatus } from '@/components/Checks';
+import { firstLine, shortSha, timeAgo } from '@/lib/utils/format';
+import type { Contents, RepoDetail } from '@/lib/api/uiApi';
+import { CommitAuthor } from '@/components/code/CommitAuthor';
+import { CommitStatus } from '@/components/actions/Checks';
 
 /**
  * The bar above a tree, a file or an LFS file: the latest commit's author, its message, whether its checks
