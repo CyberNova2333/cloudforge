@@ -22,7 +22,7 @@
 | 其他有效实例成员           | 团队、internal、public 仓库 | 拒绝           | 拒绝     |
 | 匿名或封禁成员             | 仅 public 仓库              | 拒绝           | 拒绝     |
 
-[仓库权限入口](../worker/src/lib/repos.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合；单项、批量与通知候选复用[权限兼容内核](../worker/src/lib/repo-permissions.ts)的 `permissionsOf` 规则。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者声明只有仓库/成员联合键和创建时间，没有 role 列；旧记录一律提供 write，未来不能虚构其原先具有 read/admin 等级。
+[仓库权限入口](../worker/src/lib/repos.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合；单项、批量与通知候选复用[权限兼容内核](../worker/src/lib/repo-permissions.ts)的 `permissionsOf` 规则。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者以仓库/成员联合键标识；兼容迁移新增 role 和 revision，当前数据库仍只允许 write，不能虚构旧记录原先具有 read/admin 等级。
 
 Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集；read scope 不因签发者是管理员而变成写。仓库部署令牌有独立身份，只能用于其不可变仓库 id 的 Git/LFS，签发者仍须是有效管理员，不能继承 REST/MCP 或受保护引用权限。具体限制见[部署令牌](deploy-tokens.md)。
 
@@ -51,6 +51,16 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 用户名与团队slug由同条SQL内的源守卫和claims维护共同防撞名，覆盖原生管理员创建、用户改名、Agent及旧路由。null用户名不占claim，大小写同义改名不释放给他人，Agent软删除保留命名空间。直接REPLACE/关闭CHECK不能绕过关键状态和命名空间guard。重复协作者写入保持已有row/revision，空RETURNING只代表未新增授权，不作为授权成功屏障。
 
 授权状态行不能删除、替换或重置；相关权限源变化同语句推进独立generation，上限为JS安全整数。代数目前是兼容基础，尚未为所有人类mutation接入最终actor/session/proof/generation CAS。write-only/instance-only限制保护旧权限语义，完整的新角色发布、旧Worker最低版本屏障和回滚流程仍待实现。旧代码首次setup对D1变化计数的假设不适用新触发器；首次管理员初始化应使用包含RETURNING修补的新版本，不能据本节推断任意旧版本可回滚。
+
+## 当前授权管理写入
+
+共享团队 PUT 与协作者 PUT/DELETE 已接入[最终写入检查](../worker/src/lib/access-write.ts)。例如管理员发起团队改名后、SQL 执行前被撤销管理员身份，该请求返回409，团队、命名空间及成功审计均不改变。正常改名保留稳定团队id和原DTO。
+
+这些入口要求浏览器近期本地密码及已启用的第二因子证明。写入同时核验当前管理员或仓库所有者、封禁状态、活会话、认证/策略代际、OIDC来源、原证明时间、密码账户和因子身份，以及最初读取的ACL generation；新证明不会替换在途请求的旧快照。过期判定使用执行SQL时的数据库时间。团队另查revision与稳定指针，协作者另查URL仍指向同一仓库和目标账户，删除还查原协作者revision。
+
+重复添加和删除不存在的协作者，只有同一条权威查询确认当前授权与目标状态时才返回成功；实际条件写入零行返回409，不会假报成功或自动重放。成功新增/移除保留原审计，团队成功创建/改名记入实例设置审计；无变化不重复记事件。异常旧Agent协作者仍可由管理员删除，但不能通过PUT新增。审计写入失败沿用不抛业务错误的契约，不声称与业务写入原子提交。
+
+这只覆盖上述三个入口。普通业务mutation的全面写点改造、角色发布与旧版本回滚屏障仍待实施；当前没有新的团队成员或五级角色写API。
 
 迁移只由声明生成。一次性回填以id/hash登记在_data.json，后续DDL/trigger重建不重复初始化状态；多条旧团队、命名空间碰撞、团队private或孤儿引用会阻断，不能静默修数据。详见[升级边界](updating.md#access-compatibility-schema)。
 

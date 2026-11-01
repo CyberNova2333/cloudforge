@@ -2,7 +2,7 @@
 
 # 多团队与五级仓库权限设计
 
-状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema已加入**。2026-10-31 根据 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 的源码核对现状；本轮已生成兼容schema迁移，但不创建团队成员表、不执行生产迁移，也不把下述接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文承接[路线图](roadmap.md)第 5 项，保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
+状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema已加入**。初始设计以 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 为基线；兼容schema及共享团队/协作者最终授权检查已陆续实现，不创建团队成员表、不执行生产迁移，也不把下述新接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文承接[路线图](roadmap.md)第 5 项，保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
 
 ## 先看一次授权变化
 
@@ -23,10 +23,10 @@
 
 | 当前事实                                                                                            | 源码依据                                                                                                                                                                | 对新设计的约束                                                             |
 | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 只有一个共享团队入口，`getTeam` 查询第一行；`teams` 只有 id/slug/name/createdAt                     | [团队声明](../worker/src/db/app.schema.ts)、[团队路由](../worker/src/routers/teams-router.ts)、[仓库访问](../worker/src/lib/repos.ts)                                   | 新 API 必须按不可变团队 id 选择；旧入口不能在多团队后继续任取第一行。      |
+| 只有一个共享团队入口，`getTeam` 已按稳定id查询；兼容列仅允许instance模式                            | [团队声明](../worker/src/db/app.schema.ts)、[团队路由](../worker/src/routers/teams-router.ts)、[仓库访问](../worker/src/lib/repos.ts)                                   | 新 API 必须按不可变团队 id 选择；旧入口不能在多团队后任取第一行。          |
 | 团队 slug 与用户名共享大小写归一化后的 URL 命名空间                                                 | [命名空间检查](../worker/src/lib/namespaces.ts)                                                                                                                         | 创建、改名及用户改名必须在数据库写点防撞名；仅预读检查不足以证明并发安全。 |
 | 团队仓库的 `ownerId` 是创建者，个人仓库的同字段才是所有者                                           | [仓库声明](../worker/src/db/app.schema.ts)                                                                                                                              | 不能从 `ownerId` 推导团队所有者；升级不能默默移除旧创建者的管理员权限。    |
-| `repository_collaborators` 没有 role 列；存在协作者记录就获得写权限                                 | [协作者声明](../worker/src/db/app.schema.ts)、[统一判定](../worker/src/lib/repos.ts)                                                                                    | 旧协作者只能回填为 `write`，不能虚构旧 read/admin 角色。                   |
+| `repository_collaborators` 已补role/revision；数据库仍只允许write，运行时保持旧权限                 | [协作者声明](../worker/src/db/app.schema.ts)、[统一判定](../worker/src/lib/repos.ts)                                                                                    | 旧协作者只能回填为 `write`，不能虚构旧 read/admin 角色。                   |
 | 实例管理员及 owner/creator 为仓库管理员；普通成员可读团队、internal、public 仓库，匿名仅可读 public | 同上 `permissionsOf / readableByMembers / visibleTo`                                                                                                                    | 保留公共读取与实例级 internal 读取；团队成员资格不用于收窄它们。           |
 | 仓库路由、Git、MCP 使用读取/写入/管理员三个布尔值，部分后台另有同义 SQL                             | [仓库上下文](../worker/src/lib/repos.ts)、[Git 入口](../worker/src/git-http.ts)、[MCP 工具](../worker/src/mcp/tools.ts)、[通知候选](../worker/src/lib/notifications.ts) | 引入角色时必须同步每条路径，尤其不能只改页面按钮。                         |
 

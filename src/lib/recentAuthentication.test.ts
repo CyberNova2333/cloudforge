@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   finishRecentAuthentication,
@@ -70,6 +71,61 @@ describe('最近身份验证请求调度', () => {
 });
 
 describe('敏感请求的受限重试', () => {
+  it.each(['PUT', 'DELETE'])(
+    '协作者 %s 在明确近期认证 challenge 后绑定原会话重试，409 不再重放',
+    async (method) => {
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(challenge())
+        .mockResolvedValueOnce(
+          new Response('{"error":"Repository access changed"}', {
+            status: 409,
+            headers: { 'content-type': 'application/json' },
+          })
+        );
+      vi.stubGlobal('fetch', fetcher);
+      const path = '/api/repos/owner/repo/collaborators/member';
+      const waiting = recentAuthenticationFetch(path, { method });
+      await vi.waitFor(() =>
+        expect(pendingRecentAuthentication()).toBe('session-a')
+      );
+      finishRecentAuthentication('session-a', true);
+      expect((await waiting).status).toBe(409);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(fetcher.mock.calls[1][0]).toBe(path);
+      expect(fetcher.mock.calls[1][1].method).toBe(method);
+      expect(
+        new Headers(fetcher.mock.calls[1][1].headers).get(
+          'X-CloudForge-Session'
+        )
+      ).toBe('session-a');
+      expect(pendingRecentAuthentication()).toBeNull();
+    }
+  );
+
+  it.each(['PUT', 'DELETE'])(
+    '协作者 %s 的首次409不弹窗或自动重放',
+    async (method) => {
+      const fetcher = vi.fn().mockResolvedValue(
+        new Response('{"error":"Repository access changed"}', {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+      vi.stubGlobal('fetch', fetcher);
+      expect(
+        (
+          await recentAuthenticationFetch(
+            '/api/repos/owner/repo/collaborators/member',
+            { method }
+          )
+        ).status
+      ).toBe(409);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(pendingRecentAuthentication()).toBeNull();
+    }
+  );
+
   it('只在服务器明确要求且验证成功后重试一次，并绑定原会话', async () => {
     const fetcher = vi
       .fn()

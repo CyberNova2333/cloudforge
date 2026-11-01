@@ -113,7 +113,9 @@ SSO 的两个额外修改入口：
 
 [稳定团队读取](../worker/src/lib/repos.ts)与[团队CAS入口](../worker/src/routers/teams-router.ts)保持原DTO，原生用户与Agent写点继续保留身份/近期证明并将精确namespace冲突映为409。[首次管理员初始化](../worker/src/routers/setup-router.ts)使用外层INSERT RETURNING收据，避免把触发器额外写入误认为失败。`access-schema.test.ts`、`access-compat.test.ts`和`access-migration.test.ts`分别验证guard、实际请求竞争及真实D1旧库升级/失败回滚；最终完整测试另行验收。
 
-新角色/显式团队尚未开放，普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检继续只接受旧schema，当前兼容库会拒绝；具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
+[授权写点检查](../worker/src/lib/access-write.ts)负责捕获浏览器授权快照并构造同条SQL的最终谓词，当前用于共享团队修改和协作者增删。团队路由保留稳定指针/revision，仓库路由绑定目标URL和不可变id；近期挑战由[认证中间件](../worker/src/auth/recent.ts)统一处理。`access-write.test.ts`、`access-team-write.test.ts`、`access-collaborators.test.ts`覆盖真实D1的证明失效、撤权与目标竞争；浏览器重试边界见`recentAuthentication.test.ts`。
+
+新角色/显式团队尚未开放，其余普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检继续只接受旧schema，当前兼容库会拒绝；具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
 
 ## 权限迁移前的只读检查入口
 

@@ -13,6 +13,7 @@ import {
   type Repository,
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
+import { accessWriteGuard, captureAccessWrite } from '../lib/access-write';
 import { landTargetIs } from '../lib/land-target';
 import type { DrizzleDB } from '../db/middleware';
 import { isAgentUser } from '../agents/identity';
@@ -452,6 +453,30 @@ reposRouter.openapi(deleteRepoRoute, async (c) => {
 
 const collabParams = ownerRepoParams.extend({ username: z.string() });
 
+/** A URL must still identify the same repository and human account at the write point. */
+function collaboratorTargetGuard(
+  repositoryId: string,
+  targetId: string,
+  params: z.infer<typeof collabParams>,
+  adding: boolean
+) {
+  return sql`EXISTS (SELECT 1 FROM users collaborator_target
+    WHERE collaborator_target.id = ${targetId}
+      AND collaborator_target.username = ${params.username.toLowerCase()}
+      AND ${adding ? sql`NOT EXISTS (SELECT 1 FROM agents WHERE user_id = collaborator_target.id)` : sql`1`})
+    AND EXISTS (SELECT 1 FROM repositories collaborator_repo
+      JOIN users collaborator_owner ON collaborator_owner.id = collaborator_repo.owner_id
+      LEFT JOIN teams collaborator_team ON collaborator_team.id = collaborator_repo.team_id
+      WHERE collaborator_repo.id = ${repositoryId}
+        AND collaborator_repo.name = ${params.repo}
+        AND ((collaborator_repo.team_id IS NULL AND collaborator_owner.username = ${params.owner.toLowerCase()})
+          OR (collaborator_repo.team_id IS NOT NULL AND collaborator_team.slug = ${params.owner.toLowerCase()})))`;
+}
+
+const collaboratorConflict = {
+  error: 'Repository access changed. Refresh and try again.',
+};
+
 const listCollabRoute = createRoute({
   method: 'get',
   path: '/{owner}/{repo}/collaborators',
@@ -486,12 +511,29 @@ const addCollabRoute = createRoute({
     ...json400Response,
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 reposRouter.openapi(addCollabRoute, async (c) => {
+  c.header('Cache-Control', 'no-store');
   if (!can(c.get('perms'), 'manageAccess'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
-  const user = await userByUsername(c.get('db'), c.req.valid('param').username);
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return c.json({ error: 'A verified browser session is required' }, 403);
+  const db = c.get('db');
+  const repositoryId = c.get('repo').id;
+  const authorization = await captureAccessWrite(db, recent, {
+    kind: 'repository',
+    repositoryId,
+  });
+  if (!authorization) return c.json(collaboratorConflict, 409);
+  const params = c.req.valid('param');
+  const user = await userByUsername(db, params.username);
   if (!user) return c.json({ error: 'User not found' }, 404);
   if (await isAgentUser(c.get('db'), user.id))
     return c.json(
@@ -501,23 +543,27 @@ reposRouter.openapi(addCollabRoute, async (c) => {
       },
       400
     );
-  const added = await c
-    .get('db')
-    .insert(repositoryCollaborators)
-    .values({
-      repositoryId: c.get('repo').id,
-      userId: user.id,
-      createdAt: new Date(),
-    })
-    .onConflictDoNothing()
-    .returning({ id: repositoryCollaborators.userId });
-  if (added.length)
-    await recordAudit(c.get('db'), {
-      repositoryId: c.get('repo').id,
-      actorId: c.get('user')!.id,
-      action: 'collaborator.added',
-      target: user.username ?? user.id,
-    });
+  const guard = sql`${accessWriteGuard(authorization)} AND ${collaboratorTargetGuard(repositoryId, user.id, params, true)}`;
+  // Duplicate PUT succeeds only while the same authority and target still hold.
+  const current = await db.get<{ present: number }>(sql`
+    SELECT EXISTS (SELECT 1 FROM repository_collaborators
+      WHERE repository_id = ${repositoryId} AND user_id = ${user.id}) AS present
+    WHERE ${guard}`);
+  if (!current) return c.json(collaboratorConflict, 409);
+  if (current.present) return c.json({ ok: true as const }, 200);
+  const added = await db.all<{ id: string }>(sql`
+    INSERT INTO repository_collaborators (repository_id, user_id, created_at)
+    SELECT ${repositoryId}, ${user.id}, ${Math.floor(Date.now() / 1000)} WHERE ${guard}
+      AND NOT EXISTS (SELECT 1 FROM repository_collaborators
+        WHERE repository_id = ${repositoryId} AND user_id = ${user.id})
+    RETURNING user_id AS id`);
+  if (!added.length) return c.json(collaboratorConflict, 409);
+  await recordAudit(db, {
+    repositoryId,
+    actorId: recent.userId,
+    action: 'collaborator.added',
+    target: user.username ?? user.id,
+  });
   return c.json({ ok: true as const }, 200);
 });
 
@@ -530,30 +576,57 @@ const removeCollabRoute = createRoute({
     ...json200Response(okSchema, 'Removed'),
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 reposRouter.openapi(removeCollabRoute, async (c) => {
+  c.header('Cache-Control', 'no-store');
   if (!can(c.get('perms'), 'manageAccess'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
-  const user = await userByUsername(c.get('db'), c.req.valid('param').username);
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return c.json({ error: 'A verified browser session is required' }, 403);
+  const db = c.get('db');
+  const repositoryId = c.get('repo').id;
+  const authorization = await captureAccessWrite(db, recent, {
+    kind: 'repository',
+    repositoryId,
+  });
+  if (!authorization) return c.json(collaboratorConflict, 409);
+  const params = c.req.valid('param');
+  const user = await userByUsername(db, params.username);
   if (!user) return c.json({ error: 'User not found' }, 404);
-  const removed = await c
-    .get('db')
+  // Revocation also cleans up anomalous legacy agent grants; it grants no access.
+  const guard = sql`${accessWriteGuard(authorization)} AND ${collaboratorTargetGuard(repositoryId, user.id, params, false)}`;
+  // Missing DELETE is a no-op only after one authoritative check, with no audit.
+  const current = await db.get<{ revision: number | null }>(sql`
+    SELECT (SELECT revision FROM repository_collaborators
+      WHERE repository_id = ${repositoryId} AND user_id = ${user.id}) AS revision
+    WHERE ${guard}`);
+  if (!current) return c.json(collaboratorConflict, 409);
+  if (current.revision === null) return c.json({ ok: true as const }, 200);
+  const removed = await db
     .delete(repositoryCollaborators)
     .where(
       and(
-        eq(repositoryCollaborators.repositoryId, c.get('repo').id),
-        eq(repositoryCollaborators.userId, user.id)
+        eq(repositoryCollaborators.repositoryId, repositoryId),
+        eq(repositoryCollaborators.userId, user.id),
+        eq(repositoryCollaborators.revision, current.revision),
+        guard
       )
     )
     .returning({ id: repositoryCollaborators.userId });
-  if (removed.length)
-    await recordAudit(c.get('db'), {
-      repositoryId: c.get('repo').id,
-      actorId: c.get('user')!.id,
-      action: 'collaborator.removed',
-      target: user.username ?? user.id,
-    });
+  if (!removed.length) return c.json(collaboratorConflict, 409);
+  await recordAudit(db, {
+    repositoryId,
+    actorId: recent.userId,
+    action: 'collaborator.removed',
+    target: user.username ?? user.id,
+  });
   return c.json({ ok: true as const }, 200);
 });
 
