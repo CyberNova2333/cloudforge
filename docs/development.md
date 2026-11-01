@@ -84,7 +84,9 @@ yarn agents:sync --check
 ## Layout
 
 ```
-src/                 React SPA (Primer CSS, react-router, TanStack Query)
+DESIGN.md            Design system specification (Primer functional tokens, 14px anchor, 8px spacing)
+src/                 React SPA (Primer CSS + DESIGN.md tokens, react-router, TanStack Query)
+e2e/                 Playwright visual regression & axe-core accessibility baseline (Light & Dark)
 worker/src/
   index.ts           Worker entry: Hono app + git endpoint
   git-http.ts        git smart-HTTP proxy to Artifacts
