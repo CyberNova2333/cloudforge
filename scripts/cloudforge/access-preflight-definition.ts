@@ -3,6 +3,7 @@
 // Exact DDL preserves defaults, PK/FK/CHECK rules, index collations and partial predicates.
 // This is a supported-schema contract, not a migration generator or permission to apply SQL.
 import { ACCESS_TRIGGERS } from '../../worker/src/db/access-triggers.ts';
+import { ACCESS_RUNTIME_TRIGGERS } from '../../worker/src/db/access-runtime-triggers.ts';
 export const ACCESS_PREFLIGHT_LEGACY_DEFINITION = {
   users: {
     sql: "CREATE TABLE `users` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`name` text NOT NULL,\n\t`email` text NOT NULL,\n\t`email_verified` integer DEFAULT false NOT NULL,\n\t`image` text,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\t`role` text,\n\t`banned` integer DEFAULT false,\n\t`ban_reason` text,\n\t`ban_expires` integer,\n\t`username` text,\n\t`display_username` text\n, `two_factor_enabled` integer DEFAULT false, `auth_version` integer DEFAULT 0 NOT NULL)",
@@ -721,6 +722,22 @@ export const ACCESS_PREFLIGHT_COMPAT_DEFINITION = {
   },
 } as const;
 
+export const ACCESS_PREFLIGHT_BRIDGE_DEFINITION = {
+  ...ACCESS_PREFLIGHT_COMPAT_DEFINITION,
+  access_runtime_state: {
+    sql: 'CREATE TABLE `access_runtime_state` (\n\t`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,\n\t`minimum_protocol` integer DEFAULT 1 NOT NULL,\n\t`schema_mode` text DEFAULT \'compat-v1\' NOT NULL,\n\t`role_publishing_enabled` integer DEFAULT false NOT NULL,\n\t`revision` integer DEFAULT 0 NOT NULL,\n\tCONSTRAINT "access_runtime_singleton" CHECK("access_runtime_state"."id" = 1),\n\tCONSTRAINT "access_runtime_protocol" CHECK(typeof("access_runtime_state"."minimum_protocol") = \'integer\' AND "access_runtime_state"."minimum_protocol" >= 1 AND "access_runtime_state"."minimum_protocol" <= 9007199254740991),\n\tCONSTRAINT "access_runtime_mode" CHECK("access_runtime_state"."schema_mode" = \'compat-v1\'),\n\tCONSTRAINT "access_runtime_roles_closed" CHECK("access_runtime_state"."role_publishing_enabled" = 0),\n\tCONSTRAINT "access_runtime_revision" CHECK(typeof("access_runtime_state"."revision") = \'integer\' AND "access_runtime_state"."revision" >= 0 AND "access_runtime_state"."revision" <= 9007199254740991)\n)',
+    columns: [
+      [0, 'id', 'INTEGER', 1, '1', 1, 0],
+      [1, 'minimum_protocol', 'INTEGER', 1, '1', 0, 0],
+      [2, 'schema_mode', 'TEXT', 1, "'compat-v1'", 0, 0],
+      [3, 'role_publishing_enabled', 'INTEGER', 1, 'false', 0, 0],
+      [4, 'revision', 'INTEGER', 1, '0', 0, 0],
+    ],
+    foreignKeys: [],
+    indexes: [],
+  },
+} as const;
+
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const bounded = (field: string, bytes = 128) =>
   `CASE WHEN ${field} IS NULL THEN NULL WHEN typeof(${field}) = 'text' AND length(CAST(${field} AS BLOB)) <= ${bytes} THEN ${field} ELSE '!unsupported' END`;
@@ -731,7 +748,7 @@ const aggregate = (row: string, source: string) =>
 
 /** A static SELECT predicate. No metadata or received SQL is ever executed. */
 export function accessDefinitionGuardSql(
-  version: 'legacy' | 'compat-v1'
+  version: 'legacy' | 'compat-v1' | 'runtime-bridge-v1'
 ): string {
   const definition: Readonly<
     Record<
@@ -753,15 +770,20 @@ export function accessDefinitionGuardSql(
   > =
     version === 'legacy'
       ? ACCESS_PREFLIGHT_LEGACY_DEFINITION
-      : ACCESS_PREFLIGHT_COMPAT_DEFINITION;
+      : version === 'compat-v1'
+        ? ACCESS_PREFLIGHT_COMPAT_DEFINITION
+        : ACCESS_PREFLIGHT_BRIDGE_DEFINITION;
   const guards: string[] = [];
   // Authentication trigger bodies are audited by that subsystem. This gate only allows their
   // two historical names here; all access trigger bodies are checked by the final snapshot.
   const allowedTriggers = [
     'cloudforge_factor_auth_version_v1',
     'cloudforge_user_repository_delete_v1',
-    ...(version === 'compat-v1'
+    ...(version !== 'legacy'
       ? ACCESS_TRIGGERS.map((trigger) => trigger.name)
+      : []),
+    ...(version === 'runtime-bridge-v1'
+      ? ACCESS_RUNTIME_TRIGGERS.map((trigger) => trigger.name)
       : []),
   ];
   guards.push(
@@ -770,6 +792,10 @@ export function accessDefinitionGuardSql(
   if (version === 'legacy')
     guards.push(
       "NOT EXISTS (SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND substr(lower(name), 1, 18) = 'cloudforge_access_')"
+    );
+  if (version !== 'runtime-bridge-v1')
+    guards.push(
+      "NOT EXISTS (SELECT 1 FROM sqlite_schema WHERE lower(name) = 'access_runtime_state' OR (type = 'trigger' AND substr(lower(name),1,19) = 'cloudforge_runtime_'))"
     );
   for (const [table, expected] of Object.entries(definition)) {
     // Accept only the two source-file newline conventions. Replacing whitespace in stored SQL

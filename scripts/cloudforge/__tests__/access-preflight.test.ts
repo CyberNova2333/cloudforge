@@ -50,6 +50,7 @@ function harness(
   opts: {
     recorded?: boolean;
     latestSchema?: boolean;
+    compatSchema?: boolean;
     packageMode?: boolean;
     accounts?: { id: string; name: string }[];
     d1?: { uuid: string; name: string }[];
@@ -63,7 +64,8 @@ function harness(
     .filter(
       (name) =>
         name.endsWith('.sql') &&
-        (opts.latestSchema || Number(name.slice(0, 4)) <= 62)
+        (opts.latestSchema ||
+          Number(name.slice(0, 4)) <= (opts.compatSchema ? 64 : 62))
     )
     .sort())
     db.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
@@ -194,13 +196,86 @@ function harness(
 }
 
 describe('access-preflight：只读兼容迁移预检', () => {
+  it('继续识别尚未应用桥接迁移的 compat-v1，不能推断运行时底线', async () => {
+    const h = harness({ compatSchema: true });
+    expect(await h.selected()).toBe(0);
+    expect(h.report().schemaVersion).toBe('compat-v1');
+    expect(h.report()).not.toHaveProperty('runtime');
+  });
+
+  it('运行时底线高于当前协议时阻断，不把升级源码或环境标志当作兼容证明', async () => {
+    const h = harness({ latestSchema: true });
+    h.db.exec(
+      'UPDATE access_runtime_state SET minimum_protocol=2,revision=revision+1'
+    );
+    expect(await h.selected()).toBe(1);
+    expect(
+      h.report().blockers.map((item: { code: string }) => item.code)
+    ).toContain('unsupported_runtime_protocol');
+    expect(h.report().runtime.minimumProtocol).toBe(2);
+    expect(h.report().rolePublishingAllowed).toBe(false);
+  });
+
+  it.each([
+    'missing-row',
+    'missing-trigger',
+    'changed-trigger',
+    'extra-trigger',
+    'mode',
+    'roles',
+    'ddl',
+  ])('桥接状态 %s 拒绝形成成功报告', async (kind) => {
+    const h = harness({ latestSchema: true });
+    if (kind === 'missing-row')
+      h.db.exec(
+        'DROP TRIGGER cloudforge_runtime_state_delete_v1; DELETE FROM access_runtime_state'
+      );
+    if (kind === 'missing-trigger')
+      h.db.exec('DROP TRIGGER cloudforge_runtime_state_update_v1');
+    if (kind === 'changed-trigger')
+      h.db.exec(
+        'DROP TRIGGER cloudforge_runtime_state_update_v1; CREATE TRIGGER cloudforge_runtime_state_update_v1 BEFORE UPDATE ON access_runtime_state BEGIN SELECT 1; END'
+      );
+    if (kind === 'extra-trigger')
+      h.db.exec(
+        'CREATE TRIGGER cloudforge_runtime_extra_v1 AFTER UPDATE ON users BEGIN SELECT 1; END'
+      );
+    if (kind === 'mode' || kind === 'roles')
+      h.db.exec(
+        `DROP TRIGGER cloudforge_runtime_state_update_v1; PRAGMA ignore_check_constraints=ON; UPDATE access_runtime_state SET ${kind === 'mode' ? "schema_mode='future'" : 'role_publishing_enabled=1'}`
+      );
+    if (kind === 'ddl')
+      h.db.exec('ALTER TABLE access_runtime_state ADD COLUMN unexpected TEXT');
+    expect(await h.selected()).toBe(1);
+    expect(h.text()).not.toContain('snapshotDigest');
+  });
+
+  it('发现后 runtime 触发器变化由最后一条快照拒绝', async () => {
+    let mutate: (() => void) | undefined;
+    const h = harness({
+      latestSchema: true,
+      response: (rows) => {
+        if (Object.hasOwn(rows[0], 'schemaDiscovery')) mutate?.();
+        return rows;
+      },
+    });
+    mutate = () => h.db.exec('DROP TRIGGER cloudforge_runtime_state_update_v1');
+    expect(await h.selected()).toBe(1);
+    expect(h.text()).not.toContain('snapshotDigest');
+  });
   it('已迁入兼容schema时准确识别版本，保持所有数据及代数不变', async () => {
     const h = harness({ latestSchema: true });
     const before = h.db.prepare('SELECT * FROM access_control_state').all();
     const grants = h.db.prepare('SELECT * FROM repository_collaborators').all();
     expect(await h.selected()).toBe(0);
-    expect(h.report().schemaVersion).toBe('compat-v1');
+    expect(h.report().schemaVersion).toBe('runtime-bridge-v1');
     expect(h.report().accessGeneration).toBe(before[0].generation);
+    expect(h.report().runtime).toEqual({
+      minimumProtocol: 1,
+      schemaMode: 'compat-v1',
+      rolePublishingEnabled: false,
+      revision: 0,
+    });
     expect(h.db.prepare('SELECT * FROM access_control_state').all()).toEqual(
       before
     );

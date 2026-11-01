@@ -31,7 +31,6 @@ import { formatUpgradePlan, planUpgrade, upgrade } from '../upgrade.ts';
 import {
   ACCESS_MIGRATION,
   ACCESS_MIGRATIONS,
-  ACCESS_PENDING_MIGRATION,
   accessDatabase,
   closeAccessDatabases,
   copyAccessProtocol,
@@ -133,7 +132,7 @@ function installedAt120(): InstallState {
 function seedFor(s: InstallState): FakeCloudflareSeed {
   return {
     d1: [{ uuid: 'd1-existing', name: 'acme-db' }],
-    d1Migrations: { 'd1-existing': ACCESS_MIGRATIONS.slice(0, -1) },
+    d1Migrations: { 'd1-existing': [...ACCESS_MIGRATIONS] },
     ...accessDatabase(s, 'd1-existing').seed,
     r2: {
       'acme-lfs': { [R2_MARKER_KEY]: marker(s, 'lfs') },
@@ -342,7 +341,7 @@ describe('planUpgrade：规划升级', () => {
     expect(p.from).toBe('1.2.0');
     expect(p.to).toBe(TO);
     expect(p.comparison).toEqual({ kind: 'upgrade' });
-    expect(p.migrations).toEqual([ACCESS_PENDING_MIGRATION]);
+    expect(p.migrations).toEqual([]);
     expect(p.create.map((a) => [a.kind, a.name])).toEqual([
       ['r2', 'acme-actions-cache'],
     ]);
@@ -352,7 +351,7 @@ describe('planUpgrade：规划升级', () => {
     expect(p.digest).toMatch(/^[0-9a-f]{12}$/);
     const lines = formatUpgradePlan(p).split('\n');
     expect(lines[0]).toBe('Upgrade acme: 1.2.0 → 1.3.0');
-    expect(lines).toContain(`Migrations: ${ACCESS_PENDING_MIGRATION}`);
+    expect(lines).toContain('Migrations: none');
     expect(lines).toContain('Create: r2 acme-actions-cache');
     expect(lines).toContain(
       'New secrets: BETTER_AUTH_SECRET, ACTIONS_SECRETS_KEY'
@@ -1457,14 +1456,14 @@ describe('恢复升级先核对当前远端证据', () => {
 });
 
 describe('权限兼容升级门禁', () => {
-  const withDatabase = (legacy = false) => {
+  const withDatabase = (legacy: boolean | 'compat' = false) => {
     const state = installedAt120();
     const access = accessDatabase(state, 'd1-existing', legacy);
     const seed = { ...seedFor(state), ...access.seed };
     if (legacy)
       seed.d1Migrations = {
         'd1-existing': ACCESS_MIGRATIONS.filter(
-          (name) => Number(name.slice(0, 4)) <= 62
+          (name) => Number(name.slice(0, 4)) <= (legacy === 'compat' ? 64 : 62)
         ),
       };
     return { ...harness({ state, seed }), db: access.db, seed };
@@ -1492,8 +1491,28 @@ describe('权限兼容升级门禁', () => {
     expect(planned.migrations).toContain(ACCESS_MIGRATION);
     const current = withDatabase();
     expect((await planUpgrade(current.ctx, current.state)).access.schema).toBe(
-      'compat-v1'
+      'runtime-bridge-v1'
     );
+  });
+  it('compat-v1 计划只补桥接迁移，部署前要求实际桥接结构', async () => {
+    const h = withDatabase('compat');
+    const planned = await planUpgrade(h.ctx, h.state);
+    expect(planned.access.schema).toBe('compat-v1');
+    expect(planned.migrations).toEqual(['0065_silent_albert_cleary.sql']);
+    const original = h.runner.run.bind(h.runner);
+    h.runner.run = async (...args) => {
+      const result = await original(...args);
+      if (args[1].includes('migrations'))
+        h.db.exec(
+          readFileSync(
+            join(h.ctx.source.migrationsDir, '0065_silent_albert_cleary.sql'),
+            'utf8'
+          )
+        );
+      return result;
+    };
+    expect((await run(h)).status).toBe('installed');
+    expect(h.deploys.length).toBeGreaterThan(0);
   });
   for (const mode of ['plan', 'apply', 'replace'] as const) {
     it(`${mode} 拒绝额外权限表且不发生云写入`, async () => {
@@ -1510,6 +1529,60 @@ describe('权限兼容升级门禁', () => {
     h.db.exec('DROP TRIGGER cloudforge_access_claim_delete_v1');
     await expect(run(h)).rejects.toThrow(/Access/);
     noCloudWrites(h);
+  });
+  it('数据库最低协议高于源码时拒绝计划和替换，不能靠版本环境变量绕过', async () => {
+    const h = withDatabase();
+    h.db.exec(
+      'UPDATE access_runtime_state SET minimum_protocol=2,revision=revision+1'
+    );
+    await expect(run(h, { replaceCustomCode: true })).rejects.toThrow(
+      'blocking findings'
+    );
+    noCloudWrites(h);
+  });
+  it('确认后运行时底线提升时重新检查并在云写入前停止', async () => {
+    const h = withDatabase();
+    h.ctx.io.confirm = async () => {
+      h.db.exec(
+        'UPDATE access_runtime_state SET minimum_protocol=2,revision=revision+1'
+      );
+      return true;
+    };
+    await expect(run(h, { yes: false })).rejects.toThrow('blocking findings');
+    noCloudWrites(h);
+  });
+  it('迁移完成收据但仍缺桥接状态时不能部署', async () => {
+    const h = withDatabase();
+    const original = h.runner.run.bind(h.runner);
+    h.runner.run = async (...args) => {
+      const out = await original(...args);
+      if (args[1].includes('migrations')) {
+        h.db.exec(
+          'DROP TRIGGER cloudforge_runtime_state_delete_v1; DELETE FROM access_runtime_state'
+        );
+      }
+      return out;
+    };
+    await expect(run(h)).rejects.toThrow(/Access/);
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('诊断ready为false但目标源码符合D1底线时允许修复升级', async () => {
+    const h = withDatabase();
+    const original = h.ctx.fetchImpl;
+    h.ctx.fetchImpl = (async (...args: Parameters<typeof fetch>) => {
+      const response = await original(...args);
+      if (String(args[0]).endsWith('/.well-known/cloudforge') && response.ok) {
+        return Response.json({
+          ...((await response.json()) as object),
+          ready: false,
+          accessRuntime: { ready: false, protocol: 0 },
+        });
+      }
+      return response;
+    }) as typeof fetch;
+    expect(
+      (await planUpgrade(h.ctx, h.state)).access.protocol.runtimeProtocol
+    ).toBe(1);
   });
   it('拒绝未知 read 授予，即使显式允许替换自定义代码', async () => {
     const h = withDatabase();
@@ -1657,6 +1730,35 @@ describe('权限兼容升级门禁', () => {
       run(h, { resume: true, replaceCustomCode: true })
     ).rejects.toThrow(/Access/);
     expect(h.deploys).toHaveLength(count);
+  });
+  it('本地迁移步骤已完成但数据库缺少其他已知迁移收据，恢复时不得部署或写成功标记', async () => {
+    const h = withDatabase();
+    h.failDeploys();
+    await expect(run(h)).rejects.toThrow('boom');
+    expect(
+      h.saved().steps.some((step) => step.key === `upgrade:${TO}:migrations`)
+    ).toBe(true);
+    h.okDeploys();
+    h.seed.d1Migrations = {
+      'd1-existing': ACCESS_MIGRATIONS.filter(
+        (name) => name !== '0064_third_azazel.sql'
+      ),
+    };
+    const deployments = h.deploys.length;
+    const markers = h.cf.calls.filter(
+      (call) => call.method === 'batchD1'
+    ).length;
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'Pending database migrations remain'
+    );
+    expect(h.deploys).toHaveLength(deployments);
+    expect(h.cf.calls.filter((call) => call.method === 'batchD1')).toHaveLength(
+      markers
+    );
+    expect(h.saved().status).toBe('failed');
+    expect(
+      h.saved().steps.some((step) => step.key === `upgrade:${TO}:markers`)
+    ).toBe(false);
   });
 });
 
