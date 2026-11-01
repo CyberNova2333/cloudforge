@@ -123,6 +123,8 @@ SSO 的两个额外修改入口：
 
 这个入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
 
+[失败升级恢复](../scripts/cloudforge/upgrade.ts)在读取本地进度后重新核验Cloudflare设置里的安装归属和版本，并与可达站点交叉检查；本地旧状态不能授权覆盖较新部署。`scripts/cloudforge/__tests__/upgrade.test.ts`以本地模拟云接口/执行器覆盖停止和故障恢复路径，具体操作及尚未覆盖的跨机器并发边界见[升级恢复说明](../docs/updating.md#resuming-a-failed-upgrade-safely)。该修补不等于新角色发布屏障已完成。
+
 ## 覆盖范围
 
 覆盖 Git HTTPS 推送入口、引用保护、Artifacts 交接和持久化推送事件；只追踪这些目录内与推送有关的文件。PR 审查、合并、Actions 执行器、OAuth/MFA、MCP、安装器、SPA 与其他数据库模块留给既有 docs 专题，本包不声称完整架构覆盖。认证策略的预览、受限会话、OAuth 撤销和离线恢复边界见 [认证专题](../docs/authentication.md#管理员认证策略)。提交、远端推送与生产部署分别核验。

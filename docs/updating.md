@@ -90,12 +90,24 @@ If `npx` offers an older version right after a release, its registry cache is st
 
 - `--name <name>` picks the installation when several are recorded.
 - `--plan` only shows the plan and prints the exact apply command, ending in `--expect-plan <digest> --yes`. The apply refuses if the plan has changed since you reviewed it.
-- `--resume` continues an upgrade that failed part-way.
+- `--resume` continues an upgrade that failed part-way after checking the current Cloudflare settings and, when reachable, the running site again. Local progress records do not authorize replacing a newer deployment.
 - `--yes` applies without asking; it is required outside a terminal.
 - It never downgrades. If the worker runs a newer version it stops and prints the command for that version.
 - It only adds secrets the worker lacks and never touches `SETUP_CODE_HASH`. The R2 upload keys and the analytics token are asked for in a terminal (leave one empty to skip it); with `--yes` the deploy goes ahead without them and lists them as missing, with the command that adds them later.
 - If the worker runs code that is not a release (a fork, local changes), it stops before changing anything. `--replace-custom-code` replaces it with stock CloudForge. Forks keep deploying from their own checkout.
 - A worker deployed from a checkout reports its commit instead of a version. The package lists every commit its release contains (`history.txt`, written by `pack.mjs`), so a commit in that list is an upgrade and the release's own commit is the same version, checked offline; any other commit (a newer build, or commits that are not in a release) stops as custom code.
+
+### Resuming a failed upgrade safely
+
+A normal resume requires readable Cloudflare Worker settings containing the same installation ID and ownership nonce and a reported version. A newer release is rejected even when its migration filenames are unchanged. An unexpected intermediate release or a disagreement between the site and settings also stops before changes; custom code replacement requires `--replace-custom-code` on the current invocation. If the main deploy already has a successful receipt, a later change away from its target blocks resume even with that flag: an old completed step cannot authorize a new replacement. Review the current deployment instead of retrying an old resume command blindly.
+
+If the site version probe is unavailable, recovery can continue using verified Worker settings for the recorded source or intended target version. Missing settings, ownership evidence or version stops recovery; local `deployedVersion` is not substituted for that evidence. Existing checks for retained configuration and the first upgrade after adoption also apply during resume. A successful deploy whose local receipt was lost may still be recovered when the settings and reachable site both identify the intended target.
+
+There is one limited exception for an instance adopted without writing cloud markers: before the first successful main-deploy receipt, an online resume may recheck the original bindings, resource IDs, URL, namespace IDs and source version using the read-only adoption checks. It retains the original configuration inputs and does not invent an ownership nonce. If that unmarked site is unavailable, restore site access before retrying resume. Malformed or mismatching markers do not qualify for the exception.
+
+If the second deploy filled Durable Object namespace variables but its local receipt was lost, resume may explain those values only with the namespaces currently belonging to this Worker. It still rejects changes to already-recorded namespace identities or unrelated remote values; it does not disable the remaining configuration checks.
+
+These are read-only observations before the upgrade proceeds, not an atomic lock against another machine deploying later or proof that every gradual-deployment traffic version has converged. Non-retained tunable defaults keep the existing comparison policy; this change does not add a complete snapshot of all dashboard variables. New ACL role publication and old-Worker rollback barriers remain separate work.
 
 A deploy restarts any running Actions jobs (each restarts from the beginning, up to 3 attempts), so deploying when no CI is running avoids that.
 

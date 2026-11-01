@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Ctx, Optional } from '../apply.ts';
 import { renderConfig } from '../apply-steps.ts';
+import { configVars } from '../adopt-worker.ts';
 import type { Io } from '../collect.ts';
 import { ConfigConflict } from '../config.ts';
 import { resourceNames } from '../names.ts';
@@ -133,6 +134,7 @@ function seedFor(s: InstallState): FakeCloudflareSeed {
     ],
     workerVars: {
       acme: {
+        CLOUDFORGE_VERSION: s.deployedVersion ?? '1.2.0',
         CLOUDFORGE_INSTALLATION: JSON.stringify({
           installationId: s.installationId,
           ownershipNonce: s.ownershipNonce,
@@ -165,7 +167,8 @@ function harness(
 ) {
   const s = opts.state ?? installedAt120();
   writeState(home, s);
-  const cf = fakeCloudflare(opts.seed ?? seedFor(s));
+  const remote = opts.seed ?? seedFor(s);
+  const cf = fakeCloudflare(remote);
   const pkgRoot = fakePackage(join(root, 'pkg'), {
     version: TO,
     commit: 'c'.repeat(40),
@@ -188,6 +191,7 @@ function harness(
   const migrations: string[][] = [];
   const ok = (stdout = ''): RunResult => ({ code: 0, stdout, stderr: '' });
   let deployResult: RunResult = ok();
+  let published = false;
   const runner = fakeRunner({
     docker: opts.docker ?? (() => ok('27.0.0\n')),
     [process.execPath]: (args) => {
@@ -204,6 +208,13 @@ function harness(
                 >)
               : null,
         });
+        if (deployResult.code === 0) {
+          published = true;
+          remote.workerVars ??= {};
+          remote.workerVars.acme = configVars(
+            readFileSync(join(home, 'wrangler.jsonc'), 'utf8')
+          );
+        }
         return deployResult;
       }
       if (w[0] === 'secret') {
@@ -242,7 +253,7 @@ function harness(
           ? input.href
           : input.url;
     if (url === `${BASE}/.well-known/cloudforge`) {
-      const deployed = deploys.length > 0 && deployResult.code === 0;
+      const deployed = published;
       if (down && !deployed) throw new TypeError('fetch failed');
       return Response.json({
         installationId: deployed
@@ -1066,5 +1077,362 @@ describe('API 无法列出的已接管 Artifacts 命名空间', () => {
     const h = harness();
     h.cf.failNext('listArtifactsNamespaces', new Error('403 Forbidden'));
     await expect(planUpgrade(h.ctx, h.state)).rejects.toThrow('403 Forbidden');
+  });
+});
+
+describe('恢复升级先核对当前远端证据', () => {
+  const paused = (): InstallState => ({
+    ...installedAt120(),
+    status: 'failed',
+    upgradeTarget: TO,
+  });
+  const remote = (
+    s: InstallState,
+    version: string | null,
+    vars: Record<string, string> = {}
+  ): FakeCloudflareSeed => {
+    const seed = seedFor(s);
+    if (version === null) delete seed.workerVars!.acme!.CLOUDFORGE_VERSION;
+    else seed.workerVars!.acme!.CLOUDFORGE_VERSION = version;
+    Object.assign(seed.workerVars!.acme!, vars);
+    return seed;
+  };
+  it.each([false, true])('拒绝较新控制面版本，站点不可达=%s', async (down) => {
+    const state = paused();
+    const h = harness({
+      state,
+      running: '1.4.0',
+      seed: remote(state, '1.4.0'),
+    });
+    if (down) h.siteDown();
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'newer than this package'
+    );
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
+  });
+  it('HTTP看到较新版本也拒绝，不能只信旧settings', async () => {
+    const state = paused();
+    const h = harness({
+      state,
+      running: '1.4.0',
+      seed: remote(state, '1.2.0'),
+    });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'newer than this package'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('HTTP和控制面版本不同也停止恢复', async () => {
+    const state = paused();
+    const h = harness({
+      state,
+      running: '1.2.1',
+      seed: remote(state, '1.2.0'),
+    });
+    await expect(run(h, { resume: true })).rejects.toThrow('disagree');
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('同一目标以下的其他远端发行也不能被旧恢复计划覆盖', async () => {
+    const state = paused();
+    const h = harness({
+      state,
+      running: '1.2.1',
+      seed: remote(state, '1.2.1'),
+    });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'changed since this upgrade'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+  it.each([
+    ['missing', ''],
+    ['malformed', '{'],
+    [
+      'different id',
+      JSON.stringify({
+        installationId: 'other',
+        ownershipNonce: 'n'.repeat(64),
+      }),
+    ],
+    [
+      'different nonce',
+      JSON.stringify({ installationId: ID, ownershipNonce: 'other-nonce' }),
+    ],
+  ])('站点不可达时拒绝%s安装归属', async (_, marker) => {
+    const state = paused();
+    const h = harness({
+      state,
+      seed: remote(state, '1.2.0', { CLOUDFORGE_INSTALLATION: marker }),
+    });
+    h.siteDown();
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'do not confirm this installation'
+    );
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
+  });
+  it('HTTP安装id不匹配不能被settings正确id覆盖', async () => {
+    const state = paused();
+    const h = harness({
+      state,
+      runningId: 'other',
+      seed: remote(state, '1.2.0'),
+    });
+    await expect(run(h, { resume: true })).rejects.toThrow('not the install');
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('缺版本或控制面不可读不能退回本地deployedVersion', async () => {
+    const state = paused();
+    const h = harness({ state, seed: remote(state, null) });
+    h.siteDown();
+    await expect(
+      run(h, { resume: true, replaceCustomCode: true })
+    ).rejects.toThrow('do not report a known version');
+    expect(h.deploys).toHaveLength(0);
+    h.cf.failNext('workerVars', new Error('settings unavailable'));
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'settings unavailable'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+  it.each([false, true])(
+    '自定义代码替换必须本次明确授权=%s',
+    async (authorized) => {
+      const state = { ...paused(), deployedVersion: 'abcdef012345-dirty' };
+      const h = harness({
+        state,
+        running: 'abcdef012345-dirty',
+        seed: remote(state, 'abcdef012345-dirty'),
+      });
+      if (authorized) {
+        expect(
+          (await run(h, { resume: true, replaceCustomCode: true })).status
+        ).toBe('installed');
+        expect(h.deploys).toHaveLength(1);
+      } else {
+        await expect(run(h, { resume: true })).rejects.toThrow(
+          '--replace-custom-code'
+        );
+        expect(h.deploys).toHaveLength(0);
+      }
+    }
+  );
+  it('恢复仍保护保留变量且不被新custom授权绕过', async () => {
+    const state = {
+      ...paused(),
+      inputs: { ...paused().inputs, vars: { AI_GATEWAY: 'approved' } },
+    };
+    const h = harness({
+      state,
+      seed: remote(state, '1.2.0', { AI_GATEWAY: 'changed' }),
+    });
+    await expect(
+      run(h, { resume: true, replaceCustomCode: true })
+    ).rejects.toThrow('AI_GATEWAY');
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
+  });
+  it('恢复首次adopt仍保护实际观察过的模板变量', async () => {
+    const state = { ...paused(), adoptedAt: '2026-10-16T00:00:00Z' };
+    const h = harness({
+      state,
+      seed: remote(state, '1.2.0', { REVIEW_MODEL: 'custom-changed' }),
+    });
+    await expect(run(h, { resume: true })).rejects.toThrow('REVIEW_MODEL');
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('本次目标已部署但本地收据丢失，故障站点仍能继续', async () => {
+    const state = paused();
+    const h = harness({ state, running: TO, seed: remote(state, TO) });
+    h.siteDown();
+    const result = await run(h, { resume: true });
+    expect(result.status).toBe('installed');
+    expect(result.deployedVersion).toBe(TO);
+    expect(h.deploys).toHaveLength(1);
+  });
+
+  it('已完成主部署后换成custom，即使本次授权替换也不能跳过deploy收据继续', async () => {
+    const state = {
+      ...paused(),
+      deployedVersion: TO,
+      steps: [
+        ...paused().steps,
+        { key: `upgrade:${TO}:deploy`, at: '2026-10-17T00:00:00Z' },
+      ],
+    };
+    const h = harness({
+      state,
+      running: 'deadbeef-dirty',
+      seed: remote(state, 'deadbeef-dirty'),
+    });
+    await expect(
+      run(h, { resume: true, replaceCustomCode: true })
+    ).rejects.toThrow('completed deployment no longer matches');
+    expect(h.deploys).toHaveLength(0);
+    expect(
+      h.cf.state.d1
+        .flatMap((db) => db.queries)
+        .some((query) => /^INSERT/i.test(query))
+    ).toBe(false);
+  });
+
+  it.each([false, true])(
+    'DO第二次部署丢收据，只接受真实namespace映射，远端ID篡改=%s',
+    async (changed) => {
+      const state = {
+        ...paused(),
+        deployedVersion: TO,
+        doNamespaceIds: { JOB_RUNNER_NAMESPACE_ID: 'ns-job' },
+        steps: [
+          ...paused().steps,
+          { key: `upgrade:${TO}:deploy`, at: '2026-10-17T00:00:00Z' },
+        ],
+      };
+      const h = harness({
+        state,
+        running: TO,
+        seed: remote(state, TO, {
+          ...DO_IDS,
+          ...(changed ? { LIVE_NAMESPACE_ID: 'unrelated-namespace' } : {}),
+        }),
+      });
+      if (changed) {
+        await expect(run(h, { resume: true })).rejects.toThrow(
+          'LIVE_NAMESPACE_ID'
+        );
+        expect(h.deploys).toHaveLength(0);
+      } else {
+        const resumed = await run(h, { resume: true });
+        expect(resumed.status).toBe('installed');
+        expect(resumed.doNamespaceIds).toEqual(DO_IDS);
+        expect(h.deploys).toHaveLength(1);
+      }
+    }
+  );
+
+  it('DO缺收据恢复不得覆盖已记录的namespace身份', async () => {
+    const state = {
+      ...paused(),
+      deployedVersion: TO,
+      doNamespaceIds: { JOB_RUNNER_NAMESPACE_ID: 'old-recorded-job' },
+      steps: [
+        ...paused().steps,
+        { key: `upgrade:${TO}:deploy`, at: '2026-10-17T00:00:00Z' },
+      ],
+    };
+    const h = harness({ state, running: TO, seed: remote(state, TO, DO_IDS) });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'Recorded Durable Object namespaces changed'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+
+  const unmarkedAdopted = () => {
+    const state = {
+      ...paused(),
+      adoptedAt: '2026-10-16T00:00:00Z',
+      resources: paused().resources.map((r) => ({
+        ...r,
+        ownership: 'adopted' as const,
+      })),
+    };
+    const seed = remote(state, '1.2.0');
+    delete seed.workerVars!.acme!.CLOUDFORGE_INSTALLATION;
+    seed.subdomain = 'me';
+    seed.workers = {
+      acme: [
+        { type: 'plain_text', name: 'CLOUDFORGE_VERSION', text: '1.2.0' },
+        { type: 'd1', name: 'DB', id: 'd1-existing' },
+        { type: 'r2_bucket', name: 'LFS', bucket_name: 'acme-lfs' },
+        {
+          type: 'r2_bucket',
+          name: 'ACTIONS_LOGS',
+          bucket_name: 'acme-actions-logs',
+        },
+        {
+          type: 'workflow',
+          name: 'ACTIONS_RUN',
+          workflow_name: 'acme-actions-run',
+        },
+        {
+          type: 'workflow',
+          name: 'MERGE_RESOLUTION',
+          workflow_name: 'acme-merge-resolution',
+        },
+      ],
+    };
+    return { state, seed };
+  };
+
+  it('首次adopt在deploy前失败，无marker时重验在线源版本和实际绑定后可恢复', async () => {
+    const { state, seed } = unmarkedAdopted();
+    const h = harness({ state, seed, runningId: null });
+    const resumed = await run(h, { resume: true });
+    expect(resumed.status).toBe('installed');
+    expect(h.deploys).toHaveLength(1);
+    expect(h.cf.calls.some((c) => c.method === 'workerSettings')).toBe(true);
+  });
+
+  it('首次adopt无marker且站点不可达时拒绝并指明恢复站点后重试', async () => {
+    const { state, seed } = unmarkedAdopted();
+    const h = harness({ state, seed, runningId: null });
+    h.siteDown();
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'Restore site access and retry --resume'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+
+  it('重新核验adopt不能把新改的模板变量收为新配置', async () => {
+    const { state, seed } = unmarkedAdopted();
+    seed.workerVars!.acme!.REVIEW_MODEL = 'changed-on-dashboard';
+    seed.workers!.acme!.push({
+      type: 'plain_text',
+      name: 'REVIEW_MODEL',
+      text: 'changed-on-dashboard',
+    });
+    const h = harness({ state, seed, runningId: null });
+    await expect(run(h, { resume: true })).rejects.toThrow('REVIEW_MODEL');
+    expect(h.deploys).toHaveLength(0);
+  });
+
+  it.each([
+    '{',
+    'null',
+    JSON.stringify({ installationId: ID, ownershipNonce: 'wrong' }),
+  ])('首次adopt损坏或冲突marker不能冒充缺marker：%s', async (marker) => {
+    const { state, seed } = unmarkedAdopted();
+    seed.workerVars!.acme!.CLOUDFORGE_INSTALLATION = marker;
+    const h = harness({ state, seed, runningId: null });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'do not confirm this installation'
+    );
+    expect(h.deploys).toHaveLength(0);
+  });
+
+  it('首次adopt无marker不能在绑定被改到另一实际D1后继续', async () => {
+    const { state, seed } = unmarkedAdopted();
+    seed.d1!.push({ uuid: 'another-db', name: 'different-db' });
+    seed.workers!.acme!.find((b) => b.name === 'DB')!.id = 'another-db';
+    const h = harness({ state, seed, runningId: null });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'adopted Worker bindings, URL or source version changed'
+    );
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
+  });
+
+  it('曾有主deploy成功收据的adopt不能再走缺marker例外', async () => {
+    const { state, seed } = unmarkedAdopted();
+    state.steps.push({
+      key: `upgrade:${TO}:deploy`,
+      at: '2026-10-17T00:00:00Z',
+    });
+    const h = harness({ state, seed, runningId: null });
+    await expect(run(h, { resume: true })).rejects.toThrow(
+      'do not confirm this installation'
+    );
+    expect(h.deploys).toHaveLength(0);
   });
 });

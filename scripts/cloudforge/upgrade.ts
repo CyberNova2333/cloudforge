@@ -35,7 +35,12 @@ import {
   verifyAt,
   writeConfig,
 } from './apply-steps.ts';
-import { configVars, varChanges, varStops } from './adopt-worker.ts';
+import {
+  configVars,
+  planAdoptWorker,
+  varChanges,
+  varStops,
+} from './adopt-worker.ts';
 import { ConfigConflict, isGenerated, TUNABLE_VARS } from './config.ts';
 import type { Observed } from './observe.ts';
 import { computePlan, type Action, type Plan } from './plan.ts';
@@ -267,14 +272,13 @@ async function planned(
   s: InstallState,
   running: Running,
   to: string,
-  /** False while continuing an upgrade: its own deploys may have changed the vars. */
-  checkVars = true
+  observation?: Observed
 ): Promise<Planned> {
   const migrations = await pendingMigrations(ctx, s, to);
-  const obs = await look(ctx, s);
+  const obs = observation ?? (await look(ctx, s));
   const base = computePlan(desiredOf(s), obs, s);
   const config = renderConfig(ctx, s, to);
-  const drops = checkVars ? varDrift(s, obs, config.text) : [];
+  const drops = varDrift(s, obs, config.text);
   const workerIsNew =
     base.actions.find((a) => a.key === 'worker')?.action === 'create';
   const have = await existingSecretNames(ctx, s.names.worker, workerIsNew);
@@ -342,6 +346,135 @@ function checkRunning(
         `To replace it anyway: ${ctx.source.command(`upgrade --name ${s.inputs.name} --replace-custom-code`)}. Nothing was changed.`
     );
   }
+}
+
+/**
+ * An interrupted upgrade is not permission to overwrite a deployment made since.
+ * Settings provide current control-plane evidence even while the site is down;
+ * a successful HTTP observation must agree. This is not a global rollout/CAS proof.
+ */
+async function inspectResume(
+  ctx: Ctx,
+  s: InstallState,
+  to: string,
+  replaceCustomCode: boolean,
+  obs: Observed
+): Promise<Running> {
+  const vars = obs.worker.vars;
+  const deployed = hasStep(s, `upgrade:${to}:deploy`);
+  const unmarkedAdoption =
+    firstAfterAdopt(s) &&
+    !deployed &&
+    !vars?.CLOUDFORGE_INSTALLATION &&
+    s.resources.some((r) => r.key === 'worker' && r.ownership === 'adopted');
+  let marker: { installationId?: unknown; ownershipNonce?: unknown } | null =
+    null;
+  try {
+    marker = JSON.parse(vars?.CLOUDFORGE_INSTALLATION ?? 'null');
+  } catch {
+    // A malformed or missing ownership marker is never replaced by local state.
+  }
+  if (
+    !obs.worker.exists ||
+    (!unmarkedAdoption &&
+      (!marker ||
+        marker.installationId !== s.installationId ||
+        marker.ownershipNonce !== s.ownershipNonce))
+  )
+    throw new Error(
+      'Cloudflare worker settings do not confirm this installation. Resume stopped; nothing was changed.'
+    );
+  const version = vars?.CLOUDFORGE_VERSION;
+  if (typeof version !== 'string' || !version.trim() || version.length > 128)
+    throw new Error(
+      'Cloudflare worker settings do not report a known version. Resume stopped; nothing was changed.'
+    );
+  const running: Running = {
+    installationId: unmarkedAdoption ? null : s.installationId,
+    version,
+    comparison: compareRunning(version, {
+      version: to,
+      commit: ctx.source.commit ?? '',
+      history: ctx.source.history,
+    }),
+  };
+  // Custom-code replacement must be explicitly authorized for this invocation.
+  checkRunning(ctx, s, running, to, replaceCustomCode);
+  if (deployed && version !== to)
+    throw new Error(
+      'The completed deployment no longer matches the upgrade target. Resume stopped; start a new reviewed upgrade for the current code. Nothing was changed.'
+    );
+  if (
+    version !== s.deployedVersion &&
+    version !== to &&
+    running.comparison.kind !== 'custom'
+  )
+    throw new Error(
+      'The remote Worker version changed since this upgrade started. Resume stopped; review the current deployment before upgrading. Nothing was changed.'
+    );
+  let online: Running;
+  try {
+    online = await inspect(ctx, s, to);
+  } catch {
+    if (unmarkedAdoption)
+      throw new Error(
+        'The first adopted upgrade has no installation marker and the site cannot confirm its source version. Restore site access and retry --resume. Nothing was changed.'
+      );
+    ctx.io.print(
+      'The site version probe is unavailable; resume uses the verified Cloudflare worker settings.'
+    );
+    return running;
+  }
+  checkRunning(ctx, s, online, to, replaceCustomCode);
+  if (
+    online.installationId !== running.installationId ||
+    online.version !== running.version
+  )
+    throw new Error(
+      'The site and Cloudflare worker settings disagree about the installation or version. Resume stopped; nothing was changed.'
+    );
+  if (unmarkedAdoption) {
+    // Reuse adopt's current binding/namespace/config checks. Its generated nonce
+    // is discarded: no ownership marker is inferred or written by this check.
+    const verified = (
+      await planAdoptWorker(ctx, {
+        accountId: s.accountId,
+        worker: s.names.worker,
+      })
+    ).state;
+    const sameResource = (r: InstallState['resources'][number]) =>
+      s.resources.some(
+        (saved) =>
+          saved.key === r.key &&
+          saved.kind === r.kind &&
+          saved.id === r.id &&
+          saved.name === r.name
+      );
+    if (
+      verified.baseUrl !== s.baseUrl ||
+      verified.deployedVersion !== version ||
+      Object.entries(s.names).some(
+        ([key, name]) => verified.names[key as keyof typeof s.names] !== name
+      ) ||
+      !verified.resources.every(sameResource) ||
+      s.resources
+        .filter((r) => r.ownership === 'adopted')
+        .some(
+          (r) =>
+            !verified.resources.some(
+              (live) =>
+                live.key === r.key && live.id === r.id && live.name === r.name
+            )
+        ) ||
+      Object.entries(s.doNamespaceIds).some(
+        ([key, id]) => id && verified.doNamespaceIds[key] !== id
+      )
+    )
+      throw new Error(
+        'The adopted Worker bindings, URL or source version changed. Restore the reviewed adoption configuration before retrying --resume. Nothing was changed.'
+      );
+  }
+  return running;
 }
 
 /** `o` limited to the optional items `ids` (the ones the worker lacks). */
@@ -419,26 +552,46 @@ export async function upgrade(
     )
       throw new ConfigConflict(configFile);
 
-    // Continuing an upgrade skips the running-version checks; they were made (and custom code
-    // consented to) when it started, and the site may be down meanwhile.
     let running: Running;
+    let resumeObservation: Observed | undefined;
+    let planningState = s;
     if (unfinished) {
-      const from = s.deployedVersion ?? null;
-      running = {
-        installationId: s.installationId,
-        version: from,
-        comparison: { kind: from === to ? 'same' : 'upgrade' },
-      };
+      resumeObservation = await look(ctx, s);
+      running = await inspectResume(
+        ctx,
+        s,
+        to,
+        opts.replaceCustomCode,
+        resumeObservation
+      );
+      if (
+        hasStep(s, `${prefix}deploy`) &&
+        !hasStep(s, `${prefix}durable-objects`) &&
+        !doIdsComplete(s.doNamespaceIds)
+      ) {
+        const ids = await readDoNamespaceIds(ctx, s);
+        if (
+          Object.entries(s.doNamespaceIds).some(
+            ([key, id]) => id && ids[key] !== id
+          )
+        )
+          throw new Error(
+            'Recorded Durable Object namespaces changed. Resume stopped; nothing was changed.'
+          );
+        // A second deploy may have succeeded before its receipt was saved. Only
+        // control-plane namespace IDs may explain the now-filled remote vars.
+        planningState = { ...s, doNamespaceIds: ids };
+      }
     } else {
       running = await inspect(ctx, s, to);
       checkRunning(ctx, s, running, to, opts.replaceCustomCode);
     }
     const { plan, base, obs, have } = await planned(
       ctx,
-      s,
+      planningState,
       running,
       to,
-      !unfinished
+      resumeObservation
     );
     problems = plan.problems;
     ctx.io.print(formatUpgradePlan(plan));
