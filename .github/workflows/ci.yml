@@ -329,6 +329,9 @@ jobs:
           worker/src/__tests__/access-preflight.test.ts
           worker/src/__tests__/access-schema.test.ts
           worker/src/__tests__/access-compat.test.ts
+          worker/src/__tests__/access-write.test.ts
+          worker/src/__tests__/access-team-write.test.ts
+          worker/src/__tests__/access-collaborators.test.ts
           worker/src/__tests__/access-migration.test.ts
           worker/src/__tests__/admin-setup.test.ts
           worker/src/__tests__/settings.test.ts

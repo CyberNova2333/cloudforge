@@ -53,7 +53,7 @@ export async function recentAuthorization(
   return row ? { sessionId, userId, authVersion: row.authVersion } : null;
 }
 
-/** Browser credential issuance and site administration; ordinary collaboration and revocation stay available. */
+/** Browser credential issuance, access management and site administration. */
 export function needsRecentRestAuthentication(method: string, path: string) {
   const p = path.replace(/\/$/, '');
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS')
@@ -62,6 +62,8 @@ export function needsRecentRestAuthentication(method: string, path: string) {
     (method === 'POST' && p === '/api/tokens') ||
     (method === 'POST' &&
       /^\/api\/repos\/[^/]+\/[^/]+\/deploy-tokens$/.test(p)) ||
+    ((method === 'PUT' || method === 'DELETE') &&
+      /^\/api\/repos\/[^/]+\/[^/]+\/collaborators\/[^/]+$/.test(p)) ||
     (method === 'PUT' &&
       /^\/api\/mcp\/connections\/[^/]+\/moderator$/.test(p)) ||
     (method === 'POST' && (p === '/api/invites' || p === '/api/agents')) ||

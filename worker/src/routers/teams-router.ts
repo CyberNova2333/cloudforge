@@ -16,6 +16,8 @@ import {
   namespaceTaken,
 } from '../lib/namespaces';
 import { accountEmailFor } from '../lib/users';
+import { accessWriteGuard, captureAccessWrite } from '../lib/access-write';
+import { recordAudit } from '../lib/audit';
 import { getTeam, teamNamespace, userNamespace, visibleTo } from '../lib/repos';
 import type { AppEnv } from '../variables';
 import { serializeRepo } from './repos-router';
@@ -102,6 +104,18 @@ const putTeamRoute = createRoute({
 });
 teamRouter.openapi(putTeamRoute, async (c) => {
   const db = c.get('db');
+  const recent = c.get('recentAuthorization');
+  const session = c.get('browserSession');
+  const authorization =
+    session &&
+    recent?.sessionId === session.id &&
+    recent.userId === c.get('user')?.id
+      ? await captureAccessWrite(db, recent, { kind: 'instance' })
+      : null;
+  // This is a post-authentication conflict, not a challenge that the client may replay.
+  const stale = () =>
+    c.json({ error: 'Team authorization changed. Reload and try again.' }, 409);
+  if (!authorization) return stale();
   const { name } = c.req.valid('json');
   const slug = c.req.valid('json').slug.toLowerCase();
   if (!isValidSlug(slug)) {
@@ -129,22 +143,54 @@ teamRouter.openapi(putTeamRoute, async (c) => {
           and(
             eq(teams.id, existing.id),
             eq(teams.revision, existing.revision),
+            accessWriteGuard(authorization),
             sql`EXISTS (SELECT 1 FROM ${accessControlState} WHERE ${accessControlState.id}=1 AND ${accessControlState.legacySharedTeamId}=${existing.id})`
           )
         )
         .returning();
-      if (!updated)
-        return c.json(
-          { error: 'The shared team changed. Reload and try again.' },
-          409
-        );
+      if (!updated) return stale();
+      if (existing.name !== name || existing.slug !== slug)
+        await recordAudit(db, {
+          repositoryId: null,
+          actorId: authorization.userId,
+          action: 'instance.settings',
+          target: 'team',
+          data: { teamId: updated.id, operation: 'updated', name, slug },
+        });
       // Revision is maintained by an AFTER trigger and is deliberately absent from the old DTO.
       return c.json({ team: serializeTeam(updated) }, 200);
     }
     const [created] = await db
       .insert(teams)
-      .values({ id: crypto.randomUUID(), slug, name, createdAt: new Date() })
+      .select(
+        db
+          .select({
+            id: sql<string>`${crypto.randomUUID()}`.as('id'),
+            slug: sql<string>`${slug}`.as('slug'),
+            name: sql<string>`${name}`.as('name'),
+            membershipMode: sql<'instance'>`'instance'`.as('membership_mode'),
+            revision: sql<number>`0`.as('revision'),
+            createdAt: sql<Date>`unixepoch()`.as('created_at'),
+          })
+          .from(accessControlState)
+          .where(
+            and(
+              eq(accessControlState.id, 1),
+              isNull(accessControlState.legacySharedTeamId),
+              sql`NOT EXISTS (SELECT 1 FROM ${teams})`,
+              accessWriteGuard(authorization)
+            )
+          )
+      )
       .returning();
+    if (!created) return stale();
+    await recordAudit(db, {
+      repositoryId: null,
+      actorId: authorization.userId,
+      action: 'instance.settings',
+      target: 'team',
+      data: { teamId: created.id, operation: 'created', name, slug },
+    });
     // The INSERT and its trigger claim the stable pointer atomically.
     return c.json({ team: serializeTeam(created) }, 200);
   } catch (error) {
