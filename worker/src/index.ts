@@ -74,6 +74,10 @@ import { sameOriginWrites } from './auth/same-origin';
 import { redactedLog } from './lib/request-log';
 import { runScheduled } from './cron';
 import { acceptsToken, tokenUser } from './auth/token-auth';
+import {
+  accessRuntimeResponse,
+  isAccessRuntimeProbe,
+} from './lib/access-runtime-http';
 
 const app = new OpenAPIHono<AppEnv>();
 
@@ -82,6 +86,13 @@ export const AUTH_BODY_LIMIT = 64 * 1024;
 /** Largest request body of the rest of the API and /mcp: a 64K-character PR body is the biggest field. */
 export const API_BODY_LIMIT = 1024 * 1024;
 
+app.use('*', async (c, next) => {
+  if (!isAccessRuntimeProbe(c.req.raw)) {
+    const unavailable = await accessRuntimeResponse(c.env.DB);
+    if (unavailable) return unavailable;
+  }
+  await next();
+});
 app.use('*', injectDb);
 app.use('*', logger(redactedLog));
 // Include rejected and oversized authentication requests, and the current browser's proof display.

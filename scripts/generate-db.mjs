@@ -25,6 +25,8 @@ import { OIDC_SIGN_IN_TRIGGERS } from '../worker/src/db/oidc-sign-in-triggers.ts
 import { USER_DELETION_TRIGGERS } from '../worker/src/db/user-deletion-triggers.ts';
 import { ACCESS_TRIGGERS } from '../worker/src/db/access-triggers.ts';
 import { ACCESS_BACKFILLS } from '../worker/src/db/access-backfill.ts';
+import { ACCESS_RUNTIME_TRIGGERS } from '../worker/src/db/access-runtime-triggers.ts';
+import { ACCESS_RUNTIME_BACKFILLS } from '../worker/src/db/access-runtime-backfill.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -39,6 +41,7 @@ const definitions = [
   ...OIDC_SIGN_IN_TRIGGERS,
   ...USER_DELETION_TRIGGERS,
   ...ACCESS_TRIGGERS,
+  ...ACCESS_RUNTIME_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
@@ -77,7 +80,7 @@ export function generateDatabase({
   root = ROOT,
   run = runDrizzle,
   triggers = definitions,
-  backfills = ACCESS_BACKFILLS,
+  backfills = [...ACCESS_BACKFILLS, ...ACCESS_RUNTIME_BACKFILLS],
 } = {}) {
   const directory = join(root, 'migrations');
   // Append-only data declarations are emitted once, after DDL and managed guards.

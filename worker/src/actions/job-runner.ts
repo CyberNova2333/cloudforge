@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import {
   mask,
   maskValues,
@@ -75,6 +76,7 @@ export class JobRunner
   }
 
   async boot(instance: InstanceType, maxMs: number): Promise<{ ms: number }> {
+    await assertAccessRuntime(this.env.DB);
     const t = Date.now();
     // Orphan hard stop: job timeout plus a margin.
     await this.ctx.storage.setAlarm(Date.now() + maxMs + 10 * 60_000);
@@ -113,6 +115,7 @@ export class JobRunner
   }
 
   async runStep(req: StepRequest): Promise<StepResult> {
+    await assertAccessRuntime(this.env.DB);
     if (!this.ctx.container?.running)
       throw new Error('The runner container is no longer running');
     const files = {
@@ -298,6 +301,7 @@ export class JobRunner
 
   /** Output so far of the running step, for live logs. */
   async live(stepNumber: number): Promise<string | null> {
+    await assertAccessRuntime(this.env.DB);
     const s = this.liveStep;
     if (!s || s.number !== stepNumber) return null;
     return capped(mask(s.text, s.masks));

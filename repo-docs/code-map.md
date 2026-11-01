@@ -115,7 +115,13 @@ SSO 的两个额外修改入口：
 
 [授权写点检查](../worker/src/lib/access-write.ts)负责捕获浏览器授权快照并构造同条SQL的最终谓词，当前用于共享团队修改和协作者增删。团队路由保留稳定指针/revision，仓库路由绑定目标URL和不可变id；近期挑战由[认证中间件](../worker/src/auth/recent.ts)统一处理。`access-write.test.ts`、`access-team-write.test.ts`、`access-collaborators.test.ts`覆盖真实D1的证明失效、撤权与目标竞争；浏览器重试边界见`recentAuthentication.test.ts`。
 
-新角色/显式团队尚未开放，其余普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检明确识别旧schema与 `compat-v1`，未知或部分结构会拒绝；升级根据目标声明和迁移指纹检查支持范围。具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
+新角色/显式团队尚未开放，其余普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检明确识别旧schema、`compat-v1` 与 `runtime-bridge-v1`，未知或部分结构会拒绝；升级根据目标声明和迁移指纹检查支持范围。具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。预检本身不改写 Git 输入输出；过渡运行时新增的 503 拒绝边界已同步 walkthrough。
+
+## 过渡运行时的修改入口
+
+[协议读取](../worker/src/lib/access-runtime.ts)执行有界、无缓存的 D1 状态检查；[HTTP 拒绝响应](../worker/src/lib/access-runtime-http.ts)供 Hono、Git 与 LFS 的独立入口使用。[安装诊断](../worker/src/routers/install-router.ts)保留精确 GET/HEAD 元数据探针。[数据库守卫](../worker/src/db/access-runtime-triggers.ts)维护永久状态和单调协议，推进 ACL generation；初始化由生成器管理，不能手工追加迁移。
+
+后台入口分别在 `worker/src/actions/`、`worker/src/merge/`、`worker/src/review/agent-reviewer.ts`、`worker/src/live/hub.ts` 与 `worker/src/cron.ts` 检查，纯停止/销毁路径保留。`access-runtime.test.ts`、`access-runtime-http.test.ts` 和 `access-runtime-background.test.ts` 用真实 D1 覆盖状态守卫与拒绝行为；其余回归按最终日志核验。入口准入不是每个 await 后的写点围栏，也不能约束未包含检查的旧代码，角色发布仍关闭。
 
 ## 权限迁移前的只读检查入口
 

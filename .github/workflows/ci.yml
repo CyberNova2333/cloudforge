@@ -335,6 +335,9 @@ jobs:
           worker/src/__tests__/access-preflight-definition.test.ts
           worker/src/__tests__/install-marker.test.ts
           worker/src/__tests__/access-schema.test.ts
+          worker/src/__tests__/access-runtime.test.ts
+          worker/src/__tests__/access-runtime-http.test.ts
+          worker/src/__tests__/access-runtime-background.test.ts
           worker/src/__tests__/access-compat.test.ts
           worker/src/__tests__/access-write.test.ts
           worker/src/__tests__/access-team-write.test.ts

@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
+import { assertAccessRuntime } from '../lib/access-runtime';
 
 /** Hibernating hub for every live WebSocket; relays "changed" pings by channel tag. */
 export class LiveHub extends DurableObject<CloudflareBindings> {
@@ -13,6 +14,7 @@ export class LiveHub extends DurableObject<CloudflareBindings> {
 
   /** Accepts a socket the worker already authenticated, subscribed to `X-Live-Channels`. */
   async fetch(request: Request): Promise<Response> {
+    await assertAccessRuntime(this.env.DB);
     const channels = (request.headers.get('X-Live-Channels') ?? '')
       .split(',')
       .filter(Boolean);
@@ -23,6 +25,11 @@ export class LiveHub extends DurableObject<CloudflareBindings> {
 
   /** Sends a ping to every socket subscribed to `channel`. */
   async publish(channel: string, message: string): Promise<void> {
+    await assertAccessRuntime(this.env.DB);
+    this.#publishTo(channel, message);
+  }
+
+  #publishTo(channel: string, message: string): void {
     for (const ws of this.ctx.getWebSockets(channel)) {
       try {
         ws.send(message);
@@ -34,7 +41,8 @@ export class LiveHub extends DurableObject<CloudflareBindings> {
 
   /** `publish` for several channels in one call (a notification's recipients). */
   async publishMany(channels: string[], message: string): Promise<void> {
-    for (const channel of channels) await this.publish(channel, message);
+    await assertAccessRuntime(this.env.DB);
+    for (const channel of channels) this.#publishTo(channel, message);
   }
 
   async webSocketMessage() {}
