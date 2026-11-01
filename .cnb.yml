@@ -24,6 +24,9 @@ main:
           script: yarn typecheck
         - name: 构建项目
           script: yarn build
+        - name: 核对第三方许可清单
+          # 清单从安装树和这次构建的 banner 生成，二者都在前面就绪。
+          script: yarn notices:check
         - name: 运行全部测试
           # 8 核 runner 上开 6 个 worker，每个是独立的 workerd、有自己的存储（见 worker/vitest.config.ts）。
           script: TEST_WORKERS=6 yarn test
