@@ -1,5 +1,11 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
+  ACCESS_MIGRATIONS,
+  accessDatabase,
+  closeAccessDatabases,
+  copyAccessProtocol,
+} from './access-upgrade-fixture.ts';
+import {
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -78,6 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  closeAccessDatabases();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -1011,7 +1018,8 @@ describe('upgrade：升级', () => {
     });
     return {
       d1: [{ uuid: 'd1-x', name: 'acme-db' }],
-      d1Migrations: { 'd1-x': ['0000_init.sql'] },
+      d1Migrations: { 'd1-x': ACCESS_MIGRATIONS.slice(0, -1) },
+      ...accessDatabase(s, 'd1-x').seed,
       r2: {
         'acme-lfs': marker('lfs'),
         'acme-actions-logs': marker('actionsLogs'),
@@ -1054,14 +1062,7 @@ describe('upgrade：升级', () => {
       join(pkgRoot, 'wrangler.jsonc.example')
     );
     mkdirSync(join(pkgRoot, 'migrations'), { recursive: true });
-    writeFileSync(
-      join(pkgRoot, 'migrations', '0000_init.sql'),
-      'CREATE TABLE a;'
-    );
-    writeFileSync(
-      join(pkgRoot, 'migrations', '0001_more.sql'),
-      'CREATE TABLE b;'
-    );
+    copyAccessProtocol(pkgRoot);
     return { home: home(), source: packageSource(pkgRoot) };
   };
   /** An installed acme at 1.2.0 under home; the site reports 1.3.0 once a deploy succeeded. */
