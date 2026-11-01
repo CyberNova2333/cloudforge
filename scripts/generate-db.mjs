@@ -23,6 +23,8 @@ import { AUTH_POLICY_TRIGGERS } from '../worker/src/db/auth-policy-triggers.ts';
 import { OIDC_TRIGGERS } from '../worker/src/db/oidc-triggers.ts';
 import { OIDC_SIGN_IN_TRIGGERS } from '../worker/src/db/oidc-sign-in-triggers.ts';
 import { USER_DELETION_TRIGGERS } from '../worker/src/db/user-deletion-triggers.ts';
+import { ACCESS_TRIGGERS } from '../worker/src/db/access-triggers.ts';
+import { ACCESS_BACKFILLS } from '../worker/src/db/access-backfill.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
@@ -36,6 +38,7 @@ const definitions = [
   ...OIDC_TRIGGERS,
   ...OIDC_SIGN_IN_TRIGGERS,
   ...USER_DELETION_TRIGGERS,
+  ...ACCESS_TRIGGERS,
 ];
 const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
@@ -74,8 +77,52 @@ export function generateDatabase({
   root = ROOT,
   run = runDrizzle,
   triggers = definitions,
+  backfills = ACCESS_BACKFILLS,
 } = {}) {
   const directory = join(root, 'migrations');
+  // Append-only data declarations are emitted once, after DDL and managed guards.
+  // Removing or changing a published declaration must never reseed mutable state.
+  const dataFile = join(directory, 'meta', '_data.json');
+  const previousData = existsSync(dataFile)
+    ? JSON.parse(readFileSync(dataFile, 'utf8'))
+    : { version: 1, backfills: [] };
+  if (
+    previousData.version !== 1 ||
+    !Array.isArray(previousData.backfills) ||
+    previousData.backfills.some(
+      (item) => !validName(item.id) || !/^[a-f0-9]{64}$/.test(item.sha256)
+    ) ||
+    new Set(previousData.backfills.map((item) => item.id)).size !==
+      previousData.backfills.length ||
+    !Array.isArray(backfills) ||
+    backfills.some(
+      (item) =>
+        !validName(item.id) ||
+        !Array.isArray(item.statements) ||
+        item.statements.length === 0 ||
+        item.statements.some(
+          (statement) => typeof statement !== 'string' || !normalized(statement)
+        )
+    ) ||
+    new Set(backfills.map((item) => item.id)).size !== backfills.length
+  )
+    throw new Error('Invalid generated backfill declarations or metadata.');
+  const currentData = {
+    version: 1,
+    backfills: backfills.map((item) => ({
+      id: item.id,
+      sha256: digest(JSON.stringify(item.statements.map(normalized))),
+    })),
+  };
+  if (
+    previousData.backfills.some(
+      (item, index) =>
+        currentData.backfills[index]?.id !== item.id ||
+        currentData.backfills[index]?.sha256 !== item.sha256
+    )
+  )
+    throw new Error('Generated backfill history is append-only and immutable.');
+  const pendingBackfills = backfills.slice(previousData.backfills.length);
   // Drizzle treats every meta filename not starting with '_' as a schema snapshot.
   const stateFile = join(directory, 'meta', '_triggers.json');
   const previous = existsSync(stateFile)
@@ -128,12 +175,15 @@ export function generateDatabase({
   };
   run([], root);
   let added = generated();
-  if (!added.length && changed) {
-    run(['--custom', '--name', 'auth_triggers'], root);
+  if (!added.length && (changed || pendingBackfills.length)) {
+    run(
+      ['--custom', '--name', changed ? 'auth_triggers' : 'managed_data'],
+      root
+    );
     added = generated();
   }
   if (!added.length) {
-    if (changed)
+    if (changed || pendingBackfills.length)
       throw new Error(
         'Drizzle did not create a migration for the trigger changes.'
       );
@@ -159,7 +209,16 @@ export function generateDatabase({
   const drops = names.map((name) => `DROP TRIGGER IF EXISTS \`${name}\`;`);
   const creates = triggers.map((item) => `${normalized(item.sql)};`);
   const prefix = previous.triggers.length ? drops : [];
-  const suffix = previous.triggers.length ? creates : [...drops, ...creates];
+  const seeds = pendingBackfills.flatMap((item) =>
+    item.statements.map(
+      (statement, index) =>
+        `-- Managed backfill ${item.id}, statement ${index + 1}\n${normalized(statement)};`
+    )
+  );
+  const suffix = [
+    ...(previous.triggers.length ? creates : [...drops, ...creates]),
+    ...seeds,
+  ];
   if (prefix.length || suffix.length) {
     const path = join(directory, migration);
     const sql = readFileSync(path, 'utf8').replace(/\r\n/g, '\n').trimEnd();
@@ -170,6 +229,8 @@ export function generateDatabase({
   }
   if (changed)
     writeFileSync(stateFile, JSON.stringify(current, null, 2) + '\n');
+  if (pendingBackfills.length)
+    writeFileSync(dataFile, JSON.stringify(currentData, null, 2) + '\n');
   return migration;
 }
 

@@ -48,6 +48,7 @@ function localFiles(directory = root): Record<string, string> {
 function harness(
   opts: {
     recorded?: boolean;
+    latestSchema?: boolean;
     packageMode?: boolean;
     accounts?: { id: string; name: string }[];
     d1?: { uuid: string; name: string }[];
@@ -57,7 +58,12 @@ function harness(
   const db = new DatabaseSync(':memory:');
   databases.push(db);
   for (const file of readdirSync(MIGRATIONS)
-    .filter((name) => name.endsWith('.sql'))
+    // This command is deliberately legacy-only; the compatible schema is refused.
+    .filter(
+      (name) =>
+        name.endsWith('.sql') &&
+        (opts.latestSchema || Number(name.slice(0, 4)) <= 62)
+    )
     .sort())
     db.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
   db.exec('PRAGMA foreign_keys = ON');
@@ -187,6 +193,23 @@ function harness(
 }
 
 describe('access-preflight：只读兼容迁移预检', () => {
+  it('已迁入兼容schema时拒绝当作旧模型回填，保持所有数据及代数不变', async () => {
+    const h = harness({ latestSchema: true });
+    const before = h.db.prepare('SELECT * FROM access_control_state').all();
+    const grants = h.db.prepare('SELECT * FROM repository_collaborators').all();
+    expect(await h.selected()).toBe(1);
+    expect(h.text()).toContain(
+      'could not read a valid, bounded compatibility snapshot'
+    );
+    expect(h.db.prepare('SELECT * FROM access_control_state').all()).toEqual(
+      before
+    );
+    expect(
+      h.db.prepare('SELECT * FROM repository_collaborators').all()
+    ).toEqual(grants);
+    expect(h.text()).not.toContain(PRIVATE);
+  });
+
   it('仅执行一次只读快照，保留旧协作者/创建者/公开集合并不授权角色发布', async () => {
     const h = harness();
     const before = localFiles();

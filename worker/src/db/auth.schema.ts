@@ -1,6 +1,12 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { relations, sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -225,6 +231,10 @@ export const oauthClientResources = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp_ms' }),
   },
   (table) => [
+    uniqueIndex('oauthClientResources_clientId_resourceId_uidx').on(
+      table.clientId,
+      table.resourceId
+    ),
     index('oauthClientResources_clientId_idx').on(table.clientId),
     index('oauthClientResources_resourceId_idx').on(table.resourceId),
   ]
@@ -345,10 +355,10 @@ export const rateLimits = sqliteTable('rate_limits', {
   lastRequest: integer('last_request').notNull(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   sessions: many(sessions),
   accounts: many(accounts),
-  twoFactors: many(twoFactors),
+  twoFactors: one(twoFactors),
   oauthClients: many(oauthClients),
   oauthRefreshTokens: many(oauthRefreshTokens),
   oauthAccessTokens: many(oauthAccessTokens),
@@ -356,7 +366,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const sessionsRelations = relations(sessions, ({ one, many }) => ({
-  users: one(users, {
+  user: one(users, {
     fields: [sessions.userId],
     references: [users.id],
   }),
@@ -365,14 +375,14 @@ export const sessionsRelations = relations(sessions, ({ one, many }) => ({
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
-  users: one(users, {
+  user: one(users, {
     fields: [accounts.userId],
     references: [users.id],
   }),
 }));
 
 export const twoFactorsRelations = relations(twoFactors, ({ one }) => ({
-  users: one(users, {
+  user: one(users, {
     fields: [twoFactors.userId],
     references: [users.id],
   }),
@@ -381,7 +391,7 @@ export const twoFactorsRelations = relations(twoFactors, ({ one }) => ({
 export const oauthClientsRelations = relations(
   oauthClients,
   ({ one, many }) => ({
-    users: one(users, {
+    user: one(users, {
       fields: [oauthClients.userId],
       references: [users.id],
     }),
@@ -402,11 +412,11 @@ export const oauthResourcesRelations = relations(
 export const oauthClientResourcesRelations = relations(
   oauthClientResources,
   ({ one }) => ({
-    oauthClients: one(oauthClients, {
+    oauthClient: one(oauthClients, {
       fields: [oauthClientResources.clientId],
       references: [oauthClients.clientId],
     }),
-    oauthResources: one(oauthResources, {
+    oauthResource: one(oauthResources, {
       fields: [oauthClientResources.resourceId],
       references: [oauthResources.identifier],
     }),
@@ -416,15 +426,15 @@ export const oauthClientResourcesRelations = relations(
 export const oauthRefreshTokensRelations = relations(
   oauthRefreshTokens,
   ({ one, many }) => ({
-    oauthClients: one(oauthClients, {
+    oauthClient: one(oauthClients, {
       fields: [oauthRefreshTokens.clientId],
       references: [oauthClients.clientId],
     }),
-    sessions: one(sessions, {
+    session: one(sessions, {
       fields: [oauthRefreshTokens.sessionId],
       references: [sessions.id],
     }),
-    users: one(users, {
+    user: one(users, {
       fields: [oauthRefreshTokens.userId],
       references: [users.id],
     }),
@@ -435,19 +445,19 @@ export const oauthRefreshTokensRelations = relations(
 export const oauthAccessTokensRelations = relations(
   oauthAccessTokens,
   ({ one }) => ({
-    oauthClients: one(oauthClients, {
+    oauthClient: one(oauthClients, {
       fields: [oauthAccessTokens.clientId],
       references: [oauthClients.clientId],
     }),
-    sessions: one(sessions, {
+    session: one(sessions, {
       fields: [oauthAccessTokens.sessionId],
       references: [sessions.id],
     }),
-    users: one(users, {
+    user: one(users, {
       fields: [oauthAccessTokens.userId],
       references: [users.id],
     }),
-    oauthRefreshTokens: one(oauthRefreshTokens, {
+    oauthRefreshToken: one(oauthRefreshTokens, {
       fields: [oauthAccessTokens.refreshId],
       references: [oauthRefreshTokens.id],
     }),
@@ -455,11 +465,11 @@ export const oauthAccessTokensRelations = relations(
 );
 
 export const oauthConsentsRelations = relations(oauthConsents, ({ one }) => ({
-  oauthClients: one(oauthClients, {
+  oauthClient: one(oauthClients, {
     fields: [oauthConsents.clientId],
     references: [oauthClients.clientId],
   }),
-  users: one(users, {
+  user: one(users, {
     fields: [oauthConsents.userId],
     references: [users.id],
   }),

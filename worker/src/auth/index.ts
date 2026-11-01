@@ -16,7 +16,7 @@ import { oauthResources } from '../db/auth.schema';
 import { schema } from '../db/schema';
 import { isValidUsername } from '../lib/usernames';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
-import { namespaceTaken } from '../lib/namespaces';
+import { isNamespaceConflict, namespaceTaken } from '../lib/namespaces';
 import { isAgentUser } from '../agents/identity';
 import { eq } from 'drizzle-orm';
 import { mcpModerators } from '../db/app.schema';
@@ -165,16 +165,46 @@ function createAuth(env?: CloudflareBindings) {
   // No env during CLI schema generation.
   const db = env ? drizzle(env.DB, { schema }) : ({} as any);
   const baseURL = env?.BASE_URL || 'http://localhost:8080';
+  const adapterFactory = drizzleAdapter(db, {
+    provider: 'sqlite',
+    usePlural: true,
+    // Explicit so the schema check passes for the CLI instance, which has no database.
+    schema,
+  });
+  const database: typeof adapterFactory = (options) => {
+    const adapter = adapterFactory(options);
+    return new Proxy(adapter, {
+      get(target, property, receiver) {
+        const operation = Reflect.get(target, property, receiver);
+        if (
+          !['create', 'update', 'updateMany'].includes(String(property)) ||
+          typeof operation !== 'function'
+        )
+          return operation;
+        return async (...args: unknown[]) => {
+          try {
+            return await Reflect.apply(operation, target, args);
+          } catch (error) {
+            // A pre-read cannot fence a concurrent namespace claim. Translate only the
+            // managed SQL guard, after the ordinary SDK identity/proof hooks have run.
+            if (
+              (args[0] as { model?: unknown } | undefined)?.model === 'user' &&
+              isNamespaceConflict(error)
+            )
+              throw new APIError('CONFLICT', {
+                message: 'Username is not available.',
+              });
+            throw error;
+          }
+        };
+      },
+    });
+  };
 
   return betterAuth({
     secret: env?.BETTER_AUTH_SECRET,
     baseURL,
-    database: drizzleAdapter(db, {
-      provider: 'sqlite',
-      usePlural: true,
-      // Explicit so the schema check passes for the CLI instance, which has no database.
-      schema,
-    }),
+    database,
     emailAndPassword: {
       enabled: true,
       // Setup and invitations create users directly; self sign-up is open only while Site admin turns it on
@@ -472,6 +502,16 @@ function createAuth(env?: CloudflareBindings) {
             if (env && (await emailClaimedByOther(db, user.email)))
               throw new APIError('CONFLICT', {
                 message: 'That email belongs to another member.',
+              });
+            const name = (user as { username?: unknown }).username;
+            if (
+              env &&
+              typeof name === 'string' &&
+              name.length > 0 &&
+              (await namespaceTaken(db, name))
+            )
+              throw new APIError('CONFLICT', {
+                message: 'Username is not available.',
               });
             if (ctx?.path === '/sign-up/email') return;
             return { data: { ...user, emailVerified: true } };

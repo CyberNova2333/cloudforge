@@ -213,14 +213,15 @@ setupRouter.openapi(createAdminRoute, async (c) => {
     const id = crypto.randomUUID();
     const now = Date.now();
     const d1 = d1Of(db);
-    const [created] = await d1.batch([
+    const [created] = await d1.batch<{ id: string }>([
       d1
         .prepare(
           `INSERT INTO users
         (id, name, email, email_verified, created_at, updated_at, role, username, display_username)
         SELECT ?, ?, ?, 1, ?, ?, 'admin', ?, ?
         WHERE NOT EXISTS (SELECT 1 FROM users)
-          AND EXISTS (SELECT 1 FROM instance_settings WHERE key = ? AND json_extract(value, '$.nonce') = ?)`
+          AND EXISTS (SELECT 1 FROM instance_settings WHERE key = ? AND json_extract(value, '$.nonce') = ?)
+        RETURNING id`
         )
         .bind(
           id,
@@ -241,7 +242,8 @@ setupRouter.openapi(createAdminRoute, async (c) => {
         )
         .bind(crypto.randomUUID(), hash, now, now, id),
     ]);
-    if (created.meta.changes !== 1) {
+    // Trigger writes also contribute to D1 metadata; use the outer INSERT receipt.
+    if (created.results.length !== 1 || created.results[0]?.id !== id) {
       await releaseSetup(db, claim);
       return c.json(
         {

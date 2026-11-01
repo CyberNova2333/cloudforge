@@ -2,6 +2,7 @@
 import { and, eq, inArray, isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import {
+  accessControlState,
   repositories,
   repositoryCollaborators,
   teams,
@@ -75,9 +76,30 @@ export function teamNamespace(t: Team): Namespace {
   };
 }
 
-/** The shared team, if created. */
+/** The legacy shared team is selected by its durable identity, never by row order. */
 export async function getTeam(db: DrizzleDB): Promise<Team | null> {
-  return (await db.select().from(teams).limit(1).get()) ?? null;
+  const found = await db
+    .select({
+      legacySharedTeamId: accessControlState.legacySharedTeamId,
+      team: teams,
+      instanceTeams: sql<number>`(SELECT count(*) FROM ${teams} WHERE ${teams.membershipMode} = 'instance')`,
+    })
+    .from(accessControlState)
+    .leftJoin(
+      teams,
+      and(
+        eq(teams.id, accessControlState.legacySharedTeamId),
+        eq(teams.membershipMode, 'instance')
+      )
+    )
+    .where(eq(accessControlState.id, 1))
+    .get();
+  if (!found) throw new Error('Shared-team access state is unavailable');
+  if (found.legacySharedTeamId === null && found.instanceTeams === 0)
+    return null;
+  if (!found.team || found.instanceTeams !== 1)
+    throw new Error('Shared-team access state is inconsistent');
+  return found.team;
 }
 
 /** Resolves `/<owner>/<name>`: the team slug first, then a username. */

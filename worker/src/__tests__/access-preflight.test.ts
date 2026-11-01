@@ -1,6 +1,6 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
-import { env } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { applyD1Migrations, env } from 'cloudflare:test';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ACCESS_PREFLIGHT_LIMIT,
   ACCESS_PREFLIGHT_MAX_BYTES,
@@ -8,7 +8,27 @@ import {
   analyzeAccessSnapshot,
 } from '../../../scripts/cloudforge/access-preflight-data';
 
-const db = env.DB;
+// The command intentionally inspects pre-migration data, including anomalies that
+// current production constraints must reject. Keep it in a separate real D1 binding.
+const db = env.ACCESS_LEGACY_DB;
+await applyD1Migrations(db, env.TEST_LEGACY_D1_MIGRATIONS);
+const legacyTables = (
+  await db
+    .prepare(
+      "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name!='d1_migrations'"
+    )
+    .all<{ name: string }>()
+).results.map((row) => row.name);
+beforeEach(async () => {
+  const ordered = [
+    ...legacyTables.filter((name) => name === 'repositories'),
+    ...legacyTables.filter((name) => name !== 'repositories'),
+  ];
+  await db.batch([
+    db.prepare('PRAGMA defer_foreign_keys=on'),
+    ...ordered.map((name) => db.prepare(`DELETE FROM "${name}"`)),
+  ]);
+});
 const member = (id: string, extras: Record<string, unknown> = {}) => ({
   id,
   username: id,

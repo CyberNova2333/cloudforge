@@ -17,6 +17,7 @@ import {
   RECOVERY_TRIGGER_NAME,
   RECOVERY_TRIGGER_SQL,
 } from '../../worker/src/db/recovery-trigger';
+import { ACCESS_TRIGGERS } from '../../worker/src/db/access-triggers';
 
 let root: string;
 let directory: string;
@@ -95,6 +96,10 @@ describe('数据库迁移与声明式触发器生成', () => {
           'cloudforge_oidc_login_complete_v1',
           'cloudforge_user_repository_delete_v1',
         ].map((name) => ({
+          name,
+          sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        })),
+        ...ACCESS_TRIGGERS.map(({ name }) => ({
           name,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
         })),
@@ -298,5 +303,169 @@ PRAGMA foreign_keys=ON;`;
         run: () => {},
       })
     ).toThrow('Duplicate trigger declaration');
+  });
+});
+
+const dataV1 = [
+  {
+    id: 'sample_data_v1',
+    statements: ["INSERT INTO new_table(id) VALUES ('seed-one')"],
+  },
+];
+const dataGuard = [
+  {
+    name: 'sample_guard_v1',
+    sql: 'CREATE TRIGGER sample_guard_v1 BEFORE INSERT ON new_table BEGIN SELECT 1; END',
+  },
+];
+function seedInitial() {
+  return generateDatabase({
+    root,
+    triggers: dataGuard,
+    backfills: dataV1,
+    run: () => createMigration(),
+  });
+}
+
+describe('声明式一次性兼容数据生成', () => {
+  it('DDL和完整触发器之后生成数据，保存版本摘要，SQL实际只插入一次', () => {
+    expect(seedInitial()).toBe('0001_new.sql');
+    const sql = read('0001_new.sql');
+    expect(sql.indexOf('CREATE TABLE new_table')).toBeLessThan(
+      sql.indexOf('CREATE TRIGGER sample_guard_v1')
+    );
+    expect(sql.indexOf('CREATE TRIGGER sample_guard_v1')).toBeLessThan(
+      sql.indexOf('Managed backfill sample_data_v1')
+    );
+    const db = new DatabaseSync(':memory:');
+    try {
+      db.exec(sql);
+      expect(db.prepare('SELECT id FROM new_table').all()).toEqual([
+        { id: 'seed-one' },
+      ]);
+    } finally {
+      db.close();
+    }
+    expect(JSON.parse(read('meta/_data.json'))).toEqual({
+      version: 1,
+      backfills: [
+        {
+          id: 'sample_data_v1',
+          sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+      ],
+    });
+    const metadata = read('meta/_data.json');
+    expect(
+      generateDatabase({
+        root,
+        triggers: dataGuard,
+        backfills: dataV1,
+        run: () => {},
+      })
+    ).toBeNull();
+    expect(read('meta/_data.json')).toBe(metadata);
+  });
+
+  it('后续DDL或触发器重建不重放旧数据，保留状态代数和所有历史文件', () => {
+    seedInitial();
+    const originalMigration = read('0001_new.sql');
+    const metadata = read('meta/_data.json');
+    generateDatabase({
+      root,
+      triggers: dataGuard,
+      backfills: dataV1,
+      run: () => createMigration('0002_rebuilt'),
+    });
+    expect(read('0002_rebuilt.sql')).toContain(
+      'CREATE TRIGGER sample_guard_v1'
+    );
+    expect(read('0002_rebuilt.sql')).not.toContain('Managed backfill');
+    expect(read('0002_rebuilt.sql')).not.toContain('seed-one');
+    expect(read('meta/_data.json')).toBe(metadata);
+    expect(read('0001_new.sql')).toBe(originalMigration);
+  });
+
+  it('只增加新数据声明时生成专用迁移，旧声明不再发出', () => {
+    seedInitial();
+    const old = read('0001_new.sql');
+    const calls: string[][] = [];
+    const backfills = [
+      ...dataV1,
+      {
+        id: 'sample_data_v2',
+        statements: ["INSERT INTO new_table(id) VALUES ('seed-two')"],
+      },
+    ];
+    generateDatabase({
+      root,
+      triggers: dataGuard,
+      backfills,
+      run: (args: string[]) => {
+        calls.push(args);
+        if (args.includes('--custom')) createMigration('0002_data');
+      },
+    });
+    expect(calls).toEqual([[], ['--custom', '--name', 'managed_data']]);
+    expect(read('0002_data.sql')).toContain('seed-two');
+    expect(read('0002_data.sql')).not.toContain('seed-one');
+    expect(read('0001_new.sql')).toBe(old);
+    expect(JSON.parse(read('meta/_data.json')).backfills).toHaveLength(2);
+  });
+
+  it.each(['changed', 'removed', 'reordered'])(
+    '拒绝%s已登记的数据声明，Drizzle运行前失败',
+    (operation) => {
+      seedInitial();
+      const old = read('0001_new.sql');
+      const metadata = read('meta/_data.json');
+      const changed =
+        operation === 'changed'
+          ? [{ ...dataV1[0], statements: ['DELETE FROM new_table'] }]
+          : operation === 'removed'
+            ? []
+            : [{ id: 'another_seed', statements: ['SELECT 1'] }, ...dataV1];
+      let ran = false;
+      expect(() =>
+        generateDatabase({
+          root,
+          triggers: dataGuard,
+          backfills: changed,
+          run: () => {
+            ran = true;
+          },
+        })
+      ).toThrow('append-only and immutable');
+      expect(ran).toBe(false);
+      expect(read('0001_new.sql')).toBe(old);
+      expect(read('meta/_data.json')).toBe(metadata);
+    }
+  );
+
+  it('损坏元数据和重复/空数据声明均在生成前拒绝', () => {
+    let ran = false;
+    const run = () => {
+      ran = true;
+    };
+    writeFileSync(
+      join(directory, 'meta/_data.json'),
+      JSON.stringify({ version: 2, backfills: [] })
+    );
+    expect(() =>
+      generateDatabase({ root, triggers: dataGuard, backfills: dataV1, run })
+    ).toThrow('Invalid generated backfill');
+    writeFileSync(
+      join(directory, 'meta/_data.json'),
+      JSON.stringify({ version: 1, backfills: [] })
+    );
+    for (const backfills of [
+      [...dataV1, ...dataV1],
+      [{ id: 'empty_seed', statements: [] }],
+    ])
+      expect(() =>
+        generateDatabase({ root, triggers: dataGuard, backfills, run })
+      ).toThrow('Invalid generated backfill');
+    expect(ran).toBe(false);
+    expect(read('0000_old.sql')).toBe(original);
   });
 });

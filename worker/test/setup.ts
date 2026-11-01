@@ -19,7 +19,11 @@ beforeEach(async () => {
   // Tear down repositories first; do not disable the production deletion trigger in tests.
   const cleanupTables = [
     ...TABLES.filter((name) => name === 'repositories'),
-    ...TABLES.filter((name) => name !== 'repositories'),
+    // The access singleton is permanent; subject deletion clears claims/team pointer
+    // through the same production triggers, while generation keeps increasing.
+    ...TABLES.filter(
+      (name) => name !== 'repositories' && name !== 'access_control_state'
+    ),
   ];
   await env.DB.batch([
     env.DB.prepare('PRAGMA defer_foreign_keys = on'),

@@ -327,6 +327,9 @@ jobs:
           worker/src/__tests__/teams-visibility.test.ts
           worker/src/__tests__/repo-permissions.test.ts
           worker/src/__tests__/access-preflight.test.ts
+          worker/src/__tests__/access-schema.test.ts
+          worker/src/__tests__/access-compat.test.ts
+          worker/src/__tests__/access-migration.test.ts
           worker/src/__tests__/admin-setup.test.ts
           worker/src/__tests__/settings.test.ts
           worker/src/__tests__/commit-emails.test.ts

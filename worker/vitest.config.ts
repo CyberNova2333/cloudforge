@@ -26,6 +26,10 @@ export default defineConfig({
       miniflare: {
         bindings: {
           TEST_D1_MIGRATIONS: d1Migrations,
+          // Legacy-only preflight fixtures must not bypass the new production guards.
+          TEST_LEGACY_D1_MIGRATIONS: d1Migrations.filter(
+            (migration) => Number(migration.name.slice(0, 4)) <= 62
+          ),
           BETTER_AUTH_SECRET: 'test-secret-not-used-in-any-real-deployment',
           ACTIONS_SECRETS_KEY:
             'test-actions-secrets-key-not-used-in-any-real-deployment',

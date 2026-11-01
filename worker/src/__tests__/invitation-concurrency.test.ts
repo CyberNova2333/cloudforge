@@ -142,8 +142,12 @@ describe('邀请兑换竞争', () => {
       .spyOn(namespaces, 'namespaceTaken')
       .mockImplementation(async (...args) => {
         const taken = await original(...args);
-        if (++arrivals === 2) release();
-        await bothReady;
+        // The successful create rechecks its namespace at the user write hook. This
+        // barrier coordinates the two accepting requests, not every later check.
+        if (arrivals < 2) {
+          if (++arrivals === 2) release();
+          await bothReady;
+        }
         return taken;
       });
     try {

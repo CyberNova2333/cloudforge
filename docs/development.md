@@ -137,8 +137,10 @@ and the script waits for it to settle.
 
 ## CI
 
-Authentication schema generation uses the pinned `@better-auth/cli@1.4.21` through `yarn auth:update`, the tool
-used for the prior schema. CLI and SDK release numbers differ; the tool reads the installed SDK's schema. Private evidence fields have both `input: false` and `returned: false`; the latter
+Authentication schema generation uses the project-local `auth@1.7.7` through `yarn auth:update`.
+The CLI and its dependencies are recorded in `yarn.lock` and included in `yarn audit`; generation does not download a separate tool tree. The retired `@better-auth/cli@1.4.21` is no longer used.
+The generation-only profile in `scripts/auth-schema-config.ts` preserves seven existing nullable OAuth columns and the existing absence of a client-credentials JSON default. It does not change runtime plugin validation or export an HTTP handler. Unexpected upstream changes to these exact fields stop generation. The newer client/resource compound uniqueness and relation definitions are retained; the index is generated separately without rebuilding OAuth tables. Tightening populated columns needs a separate data and D1 foreign-key migration design.
+The tool reads the installed SDK's schema. Private evidence fields have both `input: false` and `returned: false`; the latter
 also removes fields from the native internal session result, so version guards read the raw fields from D1.
 Do not replace that check with a type assertion or treat session refresh timestamps as verification.
 
@@ -170,3 +172,11 @@ process tree (Node, workerd, esbuild) every 5 seconds. It logs each time usage p
 the server, with a breakdown by process, once it passes **5 GB**, so a leak can't take the machine down. The
 server uses about 1.3 GB right after starting. Change the limit with `DEV_MEMORY_LIMIT_MB=8192 yarn dev`, or turn
 the watchdog off with `DEV_MEMORY_LIMIT_MB=0`. A stop for memory exits with code 137.
+
+## Access-schema maintenance checks
+
+After a declaration change, `yarn db:generate` owns both managed triggers and append-only one-time data declarations. Existing migration files are never edited. Keep `_triggers.json` and `_data.json`; changing, removing or reordering a recorded backfill is refused. A second generation with unchanged declarations must leave every migration/metadata hash unchanged. Logic-only auth changes still run `yarn auth:update`; compare the generated auth schema rather than inferring no schema change.
+
+The Worker tests keep the access singleton while deleting ordinary fixture subjects through production triggers. Its generation is not reset. Separate local-only D1 bindings hold pre-migration anomaly fixtures and populated upgrade/failure cases; the normal application DB always retains the new guards. Legacy `access-preflight` fixtures stop at migration 0062 and explicitly test refusal of the compatible schema. No test disables production triggers to manufacture a passing result.
+
+Namespace guards include source-table `lower(...)` checks as a safety backstop. Their low-frequency writes may scan members; a 129-row fixture proves bounded parameters and consistency, not constant-time throughput. Add expression indexes only through reviewed declarations with workload evidence. A zero-row duplicate grant is a no-op, not proof that a new authorization was written. D1 trigger writes can change `meta.changes`; use outer `RETURNING` receipts when an exact affected row matters.

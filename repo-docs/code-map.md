@@ -55,6 +55,8 @@
 
 [scripts/sync-agents.mjs](../scripts/sync-agents.mjs) 以 `AGENTS.md` 为唯一规则正文，生成导入它的 `CLAUDE.md`；技能仍从 `.claude/skills/` 复制到 `.agents/skills/`。`yarn agents:sync --check` 只报告差异，写入模式也不会覆盖规范源。回归见 [sync-agents.test.ts](../scripts/__tests__/sync-agents.test.ts)，覆盖缺失和过时入口、CRLF、技能副本清理以及规范源不被改写。
 
+认证表的生成入口在[项目命令](../package.json)，`yarn auth:update` 使用本地锁定的 CLI，再补齐 fork notice 并格式化。工具依赖与业务依赖一起纳入锁文件和审计；生成命令不执行数据库迁移。版本与操作边界见[开发说明](../docs/development.md#ci)。
+
 ## 认证策略的修改路由
 
 需要修改强制 MFA 时，先读[认证专题](../docs/authentication.md#管理员认证策略)。下表只定位本次复核的策略边界，不扩展为 OAuth、MFA 或 SPA 全目录地图。
@@ -104,6 +106,14 @@ SSO 的两个额外修改入口：
 | 账户邮箱的查看范围       | [公共成员投影](../worker/src/lib/users.ts)的 accountEmailFor 为目录与命名空间共用管理员/本人规则；Git 原始提交邮箱不因此改写                                                                                                        | `commit-emails.test.ts`、`repos-pulls.test.ts`                                  |
 
 这些路径解释清理或拒绝发生在哪里；测试名只表示入口，实际结果另见本轮验收记录。停止失败保留占用，不能从 HTTP 成功或 D1 逻辑终态倒推外部容器已停止。Git 推送主流程的输入与输出未改变。
+
+## 权限兼容数据的修改入口
+
+[受限兼容声明](../worker/src/db/app.schema.ts)增加共享团队/协作者兼容列和state/claims；[数据库守卫](../worker/src/db/access-triggers.ts)在源变更同语句维护归一化claims和generation。[一次性回填](../worker/src/db/access-backfill.ts)由[生成器](../scripts/generate-db.mjs)按id/hash登记，只对本次新产物发出，不能靠重放初始化修复缺状态。
+
+[稳定团队读取](../worker/src/lib/repos.ts)与[团队CAS入口](../worker/src/routers/teams-router.ts)保持原DTO，原生用户与Agent写点继续保留身份/近期证明并将精确namespace冲突映为409。[首次管理员初始化](../worker/src/routers/setup-router.ts)使用外层INSERT RETURNING收据，避免把触发器额外写入误认为失败。`access-schema.test.ts`、`access-compat.test.ts`和`access-migration.test.ts`分别验证guard、实际请求竞争及真实D1旧库升级/失败回滚；最终完整测试另行验收。
+
+新角色/显式团队尚未开放，普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检继续只接受旧schema，当前兼容库会拒绝；具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
 
 ## 权限迁移前的只读检查入口
 

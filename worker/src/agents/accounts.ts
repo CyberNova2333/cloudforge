@@ -12,7 +12,7 @@ import {
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { recordAudit } from '../lib/audit';
-import { namespaceTaken } from '../lib/namespaces';
+import { isNamespaceConflict, namespaceTaken } from '../lib/namespaces';
 import { createRepository } from '../lib/repo-create';
 import { gitFor, teamNamespace, userNamespace, visibleTo } from '../lib/repos';
 import { isValidUsername } from '../lib/usernames';
@@ -209,7 +209,7 @@ export async function createAgent(
       }),
     ]);
   } catch (e) {
-    if (!isUniqueViolation(e)) throw e;
+    if (!isUniqueViolation(e) && !isNamespaceConflict(e)) throw e;
     // Lost a race for the username.
     return {
       ok: false,
