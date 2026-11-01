@@ -32,6 +32,24 @@ const install = (
 const exceptions = (reasons: unknown[]) =>
   write('scripts/third-party-notices.exceptions.json', { reasons });
 
+/**
+ * The two sources that decide whether mermaid can reach the optional ELK layout: the init in
+ * `mermaid.ts` and the encoder in `pullGraph.ts`, as the app has them.
+ */
+const renderPath = ({
+  init = "      layout: 'dagre',\n",
+  graph = [
+    'const KEYWORDS = /click|init|direction/gi;',
+    'export function mermaidText(s: string): string {',
+    '  out += SAFE.test(ch) && !marks.has(i) ? ch : `#${ch.codePointAt(0)};`;',
+    '  return out;',
+    '}',
+  ].join('\n'),
+} = {}) => {
+  write('src/lib/ui/mermaid.ts', `mermaid.initialize({\n${init}});\n`);
+  write('src/lib/pulls/pullGraph.ts', `${graph}\n`);
+};
+
 const banner = (packages: string[]) =>
   write(
     'dist/client/assets/index-abc.js',
@@ -53,6 +71,7 @@ beforeEach(() => {
   write('package.json', { name: 'app', dependencies: { a: '1.0.0' } });
   install('a', 'MIT');
   banner(['a@1.0.0']);
+  renderPath();
 });
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
@@ -121,6 +140,55 @@ describe('第三方许可清单', () => {
     expect(first.changed).toBe(true);
     write('THIRD_PARTY_NOTICES.md', first.content);
     expect(run().changed).toBe(false);
+  });
+
+  it('没有安装任何依赖时报错，而不是生成空清单', () => {
+    rmSync(join(root, 'node_modules'), { recursive: true, force: true });
+    expect(run().failures.join('\n')).toContain('依赖树为空');
+  });
+
+  it('无调用路径的组件：证实渲染路径没变就通过', () => {
+    install('a', 'EPL-2.0', { dependencies: { b: '1.0.0' } });
+    install('b', 'MIT');
+    banner(['a@1.0.0', 'b@1.0.0']);
+    exceptions([
+      { name: 'a', does: 'x', placement: 'none', paths: false, reason: 'y' },
+    ]);
+    const result = run();
+    expect(result.failures).toEqual([]);
+    expect(result.content).toMatch(/\| `a@1\.0\.0`[^\n]*\| optional chunk \|/);
+  });
+
+  it('无调用路径的组件也必须真的还在产物里，否则清单是旧的', () => {
+    install('a', 'EPL-2.0');
+    banner([]);
+    exceptions([
+      { name: 'a', does: 'x', placement: 'none', paths: false, reason: 'y' },
+    ]);
+    expect(run().failures.join('\n')).toContain('不在图中');
+  });
+
+  it('mermaid 不再固定 dagre 时，无调用路径的判断失效', () => {
+    install('a', 'EPL-2.0');
+    banner(['a@1.0.0']);
+    exceptions([
+      { name: 'a', does: 'x', placement: 'none', paths: false, reason: 'y' },
+    ]);
+    renderPath({ init: "      layout: 'elk',\n" });
+    expect(run().failures.join('\n')).toContain('不再固定 layout');
+  });
+
+  it('标题不再逐字编码时，无调用路径的判断失效', () => {
+    install('a', 'EPL-2.0');
+    banner(['a@1.0.0']);
+    exceptions([
+      { name: 'a', does: 'x', placement: 'none', paths: false, reason: 'y' },
+    ]);
+    renderPath({
+      graph:
+        'const KEYWORDS = /click/gi;\nexport const mermaidText = (s) => s;',
+    });
+    expect(run().failures.join('\n')).toContain('逐字编码');
   });
 
   it('构建前后 Artifact 列跟随产物变化', () => {

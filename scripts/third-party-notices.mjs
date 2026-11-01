@@ -14,6 +14,8 @@ const OUTPUT = 'THIRD_PARTY_NOTICES.md';
 const CLIENT_DIR = 'dist/client';
 const CLIENT_ASSET_DIR = join(CLIENT_DIR, 'assets');
 const EXCEPTIONS_FILE = 'scripts/third-party-notices.exceptions.json';
+const MERMAID_INIT = 'src/lib/ui/mermaid.ts';
+const PULL_GRAPH = 'src/lib/pulls/pullGraph.ts';
 // The generator writes this line too, so the file it produces is the file that is committed.
 const FORK_NOTICE =
   '<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->';
@@ -238,6 +240,21 @@ export function main({
   const { distributed, missing } = distributedPackages(root);
   for (const name of missing)
     fail(`依赖未安装：${name}（先 yarn install --frozen-lockfile）`);
+  // Every row below is derived from the installed tree: an empty one is a broken install, not a
+  // project without dependencies, and a list built from it would quietly say so.
+  if (!distributed.size) {
+    console.error('第三方许可清单：检查未通过，未写入');
+    console.error(
+      '  - 依赖树为空：先 yarn install --frozen-lockfile 再生成清单'
+    );
+    process.exitCode = 1;
+    return {
+      changed: false,
+      failures: ['依赖树为空：先 yarn install --frozen-lockfile 再生成清单'],
+      packages: 0,
+      content: '',
+    };
+  }
 
   const exceptions = read(EXCEPTIONS_FILE)
     ? JSON.parse(read(EXCEPTIONS_FILE))
@@ -265,6 +282,8 @@ export function main({
     }
     if (!WEAK.test(pkg.license)) continue;
     const entry = reasons.get(pkg.name) ?? reasons.get(id);
+    const unreached =
+      entry?.paths === false && (entry.placement ?? 'none') === 'none';
     if (!entry) {
       fail(
         `${id} 是弱 copyleft ${pkg.license}，需在 ${EXCEPTIONS_FILE} 写明处置与理由`
@@ -273,9 +292,41 @@ export function main({
       fail(`${id} 记为打进客户端产物，但上一次构建没有它，重新构建后再生成`);
     } else if (entry.placement === 'worker' && inClient(pkg.name)) {
       fail(`${id} 记为只在 Worker 侧，但客户端产物里也有它`);
+    } else if (unreached) {
+      if (!inClient(pkg.name))
+        fail(
+          `${id} 记为无调用路径，但上一次构建里它已不在图中，重新构建后更新清单`
+        );
     } else if (entry.placement === 'none') {
       fail(`${id} 记为不进任何产物，但它仍在依赖树内，先解除依赖再更新清单`);
     }
+  }
+
+  // An entry may claim the app has no path to it (`paths: false`). That claim is what keeps a weak
+  // copyleft package in the tree, so re-read the two places that decide it instead of trusting prose.
+  const unreachable = (entry) =>
+    entry?.paths === false && (entry.placement ?? 'none') === 'none';
+  for (const entry of reasons.values()) {
+    if (!unreachable(entry)) continue;
+    const init = read(MERMAID_INIT);
+    const graph = read(PULL_GRAPH);
+    if (init === null)
+      fail(`${MERMAID_INIT} 不存在：无法确认 ${entry.name} 没有调用路径`);
+    else if (!/\blayout:\s*'dagre'/.test(init))
+      fail(
+        `${entry.name} 记为无调用路径，但 ${MERMAID_INIT} 不再固定 layout: 'dagre'，重新判断后才可保留`
+      );
+    if (graph === null)
+      fail(`${PULL_GRAPH} 不存在：无法确认 ${entry.name} 没有调用路径`);
+    else if (
+      !/KEYWORDS\s*=/.test(graph) ||
+      !/out \+= SAFE\.test\(ch\)[^\n]*`#\$\{ch\.codePointAt\(0\)\};`/.test(
+        graph
+      )
+    )
+      fail(
+        `${entry.name} 记为无调用路径，但 ${PULL_GRAPH} 不再把不安全字符逐字编码，指令可能被注入，重新判断后才可保留`
+      );
   }
 
   // ── render ────────────────────────────────────────────────────────────────────────────────
@@ -325,6 +376,18 @@ export function main({
       'that side of an `OR`.',
       ''
     );
+    if (
+      copyleft.some((pkg) =>
+        unreachable(
+          reasons.get(pkg.name) ?? reasons.get(`${pkg.name}@${pkg.version}`)
+        )
+      )
+    )
+      lines.push(
+        '`optional chunk` means the package is bundled inside a lazily loaded diagram chunk that',
+        'no code path in this app reaches today; it is kept as-is, not removed.',
+        ''
+      );
     lines.push(
       ...table(
         ['Package', 'License', 'What it does', 'Ship'],
@@ -339,7 +402,11 @@ export function main({
               `\`${pkg.name}@${pkg.version}\``,
               `\`${pkg.license}\``,
               entry.does ?? '—',
-              inClient(pkg.name) ? 'client' : 'worker',
+              unreachable(entry)
+                ? 'optional chunk'
+                : inClient(pkg.name)
+                  ? 'client'
+                  : 'worker',
             ];
           })
       ),
@@ -419,9 +486,11 @@ export function main({
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { changed, failures, packages } = main();
-  for (const failure of [...new Set(failures)]) console.error(`  - ${failure}`);
-  if (failures.length) console.error('第三方许可清单：检查未通过');
-  else if (kwarg('--check') && changed)
+  if (failures.length) {
+    console.error('第三方许可清单：检查未通过');
+    for (const failure of [...new Set(failures)])
+      console.error(`  - ${failure}`);
+  } else if (kwarg('--check') && changed)
     console.error(
       `第三方许可清单：${OUTPUT} 与安装树不一致，运行 yarn notices 重新生成`
     );
