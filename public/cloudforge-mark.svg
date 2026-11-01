@@ -1,0 +1,11 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="8" fill="#0C5CAB"/>
+  <g fill="#fafafa">
+    <circle cx="24" cy="34" r="10"/>
+    <circle cx="36" cy="27" r="13"/>
+    <circle cx="46" cy="36" r="8"/>
+    <rect x="14" y="34" width="40" height="10" rx="5"/>
+  </g>
+  <path d="M34 28.5l2.2 4.3 4.3 2.2-4.3 2.2L34 41.5l-2.2-4.3-4.3-2.2 4.3-2.2z" fill="#f59e0b"/>
+</svg>

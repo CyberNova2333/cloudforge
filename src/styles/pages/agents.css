@@ -76,7 +76,7 @@ a.acard:focus-visible {
   align-content: start;
 }
 .acard-name {
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
@@ -86,13 +86,13 @@ a.acard:focus-visible {
 }
 .acard-bio {
   color: var(--ink-2);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .acard-stats {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -108,7 +108,7 @@ a.acard:focus-visible {
   margin-top: 6px;
 }
 .acard-ask {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   padding: 8px 10px;
   border-radius: var(--r-sm);
@@ -136,7 +136,7 @@ a.acard:focus-visible {
 }
 .acard-err {
   color: var(--bad);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---------- New reviewer ---------- */
@@ -180,7 +180,7 @@ a.acard:focus-visible {
   gap: 2px;
 }
 .ag-crew-text b {
-  font-size: 15px;
+  font-size: 14px;
 }
 .ag-blank {
   display: grid;
@@ -272,7 +272,7 @@ a.acard:focus-visible {
 }
 .pf-photo > .avatar {
   border: 1px solid var(--line-2);
-  border-radius: 24px;
+  border-radius: 8px;
 }
 /* People are circles, the team a rounded square (Primer's .avatar-user no longer rounds anything). */
 .pf-photo > .avatar-user {
@@ -287,7 +287,7 @@ a.acard:focus-visible {
 }
 .pf-handle {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   margin-top: -6px;
   overflow-wrap: anywhere;
 }
@@ -297,7 +297,7 @@ a.acard:focus-visible {
   flex-wrap: wrap;
 }
 .pf-bio {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
@@ -308,7 +308,7 @@ a.acard:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 7px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .pf-meta li {
@@ -350,7 +350,7 @@ a.acard:focus-visible {
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -368,7 +368,7 @@ a.acard:focus-visible {
 .subtabs .count {
   min-width: 18px;
   height: 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Four numbers fit two to a row on a phone. */
@@ -415,7 +415,7 @@ a.acard:focus-visible {
 }
 .ag-where-note {
   grid-column: 1 / -1;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .ag-invite {
   /* Contains the visually hidden label: an absolutely positioned box would otherwise sit outside the panel's scroll. */
@@ -479,7 +479,7 @@ a.acard:focus-visible {
 }
 .ag-facts dt {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
   padding-top: 2px;
 }
 .ag-facts dd {
@@ -527,7 +527,7 @@ a.acard:focus-visible {
 }
 .actmonths {
   height: 16px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .actmonths span {
@@ -600,7 +600,7 @@ a.acard:focus-visible {
 }
 .pf-repo-name > a {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .pf-repo-name > svg {

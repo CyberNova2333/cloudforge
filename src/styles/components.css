@@ -8,7 +8,7 @@ body {
   font-family: var(--font);
   color: var(--ink);
   background: var(--bg);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.004em;
@@ -28,7 +28,7 @@ p {
   background: var(--accent-tint-2);
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
 }
 .mono {
@@ -40,7 +40,7 @@ p {
   color: var(--muted);
 }
 .small {
-  font-size: 13px;
+  font-size: 12px;
 }
 .nowrap {
   white-space: nowrap;
@@ -107,7 +107,7 @@ p {
 }
 .phead .lede {
   color: var(--ink-2);
-  font-size: 14.5px;
+  font-size: 14px;
   max-width: 78ch;
 }
 .phead-actions {
@@ -118,7 +118,7 @@ p {
 }
 .eyebrow {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -147,7 +147,7 @@ p {
 .section > h2,
 .panel > h2,
 .section-head h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -174,13 +174,13 @@ p {
 }
 .cols {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 296px;
+  gap: var(--space-5);
   align-items: start;
 }
 .col {
   display: grid;
-  gap: 22px;
+  gap: var(--space-4);
   min-width: 0;
 }
 .side {
@@ -245,7 +245,7 @@ p {
   font-variant-numeric: tabular-nums;
 }
 .stat span {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -271,7 +271,7 @@ p {
 }
 .when {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .table-wrap {
@@ -288,7 +288,7 @@ p {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .table th,
 .table td {
@@ -327,14 +327,14 @@ p {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .pill {
   border: 1px solid var(--line);
   background: var(--surface);
   padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   color: var(--ink-2);
@@ -348,27 +348,38 @@ p {
 /* ---------- Buttons ----------
    Primer's own variants (btn-primary, btn-sm, btn-block, btn-octicon, BtnGroup-item …) keep Primer's rules and
    follow the theme through primer-bridge.css. A plain .btn, with our modifiers (.primary .quiet .small .danger),
-   takes the design-system look. :where() keeps the base at (0,1,0) so the modifiers win. */
+   takes the DESIGN.md look. :where() keeps the base at (0,1,0) so the modifiers win. */
 .btn:where(:not([class*='btn-'], .BtnGroup-item)) {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: var(--surface);
-  border: 1px solid var(--line-2);
-  border-radius: 99px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
+  gap: 6px;
+  background: var(--canvas-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 5px 12px;
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--fg-default);
   text-decoration: none;
-  transition: 0.12s;
-  line-height: 1.3;
-  box-shadow: none;
+  transition:
+    background-color var(--duration-fast) var(--easing-default),
+    border-color var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default);
+  line-height: 20px;
+  box-shadow: var(--shadow-resting);
 }
 .btn:where(:not([class*='btn-'], .BtnGroup-item)):hover {
-  background: var(--surface-3);
-  color: var(--ink);
+  background: var(--neutral-muted);
+  border-color: var(--border-default);
+  color: var(--fg-default);
   text-decoration: none;
+}
+.btn:where(:not([class*='btn-'], .BtnGroup-item)):active {
+  background: var(--border-muted);
+}
+.btn:where(:not([class*='btn-'], .BtnGroup-item)):focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: -2px;
 }
 .btn:where(:not([class*='btn-'], .BtnGroup-item)) .octicon {
   margin-right: 0;
@@ -376,42 +387,69 @@ p {
   vertical-align: middle;
 }
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
 }
 .btn.primary:hover {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
-  color: var(--on-accent);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--fg-on-emphasis);
+}
+.btn.primary:active {
+  background: var(--accent-fg);
+  border-color: var(--accent-fg);
+  color: var(--fg-on-emphasis);
+}
+.btn.primary:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
 }
 .btn.quiet {
   border-color: transparent;
   background: transparent;
-  color: var(--ink-2);
+  color: var(--fg-muted);
+  box-shadow: none;
 }
 .btn.quiet:hover {
-  background: var(--surface-3);
+  background: var(--neutral-muted);
+  color: var(--fg-default);
+}
+.btn.quiet:active {
+  background: var(--border-muted);
 }
 .btn.small {
-  padding: 4px 11px;
-  font-size: 12.5px;
+  padding: 3px 10px;
+  font-size: var(--font-size-small);
 }
 .btn.danger {
-  color: var(--bad);
-  border-color: var(--bad-line);
+  background: var(--canvas-subtle);
+  color: var(--danger-fg);
+  border-color: var(--border-default);
 }
 .btn.danger:hover {
-  background: var(--bad-bg);
+  background: var(--danger-emphasis);
+  color: var(--fg-on-emphasis);
+  border-color: var(--danger-emphasis);
+}
+.btn.danger:active {
+  background: var(--danger-fg);
+  color: var(--fg-on-emphasis);
+  border-color: var(--danger-fg);
+}
+.btn.danger:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
 }
 .btn.is-error {
-  border-color: var(--bad-line);
-  color: var(--bad);
-  background: var(--bad-bg);
+  border-color: var(--danger-muted);
+  color: var(--danger-fg);
+  background: var(--danger-subtle);
 }
-.btn:where(:not([class*='btn-'], .BtnGroup-item)):disabled {
-  opacity: 0.55;
-  cursor: default;
+.btn:where(:not([class*='btn-'], .BtnGroup-item)):disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .btn[aria-busy='true'] {
   cursor: progress;
@@ -420,15 +458,14 @@ p {
 .btn:where(:not([class*='btn-'], .BtnGroup-item)) > svg {
   flex: none;
 }
-/* In the HQ skin Primer's own buttons take the same pill shape (button groups keep their joined edges). */
 :where(:root:not([data-skin='dev'])) .btn:where(:not(.BtnGroup-item)) {
-  border-radius: 99px;
+  border-radius: var(--radius-md);
 }
 
 /* ---------- Small pieces ---------- */
 .kbd {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.4;
   padding: 1px 6px;
   border-radius: 5px;
@@ -443,10 +480,10 @@ p {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface-3);
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   display: inline-grid;
   place-items: center;
@@ -459,7 +496,7 @@ p {
 .seg {
   display: flex;
   border: 1px solid var(--line-2);
-  border-radius: 99px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--surface);
 }
@@ -467,7 +504,7 @@ p {
   flex: 1;
   border: 0;
   padding: 5px 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   background: none;
   white-space: nowrap;
@@ -487,7 +524,7 @@ p {
   font-size: 12px;
   font-weight: 600;
   padding: 2px 9px 2px 7px;
-  border-radius: 99px;
+  border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--surface-3);
   color: var(--ink-2);
@@ -588,7 +625,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -605,7 +642,7 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .mono-tile {
@@ -634,11 +671,11 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
   background: var(--surface-3);
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: 8px;
 }
 
 /* Sparkline: single series, area fill, emphasised endpoint. */
@@ -701,14 +738,14 @@ p {
   flex: none;
 }
 .identicon .idn-bg {
-  fill: #f0f0f0;
+  fill: var(--canvas-muted);
 }
 :root[data-theme='dark'] .identicon .idn-bg {
-  fill: #2a303a;
+  fill: var(--border-default);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .identicon .idn-bg {
-    fill: #2a303a;
+    fill: var(--border-default);
   }
 }
 /* Inside Primer's .avatar the wrapper decides the shape (circle for people, rounded square for teams). */
@@ -727,9 +764,17 @@ agent-robot-avatar:not(:defined) {
   height: var(--s, 40px);
   border-radius: 30%;
   background:
-    radial-gradient(circle at 34% 50%, #fff 0 13%, transparent 14%),
-    radial-gradient(circle at 66% 50%, #fff 0 13%, transparent 14%),
-    var(--c, #444);
+    radial-gradient(
+      circle at 34% 50%,
+      var(--fg-on-emphasis) 0 13%,
+      transparent 14%
+    ),
+    radial-gradient(
+      circle at 66% 50%,
+      var(--fg-on-emphasis) 0 13%,
+      transparent 14%
+    ),
+    var(--c, var(--fg-muted));
 }
 /* The avatar wrapper is a span, so layout rules like ".row > span { flex: 1 }" must never size it. */
 .ava {
@@ -839,7 +884,7 @@ agent-robot-avatar:not(:defined) {
   padding: 10px 14px;
   border-radius: var(--r);
   border: 1px solid;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink);
 }
 .gbanner > span {
@@ -864,9 +909,12 @@ agent-robot-avatar:not(:defined) {
 
 .empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 16px 14px;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
 }
 .empty:focus {
   outline: none;
@@ -876,20 +924,22 @@ agent-robot-avatar:not(:defined) {
 }
 .empty > svg {
   flex: none;
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .empty-h {
-  font-size: 15px;
+  font-size: var(--font-size-h2);
   font-weight: 600;
+  color: var(--fg-default);
 }
 .empty-body {
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--fg-muted);
+  font-size: var(--font-size-body);
+  max-width: 520px;
 }
 .empty-text {
   display: grid;
-  gap: 2px;
-  flex: 1;
+  gap: var(--space-1);
+  justify-items: center;
   min-width: 0;
 }
 
@@ -990,7 +1040,7 @@ agent-robot-avatar:not(:defined) {
   }
 }
 
-/* One toast at a time, bottom right; 8s, paused while hovered. Dark in every theme. */
+/* One toast at a time, bottom right; 8s, paused while hovered. */
 .toast {
   position: fixed;
   right: 22px;
@@ -1001,17 +1051,17 @@ agent-robot-avatar:not(:defined) {
   gap: 10px;
   max-width: min(440px, calc(100% - 32px));
   padding: 10px 12px 10px 14px;
-  border-radius: var(--r);
-  background: #14171c;
-  color: #f2f4f8;
+  border-radius: var(--radius-md);
+  background: var(--fg-default);
+  color: var(--canvas-default);
   font-weight: 500;
-  box-shadow: var(--sh-lg);
+  box-shadow: var(--shadow-floating);
   opacity: 0;
   transform: translateY(8px);
   pointer-events: none;
   transition:
-    opacity 0.18s,
-    transform 0.18s;
+    opacity var(--duration-normal) var(--easing-default),
+    transform var(--duration-normal) var(--easing-default);
 }
 .toast.show {
   opacity: 1;
@@ -1020,16 +1070,16 @@ agent-robot-avatar:not(:defined) {
 }
 .toast > svg {
   flex: none;
-  color: #4ade80;
+  color: var(--success-fg);
 }
 .toast .btn {
-  color: #f2f4f8;
+  color: var(--canvas-default);
   border-color: transparent;
   background: transparent;
 }
 .toast .btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--neutral-muted);
+  color: var(--canvas-default);
 }
 
 /* ---------- Narrow screens ---------- */
@@ -1074,33 +1124,34 @@ agent-robot-avatar:not(:defined) {
 }
 :where(:root[data-skin='dev'])
   .btn:where(:not([class*='btn-'], .BtnGroup-item)) {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-weight: 500;
-  background: var(--surface-2);
-  border-color: rgba(31, 35, 40, 0.15);
-  color: var(--ink);
-  box-shadow: 0 1px 0 rgba(31, 35, 40, 0.04);
+  background: var(--canvas-subtle);
+  border-color: var(--border-default);
+  color: var(--fg-default);
+  box-shadow: var(--shadow-resting);
 }
 :where(:root[data-skin='dev'][data-theme='dark'])
   .btn:where(:not([class*='btn-'], .BtnGroup-item)) {
-  border-color: rgba(240, 246, 252, 0.1);
-  background: #212830;
+  border-color: var(--border-default);
+  background: var(--canvas-subtle);
 }
 @media (prefers-color-scheme: dark) {
   :where(:root[data-skin='dev']:not([data-theme='light']))
     .btn:where(:not([class*='btn-'], .BtnGroup-item)) {
-    border-color: rgba(240, 246, 252, 0.1);
-    background: #212830;
+    border-color: var(--border-default);
+    background: var(--canvas-subtle);
   }
 }
 :root[data-skin='dev'] .btn.primary {
-  background: var(--primary);
-  border-color: rgba(31, 35, 40, 0.15);
-  color: #ffffff;
+  background: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
 }
 :root[data-skin='dev'] .btn.primary:hover {
-  background: var(--primary-hover);
-  color: #ffffff;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--fg-on-emphasis);
 }
 :root[data-skin='dev'] .btn.quiet {
   background: transparent;

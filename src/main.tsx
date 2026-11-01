@@ -1,17 +1,11 @@
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 // Styles, in cascade order: Primer and the existing page styles, the self-hosted fonts, then the design system.
 import './index.css';
-import '@fontsource/figtree/400.css';
-import '@fontsource/figtree/500.css';
-import '@fontsource/figtree/600.css';
-import '@fontsource/figtree/700.css';
-import '@fontsource/figtree/800.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
-import '@fontsource/inter-tight/800.css';
-import '@fontsource/inter-tight/900.css';
 import './styles/index.css';
 // Registers <agent-robot-avatar> (bundled, never from a CDN).
 import 'agent-robot-avatar';

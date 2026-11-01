@@ -118,15 +118,15 @@ const CLASS: Record<PullStateName, string> = {
 
 // Primer's Label colours for each state (see STATE_CLASS), plus the land target and merged PRs.
 const CLASS_DEFS = [
-  'classDef ready fill:#dafbe1,stroke:#1a7f37,color:#1f2328',
-  'classDef waiting fill:#f6f8fa,stroke:#818b98,color:#1f2328',
-  'classDef agent fill:#fff8c5,stroke:#9a6700,color:#1f2328',
-  'classDef person fill:#fff1e5,stroke:#bc4c00,color:#1f2328',
-  'classDef target fill:#ddf4ff,stroke:#0969da,color:#1f2328',
-  'classDef merged fill:#fbefff,stroke:#8250df,color:#1f2328',
+  'classDef ready fill:#e0f1eb,stroke:#087453,color:#09090b',
+  'classDef waiting fill:#eeeeef,stroke:#626263,color:#09090b',
+  'classDef agent fill:#f8f0dd,stroke:#96610b,color:#09090b',
+  'classDef person fill:#e2eaf2,stroke:#0a4a8a,color:#09090b',
+  'classDef target fill:#e2eaf2,stroke:#0C5CAB,color:#09090b',
+  'classDef merged fill:#e2eaf2,stroke:#0C5CAB,color:#09090b',
 ];
 
-const RED = 'stroke:#cf222e,stroke-width:2px';
+const RED = 'stroke:#ef4444,stroke-width:2px';
 const DASHED = 'stroke-dasharray:6 4';
 const DOTTED = 'stroke-dasharray:2 3';
 
@@ -239,7 +239,7 @@ export function pullGraph(
       ...classes,
       ...cycles.map(
         (c) =>
-          `  style pr${c} stroke:#cf222e,stroke-width:3px,stroke-dasharray:5 3`
+          `  style pr${c} stroke:#ef4444,stroke-width:3px,stroke-dasharray:5 3`
       ),
       ...styles,
     ].join('\n');
