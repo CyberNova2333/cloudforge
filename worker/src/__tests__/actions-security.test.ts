@@ -1,4 +1,6 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it, vi } from 'vitest';
+import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import { executeRun, type StepRunner } from '../actions/executor';
@@ -677,6 +679,7 @@ describe('JobRunner 脱敏与进程生命周期', () => {
       },
     };
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container },
       masks: [],
       registeredMasks: [],
@@ -720,6 +723,7 @@ describe('JobRunner 脱敏与进程生命周期', () => {
       },
     };
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container },
       masks: [],
       registeredMasks: [],
@@ -785,6 +789,7 @@ describe('JobRunner 脱敏与进程生命周期', () => {
       },
     };
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container },
       masks: [],
       registeredMasks: [],
@@ -838,6 +843,7 @@ describe('JobRunner 脱敏与进程生命周期', () => {
       };
     });
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container: { running: true, exec } },
       masks: [],
       registeredMasks: [],
@@ -876,6 +882,7 @@ describe('JobRunner 脱敏与进程生命周期', () => {
           }
     );
     return Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container: { running: true, exec } },
       masks: [],
       registeredMasks: [],

@@ -31,6 +31,18 @@
       "migrations_dir": "migrations",
     },
     {
+      "binding": "ACCESS_RUNTIME_DB",
+      "database_name": "cloudforge-access-runtime-test",
+      "database_id": "00000000-0000-0000-0000-000000000004",
+      "migrations_dir": "migrations",
+    },
+    {
+      "binding": "ACCESS_RUNTIME_HTTP_DB",
+      "database_name": "cloudforge-access-runtime-http-test",
+      "database_id": "00000000-0000-0000-0000-000000000005",
+      "migrations_dir": "migrations",
+    },
+    {
       "binding": "DB",
       "database_name": "cloudforge-test",
       "database_id": "00000000-0000-0000-0000-000000000000",

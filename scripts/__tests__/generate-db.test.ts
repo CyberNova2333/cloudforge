@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { createHash } from 'node:crypto';
 // @ts-expect-error: plain JavaScript module, no types
 import { generateDatabase } from '../generate-db.mjs';
 import {
@@ -18,6 +19,9 @@ import {
   RECOVERY_TRIGGER_SQL,
 } from '../../worker/src/db/recovery-trigger';
 import { ACCESS_TRIGGERS } from '../../worker/src/db/access-triggers';
+import { ACCESS_BACKFILLS } from '../../worker/src/db/access-backfill';
+import { ACCESS_RUNTIME_TRIGGERS } from '../../worker/src/db/access-runtime-triggers';
+import { ACCESS_RUNTIME_BACKFILLS } from '../../worker/src/db/access-runtime-backfill';
 
 let root: string;
 let directory: string;
@@ -49,6 +53,10 @@ function createMigration(name = '0001_new') {
   );
 }
 const initial = () => generateDatabase({ root, run: () => createMigration() });
+const normalizeSql = (sql: string) =>
+  sql.replace(/\r\n/g, '\n').trim().replace(/;+$/, '');
+const sha256 = (value: string) =>
+  createHash('sha256').update(value).digest('hex');
 
 describe('数据库迁移与声明式触发器生成', () => {
   it('只给本次新迁移附加触发器，不修改历史，并用 Drizzle 忽略的元数据名', () => {
@@ -62,7 +70,7 @@ describe('数据库迁移与声明式触发器生成', () => {
     expect(generated).toContain(RECOVERY_TRIGGER_SQL);
     expect(generated).not.toContain('\r');
     const state = JSON.parse(read('meta/_triggers.json'));
-    expect(state).toMatchObject({
+    expect(state).toEqual({
       version: 1,
       triggers: [
         {
@@ -103,8 +111,31 @@ describe('数据库迁移与声明式触发器生成', () => {
           name,
           sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
         })),
+        ...ACCESS_RUNTIME_TRIGGERS.map(({ name, sql }) => ({
+          name,
+          sha256: sha256(normalizeSql(sql)),
+        })),
       ],
     });
+    for (const { sql } of ACCESS_RUNTIME_TRIGGERS)
+      expect(generated).toContain(normalizeSql(sql) + ';');
+    const backfills = [...ACCESS_BACKFILLS, ...ACCESS_RUNTIME_BACKFILLS];
+    expect(JSON.parse(read('meta/_data.json'))).toEqual({
+      version: 1,
+      backfills: backfills.map(({ id, statements }) => ({
+        id,
+        sha256: sha256(JSON.stringify(statements.map(normalizeSql))),
+      })),
+    });
+    let previousPosition = generated.lastIndexOf('CREATE TRIGGER');
+    for (const { id, statements } of backfills)
+      for (const [index, statement] of statements.entries()) {
+        const emitted = `-- Managed backfill ${id}, statement ${index + 1}\n${normalizeSql(statement)};`;
+        const position = generated.indexOf(emitted);
+        expect(position).toBeGreaterThan(previousPosition);
+        expect(generated.lastIndexOf(emitted)).toBe(position);
+        previousPosition = position;
+      }
     expect(
       readdirSync(join(directory, 'meta')).every((name) => name.startsWith('_'))
     ).toBe(true);
@@ -114,6 +145,7 @@ describe('数据库迁移与声明式触发器生成', () => {
     initial();
     const migration = read('0001_new.sql');
     const metadata = read('meta/_triggers.json');
+    const dataMetadata = read('meta/_data.json');
     const calls: string[][] = [];
     expect(
       generateDatabase({ root, run: (args: string[]) => calls.push(args) })
@@ -121,6 +153,7 @@ describe('数据库迁移与声明式触发器生成', () => {
     expect(calls).toEqual([[]]);
     expect(read('0001_new.sql')).toBe(migration);
     expect(read('meta/_triggers.json')).toBe(metadata);
+    expect(read('meta/_data.json')).toBe(dataMetadata);
   });
 
   it('仅触发器变更时先让 Drizzle 生成自定义迁移，随后附加声明 SQL', () => {
@@ -151,6 +184,7 @@ describe('数据库迁移与声明式触发器生成', () => {
       generateDatabase({ root, run: () => createMigration('0002_rebuilt') })
     ).toBe('0002_rebuilt.sql');
     expect(read('0002_rebuilt.sql')).toContain(RECOVERY_TRIGGER_SQL);
+    expect(read('0002_rebuilt.sql')).not.toContain('Managed backfill');
     expect(read('meta/_triggers.json')).toBe(metadata);
   });
 

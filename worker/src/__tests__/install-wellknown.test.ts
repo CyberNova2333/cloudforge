@@ -19,6 +19,7 @@ describe('GET /.well-known/cloudforge 安装信息', () => {
       installationId: null,
       version: null,
       schemaDigest: null,
+      accessRuntime: expect.objectContaining({ protocol: 1, ready: true }),
     });
   });
 
@@ -46,6 +47,7 @@ describe('GET /.well-known/cloudforge 安装信息', () => {
       installationId: 'cloudforge-1a2b3c4d5e6f',
       version: 'abc1234',
       schemaDigest: 'd1g',
+      accessRuntime: expect.objectContaining({ protocol: 1, ready: true }),
     });
     expect(JSON.stringify(body)).not.toContain('ownershipNonce');
   });

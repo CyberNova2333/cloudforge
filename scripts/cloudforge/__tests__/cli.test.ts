@@ -1018,7 +1018,7 @@ describe('upgrade：升级', () => {
     });
     return {
       d1: [{ uuid: 'd1-x', name: 'acme-db' }],
-      d1Migrations: { 'd1-x': ACCESS_MIGRATIONS.slice(0, -1) },
+      d1Migrations: { 'd1-x': [...ACCESS_MIGRATIONS] },
       ...accessDatabase(s, 'd1-x').seed,
       r2: {
         'acme-lfs': marker('lfs'),

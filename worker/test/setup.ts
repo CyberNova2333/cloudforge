@@ -19,10 +19,13 @@ beforeEach(async () => {
   // Tear down repositories first; do not disable the production deletion trigger in tests.
   const cleanupTables = [
     ...TABLES.filter((name) => name === 'repositories'),
-    // The access singleton is permanent; subject deletion clears claims/team pointer
+    // Access singletons are permanent; subject deletion clears claims/team pointer
     // through the same production triggers, while generation keeps increasing.
     ...TABLES.filter(
-      (name) => name !== 'repositories' && name !== 'access_control_state'
+      (name) =>
+        name !== 'repositories' &&
+        name !== 'access_control_state' &&
+        name !== 'access_runtime_state'
     ),
   ];
   await env.DB.batch([

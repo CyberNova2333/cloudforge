@@ -27,7 +27,7 @@ export function copyAccessProtocol(root: string) {
 export function accessDatabase(
   state: InstallState,
   id: string,
-  legacy = false,
+  legacy: boolean | 'compat' = false,
   empty = false
 ) {
   const db = new DatabaseSync(':memory:');
@@ -52,11 +52,15 @@ export function accessDatabase(
   return { db, seed };
 }
 
-export function migrateAccessDatabase(db: DatabaseSync, legacy = false) {
+export function migrateAccessDatabase(
+  db: DatabaseSync,
+  legacy: boolean | 'compat' = false
+) {
   for (const name of readdirSync(migrations)
     .filter(
       (name) =>
-        name.endsWith('.sql') && (!legacy || Number(name.slice(0, 4)) <= 62)
+        name.endsWith('.sql') &&
+        (!legacy || Number(name.slice(0, 4)) <= (legacy === 'compat' ? 64 : 62))
     )
     .sort())
     db.exec(readFileSync(new URL(name, migrations), 'utf8'));

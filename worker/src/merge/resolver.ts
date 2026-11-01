@@ -14,6 +14,7 @@ import { PiHarness } from 'agents/harness/pi';
 import { Lifecycle } from 'agents/lifecycle';
 import { createAI } from 'agents/models/pi-ai';
 import { aiGateway } from '../lib/ai-gateway';
+import { assertAccessRuntime } from '../lib/access-runtime';
 
 /** The fallback model; each request names the configured one (Site admin, else `RESOLVER_MODEL`). */
 export const DEFAULT_RESOLVER_MODEL = '@cf/zai-org/glm-5.3';
@@ -161,6 +162,17 @@ export class MergeResolver
   });
   readonly lifecycle = Lifecycle.install(this).use(this.harness);
 
+  // Lifecycle preserves explicit handlers; its implicit fetch/alarm can also wake Pi.
+  async fetch(request: Request): Promise<Response> {
+    await assertAccessRuntime(this.env.DB);
+    return this.lifecycle.fetch(request);
+  }
+
+  async alarm(): Promise<void> {
+    await assertAccessRuntime(this.env.DB);
+    await this.lifecycle.alarm();
+  }
+
   private async readFiles(): Promise<Record<string, string>> {
     const files: Record<string, string> = {};
     for (const abs of await listFiles(this.workspace, ROOT))
@@ -172,6 +184,7 @@ export class MergeResolver
   }
 
   async resolve(request: ResolveRequest): Promise<ResolveResult> {
+    await assertAccessRuntime(this.env.DB);
     this.registry.install({
       name: 'resolver',
       sections: [

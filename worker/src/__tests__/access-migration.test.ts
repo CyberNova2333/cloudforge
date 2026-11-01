@@ -1,6 +1,7 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
 import { applyD1Migrations, env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
+import { readAccessRuntime } from '../lib/access-runtime';
 
 // This binding is intentionally separate from env.DB. Its only test upgrades a populated pre-ACL
 // database without resetting production guards or leaving an exhausted generation in shared storage.
@@ -320,16 +321,34 @@ describe('权限兼容迁移：旧库升级与原子失败', () => {
         .run()
     ).rejects.toThrow('UNIQUE constraint failed');
     expect(await snapshot()).toEqual(upgraded);
-    await applyD1Migrations(db, env.TEST_D1_MIGRATIONS);
+    await applyD1Migrations(db, [migration!, oauthMigration!]);
     expect(await snapshot()).toEqual(upgraded);
     const state = await db
       .prepare('SELECT generation FROM access_control_state WHERE id=1')
       .first<{ generation: number }>();
     expect(state).not.toBeNull();
+    // Later migrations may add state. They must preserve the populated legacy fixture,
+    // retain the existing access generation, and remain idempotent themselves.
+    await applyD1Migrations(db, env.TEST_D1_MIGRATIONS);
+    expect(await legacyContents()).toEqual(repaired);
+    expect(
+      await db
+        .prepare('SELECT generation FROM access_control_state WHERE id=1')
+        .first()
+    ).toEqual(state);
+    expect(await readAccessRuntime(db)).toMatchObject({
+      ready: true,
+      minimumProtocol: 1,
+      rolePublishingEnabled: false,
+      revision: 0,
+    });
+    const current = await snapshot();
+    await applyD1Migrations(db, env.TEST_D1_MIGRATIONS);
+    expect(await snapshot()).toEqual(current);
     // The original lifecycle guard must work after the generator drops/recreates managed triggers.
     await expect(
       db.prepare("DELETE FROM users WHERE id='owner'").run()
     ).rejects.toThrow();
-    expect(await snapshot()).toEqual(upgraded);
+    expect(await snapshot()).toEqual(current);
   }, 60_000);
 });

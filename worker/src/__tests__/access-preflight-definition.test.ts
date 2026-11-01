@@ -2,6 +2,7 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import {
+  ACCESS_PREFLIGHT_BRIDGE_DEFINITION,
   ACCESS_PREFLIGHT_COMPAT_DEFINITION,
   ACCESS_PREFLIGHT_LEGACY_DEFINITION,
   accessDefinitionGuardSql,
@@ -14,11 +15,13 @@ import {
 // Only this empty, test-only database is rebuilt. The application and legacy migration
 // fixtures retain their production guards throughout every test.
 const db = env.ACCESS_DEFINITION_DB;
-type Version = 'legacy' | 'compat-v1';
+type Version = 'legacy' | 'compat-v1' | 'runtime-bridge-v1';
 const definition = (version: Version) =>
   version === 'legacy'
     ? ACCESS_PREFLIGHT_LEGACY_DEFINITION
-    : ACCESS_PREFLIGHT_COMPAT_DEFINITION;
+    : version === 'compat-v1'
+      ? ACCESS_PREFLIGHT_COMPAT_DEFINITION
+      : ACCESS_PREFLIGHT_BRIDGE_DEFINITION;
 async function fixture(
   version: Version,
   mutate: (name: string, sql: string) => string = (_name, sql) => sql
@@ -67,7 +70,7 @@ const supported = (version: Version) =>
     .first<number>('valid');
 
 describe('权限预检的数据库定义完整性（独立真实 D1）', () => {
-  it.each(['legacy', 'compat-v1'] as const)(
+  it.each(['legacy', 'compat-v1', 'runtime-bridge-v1'] as const)(
     '接受实际迁移形成的 %s 定义',
     async (version) => {
       await fixture(version);
@@ -173,12 +176,12 @@ describe('权限预检的数据库定义完整性（独立真实 D1）', () => {
 
   it('实际迁移构建的应用库也匹配兼容定义', async () => {
     const actual = await env.DB.prepare(
-      `SELECT CASE WHEN ${accessDefinitionGuardSql('compat-v1')} THEN 1 ELSE 0 END AS valid`
+      `SELECT CASE WHEN ${accessDefinitionGuardSql('runtime-bridge-v1')} THEN 1 ELSE 0 END AS valid`
     ).first<number>('valid');
     expect(actual).toBe(1);
   });
 
-  it.each(['legacy', 'compat-v1'] as const)(
+  it.each(['legacy', 'compat-v1', 'runtime-bridge-v1'] as const)(
     '%s 拒绝权限表上不属于已知清单的自定义触发器',
     async (version) => {
       await fixture(version);
@@ -201,6 +204,10 @@ describe('权限预检的数据库定义完整性（独立真实 D1）', () => {
       accessPreflightQuery(
         { id: 'installation', ownershipNonce: 'nonce' },
         'compat-v1'
+      ),
+      accessPreflightQuery(
+        { id: 'installation', ownershipNonce: 'nonce' },
+        'runtime-bridge-v1'
       ),
     ];
     for (const query of queries) {
