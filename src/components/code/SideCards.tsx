@@ -2,11 +2,11 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookIcon, ClockIcon, GitBranchIcon } from '@primer/octicons-react';
-import { timeAgo } from '@/lib/format';
-import { t, tx } from '@/lib/i18n';
-import { encodeRepoPath } from '@/lib/codeView';
-import { api, qk, type Agent, type RepoDetail } from '@/lib/uiApi';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import { timeAgo } from '@/lib/utils/format';
+import { t, tx } from '@/lib/i18n/i18n';
+import { encodeRepoPath } from '@/lib/repo/codeView';
+import { api, qk, type Agent, type RepoDetail } from '@/lib/api/uiApi';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
 
 // Sent since crew redesign B1; typed in uiApi by C0.
 const colorOf = (a: Agent) => (a as { color?: string | null }).color ?? null;

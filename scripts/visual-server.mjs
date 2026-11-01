@@ -49,8 +49,16 @@ const COMMITS = [
     treeHash: '1111111111111111111111111111111111111111',
     message:
       'feat(git): enforce atomic CAS fast-forward on protected refs\n\nEnsure push_events are committed in the same D1 batch before replying to the Git Smart HTTP v2 client.\n\nCo-authored-by: Linus Torvalds <torvalds@cloudforge.dev>',
-    author: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
-    committer: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
+    author: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
+    committer: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
     parents: [COMMIT_2_SHA],
     authoredAt: TS_DAY_1_A,
     committedAt: TS_DAY_1_A,
@@ -60,8 +68,16 @@ const COMMITS = [
     treeHash: '2222222222222222222222222222222222222222',
     message:
       'refactor(ui): align file browser table and diff viewer with Primer primitives for high-density readability across 1280px and 1920px viewports',
-    author: { name: 'Linus Torvalds', email: 'torvalds@cloudforge.dev', user: USER_LINUS },
-    committer: { name: 'Linus Torvalds', email: 'torvalds@cloudforge.dev', user: USER_LINUS },
+    author: {
+      name: 'Linus Torvalds',
+      email: 'torvalds@cloudforge.dev',
+      user: USER_LINUS,
+    },
+    committer: {
+      name: 'Linus Torvalds',
+      email: 'torvalds@cloudforge.dev',
+      user: USER_LINUS,
+    },
     parents: [COMMIT_3_SHA],
     authoredAt: TS_DAY_1_B,
     committedAt: TS_DAY_1_B,
@@ -70,8 +86,16 @@ const COMMITS = [
     hash: COMMIT_3_SHA,
     treeHash: '3333333333333333333333333333333333333333',
     message: 'fix(lfs): validate presigned R2 object keys per repository id',
-    author: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
-    committer: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
+    author: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
+    committer: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
     parents: [COMMIT_4_SHA],
     authoredAt: TS_DAY_2_A,
     committedAt: TS_DAY_2_A,
@@ -80,8 +104,16 @@ const COMMITS = [
     hash: COMMIT_4_SHA,
     treeHash: '4444444444444444444444444444444444444444',
     message: 'chore(init): bootstrap CloudForge edge worker and D1 schema',
-    author: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
-    committer: { name: 'Ada Lovelace', email: 'ada@cloudforge.dev', user: USER_ADA },
+    author: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
+    committer: {
+      name: 'Ada Lovelace',
+      email: 'ada@cloudforge.dev',
+      user: USER_ADA,
+    },
     parents: [],
     authoredAt: TS_DAY_2_B,
     committedAt: TS_DAY_2_B,
@@ -122,7 +154,8 @@ const REPO_EMPTY = {
   visibility: 'internal',
   name: 'empty-repo',
   fullName: 'acme/empty-repo',
-  description: 'Uninitialised repository for testing empty state and quick setup.',
+  description:
+    'Uninitialised repository for testing empty state and quick setup.',
   defaultBranch: 'main',
   protectedBranches: ['main'],
   deleteMergedBranches: true,
@@ -138,12 +171,42 @@ const REPO_EMPTY = {
 };
 
 const ROOT_ENTRIES = [
-  { name: 'docs', path: 'docs', type: 'tree', mode: '040000', hash: 'aaaa1111' },
+  {
+    name: 'docs',
+    path: 'docs',
+    type: 'tree',
+    mode: '040000',
+    hash: 'aaaa1111',
+  },
   { name: 'src', path: 'src', type: 'tree', mode: '040000', hash: 'bbbb2222' },
-  { name: 'worker', path: 'worker', type: 'tree', mode: '040000', hash: 'cccc3333' },
-  { name: 'DESIGN.md', path: 'DESIGN.md', type: 'blob', mode: '100644', hash: 'dddd4444' },
-  { name: 'package.json', path: 'package.json', type: 'blob', mode: '100644', hash: 'eeee5555' },
-  { name: 'README.md', path: 'README.md', type: 'blob', mode: '100644', hash: 'ffff6666' },
+  {
+    name: 'worker',
+    path: 'worker',
+    type: 'tree',
+    mode: '040000',
+    hash: 'cccc3333',
+  },
+  {
+    name: 'DESIGN.md',
+    path: 'DESIGN.md',
+    type: 'blob',
+    mode: '100644',
+    hash: 'dddd4444',
+  },
+  {
+    name: 'package.json',
+    path: 'package.json',
+    type: 'blob',
+    mode: '100644',
+    hash: 'eeee5555',
+  },
+  {
+    name: 'README.md',
+    path: 'README.md',
+    type: 'blob',
+    mode: '100644',
+    hash: 'ffff6666',
+  },
   {
     name: 'wrangler-edge-runtime-protocol-adapter-cloudflare-workers-v2-configuration.jsonc',
     path: 'wrangler-edge-runtime-protocol-adapter-cloudflare-workers-v2-configuration.jsonc',
@@ -154,9 +217,27 @@ const ROOT_ENTRIES = [
 ];
 
 const SUBTREE_ENTRIES = [
-  { name: 'code', path: 'src/components/code', type: 'tree', mode: '040000', hash: '1234aaaa' },
-  { name: 'shell', path: 'src/components/shell', type: 'tree', mode: '040000', hash: '2345bbbb' },
-  { name: 'ui', path: 'src/components/ui', type: 'tree', mode: '040000', hash: '3456cccc' },
+  {
+    name: 'code',
+    path: 'src/components/code',
+    type: 'tree',
+    mode: '040000',
+    hash: '1234aaaa',
+  },
+  {
+    name: 'shell',
+    path: 'src/components/shell',
+    type: 'tree',
+    mode: '040000',
+    hash: '2345bbbb',
+  },
+  {
+    name: 'ui',
+    path: 'src/components/ui',
+    type: 'tree',
+    mode: '040000',
+    hash: '3456cccc',
+  },
   {
     name: 'CommitList.tsx',
     path: 'src/components/CommitList.tsx',
@@ -331,7 +412,12 @@ function handleApi(req, res, url) {
     return sendJson(res, 200, { unread: 2 });
   }
   if (p === '/api/approvals') {
-    return sendJson(res, 200, { items: [], nextCursor: null, count: 0, total: 0 });
+    return sendJson(res, 200, {
+      items: [],
+      nextCursor: null,
+      count: 0,
+      total: 0,
+    });
   }
   if (p === '/api/admin/setup') {
     return sendJson(res, 200, {
@@ -434,7 +520,8 @@ function handleApi(req, res, url) {
   }
   if (p === '/api/repos/acme/cloudforge/tree-commits') {
     const subPath = url.searchParams.get('path') || '';
-    const entries = subPath === 'src/components' ? SUBTREE_ENTRIES : ROOT_ENTRIES;
+    const entries =
+      subPath === 'src/components' ? SUBTREE_ENTRIES : ROOT_ENTRIES;
     const map = {};
     entries.forEach((e, idx) => {
       map[e.name] = COMMITS[idx % COMMITS.length];
@@ -455,7 +542,10 @@ function handleApi(req, res, url) {
       [COMMIT_4_SHA]: { state: 'success', runs: [], statuses: [] },
     });
   }
-  if (p.startsWith('/api/repos/acme/cloudforge/commits/') && p.endsWith('/runs')) {
+  if (
+    p.startsWith('/api/repos/acme/cloudforge/commits/') &&
+    p.endsWith('/runs')
+  ) {
     return sendJson(res, 200, { state: 'success', runs: [], statuses: [] });
   }
   if (p.startsWith('/api/repos/acme/cloudforge/commit/')) {
@@ -486,7 +576,10 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const url = new URL(
+    req.url || '/',
+    `http://${req.headers.host || 'localhost'}`
+  );
 
   if (url.pathname.startsWith('/api/')) {
     return handleApi(req, res, url);

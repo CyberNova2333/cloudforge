@@ -1,8 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { BookIcon } from '@primer/octicons-react';
-import { t } from '@/lib/i18n';
-import { isMarkdownPath } from '@/lib/codeView';
-import type { RepoDetail } from '@/lib/uiApi';
+import { t } from '@/lib/i18n/i18n';
+import { isMarkdownPath } from '@/lib/repo/codeView';
+import type { RepoDetail } from '@/lib/api/uiApi';
 import { MarkdownFile } from './MarkdownFile';
 
 /** The directory's README below its files: Markdown rendered, anything else as plain text. */

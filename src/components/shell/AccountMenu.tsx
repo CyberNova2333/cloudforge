@@ -1,13 +1,13 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDownIcon } from '@primer/octicons-react';
-import { Avatar } from '@/components/Avatar';
-import { useTheme } from '@/components/ThemeProvider';
+import { Avatar } from '@/components/ui/Avatar';
+import { useTheme } from '@/components/shell/ThemeProvider';
 import { Seg } from '@/components/ui/Seg';
-import { signOut, useCurrentUser } from '@/lib/auth';
-import { lang, setLang, t, type Lang } from '@/lib/i18n';
-import type { Mode } from '@/lib/theme';
-import { api } from '@/lib/uiApi';
+import { signOut, useCurrentUser } from '@/lib/auth/auth';
+import { lang, setLang, t, type Lang } from '@/lib/i18n/i18n';
+import type { Mode } from '@/lib/theme/theme';
+import { api } from '@/lib/api/uiApi';
 import type { ShellMenu } from './AppShell';
 
 const MODES: readonly { value: Mode; label: string }[] = [

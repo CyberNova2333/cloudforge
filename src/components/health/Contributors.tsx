@@ -7,10 +7,10 @@ import {
   DotFillIcon,
   PersonIcon,
 } from '@primer/octicons-react';
-import type { HealthReport, HealthTrend } from '@/lib/uiApi';
-import { clientMark, contributorLine } from '@/lib/health';
-import { t, tn } from '@/lib/i18n';
-import { Identicon } from '@/components/Identicon';
+import type { HealthReport, HealthTrend } from '@/lib/api/uiApi';
+import { clientMark, contributorLine } from '@/lib/repo/health';
+import { t, tn } from '@/lib/i18n/i18n';
+import { Identicon } from '@/components/ui/Identicon';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Section } from '@/components/ui/Section';
 

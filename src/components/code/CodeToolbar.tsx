@@ -1,11 +1,11 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link, useNavigate } from 'react-router-dom';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 import { GitBranchIcon, SearchIcon } from '@primer/octicons-react';
-import { encodeRepoPath, pathCrumbs } from '@/lib/codeView';
-import type { Contents, RepoDetail } from '@/lib/uiApi';
-import { BranchSelect } from '@/components/BranchSelect';
-import { CloneButton } from '@/components/CloneButton';
+import { encodeRepoPath, pathCrumbs } from '@/lib/repo/codeView';
+import type { Contents, RepoDetail } from '@/lib/api/uiApi';
+import { BranchSelect } from '@/components/repo/BranchSelect';
+import { CloneButton } from '@/components/repo/CloneButton';
 
 /** Search is global (top band, `/`); inside a repository it is scoped to it, files included. */
 const focusSearch = () => document.getElementById('gsearch')?.focus();

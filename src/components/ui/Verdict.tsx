@@ -5,8 +5,8 @@ import {
   agentState,
   STATE_LOOK,
   type AgentStatus,
-} from '@/lib/agentLook';
-import { t } from '@/lib/i18n';
+} from '@/lib/agents/agentLook';
+import { t } from '@/lib/i18n/i18n';
 import { STATE_ICON } from './Chip';
 
 /** An agent's verdict in dense developer views: coloured dot (identity), name, then the state in words. */

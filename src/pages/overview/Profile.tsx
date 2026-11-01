@@ -1,0 +1,201 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  ClockIcon,
+  MailIcon,
+  OrganizationIcon,
+  RepoIcon,
+} from '@primer/octicons-react';
+import { api, qk, type Namespace } from '@/lib/api/uiApi';
+import { ApiError } from '@/lib/api/api';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { fullDate, timeAgo } from '@/lib/utils/format';
+import { t } from '@/lib/i18n/i18n';
+import { Avatar } from '@/components/ui/Avatar';
+import { VisibilityLabel } from '@/components/ui/VisibilityLabel';
+import { useEnter } from '@/components/code/useEnter';
+import { LoadError } from '@/components/ui/Notice';
+import { Chip } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Section } from '@/components/ui/Section';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { usePageHead } from '@/components/ui/PageHead';
+import AgentProfile from '@/pages/agents/AgentProfile';
+import { NOT_FOUND_HEAD, NotFound } from './NotFound';
+
+/**
+ * Whoever lives at `/<name>`: a person, the team or a reviewer agent. A person and the team get their repositories;
+ * an agent gets its own profile (`AgentProfile`).
+ */
+export default function Profile() {
+  const { owner = '' } = useParams();
+  const q = useQuery({
+    queryKey: qk.namespace(owner),
+    queryFn: () => api.namespace(owner),
+  });
+  const missing = q.error instanceof ApiError && q.error.status === 404;
+  const data = q.data;
+  usePageHead(
+    missing
+      ? NOT_FOUND_HEAD
+      : data?.agent
+        ? {
+            icon: 'crew',
+            crumbs: [
+              { label: t('Agents'), to: '/agents' },
+              { label: data.agent.name },
+            ],
+            title: data.agent.name,
+          }
+        : {
+            icon: 'person',
+            crumbs: [{ label: owner }],
+            title: data?.owner.name || owner,
+          }
+  );
+  const entering = useEnter(!!data);
+  if (missing) return <NotFound />;
+  if (q.isError && !data)
+    return (
+      <LoadError
+        what={`@${owner}`}
+        error={q.error}
+        onRetry={() => void q.refetch()}
+      />
+    );
+  if (!data) return <Skeleton kind="detail" />;
+  return (
+    <div className={entering}>
+      {data.agent ? (
+        <AgentProfile
+          key={data.agent.username}
+          agent={data.agent}
+          repositories={data.repositories}
+        />
+      ) : (
+        <PersonProfile key={data.owner.id} data={data} />
+      )}
+    </div>
+  );
+}
+
+/** A person's page or the team's: who they are, and the repositories you can see that they own. */
+function PersonProfile({ data }: { data: Namespace }) {
+  const me = useCurrentUser();
+  const isTeam = data.kind === 'team';
+  const isMe = data.kind === 'user' && data.owner.id === me?.id;
+  const members = useQuery({
+    queryKey: qk.members,
+    queryFn: api.members,
+    enabled: !isTeam,
+  });
+  const role = members.data?.find((m) => m.id === data.owner.id)?.role;
+  const name = data.owner.name || data.owner.username;
+  const canCreate = isTeam || isMe;
+  const newRepo = (
+    <Link
+      to={isTeam ? '/new?owner=team' : '/new'}
+      className="btn small primary"
+    >
+      <RepoIcon />
+      {t('New repository')}
+    </Link>
+  );
+  return (
+    <div className="profile">
+      <aside className="pf-side" aria-label={t('About {name}', { name })}>
+        <div className="pf-photo">
+          <Avatar user={data.owner} size={168} square={isTeam} />
+        </div>
+        <h2 className="pf-name">{name}</h2>
+        <p className="pf-handle mono">@{data.owner.username}</p>
+        <p className="pf-badges">
+          {isTeam ? (
+            <Chip tone="info" icon={<OrganizationIcon size={12} />}>
+              {t('Team')}
+            </Chip>
+          ) : role ? (
+            <Chip tone={role === 'admin' ? 'info' : 'off'}>
+              {role === 'admin' ? t('Site admin') : t('Member')}
+            </Chip>
+          ) : null}
+        </p>
+        {isTeam ? (
+          <p className="pf-bio small muted">
+            {t('Every member can see these repositories.')}
+          </p>
+        ) : (
+          <ul className="pf-meta">
+            {data.owner.email && (
+              <li>
+                <MailIcon />
+                <a href={`mailto:${data.owner.email}`} title={data.owner.email}>
+                  {data.owner.email}
+                </a>
+              </li>
+            )}
+            <li>
+              <ClockIcon />
+              <span title={fullDate(data.owner.createdAt)}>
+                {t('Joined {when}', {
+                  when: timeAgo(data.owner.createdAt),
+                })}
+              </span>
+            </li>
+          </ul>
+        )}
+      </aside>
+      <div className="pf-main">
+        <Section
+          title={
+            <>
+              {t('Repositories')}{' '}
+              <span className="num">{data.repositories.length}</span>
+            </>
+          }
+          actions={canCreate ? newRepo : undefined}
+        >
+          {data.repositories.length === 0 ? (
+            <div className="panel">
+              <EmptyState
+                picture={<RepoIcon size={20} />}
+                title={
+                  isTeam
+                    ? t('{name} doesn’t have any repositories yet.', { name })
+                    : t(
+                        '@{username} doesn’t have any repositories you can see yet.',
+                        { username: data.owner.username }
+                      )
+                }
+                body={
+                  canCreate
+                    ? t('Create one and it shows up here.')
+                    : t(
+                        'Private repositories only show to their owner, collaborators and site admins.'
+                      )
+                }
+              />
+            </div>
+          ) : (
+            <ul className="panel pf-repos">
+              {data.repositories.map((r) => (
+                <li key={r.id}>
+                  <div className="pf-repo-name">
+                    <RepoIcon />
+                    <Link to={`/${r.fullName}`}>{r.name}</Link>
+                    <VisibilityLabel visibility={r.visibility} />
+                  </div>
+                  {r.description && <p className="muted">{r.description}</p>}
+                  <span className="muted small" title={fullDate(r.updatedAt)}>
+                    {t('Updated {when}', { when: timeAgo(r.updatedAt) })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      </div>
+    </div>
+  );
+}

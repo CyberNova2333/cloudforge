@@ -10,10 +10,10 @@ import {
   RepoIcon,
   SearchIcon,
 } from '@primer/octicons-react';
-import { Identicon } from '@/components/Identicon';
-import { useAppName } from '@/lib/appName';
-import { useCurrentUser } from '@/lib/auth';
-import type { RecentRepo } from '@/lib/recentRepos';
+import { Identicon } from '@/components/ui/Identicon';
+import { useAppName } from '@/lib/utils/appName';
+import { useCurrentUser } from '@/lib/auth/auth';
+import type { RecentRepo } from '@/lib/repo/recentRepos';
 import {
   CLEARED,
   EMPTY_RESULTS,
@@ -29,12 +29,12 @@ import {
   type SearchHit,
   type SearchResults,
   type SearchState,
-} from '@/lib/searchKeys';
-import { searchQueryOptions } from '@/lib/searchQuery';
-import { api, qk } from '@/lib/uiApi';
+} from '@/lib/search/searchKeys';
+import { searchQueryOptions } from '@/lib/search/searchQuery';
+import { api, qk } from '@/lib/api/uiApi';
 import type { ShellRepo } from './AppShell';
 import { CrewIcon } from './icons';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 
 /** `value`, once it has stopped changing for `ms`. */
 function useDebounced<T>(value: T, ms: number): T {

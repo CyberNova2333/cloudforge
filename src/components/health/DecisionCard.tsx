@@ -1,11 +1,11 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link } from 'react-router-dom';
 import { ClockIcon, PersonIcon } from '@primer/octicons-react';
-import { useApprovalPages } from '@/lib/approvals';
-import { decisionCopy, pickDecision } from '@/lib/health';
-import { timeAgo } from '@/lib/format';
-import { t, tn, tx } from '@/lib/i18n';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import { useApprovalPages } from '@/lib/approvals/approvals';
+import { decisionCopy, pickDecision } from '@/lib/repo/health';
+import { timeAgo } from '@/lib/utils/format';
+import { t, tn, tx } from '@/lib/i18n/i18n';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
 import { useAgentDirectory } from '@/components/actions/RunActor';
 
 /** What waits on the owner when there is no finding to show: some pull request needs a person. */

@@ -1,8 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Fragment, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
-import { useSignInHref } from '@/lib/signIn';
-import { lang, setLang, t, tn } from '@/lib/i18n';
+import { useSignInHref } from '@/lib/auth/signIn';
+import { lang, setLang, t, tn } from '@/lib/i18n/i18n';
 import { LANGUAGES } from './AccountMenu';
 import {
   AlertFillIcon,
@@ -11,10 +11,10 @@ import {
 } from '@primer/octicons-react';
 import type { PageHeadInfo } from '@/components/ui/PageHead';
 import { NotificationsTool } from '@/components/notifications/NotificationParts';
-import { useApprovalCount } from '@/lib/approvals';
-import { useCurrentUser } from '@/lib/auth';
-import type { RecentRepo } from '@/lib/recentRepos';
-import { useSetupChecks } from '@/lib/setupChecks';
+import { useApprovalCount } from '@/lib/approvals/approvals';
+import { useCurrentUser } from '@/lib/auth/auth';
+import type { RecentRepo } from '@/lib/repo/recentRepos';
+import { useSetupChecks } from '@/lib/auth/setupChecks';
 import { AccountMenu } from './AccountMenu';
 import type { ShellMenu, ShellRepo } from './AppShell';
 import { CreateMenu } from './CreateMenu';

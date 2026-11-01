@@ -2,19 +2,19 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { BookIcon, HistoryIcon } from '@primer/octicons-react';
-import { t, tn, tx } from '@/lib/i18n';
-import { dismissedText, LESSON_STATUS, lessonNote } from '@/lib/lessons';
+import { t, tn, tx } from '@/lib/i18n/i18n';
+import { dismissedText, LESSON_STATUS, lessonNote } from '@/lib/agents/lessons';
 import {
   engineText,
   latestNote,
   lessonTone,
   thresholdText,
-} from '@/lib/agentPage';
-import { splitFrontmatter } from '@/lib/codeView';
-import { timeAgo, fullDate } from '@/lib/format';
-import type { Namespace } from '@/lib/uiApi';
+} from '@/lib/agents/agentPage';
+import { splitFrontmatter } from '@/lib/repo/codeView';
+import { timeAgo, fullDate } from '@/lib/utils/format';
+import type { Namespace } from '@/lib/api/uiApi';
 import { useAgentFile } from '@/components/agents/AgentReadme';
-import { LoadError } from '@/components/Notice';
+import { LoadError } from '@/components/ui/Notice';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 
