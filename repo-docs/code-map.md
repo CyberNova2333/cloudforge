@@ -115,13 +115,13 @@ SSO 的两个额外修改入口：
 
 [授权写点检查](../worker/src/lib/access-write.ts)负责捕获浏览器授权快照并构造同条SQL的最终谓词，当前用于共享团队修改和协作者增删。团队路由保留稳定指针/revision，仓库路由绑定目标URL和不可变id；近期挑战由[认证中间件](../worker/src/auth/recent.ts)统一处理。`access-write.test.ts`、`access-team-write.test.ts`、`access-collaborators.test.ts`覆盖真实D1的证明失效、撤权与目标竞争；浏览器重试边界见`recentAuthentication.test.ts`。
 
-新角色/显式团队尚未开放，其余普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检继续只接受旧schema，当前兼容库会拒绝；具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
+新角色/显式团队尚未开放，其余普通mutation最终授权CAS和旧Worker发布屏障没有据此完成。预检明确识别旧schema与 `compat-v1`，未知或部分结构会拒绝；升级根据目标声明和迁移指纹检查支持范围。具体操作与恢复边界见[权限现状](../docs/permissions.md)和[升级维护](../docs/updating.md#access-compatibility-schema)。主Git推送输入输出未改，本入口不改写walkthrough。
 
 ## 权限迁移前的只读检查入口
 
-准备升级团队模型时，先用[维护命令](../scripts/cloudforge/access-preflight.ts)选择明确账号/数据库并输出一次诊断；[快照与分析](../scripts/cloudforge/access-preflight-data.ts)负责有界单SELECT、旧模型判定和异常分类。[操作说明](../docs/updating.md#legacy-access-preflight)区分退出码、观察摘要与真正迁移授权。节点脚本测试验证目标选择和无写入，`access-preflight.test.ts`的Worker测试用真实D1验证查询及旧数据边界；CI归属仍由`ci-workflow.test.ts`检查。
+准备升级团队模型时，先用[维护命令](../scripts/cloudforge/access-preflight.ts)选择明确账号/数据库并输出一次诊断；[快照与分析](../scripts/cloudforge/access-preflight-data.ts)负责有界结构探测、最终单SELECT复核和异常分类，[结构契约](../scripts/cloudforge/access-preflight-definition.ts)校验表约束，[源码协议](../scripts/cloudforge/access-protocol.ts)核对目标声明及迁移指纹。[升级入口](../scripts/cloudforge/upgrade.ts)在计划、确认后、迁移前和部署前重查支持范围。[操作说明](../docs/updating.md#legacy-access-preflight)区分退出码、观察摘要与真正迁移授权。节点脚本测试验证目标选择、无写入和升级阻断，`access-preflight.test.ts`的Worker测试用真实D1验证查询及新旧数据边界；CI归属仍由`ci-workflow.test.ts`检查。
 
-这个入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
+这个诊断入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。真正升级时，[归属写入约束](../scripts/cloudforge/install-marker.ts)在最终D1写语句中再次核对安装id和nonce，并要求收据；它不把前置观察当作后续覆盖归属的授权。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
 
 [失败升级恢复](../scripts/cloudforge/upgrade.ts)在读取本地进度后重新核验Cloudflare设置里的安装归属和版本，并与可达站点交叉检查；本地旧状态不能授权覆盖较新部署。`scripts/cloudforge/__tests__/upgrade.test.ts`以本地模拟云接口/执行器覆盖停止和故障恢复路径，具体操作及尚未覆盖的跨机器并发边界见[升级恢复说明](../docs/updating.md#resuming-a-failed-upgrade-safely)。该修补不等于新角色发布屏障已完成。
 

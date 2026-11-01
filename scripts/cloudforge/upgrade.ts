@@ -42,6 +42,8 @@ import {
   varStops,
 } from './adopt-worker.ts';
 import { ConfigConflict, isGenerated, TUNABLE_VARS } from './config.ts';
+import { readAccessPreflight } from './access-preflight.ts';
+import { readAccessProtocol, type AccessProtocol } from './access-protocol.ts';
 import type { Observed } from './observe.ts';
 import { computePlan, type Action, type Plan } from './plan.ts';
 import { dockerProblem } from './preflight.ts';
@@ -52,6 +54,7 @@ import {
   recordResource,
   recordStep,
   transition,
+  validateUpgradeAccessOrigin,
   writeState,
   type InstallState,
 } from './state.ts';
@@ -82,6 +85,11 @@ export type UpgradePlan = {
   unverified: string[];
   /** The generated config's hash differs from `deployedConfigHash`. */
   configChanged: boolean;
+  /** Observed schema and exact target migration contract; never a runtime/rollback barrier. */
+  access: {
+    schema: 'empty' | 'legacy' | 'compat-v1';
+    protocol: AccessProtocol;
+  };
   /** First 12 hex of sha256 over the plan lines. */
   digest: string;
 };
@@ -206,6 +214,8 @@ function planLines(p: Omit<UpgradePlan, 'digest'>): string[] {
   }
   lines.push(
     `Migrations: ${list(p.migrations)}`,
+    `Access schema: ${p.access.schema} → ${p.access.protocol.targetSchema} (${p.access.protocol.migration.sha256})`,
+    `Migration set: ${p.access.protocol.migrationSetSha256}`,
     `Create: ${list(p.create.map((a) => `${a.kind} ${a.name}`))}`,
     `New secrets: ${list(p.secrets)}`
   );
@@ -267,6 +277,104 @@ function varDrift(
   return drops;
 }
 
+/** Fail closed on unsupported ACL state; every call is read-only and is not a cloud lock. */
+async function checkAccess(
+  ctx: Ctx,
+  s: InstallState,
+  migrations: string[],
+  expected?: UpgradePlan['access'],
+  requireTarget = false
+): Promise<UpgradePlan['access']> {
+  validateUpgradeAccessOrigin(s);
+  const protocol = readAccessProtocol(ctx.source);
+  if (
+    expected &&
+    JSON.stringify(protocol) !== JSON.stringify(expected.protocol)
+  )
+    throw new Error(
+      'The target access protocol changed after planning. Review the package again.'
+    );
+  const recorded = s.resources.find((r) => r.key === 'd1');
+  const databases = await ctx.cf.listD1(s.accountId);
+  const live = recorded
+    ? databases.find(
+        (db) => db.uuid === recorded.id && db.name === recorded.name
+      )
+    : databases.find((db) => db.name === s.names.d1);
+  if (recorded && !live)
+    throw new Error(
+      'The recorded database is missing or renamed. Upgrade stopped.'
+    );
+  const d1 = live ? { id: live.uuid, name: live.name } : undefined;
+  let schema: UpgradePlan['access']['schema'] = 'empty';
+  if (d1) {
+    // Empty is only an upgrade recovery state. An absent compatibility table beside any
+    // application table is unsupported, not an empty database.
+    const rows = await ctx.cf.queryD1(
+      s.accountId,
+      d1.id,
+      "SELECT CASE WHEN EXISTS (SELECT 1 FROM sqlite_schema WHERE type IN ('table','view') AND substr(name,1,7) <> 'sqlite_' AND substr(name,1,4) <> '_cf_' AND name <> 'd1_migrations') THEN 0 ELSE 1 END AS access_empty"
+    );
+    if (
+      rows.length !== 1 ||
+      (rows[0]?.access_empty !== 0 && rows[0]?.access_empty !== 1)
+    )
+      throw new Error(
+        'Access compatibility could not be verified. Upgrade stopped.'
+      );
+    if (rows[0].access_empty === 0) {
+      const analysis = await readAccessPreflight(
+        { cf: ctx.cf },
+        {
+          accountId: s.accountId,
+          database: { uuid: d1.id, name: d1.name },
+          installation: {
+            id: s.installationId,
+            ownershipNonce: s.ownershipNonce,
+            allowMissing:
+              !hasStep(s, `upgrade:${s.upgradeTarget}:markers`) &&
+              (firstAfterAdopt(s) ||
+                (s.upgradeAccessOrigin?.target === s.upgradeTarget &&
+                  s.upgradeAccessOrigin?.databaseId === d1.id &&
+                  s.resources.some(
+                    (r) =>
+                      r.key === 'd1' &&
+                      r.id === d1.id &&
+                      r.ownership === 'created'
+                  ))),
+          },
+        }
+      );
+      if (analysis.blocked)
+        throw new Error(
+          'Access compatibility has blocking findings. Run access-preflight and resolve them before upgrading.'
+        );
+      schema = analysis.report.schemaVersion;
+    }
+  }
+  if (schema === 'empty' && !migrations.includes(protocol.migration.name))
+    throw new Error(
+      'The empty database has incompatible migration receipts. Upgrade stopped.'
+    );
+  if (schema !== 'empty' && !protocol.acceptedSchemas.includes(schema))
+    throw new Error(
+      'The target package does not support the current access schema. Upgrade stopped.'
+    );
+  if ((schema === 'compat-v1') === migrations.includes(protocol.migration.name))
+    throw new Error(
+      'Access schema and migration receipts disagree. Upgrade stopped.'
+    );
+  if (requireTarget && schema !== protocol.targetSchema)
+    throw new Error(
+      'Access migration did not establish the target schema. Deployment stopped.'
+    );
+  if (expected && !requireTarget && expected.schema !== schema)
+    throw new Error(
+      'The access schema changed after planning. Review the upgrade again.'
+    );
+  return { schema, protocol };
+}
+
 async function planned(
   ctx: Ctx,
   s: InstallState,
@@ -275,6 +383,7 @@ async function planned(
   observation?: Observed
 ): Promise<Planned> {
   const migrations = await pendingMigrations(ctx, s, to);
+  const access = await checkAccess(ctx, s, migrations);
   const obs = observation ?? (await look(ctx, s));
   const base = computePlan(desiredOf(s), obs, s);
   const config = renderConfig(ctx, s, to);
@@ -288,6 +397,7 @@ async function planned(
     to,
     comparison: running.comparison,
     migrations,
+    access,
     create: base.actions.filter((a) => a.action === 'create'),
     secrets: Object.keys(generatedSecrets(have)),
     // Names only: what the operator types later is never part of the plan or its digest.
@@ -622,9 +732,10 @@ export async function upgrade(
     }
 
     // A fresh upgrade to a version upgraded to before (a same-version redeploy) runs every step.
+    const { upgradeAccessOrigin: _previousOrigin, ...fresh } = s;
     const from = unfinished
       ? s
-      : { ...s, steps: s.steps.filter((x) => !x.key.startsWith(prefix)) };
+      : { ...fresh, steps: s.steps.filter((x) => !x.key.startsWith(prefix)) };
     // Secrets and config whenever the deploy is still to come (judged after that reset).
     const deployPending = !hasStep(from, `${prefix}deploy`);
     const absent = missingOptional(have);
@@ -632,6 +743,8 @@ export async function upgrade(
     if (deployPending && absent.length > 0 && opts.askOptional) {
       typed = onlyMissing(await opts.askOptional(absent), absent);
     }
+    // Confirmation and optional credential prompts may have taken arbitrarily long.
+    await checkAccess(ctx, s, await pendingMigrations(ctx, s, to), plan.access);
     save({ ...transition(from, 'upgrading'), upgradeTarget: to });
     started = true;
     const once = async (name: string, fn: () => Promise<void>) => {
@@ -677,8 +790,38 @@ export async function upgrade(
       save(recordStep(s, step));
     }
 
-    await once('migrations', () => applyMigrations(ctx));
+    await once('migrations', async () => {
+      await checkAccess(
+        ctx,
+        s,
+        await pendingMigrations(ctx, s, to),
+        plan.access
+      );
+      if (plan.access.schema === 'empty' && !s.upgradeAccessOrigin) {
+        const database = s.resources.find((r) => r.key === 'd1');
+        if (!database || database.ownership !== 'created')
+          throw new Error(
+            'Empty database recovery requires the recorded created database. Upgrade stopped.'
+          );
+        save({
+          ...s,
+          upgradeAccessOrigin: {
+            target: to,
+            databaseId: database.id,
+            schema: 'empty',
+          },
+        });
+      }
+      await applyMigrations(ctx);
+    });
     await once('deploy', async () => {
+      await checkAccess(
+        ctx,
+        s,
+        await pendingMigrations(ctx, s, to),
+        plan.access,
+        true
+      );
       await deploy(ctx, secrets);
       s = {
         ...s,
@@ -707,17 +850,35 @@ export async function upgrade(
       const ids = await readDoNamespaceIds(ctx, s);
       if (!sameIds(ids, s.doNamespaceIds)) {
         const h = writeConfig(ctx, s, to, ids);
+        await checkAccess(
+          ctx,
+          s,
+          await pendingMigrations(ctx, s, to),
+          plan.access,
+          true
+        );
         await deploy(ctx, {});
         s = { ...s, deployedConfigHash: h };
       }
       s = { ...s, doNamespaceIds: ids };
     });
+    await checkAccess(
+      ctx,
+      s,
+      await pendingMigrations(ctx, s, to),
+      plan.access,
+      true
+    );
     await once('markers', () => writeMarkers(ctx, s, to));
     await once('verify', async () => {
       await verifyAt(ctx, s, to, resumeCmd);
     });
 
-    const { upgradeTarget: _done, ...rest } = transition(s, 'installed');
+    const {
+      upgradeTarget: _done,
+      upgradeAccessOrigin: _origin,
+      ...rest
+    } = transition(s, 'installed');
     save({ ...rest, upgradedAt: ctx.now().toISOString() });
   } catch (e) {
     if (!started) throw e;

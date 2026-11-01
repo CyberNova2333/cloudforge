@@ -1,11 +1,13 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
+import { accessDefinitionGuardSql } from './access-preflight-definition.ts';
+import { ACCESS_TRIGGERS } from '../../worker/src/db/access-triggers.ts';
 import { isValidUsername } from '../../worker/src/lib/usernames.ts';
 
 export const ACCESS_PREFLIGHT_LIMIT = 1000;
 export const ACCESS_PREFLIGHT_MAX_BYTES = 1_800_000;
 const SAMPLE_LIMIT = 20;
 
-/** Only this legacy schema is understood. An expanded ACL must never be read as legacy write grants. */
+/** Known historical columns; expanded ACL data is never interpreted as implicit legacy grants. */
 export const ACCESS_PREFLIGHT_LEGACY_COLUMNS = {
   users:
     'id:text name:text email:text email_verified:integer image:text created_at:integer updated_at:integer role:text banned:integer ban_reason:text ban_expires:integer username:text display_username:text two_factor_enabled:integer auth_version:integer'
@@ -36,6 +38,94 @@ export const ACCESS_PREFLIGHT_LEGACY_COLUMNS = {
       .map((column) => `${column}:0`)
       .sort(),
 } as const;
+
+export type AccessSchemaVersion = 'legacy' | 'compat-v1';
+export type AccessInstallation = {
+  id: string;
+  ownershipNonce: string;
+  allowMissing?: boolean;
+};
+export const ACCESS_PREFLIGHT_COMPAT_COLUMNS = {
+  ...ACCESS_PREFLIGHT_LEGACY_COLUMNS,
+  teams: [
+    ...ACCESS_PREFLIGHT_LEGACY_COLUMNS.teams,
+    'membership_mode:text:0',
+    'revision:integer:0',
+  ].sort(),
+  repository_collaborators: [
+    ...ACCESS_PREFLIGHT_LEGACY_COLUMNS.repository_collaborators,
+    'role:text:0',
+    'revision:integer:0',
+  ].sort(),
+  access_control_state: [
+    'generation:integer:0',
+    'id:integer:0',
+    'legacy_shared_team_id:text:0',
+  ],
+  namespace_claims: ['kind:text:0', 'slug:text:0', 'subject_id:text:0'],
+};
+const schemaProjection = (tables: string[]) =>
+  `json_object(${tables
+    .flatMap((table) => [
+      `'${table}'`,
+      `json((SELECT json_group_array(CASE WHEN length(CAST(name AS BLOB)) <= 64 AND length(CAST(type AS BLOB)) <= 16 THEN name || ':' || lower(type) || ':' || hidden ELSE '!unsupported' END) FROM (SELECT name,type,hidden FROM pragma_table_xinfo('${table}') ORDER BY name LIMIT 65)))`,
+    ])
+    .join(',')})`;
+const tableProjection = (tables: string[]) =>
+  `json_object(${tables.flatMap((table) => [`'${table}'`, `(SELECT type FROM sqlite_schema WHERE name='${table}')`]).join(',')})`;
+const futureTables = `(SELECT json_group_array(name) FROM (SELECT lower(name) AS name FROM sqlite_schema WHERE type IN ('table','view') AND lower(name) IN ('team_members','repository_team_grants') ORDER BY name LIMIT 3))`;
+/** Discovery chooses a static query only; final data reads repeat the schema and marker checks. */
+export function accessPreflightDiscoveryQuery() {
+  const tables = Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS);
+  return {
+    sql: `SELECT json_object('schema',${schemaProjection(tables)},'tableTypes',${tableProjection(tables)},'unsupportedTables',json(${futureTables})) AS schemaDiscovery`,
+    params: [] as (string | number)[],
+  };
+}
+export function classifyAccessSchema(
+  raw: unknown
+): AccessSchemaVersion | 'unsupported' {
+  try {
+    if (
+      typeof raw !== 'string' ||
+      new TextEncoder().encode(raw).length > 32_000
+    )
+      return 'unsupported';
+    const data = object(JSON.parse(raw), [
+      'schema',
+      'tableTypes',
+      'unsupportedTables',
+    ]);
+    const tables = Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS);
+    const metadata = object(data.schema, tables);
+    const types = object(data.tableTypes, tables);
+    if (!Array.isArray(data.unsupportedTables) || data.unsupportedTables.length)
+      return 'unsupported';
+    for (const version of ['legacy', 'compat-v1'] as const) {
+      const expected =
+        version === 'legacy'
+          ? ACCESS_PREFLIGHT_LEGACY_COLUMNS
+          : ACCESS_PREFLIGHT_COMPAT_COLUMNS;
+      if (
+        tables.every((table) => {
+          const columns = expected[table as keyof typeof expected];
+          const actual = metadata[table];
+          return (
+            Array.isArray(actual) &&
+            actual.every((v) => typeof v === 'string') &&
+            JSON.stringify([...actual].sort()) ===
+              JSON.stringify(columns ?? []) &&
+            types[table] === (columns ? 'table' : null)
+          );
+        })
+      )
+        return version;
+    }
+    return 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
 
 type LegacyTable = keyof typeof ACCESS_PREFLIGHT_LEGACY_COLUMNS;
 type Field = readonly [
@@ -79,13 +169,14 @@ const boundedText = ([, column, raw, encoded]: Field) =>
   `CASE WHEN typeof(${column}) = 'text' AND length(CAST(${column} AS BLOB)) <= ${raw} THEN CASE WHEN length(CAST(json_quote(${column}) AS BLOB)) <= ${encoded} THEN ${column} END END`;
 
 /** One statement observes schema, marker and data together; this is not an authorization for a later apply. */
-export function accessPreflightQuery(installation?: {
-  id: string;
-  ownershipNonce: string;
-}): {
+export function accessPreflightQuery(
+  installation?: AccessInstallation,
+  schemaVersion: AccessSchemaVersion = 'legacy'
+): {
   sql: string;
   params: (string | number)[];
 } {
+  if (schemaVersion === 'compat-v1') return compatPreflightQuery(installation);
   const collections = Object.entries(fields).map(([name, columns]) => {
     const table = name === 'collaborators' ? 'repository_collaborators' : name;
     const values = columns.map(
@@ -134,8 +225,9 @@ export function accessPreflightQuery(installation?: {
     sql: `WITH ${collections.join(',\n')}
 SELECT json_object(
   'format', 1,
+  'definitionValid', ${accessDefinitionGuardSql('legacy')},
   'marker', json_object('count', (SELECT count(*) FROM install_state), 'valid',
-    CASE WHEN ? = 1 THEN CASE WHEN (SELECT count(*) FROM install_state) = 1 AND EXISTS (SELECT 1 FROM install_state WHERE installation_id = ? AND ownership_nonce = ?) THEN 1 ELSE 0 END
+    CASE WHEN ? = 1 THEN CASE WHEN ${installation?.allowMissing ? '(SELECT count(*) FROM install_state) = 0 OR ' : ''}(SELECT count(*) FROM install_state) = 1 AND EXISTS (SELECT 1 FROM install_state WHERE installation_id = ? AND ownership_nonce = ?) THEN 1 ELSE 0 END
     ELSE CASE WHEN (SELECT count(*) FROM install_state) <= 1 THEN 1 ELSE 0 END END),
   'schema', json_object(${schema.join(', ')}),
   'tableTypesValid', CASE WHEN ${tableTypes.join(' AND ')} THEN 1 ELSE 0 END,
@@ -171,9 +263,11 @@ type Repository = {
 type Collaborator = { repositoryId: string; userId: string };
 type Agent = { userId: string; repositoryId: string | null };
 export type AccessPreflightSnapshot = {
-  format: 1;
+  format: 1 | 2;
+  definitionValid: boolean;
+  compat?: AccessCompatSnapshot;
   marker: { count: number; valid: boolean };
-  schema: Record<LegacyTable, string[]>;
+  schema: Record<string, string[]>;
   tableTypesValid: boolean;
   unsupportedTables: string[];
   invalidFields: boolean;
@@ -192,6 +286,8 @@ export type AccessPreflightIssue = {
 export type AccessPreflightAnalysis = {
   snapshot: AccessPreflightSnapshot;
   report: {
+    schemaVersion: AccessSchemaVersion;
+    accessGeneration: number | null;
     counts: {
       users: number;
       teams: number;
@@ -286,8 +382,16 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
   } catch {
     return fail('snapshot is not bounded JSON');
   }
+  if (
+    value &&
+    typeof value === 'object' &&
+    'format' in value &&
+    value.format === 2
+  )
+    return analyzeCompatSnapshot(value);
   const data = object(value, [
     'format',
+    'definitionValid',
     'marker',
     'schema',
     'tableTypesValid',
@@ -297,6 +401,7 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
   ]);
   if (
     data.format !== 1 ||
+    !boolean(data.definitionValid) ||
     !boolean(data.tableTypesValid) ||
     boolean(data.invalidFields)
   )
@@ -379,6 +484,7 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
   );
   const snapshot: AccessPreflightSnapshot = {
     format: 1,
+    definitionValid: true,
     marker: { count: Number(marker.count), valid: true },
     schema,
     tableTypesValid: true,
@@ -631,6 +737,8 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
   return {
     snapshot,
     report: {
+      schemaVersion: 'legacy',
+      accessGeneration: null,
       counts: {
         users: users.length,
         teams: teams.length,
@@ -661,4 +769,239 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
     rolePublishingAllowed: false,
     migrationApplied: false,
   };
+}
+type AccessCompatSnapshot = {
+  state: {
+    id: number;
+    generation: number;
+    legacySharedTeamId: string | null;
+  }[];
+  teams: { id: string; membershipMode: string; revision: number }[];
+  collaborators: {
+    repositoryId: string;
+    userId: string;
+    role: string;
+    revision: number;
+  }[];
+  claims: { slug: string; kind: string; subjectId: string }[];
+  triggersValid: boolean;
+};
+const boundedInteger = (column: string) =>
+  `CASE WHEN typeof(${column})='integer' AND ${column}>=0 AND ${column}<=9007199254740991 THEN ${column} END`;
+function compatPreflightQuery(installation?: AccessInstallation) {
+  const base = accessPreflightQuery(installation);
+  const bt = (column: string, raw = 64, encoded = 96) =>
+    boundedText(['', column, raw, encoded]);
+  const collection = (table: string, order: string, pairs: string) =>
+    `json((SELECT json_group_array(json_object(${pairs})) FROM (SELECT * FROM ${table} ORDER BY ${order} LIMIT 1001)))`;
+  const tables = Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS);
+  return {
+    sql: `WITH legacy_snapshot AS (${base.sql})
+SELECT CASE WHEN length(CAST(snapshot AS BLOB)) + 8192
+  + 256*(SELECT count(*) FROM (SELECT 1 FROM access_control_state LIMIT 1001))
+  + 256*(SELECT count(*) FROM (SELECT 1 FROM teams LIMIT 1001))
+  + 384*(SELECT count(*) FROM (SELECT 1 FROM repository_collaborators LIMIT 1001))
+  + 384*(SELECT count(*) FROM (SELECT 1 FROM namespace_claims LIMIT 1001)) <= ${ACCESS_PREFLIGHT_MAX_BYTES}
+THEN json_set(snapshot,
+  '$.format',2,
+  '$.definitionValid',${accessDefinitionGuardSql('compat-v1')},
+  '$.schema',json(${schemaProjection(tables)}),
+  '$.tableTypesValid',CASE WHEN ${tables.map((table) => `(SELECT type FROM sqlite_schema WHERE name='${table}')='table'`).join(' AND ')} THEN 1 ELSE 0 END,
+  '$.unsupportedTables',json(${futureTables}),
+  '$.compat',json_object(
+    'state',${collection('access_control_state', 'id', `'id',${boundedInteger('id')},'generation',${boundedInteger('generation')},'legacySharedTeamId',${bt('legacy_shared_team_id')}`)},
+    'teams',${collection('teams', 'id', `'id',${bt('id')},'membershipMode',${bt('membership_mode', 16, 32)},'revision',${boundedInteger('revision')}`)},
+    'collaborators',${collection('repository_collaborators', 'repository_id,user_id', `'repositoryId',${bt('repository_id')},'userId',${bt('user_id')},'role',${bt('role', 16, 32)},'revision',${boundedInteger('revision')}`)},
+    'claims',${collection('namespace_claims', 'slug', `'slug',${bt('slug', 39, 96)},'kind',${bt('kind', 16, 32)},'subjectId',${bt('subject_id')}`)},
+    'triggersValid',CASE WHEN (SELECT count(*) FROM sqlite_schema WHERE type='trigger' AND substr(lower(name),1,18) = 'cloudforge_access_') = ${ACCESS_TRIGGERS.length}
+      AND NOT EXISTS (SELECT 1 FROM json_each(?) expected LEFT JOIN sqlite_schema actual ON actual.name=json_extract(expected.value,'$.name') AND actual.type='trigger' WHERE actual.sql IS NULL OR (trim(actual.sql, char(10)||char(13)||' ;') != trim(json_extract(expected.value,'$.sql'),char(10)||char(13)||' ;') AND trim(actual.sql, char(10)||char(13)||' ;') != trim(replace(json_extract(expected.value,'$.sql'),char(10),char(13)||char(10)),char(10)||char(13)||' ;')))
+      AND NOT EXISTS(SELECT 1 FROM access_control_state WHERE legacy_shared_team_id IS NOT NULL AND ${bt('legacy_shared_team_id')} IS NULL)
+      THEN 1 ELSE 0 END
+  )) ELSE '{}' END AS snapshot FROM legacy_snapshot`,
+    params: [...base.params, JSON.stringify(ACCESS_TRIGGERS)],
+  };
+}
+function safeInteger(value: unknown): number {
+  if (!Number.isSafeInteger(value) || Number(value) < 0)
+    return fail('invalid access generation/revision');
+  return Number(value);
+}
+function analyzeCompatSnapshot(value: unknown): AccessPreflightAnalysis {
+  const data = object(value, [
+    'format',
+    'definitionValid',
+    'marker',
+    'schema',
+    'tableTypesValid',
+    'unsupportedTables',
+    'invalidFields',
+    ...Object.keys(fields),
+    'compat',
+  ]);
+  const schema = object(
+    data.schema,
+    Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS)
+  );
+  for (const [table, expected] of Object.entries(
+    ACCESS_PREFLIGHT_COMPAT_COLUMNS
+  )) {
+    const actual = schema[table];
+    if (
+      !Array.isArray(actual) ||
+      actual.some((v) => typeof v !== 'string') ||
+      JSON.stringify([...actual].sort()) !== JSON.stringify(expected)
+    )
+      return fail('unsupported compatible schema');
+  }
+  const metadata = object(data.compat, [
+    'state',
+    'teams',
+    'collaborators',
+    'claims',
+    'triggersValid',
+  ]);
+  if (!boolean(metadata.triggersValid))
+    return fail('access trigger integrity mismatch');
+  const state = rows(
+    metadata.state,
+    (raw) => {
+      const row = object(raw, ['id', 'generation', 'legacySharedTeamId']);
+      return {
+        id: safeInteger(row.id),
+        generation: safeInteger(row.generation),
+        legacySharedTeamId: text(row.legacySharedTeamId, 64, 96, true),
+      };
+    },
+    (row) => String(row.id)
+  );
+  if (state.length !== 1 || state[0].id !== 1)
+    return fail('access state singleton missing or ambiguous');
+  const teams = rows(
+    metadata.teams,
+    (raw) => {
+      const row = object(raw, ['id', 'membershipMode', 'revision']);
+      return {
+        id: text(row.id, 64, 96)!,
+        membershipMode: text(row.membershipMode, 16, 32)!,
+        revision: safeInteger(row.revision),
+      };
+    },
+    (row) => row.id
+  );
+  const collaborators = rows(
+    metadata.collaborators,
+    (raw) => {
+      const row = object(raw, ['repositoryId', 'userId', 'role', 'revision']);
+      return {
+        repositoryId: text(row.repositoryId, 64, 96)!,
+        userId: text(row.userId, 64, 96)!,
+        role: text(row.role, 16, 32)!,
+        revision: safeInteger(row.revision),
+      };
+    },
+    (row) => `${row.repositoryId}\0${row.userId}`
+  );
+  const claims = rows(
+    metadata.claims,
+    (raw) => {
+      const row = object(raw, ['slug', 'kind', 'subjectId']);
+      return {
+        slug: text(row.slug, 39, 96)!,
+        kind: text(row.kind, 16, 32)!,
+        subjectId: text(row.subjectId, 64, 96)!,
+      };
+    },
+    (row) => row.slug
+  );
+  const { compat: _compat, ...base } = data;
+  // Reuse legacy data anomaly checks only after the expanded schema and its extra state are validated.
+  const result = analyzeAccessSnapshot({
+    ...base,
+    format: 1,
+    schema: ACCESS_PREFLIGHT_LEGACY_COLUMNS,
+  });
+  const add = (code: string, message: string, id: string) => {
+    let item = result.report.blockers.find((item) => item.code === code);
+    if (!item) {
+      item = { code, message, count: 0, samples: [] };
+      result.report.blockers.push(item);
+    }
+    item.count++;
+    if (item.samples.length < SAMPLE_LIMIT) item.samples.push({ id });
+  };
+  for (const team of teams)
+    if (team.membershipMode !== 'instance')
+      add(
+        'unsupported_team_membership',
+        'Only the instance shared team is supported.',
+        team.id
+      );
+  for (const row of collaborators)
+    if (row.role !== 'write')
+      add(
+        'unsupported_collaborator_role',
+        'Only existing write grants are supported.',
+        row.repositoryId
+      );
+  if (
+    JSON.stringify(teams.map((row) => row.id)) !==
+      JSON.stringify(result.snapshot.teams.map((row) => row.id)) ||
+    JSON.stringify(
+      collaborators.map((row) => [row.repositoryId, row.userId])
+    ) !==
+      JSON.stringify(
+        result.snapshot.collaborators.map((row) => [
+          row.repositoryId,
+          row.userId,
+        ])
+      )
+  )
+    return fail('inconsistent compatible snapshot');
+  if (state[0].legacySharedTeamId !== result.report.legacySharedTeamId)
+    add(
+      'invalid_legacy_team_pointer',
+      'The stable shared-team pointer does not match the current single instance team.',
+      'instance'
+    );
+  const expected = new Map<string, { kind: string; subjectId: string }>();
+  for (const user of result.snapshot.users)
+    if (user.username !== null)
+      expected.set(user.username.toLowerCase(), {
+        kind: 'user',
+        subjectId: user.id,
+      });
+  for (const team of teams) {
+    const row = result.snapshot.teams.find((row) => row.id === team.id)!;
+    expected.set(row.slug, { kind: 'team', subjectId: row.id });
+  }
+  for (const claim of claims) {
+    const match = expected.get(claim.slug);
+    if (
+      !match ||
+      match.kind !== claim.kind ||
+      match.subjectId !== claim.subjectId
+    )
+      add(
+        'namespace_claim_mismatch',
+        'Namespace claims must exactly match their current source identities.',
+        claim.subjectId
+      );
+    else expected.delete(claim.slug);
+  }
+  for (const missing of expected.values())
+    add(
+      'namespace_claim_missing',
+      'A source identity has no matching namespace claim.',
+      missing.subjectId
+    );
+  result.snapshot = {
+    ...result.snapshot,
+    format: 2,
+    schema: schema as Record<string, string[]>,
+    compat: { state, teams, collaborators, claims, triggersValid: true },
+  };
+  result.report.schemaVersion = 'compat-v1';
+  result.report.accessGeneration = state[0].generation;
+  result.blocked = result.report.blockers.length > 0;
+  return result;
 }

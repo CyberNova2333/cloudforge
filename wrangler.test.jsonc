@@ -25,6 +25,12 @@
       "migrations_dir": "migrations",
     },
     {
+      "binding": "ACCESS_DEFINITION_DB",
+      "database_name": "cloudforge-access-definition-test",
+      "database_id": "00000000-0000-0000-0000-000000000003",
+      "migrations_dir": "migrations",
+    },
+    {
       "binding": "DB",
       "database_name": "cloudforge-test",
       "database_id": "00000000-0000-0000-0000-000000000000",

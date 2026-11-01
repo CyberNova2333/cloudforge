@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Cloudflare } from './cloudflare.ts';
 import type { Io } from './collect.ts';
+import { INSTALL_MARKER_WRITE_SQL } from './install-marker.ts';
 import {
   ConfigConflict,
   configHash,
@@ -217,18 +218,30 @@ export async function writeInstallRow(
   version: string,
   schemaDigest: string
 ): Promise<void> {
-  await ctx.cf.queryD1(
-    s.accountId,
-    d1Id,
-    'INSERT OR REPLACE INTO install_state (installation_id, ownership_nonce, version, manifest_json, updated_at) VALUES (?, ?, ?, ?, ?)',
-    [
-      s.installationId,
-      s.ownershipNonce,
-      version,
-      JSON.stringify({ schemaDigest }),
-      ctx.now().getTime(),
-    ]
-  );
+  try {
+    const rows = await ctx.cf.queryD1(
+      s.accountId,
+      d1Id,
+      INSTALL_MARKER_WRITE_SQL,
+      [
+        s.installationId,
+        s.ownershipNonce,
+        version,
+        JSON.stringify({ schemaDigest }),
+        ctx.now().getTime(),
+        s.installationId,
+        s.ownershipNonce,
+      ]
+    );
+    if (rows.length !== 1 || rows[0]?.written !== s.installationId)
+      throw new Error('Ownership marker write was refused');
+  } catch {
+    // Transport exceptions may contain SQL parameters. A failed response also does not prove
+    // that a remote write did not commit, so require a fresh ownership read before retrying.
+    throw new Error(
+      'Could not confirm the installation ownership marker. Recheck database ownership before retrying.'
+    );
+  }
 }
 
 /**

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { readAccessPreflight } from '../access-preflight.ts';
 import { main, type Deps } from '../cli.ts';
 import type { Io } from '../collect.ts';
 import { installationIdOf, resourceNames } from '../names.ts';
@@ -58,7 +59,7 @@ function harness(
   const db = new DatabaseSync(':memory:');
   databases.push(db);
   for (const file of readdirSync(MIGRATIONS)
-    // This command is deliberately legacy-only; the compatible schema is refused.
+    // Test both historical and current migrated schemas with the same read-only command.
     .filter(
       (name) =>
         name.endsWith('.sql') &&
@@ -118,17 +119,17 @@ function harness(
     d1Query: (_id, sql, params) => {
       // Any accidental DML, schema change or trigger side effect fails, even if hidden in a CTE.
       db.exec('PRAGMA query_only = ON');
+      let rows: Record<string, unknown>[];
       try {
-        const rows = db
-          .prepare(sql)
-          .all(...(params as (string | number | null)[]));
-        return (opts.response ? opts.response(rows) : rows) as Record<
-          string,
-          unknown
-        >[];
+        rows = db.prepare(sql).all(...(params as (string | number | null)[]));
       } finally {
         db.exec('PRAGMA query_only = OFF');
       }
+      // The optional hook models another connection changing state between read-only queries.
+      return (opts.response ? opts.response(rows) : rows) as Record<
+        string,
+        unknown
+      >[];
     },
   });
   const output: string[] = [];
@@ -193,14 +194,13 @@ function harness(
 }
 
 describe('access-preflight：只读兼容迁移预检', () => {
-  it('已迁入兼容schema时拒绝当作旧模型回填，保持所有数据及代数不变', async () => {
+  it('已迁入兼容schema时准确识别版本，保持所有数据及代数不变', async () => {
     const h = harness({ latestSchema: true });
     const before = h.db.prepare('SELECT * FROM access_control_state').all();
     const grants = h.db.prepare('SELECT * FROM repository_collaborators').all();
-    expect(await h.selected()).toBe(1);
-    expect(h.text()).toContain(
-      'could not read a valid, bounded compatibility snapshot'
-    );
+    expect(await h.selected()).toBe(0);
+    expect(h.report().schemaVersion).toBe('compat-v1');
+    expect(h.report().accessGeneration).toBe(before[0].generation);
     expect(h.db.prepare('SELECT * FROM access_control_state').all()).toEqual(
       before
     );
@@ -210,7 +210,7 @@ describe('access-preflight：只读兼容迁移预检', () => {
     expect(h.text()).not.toContain(PRIVATE);
   });
 
-  it('仅执行一次只读快照，保留旧协作者/创建者/公开集合并不授权角色发布', async () => {
+  it('发现schema后执行一次只读数据快照，保留旧协作者/创建者/公开集合并不授权角色发布', async () => {
     const h = harness();
     const before = localFiles();
     expect(await h.selected()).toBe(0);
@@ -239,6 +239,7 @@ describe('access-preflight：只读兼容迁移预检', () => {
     expect(h.cf.calls.map((call) => call.method)).toEqual([
       'listAccounts',
       'listD1',
+      'queryD1',
       'queryD1',
     ]);
     expect(h.runner.calls).toEqual([]);
@@ -284,7 +285,9 @@ describe('access-preflight：只读兼容迁移预检', () => {
       const before = localFiles();
       expect(await h.run('--name', 'acme')).toBe(0);
       expect(h.report().target.installationId).toBe(h.state.installationId);
-      const call = h.cf.calls.find((call) => call.method === 'queryD1')!;
+      const call = h.cf.calls
+        .filter((call) => call.method === 'queryD1')
+        .at(-1)!;
       expect(call.args.slice(0, 2)).toEqual([ACCOUNT, DATABASE]);
       expect(JSON.stringify(call.args)).toContain(h.state.ownershipNonce);
       expect(h.text()).not.toContain(h.state.ownershipNonce);
@@ -420,7 +423,7 @@ describe('access-preflight：只读兼容迁移预检', () => {
     const h = harness({
       response: (rows) =>
         rows.map((row) => {
-          if (!reverse) return row;
+          if (!reverse || !Object.hasOwn(row, 'snapshot')) return row;
           const snapshot = JSON.parse(row.snapshot as string);
           for (const key of [
             'users',
@@ -454,6 +457,76 @@ describe('access-preflight：只读兼容迁移预检', () => {
     const other = harness({ d1: [{ uuid: 'other-db', name: DATABASE }] });
     expect(await other.selected()).toBe(0);
     expect(other.report().snapshotDigest).not.toBe(initial);
+  });
+
+  it('发现之后trigger变动由最终同句校验拦截，不复用发现结果', async () => {
+    let mutate: (() => void) | undefined;
+    const h = harness({
+      latestSchema: true,
+      response: (rows) => {
+        if (Object.hasOwn(rows[0], 'schemaDiscovery')) mutate?.();
+        return rows;
+      },
+    });
+    mutate = () => h.db.exec('DROP TRIGGER cloudforge_access_claim_update_v1');
+    expect(await h.selected()).toBe(1);
+    expect(h.text()).not.toContain('snapshotDigest');
+    expect(h.cf.calls.filter((call) => call.method === 'queryD1')).toHaveLength(
+      2
+    );
+  });
+
+  it('发现之后marker被替换时最终快照拒绝原安装身份', async () => {
+    let mutate: (() => void) | undefined;
+    const h = harness({
+      recorded: true,
+      latestSchema: true,
+      response: (rows) => {
+        if (Object.hasOwn(rows[0], 'schemaDiscovery')) mutate?.();
+        return rows;
+      },
+    });
+    mutate = () =>
+      h.db.exec("UPDATE install_state SET ownership_nonce='replacement'");
+    expect(await h.run('--name', 'acme')).toBe(1);
+    expect(h.text()).not.toContain('snapshotDigest');
+  });
+
+  it('首次adopt仅允许空marker，非空错误归属不能因allowMissing放行', async () => {
+    const h = harness({ latestSchema: true });
+    const opts = {
+      accountId: ACCOUNT,
+      database: { uuid: DATABASE, name: 'actual-database-name' },
+      installation: {
+        id: h.state.installationId,
+        ownershipNonce: h.state.ownershipNonce,
+        allowMissing: true,
+      },
+    };
+    expect(
+      (await readAccessPreflight({ cf: h.cf }, opts)).snapshot.marker.count
+    ).toBe(0);
+    await expect(
+      readAccessPreflight(
+        { cf: h.cf },
+        { ...opts, installation: { ...opts.installation, allowMissing: false } }
+      )
+    ).rejects.toThrow('Nothing was changed');
+    h.db.exec(
+      "INSERT INTO install_state(installation_id,ownership_nonce,updated_at) VALUES('other','private-other-nonce',0)"
+    );
+    await expect(readAccessPreflight({ cf: h.cf }, opts)).rejects.toThrow(
+      'Nothing was changed'
+    );
+  });
+
+  it('schema发现失败只执行有界metadata读取，拒绝执行动态数据SQL', async () => {
+    const h = harness();
+    h.db.exec('ALTER TABLE teams ADD COLUMN membership_mode TEXT');
+    expect(await h.selected()).toBe(1);
+    expect(h.cf.calls.filter((call) => call.method === 'queryD1')).toHaveLength(
+      1
+    );
   });
 
   it('help在无凭据时可发现只读命令，不打印apply命令', async () => {

@@ -1,10 +1,13 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
 import { applyD1Migrations, env } from 'cloudflare:test';
+import { ACCESS_TRIGGERS } from '../db/access-triggers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ACCESS_PREFLIGHT_LIMIT,
   ACCESS_PREFLIGHT_MAX_BYTES,
   accessPreflightQuery,
+  accessPreflightDiscoveryQuery,
+  classifyAccessSchema,
   analyzeAccessSnapshot,
 } from '../../../scripts/cloudforge/access-preflight-data';
 
@@ -403,9 +406,7 @@ describe('旧权限兼容迁移只读预检（真实D1）', () => {
     });
     await db.exec('ALTER TABLE repository_collaborators ADD COLUMN role text');
     try {
-      await expect(analyze()).rejects.toThrow(
-        'unsupported repository_collaborators schema'
-      );
+      await expect(analyze()).rejects.toThrow('unsupported schema');
     } finally {
       await db.exec('ALTER TABLE repository_collaborators DROP COLUMN role');
     }
@@ -433,9 +434,7 @@ describe('旧权限兼容迁移只读预检（真实D1）', () => {
         )
         .all<{ name: string }>();
       expect(old.results.map((column) => column.name)).not.toContain('role');
-      await expect(analyze()).rejects.toThrow(
-        'unsupported repository_collaborators schema'
-      );
+      await expect(analyze()).rejects.toThrow('unsupported schema');
     } finally {
       await db.exec('ALTER TABLE repository_collaborators DROP COLUMN role');
     }
@@ -506,5 +505,201 @@ describe('旧权限兼容迁移只读预检（真实D1）', () => {
     expect(() =>
       analyzeAccessSnapshot(' '.repeat(ACCESS_PREFLIGHT_MAX_BYTES + 1))
     ).toThrow('bounded JSON');
+  });
+});
+
+const compatDb = env.DB;
+async function compatRaw() {
+  const query = accessPreflightQuery(undefined, 'compat-v1');
+  const row = await compatDb
+    .prepare(query.sql)
+    .bind(...query.params)
+    .first<{ snapshot: string }>();
+  return JSON.parse(row!.snapshot);
+}
+async function compatSeed() {
+  await compatDb.batch([
+    compatDb.prepare(
+      "INSERT INTO users(id,name,email,username,role) VALUES('owner','Owner','secret@example.invalid','owner','admin'),('member','Member','member-secret@example.invalid','member','user')"
+    ),
+    compatDb.prepare(
+      "INSERT INTO teams(id,slug,name,created_at) VALUES('stable-team','shared','Shared',0)"
+    ),
+    compatDb.prepare(
+      "INSERT INTO repositories(id,owner_id,team_id,name,visibility,artifacts_name,created_at,updated_at) VALUES('repo','owner','stable-team','repo','public','r_repo',0,0)"
+    ),
+    compatDb.prepare(
+      "INSERT INTO repository_collaborators(repository_id,user_id,created_at) VALUES('repo','member',0)"
+    ),
+  ]);
+}
+describe('版本感知兼容schema只读预检（真实D1）', () => {
+  it('发现legacy与compat-v1；完整新schema检查约束、trigger、稳定团队指针与claims', async () => {
+    await compatSeed();
+    const discovery = accessPreflightDiscoveryQuery();
+    for (const [database, version] of [
+      [db, 'legacy'],
+      [compatDb, 'compat-v1'],
+    ] as const) {
+      const row = await database
+        .prepare(discovery.sql)
+        .first<{ schemaDiscovery: string }>();
+      expect(classifyAccessSchema(row!.schemaDiscovery)).toBe(version);
+    }
+    const before = await compatDb
+      .prepare('SELECT * FROM access_control_state')
+      .first<{ generation: number }>();
+    const found = analyzeAccessSnapshot(await compatRaw());
+    expect(found.blocked).toBe(false);
+    expect(found.report.schemaVersion).toBe('compat-v1');
+    expect(found.report.accessGeneration).toBe(before!.generation);
+    expect(found.report.legacySharedTeamId).toBe('stable-team');
+    expect(found.snapshot.compat?.claims).toHaveLength(3);
+    expect(found.report.publicRepositoryIds).toEqual(['repo']);
+    expect(found.rolePublishingAllowed).toBe(false);
+    expect(found.report.compatibility.rollbackSafe).toBe(false);
+    expect(JSON.stringify(found)).not.toContain('secret@example.invalid');
+    expect(
+      await compatDb.prepare('SELECT * FROM access_control_state').first()
+    ).toEqual(before);
+    const query = accessPreflightQuery(undefined, 'compat-v1');
+    expect(query.params.length).toBeLessThan(100);
+    expect(new TextEncoder().encode(query.sql).length).toBeLessThan(100_000);
+  });
+  it('Windows CRLF迁移保留完整trigger正文，不因换行形式误拒绝', async () => {
+    const trigger = ACCESS_TRIGGERS.find(
+      (row) => row.name === 'cloudforge_access_claim_update_v1'
+    )!;
+    await compatDb.exec(`DROP TRIGGER ${trigger.name}`);
+    try {
+      await compatDb.prepare(trigger.sql.replaceAll('\n', '\r\n')).run();
+      expect(analyzeAccessSnapshot(await compatRaw()).blocked).toBe(false);
+    } finally {
+      await compatDb.exec(`DROP TRIGGER IF EXISTS ${trigger.name}`);
+      await compatDb.prepare(trigger.sql).run();
+    }
+  });
+  it.each(['missing', 'changed', 'extra'])(
+    'managed trigger %s使完整快照失败关闭',
+    async (kind) => {
+      const trigger = ACCESS_TRIGGERS.find(
+        (row) => row.name === 'cloudforge_access_claim_update_v1'
+      )!;
+      if (kind === 'extra')
+        await compatDb.exec(
+          'CREATE TRIGGER CLOUDFORGE_ACCESS_EXTRA_V9 AFTER UPDATE ON teams BEGIN SELECT 1; END'
+        );
+      else {
+        await compatDb.exec(`DROP TRIGGER ${trigger.name}`);
+        if (kind === 'changed')
+          await compatDb.exec(
+            `CREATE TRIGGER ${trigger.name} BEFORE UPDATE ON namespace_claims BEGIN SELECT 1; END`
+          );
+      }
+      try {
+        await expect(compatRaw().then(analyzeAccessSnapshot)).rejects.toThrow(
+          'integrity'
+        );
+      } finally {
+        if (kind === 'extra')
+          await compatDb.exec('DROP TRIGGER CLOUDFORGE_ACCESS_EXTRA_V9');
+        else {
+          if (kind === 'changed')
+            await compatDb.exec(`DROP TRIGGER ${trigger.name}`);
+          await compatDb.prepare(trigger.sql).run();
+        }
+      }
+    }
+  );
+  it('缺失或额外namespace claim、坏指针及不支持的role/membership均阻断', async () => {
+    await compatSeed();
+    const original = await compatRaw();
+    const variants: [(data: typeof original) => void, string][] = [
+      [
+        (data) => {
+          data.compat.claims.pop();
+        },
+        'namespace_claim_missing',
+      ],
+      [
+        (data) => {
+          data.compat.claims.push({
+            slug: 'stray',
+            kind: 'user',
+            subjectId: 'absent',
+          });
+        },
+        'namespace_claim_mismatch',
+      ],
+      [
+        (data) => {
+          data.compat.state[0].legacySharedTeamId = 'absent';
+        },
+        'invalid_legacy_team_pointer',
+      ],
+      [
+        (data) => {
+          data.compat.collaborators[0].role = 'read';
+        },
+        'unsupported_collaborator_role',
+      ],
+      [
+        (data) => {
+          data.compat.teams[0].membershipMode = 'explicit';
+        },
+        'unsupported_team_membership',
+      ],
+    ];
+    for (const [change, code] of variants) {
+      const value = structuredClone(original);
+      change(value);
+      const found = analyzeAccessSnapshot(value);
+      expect(found.blocked).toBe(true);
+      expect(codes(found.report.blockers)).toContain(code);
+    }
+  });
+  it.each([null, -1, 1.5, 9007199254740992])(
+    '拒绝非法代数与修订%s',
+    async (value) => {
+      await compatSeed();
+      const original = await compatRaw();
+      for (const target of ['state', 'teams', 'collaborators']) {
+        const changed = structuredClone(original);
+        changed.compat[target][0][
+          target === 'state' ? 'generation' : 'revision'
+        ] = value;
+        expect(() => analyzeAccessSnapshot(changed)).toThrow(
+          'generation/revision'
+        );
+      }
+    }
+  );
+  it('schema发现后再变化由最终快照重新核验并拒绝', async () => {
+    const discovery = accessPreflightDiscoveryQuery();
+    const initial = await compatDb
+      .prepare(discovery.sql)
+      .first<{ schemaDiscovery: string }>();
+    expect(classifyAccessSchema(initial!.schemaDiscovery)).toBe('compat-v1');
+    await compatDb.exec('CREATE TABLE team_members(team_id TEXT,user_id TEXT)');
+    try {
+      await expect(compatRaw().then(analyzeAccessSnapshot)).rejects.toThrow(
+        'new ACL schema'
+      );
+    } finally {
+      await compatDb.exec('DROP TABLE team_members');
+    }
+  });
+  it('全部claims数量也使用1001哨兵，不接受截断前缀', async () => {
+    await compatDb
+      .prepare(
+        `INSERT INTO users(id,name,email,username) SELECT 'u'||value,'User','u'||value||'@test.invalid','u'||value FROM json_each(?)`
+      )
+      .bind(JSON.stringify(Array.from({ length: 1001 }, (_, i) => i)))
+      .run();
+    const value = await compatRaw();
+    expect(value.compat.claims).toHaveLength(1001);
+    expect(() => analyzeAccessSnapshot(value)).toThrow(
+      '1000-row snapshot limit'
+    );
   });
 });
