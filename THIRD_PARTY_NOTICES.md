@@ -28,7 +28,7 @@ that side of an `OR`.
 | `elkjs@0.9.3`        | `EPL-2.0`  | Alternative layout engine mermaid uses for `layout: elk` diagrams               | client |
 | `node-liblzma@2.2.0` | `LGPL-3.0` | liblzma binding that just-bash (@cloudflare/computer) uses for .tar.xz archives | worker |
 
-- **`elkjs`** — Only reachable through mermaid's diagram chunks, not the app. EPL-2.0 is file-level copyleft and permits binary form in a GPL-3.0-or-later work, source at github.com/kieler/elkjs, unmodified. Dropping it is a design choice, not a licensing requirement: mermaid 12 warns and falls back to dagre for `layout: elk`, and `flowchart-elk` diagrams would stop rendering.
+- **`elkjs`** — Kept, not dropped. EPL-2.0 is file-level copyleft: unmodified (source at github.com/kieler/elkjs) as a binary inside a GPL-3.0-or-later work, it asks only that the source stay available, which a public build already satisfies. It rides in mermaid's diagram chunk and nothing in this app reaches it: `src/lib/ui/mermaid.ts` initializes mermaid with `layout: 'dagre'`, and `mermaidText()` in `src/lib/pulls/pullGraph.ts` encodes `#`, `%` and `<` out of every title, branch and label, so repository content, model output and PR titles cannot open a `%%{init}%%` directive or a `flowchart-elk` diagram. Dropping it would cost `flowchart-elk` rendering for 1.4 MB nobody downloads by default.
 - **`node-liblzma`** — Never bundled: the npm bin binding cannot be built for Workers, so the worker requires it at runtime and gets nothing, leaving `.tar.xz` unsupported. Should a deployment need that archive format, LGPL-3.0 only requires keeping the library replaceable, so ship it next to the build rather than as part of it.
 
 ## Fonts
