@@ -22,7 +22,7 @@
 
 | 改动区域 | 先读 | 必须保留的契约 |
 | --- | --- | --- |
-| SPA 与样式 | `src/lib/theme.ts`、`index.html`、`public/_headers`、`src/lib/csp.test.ts` | 登录后路由在 AppShell 内；Primer 读取同一 tokens。主题启动逻辑与 rootAttributes 同步，变更内联脚本时同步 CSP 哈希。用户 Markdown 清洗不允许样式、表单或应用类名。 |
+| SPA 与样式 | `DESIGN.md`、`src/lib/theme.ts`、`index.html`、`public/_headers`、`src/lib/csp.test.ts` | 登录后路由在 AppShell 内；Primer 与页面样式读取源自 `DESIGN.md` 的同一套功能色、14px 正文锚点与 8px 间距原语。主题启动逻辑与 rootAttributes 同步，变更内联脚本时同步 CSP 哈希。用户 Markdown 清洗不允许样式、表单或应用类名。 |
 | 存储与 Git | [架构](docs/architecture.md)、`worker/src/git-http.ts`、`worker/src/git/service.ts` | D1 只存元数据；对象/ref 在 Artifacts。仓库名绑定不可变 repository id。短期仓库令牌不离开 Worker；推送成功引用在回复前写 push_events。 |
 | 引用与权限 | `worker/src/lib/repo-permissions.ts`、`worker/src/lib/repos.ts`、`worker/src/git/push-protection.ts` | 操作门槛用 can 的具体能力，成员 scope 用 withTokenScope；当前仅映射原 read/write/admin，不据能力名提前授予新角色。permissionsFor 与 visibleTo 必须一致；团队仓库默认 internal；仓库管理员可明确设为 public，禁止设为 private。默认/保护分支只收管理员 fast-forward，禁止删除/强推；内部 pull refs 禁外部写。内部分支用 resolveBranch 精确 heads 查找，固定 pull refs 用完整 ref；泛用 resolve 仅给用户 ref/SHA。用户名/团队 slug 共享命名空间。 |
 | 权限兼容数据 | `worker/src/db/access-triggers.ts`、`worker/src/db/access-backfill.ts`、`scripts/generate-db.mjs` | state行不可删除/重置，generation单调；本阶段只write/instance，claims与源同句维护。一次性回填按id/hash只增不改，旧产物不手写；新角色发布/最终授权CAS仍待实施。测试保留state并走正常subject清理，不关闭生产guard。 |
@@ -82,4 +82,4 @@ Read current source, scripts and tests before treating the guide as implementati
 Choose `none`, `answer-only`, `foreground patch`, or `background sync`. Patch the smallest owning page before the final answer when a durable local gap would mislead; use background sync only with a real tracked handoff and no answer-critical gap. Do not rewrite docs for transient debug state.
 Update the walkthrough for input/output or boundary changes and the code map for responsibility changes. Record meaningful guide changes and actual verification in `repo-docs/change-log.md` with `Synced through <sha>`; do not imply unrun tests passed.
 
-文档站统一使用 VitePress 默认主题；样式与动效遵循原生主题，构建输出独立于业务界面。
+文档站基于 VitePress 默认主题扩展本地字体、昼夜切换与渐进动效（无 JS 时内容照常可见），构建输出独立于业务界面。
