@@ -17,28 +17,28 @@ import type { ReviewerStatus } from './uiApi';
 
 /** The validated agent palette, in its categorical order (Clef, Fixer, then the seven facets). */
 export const AGENT_PALETTE = [
-  '#e26a17',
-  '#e34948',
-  '#2a78d6',
-  '#199e70',
-  '#c98500',
-  '#d55181',
-  '#008300',
-  '#6b5cc9',
-  '#55606e',
+  '#0C5CAB',
+  '#0a4a8a',
+  '#397db9',
+  '#538ec2',
+  '#71a5d1',
+  '#97bddf',
+  '#164574',
+  '#225b94',
+  '#626263',
 ] as const;
 
 type Preset = { color: string; round: number };
 /** Built-ins and presets by handle. Round 0–100: squarer heads check rules, rounder heads weigh judgement. */
-const CLEF: Preset = { color: '#e26a17', round: 100 };
-const FIXER: Preset = { color: '#e34948', round: 70 };
-const SECURITY: Preset = { color: '#2a78d6', round: 15 };
-const DATA: Preset = { color: '#199e70', round: 45 };
-const SPEED: Preset = { color: '#c98500', round: 85 };
-const FEATURES: Preset = { color: '#d55181', round: 60 };
-const RELIABILITY: Preset = { color: '#008300', round: 30 };
-const PRIVACY: Preset = { color: '#6b5cc9', round: 95 };
-const SHIPPING: Preset = { color: '#55606e', round: 5 };
+const CLEF: Preset = { color: '#0C5CAB', round: 100 };
+const FIXER: Preset = { color: '#0a4a8a', round: 70 };
+const SECURITY: Preset = { color: '#397db9', round: 15 };
+const DATA: Preset = { color: '#538ec2', round: 45 };
+const SPEED: Preset = { color: '#71a5d1', round: 85 };
+const FEATURES: Preset = { color: '#97bddf', round: 60 };
+const RELIABILITY: Preset = { color: '#164574', round: 30 };
+const PRIVACY: Preset = { color: '#225b94', round: 95 };
+const SHIPPING: Preset = { color: '#626263', round: 5 };
 const PRESETS: Record<string, Preset> = {
   clef: CLEF,
   fixer: FIXER,

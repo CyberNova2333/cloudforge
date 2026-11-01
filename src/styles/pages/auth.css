@@ -1,3 +1,4 @@
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* The pages outside the shell (setup, sign in, invitation, authorization) and the not-found page. One card,
    centred on the theme's chrome colour like HQ's sign-in. Tokens only. */
 
@@ -19,7 +20,7 @@
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--chrome-edge);
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: var(--sh-lg);
 }
 .auth-card.wide {
@@ -51,7 +52,7 @@
 }
 .auth-foot {
   text-align: center;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   padding-top: 14px;
   border-top: 1px solid var(--line);
@@ -74,7 +75,7 @@
 .consent-logo {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 8px;
   object-fit: cover;
 }
 .consent-logo.plug {
@@ -106,7 +107,7 @@
   text-align: center;
 }
 .nf-code {
-  font-size: 56px;
+  font-size: 32px;
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.04em;

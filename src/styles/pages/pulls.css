@@ -38,7 +38,7 @@
 }
 .lane h3 {
   font-family: var(--font);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-2);
   display: flex;
@@ -102,7 +102,7 @@
   outline-offset: 2px;
 }
 .prcard-reason {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
@@ -123,7 +123,7 @@
 .view a.lane-all {
   display: inline-block;
   padding: 2px 2px 0;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 /* A card's reviewer avatars, with the review's verdict beside them. */
@@ -207,10 +207,10 @@
   gap: 6px;
   padding: 4px 8px 4px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 .view a.pl-tab:hover {
@@ -242,11 +242,11 @@
 .pl-select {
   padding: 6px 10px;
   border: 1px solid var(--line-2);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
 }
 .pl-search {
   display: flex;
@@ -257,7 +257,7 @@
   min-width: 0;
   padding: 0 12px;
   border: 1px solid var(--line-2);
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--muted);
 }
@@ -275,7 +275,7 @@
   background: none;
   padding: 6px 0;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink);
   outline: none;
 }
@@ -336,7 +336,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .view a.prow-author {
@@ -366,7 +366,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---------- Graph ---------- */

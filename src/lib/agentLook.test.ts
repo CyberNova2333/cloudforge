@@ -17,27 +17,27 @@ describe('agentColor：代理颜色', () => {
   });
 
   it('忽略非十六进制的声明颜色', () => {
-    expect(agentColor('securityagent', 'red')).toBe('#2a78d6');
-    expect(agentColor('securityagent', 'url(x)')).toBe('#2a78d6');
-    expect(agentColor('securityagent', null)).toBe('#2a78d6');
-    expect(agentColor('securityagent', '')).toBe('#2a78d6');
+    expect(agentColor('securityagent', 'red')).toBe('#397db9');
+    expect(agentColor('securityagent', 'url(x)')).toBe('#397db9');
+    expect(agentColor('securityagent', null)).toBe('#397db9');
+    expect(agentColor('securityagent', '')).toBe('#397db9');
   });
 
   it('为内置代理和预设分配调色板颜色', () => {
-    expect(agentColor('clef')).toBe('#e26a17');
-    expect(agentColor('fixer')).toBe('#e34948');
-    expect(agentColor('securityagent')).toBe('#2a78d6');
-    expect(agentColor('dataagent')).toBe('#199e70');
-    expect(agentColor('speedagent')).toBe('#c98500');
-    expect(agentColor('featureagent')).toBe('#d55181');
-    expect(agentColor('featuresagent')).toBe('#d55181');
-    expect(agentColor('reliabilityagent')).toBe('#008300');
-    expect(agentColor('privacyagent')).toBe('#6b5cc9');
-    expect(agentColor('shippingagent')).toBe('#55606e');
+    expect(agentColor('clef')).toBe('#0C5CAB');
+    expect(agentColor('fixer')).toBe('#0a4a8a');
+    expect(agentColor('securityagent')).toBe('#397db9');
+    expect(agentColor('dataagent')).toBe('#538ec2');
+    expect(agentColor('speedagent')).toBe('#71a5d1');
+    expect(agentColor('featureagent')).toBe('#97bddf');
+    expect(agentColor('featuresagent')).toBe('#97bddf');
+    expect(agentColor('reliabilityagent')).toBe('#164574');
+    expect(agentColor('privacyagent')).toBe('#225b94');
+    expect(agentColor('shippingagent')).toBe('#626263');
   });
 
   it('接受带 @ 或大写字母的账号名', () => {
-    expect(agentColor('@SecurityAgent')).toBe('#2a78d6');
+    expect(agentColor('@SecurityAgent')).toBe('#397db9');
   });
 
   it('将其他账号名稳定映射到调色板', () => {

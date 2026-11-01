@@ -27,7 +27,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .ap-keys li {
@@ -81,14 +81,14 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: 8px;
   display: inline-grid;
   place-items: center;
   font-size: 12px;
   background: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 .ap-n-done {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -97,7 +97,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .ap-box > .sk-rows,
@@ -219,7 +219,7 @@
   align-items: baseline;
 }
 .ap-meta {
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.4;
   color: var(--ink-2);
   overflow-wrap: anywhere;
@@ -234,11 +234,11 @@
 }
 .ap-repo {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .view .ap-pr {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 .view .ap-title {
@@ -249,17 +249,17 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
 .ap-text {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 .ap-q {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 .ap-soft {
@@ -271,25 +271,25 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 .ap .ap-tile-sm {
   width: 16px;
   height: 16px;
-  font-size: 10px;
+  font-size: 12px;
   border-radius: 4px;
 }
 .ap-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 18px;
   padding: 0 7px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--ink-2);
   white-space: nowrap;
 }
@@ -316,7 +316,7 @@
   padding: 6px 10px;
   border-left: 2px solid var(--change-line);
   color: var(--ink-2);
-  font-size: 13.5px;
+  font-size: 14px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -334,7 +334,7 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--bad);
   background: var(--bad-bg);
   border: 1px solid var(--bad-line);
@@ -368,7 +368,7 @@ fieldset.ap-panel legend {
   margin-bottom: 4px;
 }
 .ap-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .ap-input {
@@ -396,7 +396,7 @@ fieldset.ap-panel legend {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -404,7 +404,7 @@ fieldset.ap-panel legend {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--muted);
 }
@@ -443,7 +443,7 @@ fieldset.ap-panel legend {
 .ap-radio small,
 .ap-choice small {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .ap-radio:has(input:checked),
 .ap-choice.on {
@@ -519,7 +519,7 @@ fieldset.ap-panel legend {
   align-items: flex-start;
   gap: 8px;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .ap-receipt > svg {
   flex: none;
@@ -562,7 +562,7 @@ fieldset.ap-panel legend {
 }
 .ap-side-lede {
   padding: 12px 14px 4px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .ap-side .ap-error {
@@ -591,7 +591,7 @@ fieldset.ap-panel legend {
   line-height: 1.3;
 }
 .ap-toggle-txt b {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
 }
 .ap-toggle-txt small {
@@ -613,7 +613,7 @@ fieldset.ap-panel legend {
   position: relative;
   width: 32px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--muted) 45%, var(--line));
   transition: background 0.15s;
 }
@@ -649,7 +649,7 @@ fieldset.ap-panel legend {
 }
 .ap-note {
   padding: 8px 14px 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   border-top: 1px solid var(--line);
 }
@@ -663,7 +663,7 @@ fieldset.ap-panel legend {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px 14px;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .ap-log li + li {
   border-top: 1px solid var(--line);
@@ -748,7 +748,7 @@ fieldset.ap-panel legend {
   gap: 12px;
 }
 .ap-plain {
-  font-size: 15.5px;
+  font-size: 16px;
   line-height: 1.6;
   max-width: 68ch;
   color: var(--ink);
@@ -788,7 +788,7 @@ fieldset.ap-panel legend {
 }
 .ap-md details > summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .ap-md details pre {
@@ -803,7 +803,7 @@ fieldset.ap-panel legend {
 }
 .ap-answer h2,
 .ap-outcome h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 .ap-choices {
@@ -847,7 +847,7 @@ fieldset.ap-panel legend {
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink);
   background: var(--accent-soft);
 }
@@ -882,7 +882,7 @@ fieldset.ap-panel legend {
   display: flex;
   gap: 9px;
   align-items: flex-start;
-  font-size: 13.5px;
+  font-size: 14px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -905,7 +905,7 @@ fieldset.ap-panel legend {
   display: grid;
   gap: 10px;
   padding: 12px 14px;
-  font-size: 13.5px;
+  font-size: 14px;
   min-width: 0;
 }
 .ap-files {

@@ -1,3 +1,4 @@
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
 /* Issues: the list (it reuses the pull request list's rows and toolbar), an issue's page, and labels. */
 
 /* ---------- Labels ---------- */
@@ -6,7 +7,7 @@
   align-items: center;
   max-width: 100%;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   font-size: 12px;
   font-weight: 500;
@@ -30,7 +31,7 @@
   color: var(--ok);
 }
 .issue-icon.done {
-  color: var(--fgColor-done, #8250df);
+  color: var(--done-fg);
 }
 .issue-icon.not-planned {
   color: var(--muted);
@@ -40,10 +41,10 @@
   align-items: center;
   gap: 6px;
   padding: 3px 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: var(--fg-on-emphasis);
 }
 .issue-pill .issue-icon {
   color: inherit;
@@ -52,7 +53,7 @@
   background: var(--ok);
 }
 .issue-pill.done {
-  background: var(--fgColor-done, #8250df);
+  background: var(--done-fg);
 }
 .issue-pill.not-planned {
   background: var(--muted);
@@ -164,7 +165,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 12px;
 }
 .issue-people li,
 .issue-pulls li {

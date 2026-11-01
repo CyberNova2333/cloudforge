@@ -44,8 +44,9 @@ body:has(.app) {
   z-index: 30;
   background-color: var(--chrome-bg);
   background-image: var(--chrome-grain);
+  border-bottom: 1px solid var(--chrome-line);
 }
-/* The work panel is the only scroller, so its rounded inset and the chrome around it hold still. */
+/* The work panel is the only scroller, separated from inset navigation by 1px hairlines. */
 .content {
   /* The containing block for anything absolutely positioned inside a page (a visually hidden label, a menu), so
      it scrolls with the panel and never stretches the window. */
@@ -56,19 +57,19 @@ body:has(.app) {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  background: var(--bg);
-  margin: 0 var(--chrome-gutter) var(--chrome-gutter) 0;
-  padding: 26px 28px 34px;
-  border: 1px solid var(--chrome-edge);
-  border-radius: 18px;
+  background: var(--canvas-default);
+  margin: 0;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border: 0;
+  border-radius: 0;
   min-width: 0;
   display: grid;
-  gap: 18px;
+  gap: var(--space-4);
   align-content: start;
 }
 .content > * {
   width: 100%;
-  max-width: 1180px;
+  max-width: 1280px;
   margin-inline: auto;
 }
 /* One column that never grows past the panel: wide content (a long line of code, a big table) scrolls inside its
@@ -105,7 +106,8 @@ body:has(.app) {
   display: flex;
   flex-direction: column;
   color: var(--chrome-fg-2);
-  transition: width 0.2s cubic-bezier(0.3, 0.8, 0.3, 1);
+  border-right: 1px solid var(--chrome-line);
+  transition: width 0.16s ease-out;
   z-index: 40;
 }
 .snav.shut {
@@ -124,11 +126,12 @@ body:has(.app) {
   position: absolute;
   inset: 0 auto 0 0;
   width: 236px;
-  box-shadow: 12px 0 30px -18px rgba(0, 0, 0, 0.6);
+  border-right: 1px solid var(--border-default);
+  box-shadow: var(--shadow-floating);
 }
 .snav-brand {
   flex: 0 0 auto;
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -145,14 +148,14 @@ body:has(.app) {
 }
 .brand-wordmark {
   font-family: var(--wordmark);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: -0.026em;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 .snav-ws {
   flex: 0 0 auto;
-  height: 45px;
+  height: 44px;
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -161,17 +164,17 @@ body:has(.app) {
 .snav-org-btn {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
   height: 32px;
-  padding: 0 9px;
-  border-radius: 8px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
   background: var(--chrome-soft);
   border: 1px solid var(--chrome-line-2);
   color: var(--chrome-fg-2);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  transition: 0.12s;
+  transition: 0.12s ease-out;
 }
 .snav-org-btn:hover {
   background: var(--chrome-hover-2);
@@ -188,13 +191,13 @@ body:has(.app) {
   white-space: nowrap;
   font-family: var(--font);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .org-dot {
   width: 18px;
   height: 18px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, #f6821f, #e26a17);
+  border-radius: var(--radius-sm);
+  background: var(--accent-emphasis);
   flex: none;
 }
 .snav-list {
@@ -217,7 +220,7 @@ body:has(.app) {
 }
 .snav-label {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--chrome-faint);
@@ -233,18 +236,18 @@ body:has(.app) {
 .snav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
-  padding: 6px 9px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: var(--chrome-fg-2);
   text-decoration: none;
   position: relative;
   transition:
-    background 0.12s,
-    color 0.12s;
+    background 0.12s ease-out,
+    color 0.12s ease-out;
 }
 .snav-item:hover {
   background: var(--chrome-hover);
@@ -255,6 +258,7 @@ body:has(.app) {
   background: var(--chrome-on);
   color: var(--chrome-fg);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--chrome-accent);
 }
 .snav-ic {
   flex: 0 0 auto;
@@ -287,10 +291,10 @@ body:has(.app) {
   color: var(--chrome-dim);
 }
 .snav-item .nav-count {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   padding: 0 6px;
-  border-radius: 20px;
+  border-radius: 8px;
   min-width: 18px;
   height: auto;
   text-align: center;
@@ -330,7 +334,7 @@ body:has(.app) {
   height: 32px;
   padding: 0 9px;
   border-radius: 8px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--chrome-faint);
   background: none;
@@ -405,7 +409,7 @@ body:has(.app) {
   min-width: 236px;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: var(--sh-lg);
   padding: 6px;
   z-index: 70;
@@ -449,12 +453,12 @@ body:has(.app) {
   color: var(--accent-2);
 }
 .ws-item b {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: block;
 }
 .ws-item .sub {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   display: block;
 }
@@ -471,11 +475,11 @@ button.ws-item {
   height: 16px;
   border-radius: 5px;
   flex: 0 0 auto;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(9, 9, 11, 0.18);
 }
 .dd-label {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--faint);
@@ -495,19 +499,20 @@ button.ws-item {
 .ph-bar {
   display: flex;
   align-items: center;
-  gap: 11px;
-  height: 52px;
-  padding: 0 22px 0 16px;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-5) 0 var(--space-4);
   color: var(--chrome-fg);
 }
 .ph-ic {
   flex: 0 0 auto;
   width: 26px;
   height: 26px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   background: var(--chrome-soft);
+  border: 1px solid var(--chrome-line-2);
   color: var(--chrome-accent);
 }
 .ph-trail {
@@ -515,7 +520,7 @@ button.ws-item {
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -533,10 +538,10 @@ button.ws-item {
 .ph-bar h1 {
   flex: 0 1 auto;
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.016em;
-  line-height: 1.2;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: var(--chrome-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -555,7 +560,7 @@ button.ws-item {
   flex: 0 0 auto;
   border: 0;
   background: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--chrome-fg-2);
 }
 .drawer-btn:hover {
@@ -579,16 +584,17 @@ button.ws-item {
   width: min(360px, 34vw);
   height: 32px;
   padding: 0 8px 0 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--chrome-soft);
   border: 1px solid var(--chrome-line-2);
   color: var(--chrome-dim);
 }
 .gsearch:focus-within {
-  background: var(--surface);
-  border-color: var(--accent);
-  color: var(--muted);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--canvas-default);
+  border-color: var(--accent-fg);
+  color: var(--fg-muted);
+  outline: 2px solid var(--accent-fg);
+  outline-offset: -1px;
 }
 .gsearch input {
   flex: 1;
@@ -596,11 +602,11 @@ button.ws-item {
   border: 0;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: var(--chrome-fg);
 }
 .gsearch:focus-within input {
-  color: var(--ink);
+  color: var(--fg-default);
 }
 .gsearch input::placeholder {
   color: var(--chrome-dim);
@@ -617,9 +623,9 @@ button.ws-item {
   background: transparent;
   border: 1px solid var(--chrome-line-2);
   border-bottom-width: 1px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--chrome-dim);
-  font-size: 10.5px;
+  font-size: var(--font-size-small);
   padding: 0 5px;
   line-height: 16px;
   box-shadow: none;
@@ -644,7 +650,7 @@ button.ws-item {
   background: var(--accent-tint);
 }
 .gs-item b {
-  font-size: 13px;
+  font-size: var(--font-size-small);
   overflow-wrap: anywhere;
 }
 .gs-empty {
@@ -654,7 +660,7 @@ button.ws-item {
 .ph-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .tool-wrap {
   position: relative;
@@ -663,10 +669,10 @@ button.ws-item {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   height: 32px;
   padding: 0 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--chrome-line-2);
   background: transparent;
   color: var(--chrome-fg-2);
@@ -685,14 +691,14 @@ button.ws-item {
 .tool.tool-alert {
   gap: 6px;
   border-color: transparent;
-  background: var(--critical);
-  color: #fff;
-  font-size: 12.5px;
+  background: var(--danger-emphasis);
+  color: var(--fg-on-emphasis);
+  font-size: var(--font-size-small);
   font-weight: 600;
 }
 .tool.tool-alert:hover {
-  background: color-mix(in srgb, var(--critical) 88%, #000);
-  color: #fff;
+  background: var(--danger-fg);
+  color: var(--fg-on-emphasis);
 }
 .tool-dot {
   position: absolute;
@@ -701,11 +707,11 @@ button.ws-item {
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
-  border-radius: 99px;
-  background: var(--chrome-warn);
-  color: #1a1205;
-  font-size: 10.5px;
-  font-weight: 700;
+  border-radius: var(--radius-pill);
+  background: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+  font-size: var(--font-size-small);
+  font-weight: 600;
   display: grid;
   place-items: center;
 }
@@ -715,21 +721,21 @@ button.ws-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 8px 0 3px;
-  border-radius: 99px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--chrome-line-2);
   background: var(--chrome-soft);
   color: var(--chrome-fg);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--font-size-small);
 }
 .acct-btn:hover {
   background: var(--chrome-hover-2);
 }
 .acct-btn .identicon,
 .acct-btn .avatar {
-  box-shadow: 0 0 0 1.5px var(--chrome-line-2);
+  box-shadow: 0 0 0 1px var(--chrome-line-2);
 }
 .acct-btn .avatar,
 .acct-head .avatar {
@@ -754,10 +760,10 @@ button.ws-item {
 }
 .acct-head b {
   display: block;
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 .acct-head .sub {
-  font-size: 12px;
+  font-size: var(--font-size-small);
   color: var(--muted);
 }
 .theme-grid {
@@ -771,10 +777,10 @@ button.ws-item {
   align-items: center;
   gap: 8px;
   padding: 7px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: none;
-  font-size: 13px;
+  font-size: var(--font-size-small);
   font-weight: 500;
   color: var(--ink);
   text-align: left;
@@ -791,57 +797,62 @@ button.ws-item {
 .theme-sw {
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   flex: none;
-  background: linear-gradient(135deg, var(--a) 0 55%, var(--b) 55%);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  background: var(--a);
+  border: 2px solid var(--b);
 }
 
-/* ---------- Repository header and tabs (GitHub-like), at the top of the panel ---------- */
+/* ---------- Repository header and tabs (GitHub Primer UnderlineNav), at the top of the panel ---------- */
 .rhead {
   display: grid;
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: -4px;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--space-1);
 }
 .rhead-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 .rhead-name {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 18px;
+  font-size: var(--font-size-h2);
+  line-height: 1.25;
 }
 .rhead-name > svg {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .rhead-name a {
-  color: var(--accent);
+  color: var(--accent-fg);
   text-decoration: none;
+  font-weight: 400;
+}
+.rhead-name a b {
+  font-weight: 600;
 }
 .rhead-name a:hover {
   text-decoration: underline;
 }
 .rhead-name .sep {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .vis {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--muted);
-  border: 1px solid var(--line-2);
-  border-radius: 99px;
-  padding: 0 8px;
-  line-height: 20px;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
+  line-height: 18px;
 }
 .rtabs {
   position: relative;
   display: flex;
-  gap: 2px;
+  gap: var(--space-1);
   overflow-x: auto;
   scrollbar-width: none;
   margin-bottom: -1px;
@@ -852,38 +863,40 @@ button.ws-item {
 .rtabs a {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 11px;
-  color: var(--ink-2);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--fg-default);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: var(--font-size-body);
   white-space: nowrap;
   border-bottom: 2px solid transparent;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  transition: background 0.12s ease-out;
 }
 .rtabs a > svg {
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .rtabs a:hover,
 .view .rtabs a:not(.btn):hover {
-  background: var(--surface-3);
+  background: var(--canvas-subtle);
   text-decoration: none;
 }
 /* An agent repository's link to the agent's profile. */
 .rhead-link {
   margin-left: auto;
-  font-size: 13px;
+  font-size: var(--font-size-small);
 }
 .rtabs .count {
   margin-left: 2px;
+  border-radius: var(--radius-pill);
 }
 .rtabs a[aria-current='page'] {
-  color: var(--ink);
+  color: var(--fg-default);
   font-weight: 600;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--accent-fg);
 }
 .rtabs a[aria-current='page'] > svg {
-  color: var(--ink);
+  color: var(--fg-default);
 }
 
 /* ---------- Narrow screens: the rail becomes a drawer ---------- */
@@ -897,7 +910,7 @@ button.ws-item {
     z-index: 60;
     width: 268px;
     transform: translateX(-100%);
-    transition: transform 0.22s cubic-bezier(0.3, 0.8, 0.3, 1);
+    transition: transform 0.18s ease-out;
     box-shadow: var(--sh-lg);
   }
   .app.nav-open .snav {
@@ -945,9 +958,9 @@ button.ws-item {
     min-width: 0;
   }
   .content {
-    margin: 0 8px 8px;
-    padding: 20px 16px 28px;
-    border-radius: 14px;
+    margin: 0;
+    padding: var(--space-4);
+    border-radius: 0;
   }
 }
 @media (max-width: 640px) {
@@ -1000,25 +1013,25 @@ button.ws-item {
   margin: 0;
   border: 0;
   border-radius: 0;
-  padding: 24px 32px 40px;
+  padding: var(--space-5) var(--space-6) var(--space-6);
 }
 :root[data-skin='dev'] .brand-wordmark {
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  font-size: 17px;
+  font-size: 16px;
 }
 :root[data-skin='dev'] .snav-item[aria-current='page'] {
   box-shadow: inset 3px 0 0 var(--chrome-accent);
 }
 :root[data-skin='dev'] .gsearch,
 :root[data-skin='dev'] .tool {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 :root[data-skin='dev'] .rtabs a[aria-current='page'] {
-  border-bottom-color: #fd8c73;
+  border-bottom-color: var(--accent-fg);
 }
 @media (max-width: 900px) {
   :root[data-skin='dev'] .content {
-    padding: 20px 16px 28px;
+    padding: var(--space-4);
   }
 }

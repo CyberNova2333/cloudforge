@@ -1,0 +1,238 @@
+/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
+/* DESIGN.md Primer layout, typography & surface rules — preserves 14px body anchor, 1px solid Box borders & 6px radii. */
+
+body {
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+}
+.content {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  background: var(--canvas-default);
+}
+.view {
+  gap: var(--space-4);
+}
+.phead .ph-title,
+.content .ph-title {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.topnav h1 {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.phead .lede {
+  font-size: var(--font-size-body);
+  color: var(--fg-muted);
+}
+.eyebrow {
+  font-size: var(--font-size-small);
+}
+.section > h2,
+.panel > h2,
+.section-head h2 {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.panel {
+  background: var(--canvas-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-resting);
+}
+.pad {
+  padding: var(--space-4);
+  gap: var(--space-3);
+}
+.btn,
+.Button,
+.form-control,
+.form-select {
+  border-radius: var(--radius-md);
+}
+.panel-head,
+.panel-header {
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
+}
+.ph-title .count,
+.badge,
+.tag,
+.chip,
+.State {
+  border-radius: var(--radius-pill);
+}
+.btn-primary,
+.btn.primary,
+:root[data-skin='dev'] .btn-primary,
+:root[data-skin='dev'] .btn.primary {
+  background: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+  border-color: var(--accent-emphasis);
+}
+.btn-primary:hover,
+.btn.primary:hover,
+:root[data-skin='dev'] .btn-primary:hover,
+:root[data-skin='dev'] .btn.primary:hover {
+  background: var(--accent-hover);
+  color: var(--fg-on-emphasis);
+  border-color: var(--accent-hover);
+}
+.mark {
+  background: var(--accent-emphasis);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+.enter {
+  animation: none;
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: var(--space-4);
+  }
+  .phead .ph-title,
+  .content .ph-title {
+    font-size: var(--font-size-h2);
+  }
+  .topnav h1 {
+    font-size: var(--font-size-body);
+  }
+  .pad {
+    padding: var(--space-4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
+.auth-title {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+}
+.auth-card,
+:root[data-skin='dev'] .auth-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-resting);
+}
+.auth-lede {
+  font-size: var(--font-size-body);
+}
+.auth-fields {
+  gap: var(--space-4);
+}
+.btn {
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
+}
+.auth-fields .field {
+  font-size: var(--font-size-body);
+}
+.auth-fields input:not([type='checkbox']),
+.auth-fields .btn {
+  min-height: 36px;
+}
+.auth-foot {
+  font-size: var(--font-size-body);
+  border-top: 1px solid var(--border-muted);
+}
+.stat,
+.list,
+.home-strip,
+.home-glance,
+.home-proj {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.org-dot {
+  background: var(--accent-emphasis);
+  border-radius: var(--radius-sm);
+}
+.home-ask {
+  border-width: 0 0 0 3px;
+}
+
+/* ---------- Checkpoint 4: Interactive States & WCAG Focus Ring ---------- */
+a:focus-visible,
+button:focus-visible,
+input:not(#gsearch):focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: 2px;
+}
+
+.gsearch:focus-within {
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: -1px;
+}
+
+.btn:focus-visible,
+.Button:focus-visible,
+:root[data-skin='dev'] .btn:focus-visible {
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.btn.primary:focus-visible,
+.btn-primary:focus-visible,
+.btn.danger:focus-visible,
+.btn-danger:focus-visible,
+:root[data-skin='dev'] .btn.primary:focus-visible,
+:root[data-skin='dev'] .btn.danger:focus-visible {
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: 2px;
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'],
+.Button:disabled,
+:root[data-skin='dev'] .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-control,
+.form-select,
+input:not([type='checkbox']):not([type='radio']):not(#gsearch),
+textarea {
+  background-color: var(--canvas-default);
+  color: var(--fg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--duration-fast) var(--easing-default),
+    background-color var(--duration-fast) var(--easing-default);
+}
+
+.form-control:focus-visible,
+.form-select:focus-visible,
+input:not([type='checkbox']):not([type='radio']):not(#gsearch):focus-visible,
+textarea:focus-visible {
+  border-color: var(--focus-outline);
+  outline: 2px solid var(--focus-outline) !important;
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.form-control:disabled,
+.form-select:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--canvas-subtle);
+  color: var(--fg-muted);
+  opacity: 0.65;
+  cursor: not-allowed;
+}

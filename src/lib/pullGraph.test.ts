@@ -124,7 +124,7 @@ describe('pullGraph：拉取请求关系图', () => {
     );
     // must account for a merged PR: red, into a node for the merged PR
     expect(styleOf(g.source, at('pr5 -->|must change for| m9'))).toMatch(
-      /stroke:#cf222e/
+      /stroke:#ef4444/
     );
     expect(g.source).toContain('m9["#35;9 Merged thing (merged)"]');
     // Only PRs with nothing ahead point into main (#5's prerequisite already landed).
@@ -189,8 +189,8 @@ describe('pullGraph：拉取请求关系图', () => {
       })
     );
     expect(g.cycles).toEqual([1, 2]);
-    expect(g.source).toMatch(/style pr1 [^\n]*stroke:#cf222e/);
-    expect(g.source).toMatch(/style pr2 [^\n]*stroke:#cf222e/);
+    expect(g.source).toMatch(/style pr1 [^\n]*stroke:#ef4444/);
+    expect(g.source).toMatch(/style pr2 [^\n]*stroke:#ef4444/);
     expect(g.source).not.toMatch(/style pr3 /);
   });
 

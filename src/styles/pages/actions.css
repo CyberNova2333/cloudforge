@@ -21,7 +21,7 @@
 }
 .view .act-tabs a {
   padding: 8px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -44,8 +44,8 @@
   border: 1px solid var(--line);
   background: var(--surface);
   padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -152,7 +152,7 @@
   margin: 0;
   padding: 12px;
   overflow-x: auto;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.55;
   background: none;
   border: 0;
@@ -166,7 +166,7 @@
   color: var(--bad);
   border-radius: var(--r);
   padding: 10px 14px;
-  font-size: 13.5px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .act-error pre {
@@ -196,7 +196,7 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: 7px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink);
 }
 .view .act-joblist a:hover {
@@ -234,7 +234,7 @@
   min-width: 0;
 }
 .act-facts dt {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -276,7 +276,7 @@
   flex: 1;
   min-width: 0;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 
@@ -297,7 +297,7 @@
 }
 .act-artifact-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .act-artifact-size {
@@ -308,12 +308,12 @@
 /* ---------- The log: dark in every theme ---------- */
 .act-logbox {
   overflow: hidden;
-  --log-bg: #0d1117;
-  --log-fg: #e6edf3;
-  --log-dim: #8b949e;
-  --log-num: #6e7681;
-  --log-hover: rgba(255, 255, 255, 0.05);
-  --log-err: #f85149;
+  --log-bg: var(--canvas-inset);
+  --log-fg: var(--fg-default);
+  --log-dim: var(--fg-muted);
+  --log-num: var(--fg-subtle);
+  --log-hover: var(--neutral-muted);
+  --log-err: var(--danger-fg);
 }
 .act-log-head {
   display: flex;
@@ -337,13 +337,13 @@
 }
 /* Primer's colour utilities are !important. */
 .act-log .color-fg-success {
-  color: #3fb950 !important;
+  color: var(--success-fg) !important;
 }
 .act-log .color-fg-danger {
   color: var(--log-err) !important;
 }
 .act-log .color-fg-attention {
-  color: #d29922 !important;
+  color: var(--attention-fg) !important;
 }
 .act-log .color-fg-muted {
   color: var(--log-dim) !important;
@@ -359,7 +359,7 @@
   background: none;
   color: var(--log-fg);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
 }
@@ -367,7 +367,7 @@
   background: var(--log-hover);
 }
 .act-logstep-btn:focus-visible {
-  outline: 2px solid #79c0ff;
+  outline: 2px solid var(--focus-outline);
   outline-offset: -2px;
 }
 .act-chev {
@@ -408,7 +408,7 @@
 .act-log-note {
   padding: 4px 14px 10px 42px;
   color: var(--log-dim);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---------- An agent run ---------- */
@@ -453,7 +453,7 @@
   line-height: 22px;
 }
 .act-step-head b {
-  font-size: 13.5px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .act-step-time {

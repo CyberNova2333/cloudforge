@@ -2564,6 +2564,11 @@ agents@0.26.0:
     postal-mime "^2.7.5"
     yaml "^2.9.0"
 
+animejs@4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/animejs/-/animejs-4.5.0.tgz#d0f6f5141cff15629ae02ce3c379a0846784e4d1"
+  integrity sha512-NQimYX+lz8WaXonGS9zVVoviCIAjONeJayxacUditaivYLqyXgGjFKjuyl0aUUhFKm5MriX9ty1TGovNzoJQWA==
+
 ansi-escapes@^7.0.0:
   version "7.3.0"
   resolved "https://registry.yarnpkg.com/ansi-escapes/-/ansi-escapes-7.3.0.tgz#5395bb74b2150a4a1d6e3c2565f4aeca78d28627"

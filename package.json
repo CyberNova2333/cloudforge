@@ -55,6 +55,7 @@
     "@tanstack/react-query": "^5",
     "agent-robot-avatar": "0.5.2",
     "agents": "0.26.0",
+    "animejs": "4.5.0",
     "aws4fetch": "^1.0.20",
     "better-auth": "^1.6",
     "clsx": "^2.1.1",
