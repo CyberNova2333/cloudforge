@@ -6,7 +6,7 @@ import { useTheme } from '@/components/ThemeProvider';
 import { Seg } from '@/components/ui/Seg';
 import { signOut, useCurrentUser } from '@/lib/auth';
 import { lang, setLang, t, type Lang } from '@/lib/i18n';
-import { THEMES, type Mode } from '@/lib/theme';
+import type { Mode } from '@/lib/theme';
 import { api } from '@/lib/uiApi';
 import type { ShellMenu } from './AppShell';
 
@@ -23,8 +23,8 @@ export const LANGUAGES: readonly { value: Lang; label: string }[] = [
 ];
 
 /**
- * The account button (avatar and username) and its menu: who is signed in, the theme grid (every theme, picked the
- * same way), appearance, the person's pages, Site admin for admins, and Sign out.
+ * The account button (avatar and username) and its menu: who is signed in, appearance,
+ * the person's pages, Site admin for admins, and Sign out.
  */
 export function AccountMenu({
   open,
@@ -35,7 +35,7 @@ export function AccountMenu({
 }) {
   const user = useCurrentUser();
   const navigate = useNavigate();
-  const { theme, mode, setTheme, setMode } = useTheme();
+  const { mode, setMode } = useTheme();
   if (!user) return null;
   const login = user.username ?? user.name;
   const close = () => setMenu(null);
@@ -46,7 +46,7 @@ export function AccountMenu({
         className="acct-btn"
         data-menu-trigger="acct"
         aria-expanded={open}
-        aria-label={t('Account and theme')}
+        aria-label={t('Account')}
         onClick={() => setMenu(open ? null : 'acct')}
       >
         <Avatar user={{ username: login, image: user.image }} size={28} />
@@ -63,35 +63,6 @@ export function AccountMenu({
             </span>
           </div>
           <div className="dd-sep" />
-          <div className="dd-label" id="acct-theme-label">
-            {t('Theme')}
-          </div>
-          <div
-            className="theme-grid"
-            role="group"
-            aria-labelledby="acct-theme-label"
-          >
-            {THEMES.map((th) => (
-              <button
-                key={th.id}
-                type="button"
-                className="theme-opt"
-                aria-pressed={th.id === theme}
-                onClick={() => setTheme(th.id)}
-              >
-                <span
-                  className="theme-sw"
-                  style={
-                    {
-                      '--a': th.swatch[0],
-                      '--b': th.swatch[1],
-                    } as React.CSSProperties
-                  }
-                />
-                {th.label}
-              </button>
-            ))}
-          </div>
           <div className="dd-label">{t('Appearance')}</div>
           <Seg
             label={t('Appearance')}
