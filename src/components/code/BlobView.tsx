@@ -1,19 +1,19 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { api, type Contents, type RepoDetail } from '@/lib/uiApi';
-import { formatBytes } from '@/lib/format';
-import { t, tx } from '@/lib/i18n';
+import { api, type Contents, type RepoDetail } from '@/lib/api/uiApi';
+import { formatBytes } from '@/lib/utils/format';
+import { t, tx } from '@/lib/i18n/i18n';
 import {
   inLineRange,
   isMarkdownPath,
   nextLineHash,
   parseLineHash,
   splitLines,
-} from '@/lib/codeView';
-import { languageFor } from '@/lib/languages';
-import { useHighlighter } from '@/lib/useHighlight';
-import { CopyButton } from '@/components/CopyButton';
+} from '@/lib/repo/codeView';
+import { languageFor } from '@/lib/i18n/languages';
+import { useHighlighter } from '@/lib/repo/useHighlight';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { Seg } from '@/components/ui/Seg';
 import { LatestCommit } from './LatestCommit';
 import { MarkdownFile } from './MarkdownFile';

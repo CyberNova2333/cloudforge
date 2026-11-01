@@ -8,10 +8,10 @@ import {
   DashIcon,
   GitMergeIcon,
 } from '@primer/octicons-react';
-import type { HealthArea, HealthTrend } from '@/lib/uiApi';
-import { areaKind, areaSpark, TREND_LOOK } from '@/lib/health';
-import { t, tServer } from '@/lib/i18n';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import type { HealthArea, HealthTrend } from '@/lib/api/uiApi';
+import { areaKind, areaSpark, TREND_LOOK } from '@/lib/repo/health';
+import { t, tServer } from '@/lib/i18n/i18n';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
 import { Chip } from '@/components/ui/Chip';
 import { Spark } from '@/components/ui/Spark';
 

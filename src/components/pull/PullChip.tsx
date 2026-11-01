@@ -3,9 +3,9 @@ import {
   GitPullRequestClosedIcon,
   GitPullRequestIcon,
 } from '@primer/octicons-react';
-import { pullChip } from '@/lib/pullPage';
-import { reasonText } from '@/lib/pullState';
-import type { Pull, PullState } from '@/lib/uiApi';
+import { pullChip } from '@/lib/pulls/pullPage';
+import { reasonText } from '@/lib/pulls/pullState';
+import type { Pull, PullState } from '@/lib/api/uiApi';
 
 /** A pull request's state as a chip: whose move it is while open (the reasons in its title), else Merged or Closed. */
 export function PullChip({

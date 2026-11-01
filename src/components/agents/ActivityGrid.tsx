@@ -4,8 +4,8 @@ import {
   activityGrid,
   activitySummary,
   activityTitle,
-} from '@/lib/activityGrid';
-import { t } from '@/lib/i18n';
+} from '@/lib/ui/activityGrid';
+import { t } from '@/lib/i18n/i18n';
 
 /**
  * An agent's reviews per day over the last 26 weeks: a square a day, a column a week, darker when busier. It starts

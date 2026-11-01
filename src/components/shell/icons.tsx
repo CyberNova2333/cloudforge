@@ -27,7 +27,7 @@ import {
   TagIcon,
   type Icon,
 } from '@primer/octicons-react';
-import type { PageIconName } from '@/lib/pageIcon';
+import type { PageIconName } from '@/lib/theme/pageIcon';
 
 /**
  * The crew: two robot heads with antennae (the mockup's `i-crew`), for Agents and agent repositories. Octicons

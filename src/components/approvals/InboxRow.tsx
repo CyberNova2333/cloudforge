@@ -18,21 +18,21 @@ import {
   UndoIcon,
   XIcon,
 } from '@primer/octicons-react';
-import type { User } from '@/lib/uiApi';
+import type { User } from '@/lib/api/uiApi';
 import {
   findingSentence,
   isDecided,
   isOwnerQuestion,
   selectable,
   type InboxRow,
-} from '@/lib/approvalsInbox';
-import { reasonText, blocking, stateText } from '@/lib/pullState';
-import { decidedByText } from '@/lib/claudeLog';
-import { timeAgo } from '@/lib/format';
-import { t } from '@/lib/i18n';
-import type { AgentStatus } from '@/lib/agentLook';
-import { AgentAvatar } from '@/components/AgentAvatar';
-import { CoderChip } from '@/components/CoderChip';
+} from '@/lib/approvals/approvalsInbox';
+import { reasonText, blocking, stateText } from '@/lib/pulls/pullState';
+import { decidedByText } from '@/lib/actions/claudeLog';
+import { timeAgo } from '@/lib/utils/format';
+import { t } from '@/lib/i18n/i18n';
+import type { AgentStatus } from '@/lib/agents/agentLook';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
+import { CoderChip } from '@/components/ui/CoderChip';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { ChangesPanel, DismissPanel, PanelError } from './Panels';
 import { ClaudeTile } from './ClaudePanel';

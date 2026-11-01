@@ -3,11 +3,21 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShieldIcon, UndoIcon } from '@primer/octicons-react';
-import { api, qk, type Delegations, type DelegatedEvent } from '@/lib/uiApi';
-import { errorMessage } from '@/lib/api';
-import { AI_NAME, clockTime, delegatedText, possessive } from '@/lib/claudeLog';
-import { lang, t } from '@/lib/i18n';
-import { AgentAvatar } from '@/components/AgentAvatar';
+import {
+  api,
+  qk,
+  type Delegations,
+  type DelegatedEvent,
+} from '@/lib/api/uiApi';
+import { errorMessage } from '@/lib/api/api';
+import {
+  AI_NAME,
+  clockTime,
+  delegatedText,
+  possessive,
+} from '@/lib/actions/claudeLog';
+import { lang, t } from '@/lib/i18n/i18n';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { useToast } from '@/components/ui/Toast';
 import { QueryError } from '@/components/actions/states';

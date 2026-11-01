@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { t } from '@/lib/i18n';
-import { sparkGeometry } from '@/lib/spark';
+import { t } from '@/lib/i18n/i18n';
+import { sparkGeometry } from '@/lib/ui/spark';
 
 /**
  * A sparkline: one series, an area fill, the last point emphasised, and a native tooltip per point. `trend`

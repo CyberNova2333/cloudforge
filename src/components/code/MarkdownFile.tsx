@@ -1,10 +1,10 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useMemo } from 'react';
-import { t } from '@/lib/i18n';
-import { Markdown } from '@/components/Markdown';
-import { dirOf, type RepoMarkdownContext } from '@/lib/repoUrls';
-import { splitFrontmatter } from '@/lib/codeView';
-import type { RepoDetail } from '@/lib/uiApi';
+import { t } from '@/lib/i18n/i18n';
+import { Markdown } from '@/components/ui/Markdown';
+import { dirOf, type RepoMarkdownContext } from '@/lib/repo/repoUrls';
+import { splitFrontmatter } from '@/lib/repo/codeView';
+import type { RepoDetail } from '@/lib/api/uiApi';
 
 /** Lets a repository Markdown file resolve its relative links and images. */
 export const markdownContext = (

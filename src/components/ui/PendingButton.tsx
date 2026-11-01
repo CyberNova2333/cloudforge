@@ -6,7 +6,7 @@ import {
   type ButtonHTMLAttributes,
 } from 'react';
 import { AlertIcon } from '@primer/octicons-react';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 
 /**
  * A button that shows a spinner while its action runs and keeps its width, so nothing around it moves. On

@@ -1,11 +1,11 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link } from 'react-router-dom';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { FileDirectoryFillIcon, FileIcon } from '@primer/octicons-react';
-import { api, qk, type Contents, type RepoDetail } from '@/lib/uiApi';
-import { firstLine, timeAgo } from '@/lib/format';
-import { encodeRepoPath, parentPath } from '@/lib/codeView';
+import { api, qk, type Contents, type RepoDetail } from '@/lib/api/uiApi';
+import { firstLine, timeAgo } from '@/lib/utils/format';
+import { encodeRepoPath, parentPath } from '@/lib/repo/codeView';
 import { LatestCommit } from './LatestCommit';
 
 /**

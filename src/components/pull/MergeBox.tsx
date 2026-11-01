@@ -18,15 +18,15 @@ import {
   type MergingPaused,
   type PullDetail,
   type RepoDetail,
-} from '@/lib/uiApi';
-import { ApiError, errorMessage } from '@/lib/api';
-import { t, tx } from '@/lib/i18n';
-import { blocking, reasonText } from '@/lib/pullState';
+} from '@/lib/api/uiApi';
+import { ApiError, errorMessage } from '@/lib/api/api';
+import { t, tx } from '@/lib/i18n/i18n';
+import { blocking, reasonText } from '@/lib/pulls/pullState';
 import {
   canRetryRebase,
   rebasedFirst,
   rebaseHeadline,
-} from '@/lib/rebaseStatus';
+} from '@/lib/pulls/rebaseStatus';
 import {
   canDeleteMergedBranch,
   etaText,
@@ -35,11 +35,11 @@ import {
   pullBlockers,
   queueLine,
   type QueueSpot,
-} from '@/lib/pullPage';
-import { fullDate, timeAgo } from '@/lib/format';
-import { FileList } from '@/components/FileList';
-import { AutoMergeStatus, useAction } from '@/components/AutoMergeReview';
-import { PersonApprovals } from '@/components/ReviewersBox';
+} from '@/lib/pulls/pullPage';
+import { fullDate, timeAgo } from '@/lib/utils/format';
+import { FileList } from '@/components/code/FileList';
+import { AutoMergeStatus, useAction } from '@/components/pull/AutoMergeReview';
+import { PersonApprovals } from '@/components/pull/ReviewersBox';
 import { useAgentDirectory } from '@/components/actions/RunActor';
 import { PanelError } from '@/components/approvals/Panels';
 import { Banner } from '@/components/ui/Banner';

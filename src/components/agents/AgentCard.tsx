@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AgentAvatar } from '@/components/AgentAvatar';
-import type { AgentStatus } from '@/lib/agentLook';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
+import type { AgentStatus } from '@/lib/agents/agentLook';
 
 /**
  * An agent's profile card: a band in its colour, its 72px robot, name, handle, what it does, a few numbers and a

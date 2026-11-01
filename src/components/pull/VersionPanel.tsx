@@ -1,11 +1,21 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type Pull, type RepoDetail, type VersionBump } from '@/lib/uiApi';
-import { useCurrentUser } from '@/lib/auth';
-import { errorMessage } from '@/lib/api';
-import { BUMP_OPTION, BUMPS, bumpLabel, parseBump } from '@/lib/versionBump';
-import { t, tx } from '@/lib/i18n';
+import {
+  api,
+  type Pull,
+  type RepoDetail,
+  type VersionBump,
+} from '@/lib/api/uiApi';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { errorMessage } from '@/lib/api/api';
+import {
+  BUMP_OPTION,
+  BUMPS,
+  bumpLabel,
+  parseBump,
+} from '@/lib/repo/versionBump';
+import { t, tx } from '@/lib/i18n/i18n';
 
 /**
  * The pull request's version bump and, once a release ships it, "Released in vX.Y.Z". The author and anyone with

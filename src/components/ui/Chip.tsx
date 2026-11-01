@@ -17,7 +17,7 @@ import {
   type AgentState,
   type AgentStatus,
   type Tone,
-} from '@/lib/agentLook';
+} from '@/lib/agents/agentLook';
 
 /** The icon each crew state carries next to its words. */
 export const STATE_ICON: Record<AgentState, Icon> = {

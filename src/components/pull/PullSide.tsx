@@ -1,20 +1,23 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { Link } from 'react-router-dom';
 import { GitBranchIcon, GitCompareIcon } from '@primer/octicons-react';
-import type { PullDetail, RepoDetail, User } from '@/lib/uiApi';
-import { t, tn, tx } from '@/lib/i18n';
-import { participants } from '@/lib/pullPage';
-import { Avatar } from '@/components/Avatar';
-import { AgentRunLink } from '@/components/AgentRunLink';
-import { RunStatusIcon } from '@/components/RunStatusIcon';
+import type { PullDetail, RepoDetail, User } from '@/lib/api/uiApi';
+import { t, tn, tx } from '@/lib/i18n/i18n';
+import { participants } from '@/lib/pulls/pullPage';
+import { Avatar } from '@/components/ui/Avatar';
+import { AgentRunLink } from '@/components/agents/AgentRunLink';
+import { RunStatusIcon } from '@/components/actions/RunStatusIcon';
 import {
   checksDetail,
   STATE_ICON,
   STATE_LABEL,
   useCommitRuns,
-} from '@/components/Checks';
-import { ReviewersSidebar } from '@/components/ReviewersBox';
-import { PullStateLabel, PullStateReasons } from '@/components/PullStateLabel';
+} from '@/components/actions/Checks';
+import { ReviewersSidebar } from '@/components/pull/ReviewersBox';
+import {
+  PullStateLabel,
+  PullStateReasons,
+} from '@/components/pull/PullStateLabel';
 import { VersionPanel } from './VersionPanel';
 import { IssueStateIcon } from '@/components/issue/IssueParts';
 import { SubscribeButton } from '@/components/notifications/NotificationParts';

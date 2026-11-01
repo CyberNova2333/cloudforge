@@ -2,10 +2,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { GitBranchIcon, PencilIcon } from '@primer/octicons-react';
-import { api, type PullDetail, type RepoDetail } from '@/lib/uiApi';
-import { errorMessage } from '@/lib/api';
-import { t, tn, tx } from '@/lib/i18n';
-import { CoderChip } from '@/components/CoderChip';
+import { api, type PullDetail, type RepoDetail } from '@/lib/api/uiApi';
+import { errorMessage } from '@/lib/api/api';
+import { t, tn, tx } from '@/lib/i18n/i18n';
+import { CoderChip } from '@/components/ui/CoderChip';
 import { PendingButton } from '@/components/ui/PendingButton';
 import { PullChip } from './PullChip';
 

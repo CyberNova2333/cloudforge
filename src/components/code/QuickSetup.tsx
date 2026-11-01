@@ -2,10 +2,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RepoIcon, SparkleFillIcon } from '@primer/octicons-react';
-import { t, tx } from '@/lib/i18n';
-import type { RepoDetail } from '@/lib/uiApi';
-import { AgentPrompt } from '@/components/AgentPrompt';
-import { CopyButton } from '@/components/CopyButton';
+import { t, tx } from '@/lib/i18n/i18n';
+import type { RepoDetail } from '@/lib/api/uiApi';
+import { AgentPrompt } from '@/components/agents/AgentPrompt';
+import { CopyButton } from '@/components/ui/CopyButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Seg } from '@/components/ui/Seg';
 

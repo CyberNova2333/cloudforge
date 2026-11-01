@@ -11,9 +11,9 @@ import {
 } from 'react';
 import { animate, createScope, utils } from 'animejs';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useTheme } from '@/components/ThemeProvider';
+import { useTheme } from '@/components/shell/ThemeProvider';
 import { useCurrentPageHead } from '@/components/ui/PageHead';
-import { useCurrentUser } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/auth/auth';
 import {
   addRecent,
   browserStorage,
@@ -22,11 +22,11 @@ import {
   removeRecent,
   writeRecent,
   type RecentRepo,
-} from '@/lib/recentRepos';
+} from '@/lib/repo/recentRepos';
 import { Rail } from './Rail';
 import { TopBand } from './TopBand';
 import { useMediaQuery } from './useMediaQuery';
-import { t } from '@/lib/i18n';
+import { t } from '@/lib/i18n/i18n';
 
 /** Which menu hanging off the chrome is open: one at a time. */
 export type ShellMenu = 'org' | 'create' | 'acct' | 'search' | null;

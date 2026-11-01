@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { PageIconName } from '@/lib/pageIcon';
+import type { PageIconName } from '@/lib/theme/pageIcon';
 
 /** One step of the trail in the top band. The last crumb is the page itself. */
 export interface Crumb {

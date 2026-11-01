@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { AlertIcon } from '@primer/octicons-react';
-import { t } from '@/lib/i18n';
-import { errorMessage } from '@/lib/api';
+import { t } from '@/lib/i18n/i18n';
+import { errorMessage } from '@/lib/api/api';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 /** What a page says when its request failed: what was being loaded, why, and a way to try again. */

@@ -1,0 +1,248 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { t } from '../i18n/i18n';
+import { reasonText, stateLabel } from './pullState';
+import type { PullStateName, StackDependency, StackTree } from '../api/uiApi';
+
+/** One Mermaid flowchart per land target: how its open pull requests are slated to land. */
+export type PullGraph = {
+  target: string;
+  source: string;
+  /** Open PRs that depend on each other in a circle. */
+  cycles: number[];
+  /** Hover text per node id (`pr12`, `m9`), plain text. */
+  tips: Record<string, string>;
+  /** Recently landed PRs into this target. */
+  landed: { number: number; title: string }[];
+};
+
+// Kept as-is inside a quoted label; everything else becomes a Mermaid entity code (#NN;).
+const SAFE = /[\p{L}\p{N} .,:!?'/_+=()@-]/u;
+// Words Mermaid gives meaning to: their first letter is encoded too, though a quoted label can't run them.
+const KEYWORDS =
+  /click|call|href|javascript|classdef|class|style|init|securitylevel|subgraph|direction/gi;
+
+/**
+ * Untrusted text (a PR title, a branch name) as the inside of a quoted Mermaid label: one line, no quote,
+ * bracket, pipe, backtick, angle bracket, `%` or `#`, so it can't close the label, add a directive, a
+ * statement, a link or styling. Mermaid decodes the entity codes back into the same characters as text.
+ */
+export function mermaidText(s: string): string {
+  const flat = s.replace(/\s+/g, ' ').replace(/\p{Cc}/gu, '');
+  const marks = new Set([...flat.matchAll(KEYWORDS)].map((m) => m.index));
+  let out = '';
+  let i = 0;
+  for (const ch of flat) {
+    out += SAFE.test(ch) && !marks.has(i) ? ch : `#${ch.codePointAt(0)};`;
+    i += ch.length;
+  }
+  return out;
+}
+
+/**
+ * Mermaid turns `#NN;` into `&#NN;` but, with htmlLabels off, draws that as literal text. Decodes it back, in one
+ * pass, so a title that itself contains `&#35;` (encoded as `#38;#35;`) still reads `&#35;`.
+ */
+export function decodeEntities(text: string): string {
+  return text.replace(/&#(\d{1,7});/g, (m, n: string) => {
+    const cp = Number(n);
+    return cp <= 0x10ffff ? String.fromCodePoint(cp) : m;
+  });
+}
+
+type TipNode = StackTree['targets'][number]['nodes'][number];
+
+/** Plain-text hover details for a PR node, one item per line; set as an SVG title, never as markup. */
+export function nodeTooltip(n: TipNode): string {
+  const lines = [
+    `#${n.number} ${n.title}`,
+    `${n.headRef} · @${n.author.username}`,
+  ];
+  if (n.pullState) {
+    const why = n.pullState.reasons.map(reasonText).join('; ');
+    lines.push(`${stateLabel(n.pullState)}${why ? `: ${why}` : ''}`);
+  }
+  const why = (d: StackDependency) => (d.reason ? `: ${d.reason}` : '');
+  const seen = new Set<number>();
+  const dep = (d: StackDependency, as: 'parent' | 'wait' | 'account') => {
+    if (seen.has(d.number)) return;
+    seen.add(d.number);
+    if (d.kind === 'ordered_after')
+      lines.push(t('lands after #{pr}', { pr: d.number }));
+    else if (d.kind === 'must_account_for')
+      lines.push(
+        t('must change for #{pr}', { pr: d.number }) +
+          why(d) +
+          (d.accounted ? t(' (accounted for)') : '')
+      );
+    else if (as === 'parent')
+      lines.push(t('stacked on #{pr}', { pr: d.number }) + why(d));
+    else lines.push(t('waits on #{pr}', { pr: d.number }) + why(d));
+  };
+  if (n.parent) dep(n.parent, 'parent');
+  for (const d of n.waitsOn) dep(d, 'wait');
+  for (const d of n.mustAccountFor) dep(d, 'account');
+  for (const d of n.landedRelations) dep(d, 'wait');
+  for (const p of n.pending) lines.push(t('checking #{pr}…', { pr: p }));
+  for (const u of n.unchecked)
+    lines.push(t("couldn't check against #{pr}", { pr: u }));
+  if (n.checking) lines.push(t('checking…'));
+  return lines.join('\n');
+}
+
+// `<br/>` is Mermaid's line break; each line is escaped on its own.
+const label = (...lines: string[]) =>
+  `["${lines.map(mermaidText).join('<br/>')}"]`;
+
+/**
+ * One icon's room on a node's second line. The page draws the list's icons (checks, AI conflict resolution, the
+ * reviewers' robots) over that line after Mermaid has sized the node for it; the state is the node's colour, and
+ * its reasons are in the hover text.
+ */
+export const ICON_SLOT = 'MM';
+
+/** A PR node's text: its whole title, who opened it, then room for `icons` icons (none: no such line). */
+function nodeLabel(n: TipNode, icons: number): string {
+  const title = `#${n.number} ${n.title}`;
+  const by = t('by @{user}', { user: n.author.username });
+  return icons > 0
+    ? label(title, by, ICON_SLOT.repeat(icons))
+    : label(title, by);
+}
+
+const CLASS: Record<PullStateName, string> = {
+  ready: 'ready',
+  waiting: 'waiting',
+  agent_followup: 'agent',
+  human_review: 'person',
+};
+
+// Primer's Label colours for each state (see STATE_CLASS), plus the land target and merged PRs.
+const CLASS_DEFS = [
+  'classDef ready fill:#e0f1eb,stroke:#087453,color:#09090b',
+  'classDef waiting fill:#eeeeef,stroke:#626263,color:#09090b',
+  'classDef agent fill:#f8f0dd,stroke:#96610b,color:#09090b',
+  'classDef person fill:#e2eaf2,stroke:#0a4a8a,color:#09090b',
+  'classDef target fill:#e2eaf2,stroke:#0C5CAB,color:#09090b',
+  'classDef merged fill:#e2eaf2,stroke:#0C5CAB,color:#09090b',
+];
+
+const RED = 'stroke:#ef4444,stroke-width:2px';
+const DASHED = 'stroke-dasharray:6 4';
+const DOTTED = 'stroke-dasharray:2 3';
+
+type Edge = { arrow: string; style: string | null };
+
+/** How an edge from a PR to `d` (something that lands before it) is drawn. */
+function edgeFor(d: StackDependency, as: 'parent' | 'wait' | 'account'): Edge {
+  if (d.kind === 'ordered_after')
+    return { arrow: `-.->|${t('lands after')}|`, style: DOTTED };
+  if (d.kind === 'must_account_for' && !d.accounted)
+    return { arrow: `-->|${t('must change for')}|`, style: RED };
+  if (as === 'parent') return { arrow: `-->|${t('stacked on')}|`, style: null };
+  if (as === 'account')
+    return { arrow: `-.->|${t('accounted for')}|`, style: DASHED };
+  return { arrow: `-.->|${t('waits on')}|`, style: DASHED };
+}
+
+/**
+ * The Mermaid source of each land target's graph. Arrows point from a PR to what must land before it (the PR
+ * it's stacked on, waits on, lands after or must change for), and every PR with nothing ahead of it points
+ * into its land target, so each graph flows down into the branch. Node ids carry only PR numbers
+ * (`pr12`, `m9` for a merged PR, `land`); the page attaches navigation after rendering.
+ */
+export function pullGraph(
+  tree: StackTree,
+  /** How many icons each open PR shows under its title (by number); none by default. */
+  icons: (pr: number) => number = () => 0
+): PullGraph[] {
+  return tree.targets.map((tg) => {
+    const open = new Set(tg.nodes.map((n) => n.number));
+    const landedTitle = new Map(tg.landed.map((l) => [l.number, l.title]));
+    const nodeLines = [`  land${label(tg.branch)}`];
+    for (const n of tg.nodes)
+      nodeLines.push(`  pr${n.number}${nodeLabel(n, icons(n.number))}`);
+    const tips: Record<string, string> = {};
+    for (const n of tg.nodes) tips[`pr${n.number}`] = nodeTooltip(n);
+    const extra = new Set<string>();
+    const idOf = (d: StackDependency) => {
+      const id = d.landed ? `m${d.number}` : `pr${d.number}`;
+      if (!open.has(d.number) && !extra.has(id)) {
+        extra.add(id);
+        const title = landedTitle.get(d.number);
+        const merged = t(' (merged)');
+        if (d.landed)
+          tips[id] = `#${d.number}${title ? ` ${title}` : ''}${merged}`;
+        nodeLines.push(
+          `  ${id}${label(
+            `#${d.number}${title ? ` ${title}` : ''}${d.landed ? merged : ''}`
+          )}`
+        );
+      }
+      return id;
+    };
+    const edges: string[] = [];
+    const styles: string[] = [];
+    const add = (from: string, e: Edge, to: string) => {
+      if (e.style) styles.push(`  linkStyle ${edges.length} ${e.style}`);
+      edges.push(`  ${from} ${e.arrow} ${to}`);
+    };
+    for (const n of tg.nodes) {
+      const from = `pr${n.number}`;
+      const drawn = new Set<number>();
+      if (!n.parent && n.waitsOn.length === 0)
+        add(from, { arrow: '-->', style: null }, 'land');
+      if (n.parent) {
+        drawn.add(n.parent.number);
+        add(from, edgeFor(n.parent, 'parent'), idOf(n.parent));
+      }
+      for (const d of n.waitsOn) {
+        if (drawn.has(d.number)) continue;
+        drawn.add(d.number);
+        add(from, edgeFor(d, 'wait'), idOf(d));
+      }
+      for (const d of n.mustAccountFor) {
+        // Open ones already accounted for sit in the PR's chain: nothing more to say.
+        if (drawn.has(d.number) || (!d.landed && d.accounted)) continue;
+        drawn.add(d.number);
+        add(from, edgeFor(d, 'account'), idOf(d));
+      }
+      for (const d of n.landedRelations) {
+        if (drawn.has(d.number)) continue;
+        drawn.add(d.number);
+        add(from, edgeFor(d, 'wait'), idOf(d));
+      }
+    }
+    const classes = [
+      '  class land target',
+      ...[...extra]
+        .filter((id) => id.startsWith('m'))
+        .map((id) => `  class ${id} merged`),
+      ...tg.nodes.flatMap((n) =>
+        n.pullState ? [`  class pr${n.number} ${CLASS[n.pullState.state]}`] : []
+      ),
+    ];
+    const cycles = tg.nodes
+      .filter((n) => n.cycleWith.length > 0)
+      .map((n) => n.number)
+      .sort((x, y) => x - y);
+    const source = [
+      '---',
+      'config:',
+      '  htmlLabels: false',
+      '  flowchart:',
+      '    htmlLabels: false',
+      '---',
+      'flowchart TD',
+      ...nodeLines,
+      ...edges,
+      ...CLASS_DEFS.map((c) => `  ${c}`),
+      ...classes,
+      ...cycles.map(
+        (c) =>
+          `  style pr${c} stroke:#ef4444,stroke-width:3px,stroke-dasharray:5 3`
+      ),
+      ...styles,
+    ].join('\n');
+    return { target: tg.branch, source, cycles, tips, landed: tg.landed };
+  });
+}

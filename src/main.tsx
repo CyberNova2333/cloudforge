@@ -10,7 +10,7 @@ import './styles/index.css';
 // Registers <agent-robot-avatar> (bundled, never from a CDN).
 import 'agent-robot-avatar';
 import App from './App';
-import { ThemeProvider } from './components/ThemeProvider';
+import { ThemeProvider } from './components/shell/ThemeProvider';
 import { ToastProvider } from './components/ui/Toast';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

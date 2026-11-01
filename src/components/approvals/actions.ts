@@ -1,9 +1,9 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, errorMessage } from '@/lib/api';
-import { t } from '@/lib/i18n';
-import { qk } from '@/lib/uiApi';
+import { ApiError, errorMessage } from '@/lib/api/api';
+import { t } from '@/lib/i18n/i18n';
+import { qk } from '@/lib/api/uiApi';
 
 /** After any decision: the repository's pages and everything under Approvals (the list, findings, Claude's log). */
 export function useRefresh() {

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, qk, type AgentRun } from '@/lib/uiApi';
-import { agentColor } from '@/lib/agentLook';
-import { runActor } from '@/lib/agentRuns';
+import { api, qk, type AgentRun } from '@/lib/api/uiApi';
+import { agentColor } from '@/lib/agents/agentLook';
+import { runActor } from '@/lib/agents/agentRuns';
 
 /** An agent as an agent run shows it. */
 export interface ActorLook {

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellIcon, BellSlashIcon, EyeIcon } from '@primer/octicons-react';
-import { api, qk, type RepoDetail, type WatchLevel } from '@/lib/uiApi';
-import { useCurrentUser } from '@/lib/auth';
-import { errorMessage } from '@/lib/api';
-import { t } from '@/lib/i18n';
+import { api, qk, type RepoDetail, type WatchLevel } from '@/lib/api/uiApi';
+import { useCurrentUser } from '@/lib/auth/auth';
+import { errorMessage } from '@/lib/api/api';
+import { t } from '@/lib/i18n/i18n';
 import { PendingButton } from '@/components/ui/PendingButton';
 
 /** The unread count for the bell; refreshed by the live ping, and every minute where live updates are off. */

@@ -7,23 +7,23 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { errorMessage } from '@/lib/api';
-import { agentColor } from '@/lib/agentLook';
-import { t, tServer } from '@/lib/i18n';
+import { errorMessage } from '@/lib/api/api';
+import { agentColor } from '@/lib/agents/agentLook';
+import { t, tServer } from '@/lib/i18n/i18n';
 import {
   api,
   qk,
   type HealthArea,
   type RepoAgent,
   type RepoDetail,
-} from '@/lib/uiApi';
+} from '@/lib/api/uiApi';
 import {
   noReviewersBody,
   notReviewing,
   reviewerRecord,
   reviewerState,
-} from '@/lib/health';
-import { AgentAvatar } from '@/components/AgentAvatar';
+} from '@/lib/repo/health';
+import { AgentAvatar } from '@/components/agents/AgentAvatar';
 import { QueryError, RowsSkeleton } from '@/components/actions/states';
 import { CrewIcon } from '@/components/shell/icons';
 import { Chip } from '@/components/ui/Chip';

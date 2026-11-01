@@ -6,8 +6,8 @@ import {
   XIcon,
 } from '@primer/octicons-react';
 import { Chip } from '@/components/ui/Chip';
-import { runLabel, runTone } from '@/lib/runs';
-import type { RunConclusion, RunStatus } from '@/lib/uiApi';
+import { runLabel, runTone } from '@/lib/actions/runs';
+import type { RunConclusion, RunStatus } from '@/lib/api/uiApi';
 
 /** A workflow run, job or step as a pill: an icon and words, so colour is never the only signal. */
 export function RunChip({

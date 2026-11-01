@@ -1,0 +1,97 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { useState } from 'react';
+import {
+  GitBranchIcon,
+  TriangleDownIcon,
+  CheckIcon,
+} from '@primer/octicons-react';
+import { t } from '@/lib/i18n/i18n';
+import { Dropdown } from '@/components/ui/Dropdown';
+
+export function BranchSelect({
+  branches,
+  current,
+  onSelect,
+  label,
+  defaultBranch,
+  triggerClassName = 'btn',
+}: {
+  branches: { name: string }[];
+  current: string;
+  onSelect: (name: string) => void;
+  label?: string;
+  defaultBranch?: string;
+  /** The trigger's classes (design-system modifiers such as `btn small`). */
+  triggerClassName?: string;
+}) {
+  const [filter, setFilter] = useState('');
+  const shown = branches.filter((b) =>
+    b.name.toLowerCase().includes(filter.toLowerCase())
+  );
+  return (
+    <Dropdown
+      trigger={(open, toggle) => (
+        <button
+          type="button"
+          className={`${triggerClassName} d-inline-flex flex-items-center`}
+          style={{ gap: 6, maxWidth: 260 }}
+          aria-haspopup="true"
+          aria-expanded={open}
+          onClick={toggle}
+        >
+          <GitBranchIcon className="color-fg-muted" />
+          {label && <span className="color-fg-muted">{label}</span>}
+          <span
+            className="css-truncate css-truncate-target text-bold"
+            style={{ maxWidth: 160 }}
+          >
+            {current}
+          </span>
+          <TriangleDownIcon />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div>
+          <div className="px-3 py-2 border-bottom d-flex flex-justify-between">
+            <span className="text-bold f5">{t('Switch branches')}</span>
+          </div>
+          <div className="p-2 border-bottom">
+            <input
+              autoFocus
+              className="form-control input-sm width-full"
+              placeholder={t('Find a branch...')}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
+          <div style={{ maxHeight: 320, overflowY: 'auto' }} className="py-1">
+            {shown.length === 0 && (
+              <div className="px-3 py-2 color-fg-muted f6">
+                {t('Nothing to show')}
+              </div>
+            )}
+            {shown.map((b) => (
+              <button
+                key={b.name}
+                className="select-panel-item"
+                onClick={() => {
+                  onSelect(b.name);
+                  close();
+                }}
+              >
+                <span style={{ width: 16 }}>
+                  {b.name === current && <CheckIcon />}
+                </span>
+                <span className="flex-1 text-truncate">{b.name}</span>
+                {b.name === defaultBranch && (
+                  <span className="Label">{t('default')}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Dropdown>
+  );
+}

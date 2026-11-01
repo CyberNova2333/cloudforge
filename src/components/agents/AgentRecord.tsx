@@ -2,10 +2,10 @@
 import { Link } from 'react-router-dom';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { StarIcon } from '@primer/octicons-react';
-import { t, tn } from '@/lib/i18n';
-import type { AgentStats } from '@/lib/uiApi';
+import { t, tn } from '@/lib/i18n/i18n';
+import type { AgentStats } from '@/lib/api/uiApi';
 import { ActivityGrid } from '@/components/agents/ActivityGrid';
-import { LoadError } from '@/components/Notice';
+import { LoadError } from '@/components/ui/Notice';
 import { Section } from '@/components/ui/Section';
 
 const pending = (
