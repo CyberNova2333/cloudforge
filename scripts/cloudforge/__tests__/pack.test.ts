@@ -30,6 +30,7 @@ describe('npmManifest：软件包清单', () => {
         'worker',
         'client',
         'migrations',
+        'access-protocol.json',
         'actions',
         'wrangler.jsonc.example',
         'history.txt',

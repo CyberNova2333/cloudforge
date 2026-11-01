@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { install, resumeInstalled, verify, type Ctx } from '../apply.ts';
-import { renderConfig } from '../apply-steps.ts';
+import { renderConfig, writeInstallRow } from '../apply-steps.ts';
 import type { Io } from '../collect.ts';
 import { resourceNames } from '../names.ts';
 import { R2_MARKER_KEY } from '../observe.ts';
@@ -31,6 +31,42 @@ const ACCOUNT = 'a'.repeat(32);
 const VERSION = 'abcdef123456';
 const BASE = 'https://acme.me.workers.dev';
 const ID = 'acme-1a2b3c4d5e6f';
+
+describe('安装归属写入回执', () => {
+  it.each([
+    [],
+    [{ written: 'another-installation' }],
+    [{ written: ID }, { written: ID }],
+  ])(
+    '拒绝缺失、错误或重复回执，不把数据库拒绝当成成功',
+    async (...response) => {
+      const h = harness({
+        seed: {
+          d1: [{ uuid: 'db', name: 'acme-db' }],
+          d1Query: () => response,
+        },
+      });
+      await expect(
+        writeInstallRow(h.ctx, freshState(), 'db', VERSION, 'digest')
+      ).rejects.toThrow('Could not confirm the installation ownership marker');
+    }
+  );
+
+  it('不将数据库或传输异常中的归属秘密输出给用户', async () => {
+    const s = freshState();
+    const h = harness({ seed: { d1: [{ uuid: 'db', name: 'acme-db' }] } });
+    h.cf.failNext(
+      'queryD1',
+      new Error(`private parameters ${s.ownershipNonce}`)
+    );
+    await expect(
+      writeInstallRow(h.ctx, s, 'db', VERSION, 'digest')
+    ).rejects.toThrow(
+      'Could not confirm the installation ownership marker. Recheck database ownership before retrying.'
+    );
+    expect(h.printed.join('\n')).not.toContain(s.ownershipNonce);
+  });
+});
 
 const DO_NAMESPACES = [
   { id: 'ns-job', script: 'acme', class: 'JobRunner' },
@@ -399,7 +435,7 @@ describe('install：安装', () => {
     const insert = h.cf.calls.find(
       (c) =>
         c.method === 'queryD1' &&
-        String(c.args[2]).includes('INSERT OR REPLACE INTO install_state')
+        String(c.args[2]).startsWith('INSERT INTO install_state')
     );
     expect(insert?.args[3]).toEqual([
       ID,
@@ -407,6 +443,8 @@ describe('install：安装', () => {
       VERSION,
       expect.stringContaining('schemaDigest'),
       Date.parse('2026-10-17T00:00:00Z'),
+      ID,
+      out.ownershipNonce,
     ]);
 
     // First deploy carries the secrets; the second (DO namespace ids) does not.

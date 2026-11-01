@@ -23,6 +23,7 @@ import {
   statePath,
   transition,
   writeState,
+  type InstallState,
   type Status,
 } from '../state.ts';
 
@@ -108,6 +109,49 @@ describe('transition：状态转换', () => {
 });
 
 describe('升级与接管状态', () => {
+  const emptyRecovery = (): InstallState => ({
+    ...fresh(),
+    status: 'failed',
+    upgradeTarget: '1.3.0',
+    resources: [
+      {
+        key: 'd1',
+        kind: 'd1',
+        name: 'db',
+        id: 'db-id',
+        ownership: 'created',
+        state: 'ready',
+      },
+    ],
+    upgradeAccessOrigin: {
+      target: '1.3.0',
+      databaseId: 'db-id',
+      schema: 'empty',
+    },
+  });
+  it('空库迁移恢复证据绑定未完成目标和创建的数据库', () => {
+    const state = emptyRecovery();
+    writeState(dir, state);
+    expect(readState(dir, state.installationId)).toEqual(state);
+  });
+  it.each([
+    ['另一数据库', (s: InstallState) => (s.resources[0].id = 'another-db')],
+    ['接管数据库', (s: InstallState) => (s.resources[0].ownership = 'adopted')],
+    ['另一目标', (s: InstallState) => (s.upgradeTarget = '2.0.0')],
+    ['已完成升级', (s: InstallState) => (s.status = 'installed')],
+    ['重复数据库资源', (s: InstallState) => s.resources.push(s.resources[0])],
+    [
+      '超长目标',
+      (s: InstallState) => (s.upgradeAccessOrigin!.target = 'x'.repeat(129)),
+    ],
+  ])('拒绝恢复证据与%s混用', (_name, mutate) => {
+    const state = emptyRecovery();
+    mutate(state);
+    writeState(dir, state);
+    expect(() => readState(dir, state.installationId)).toThrow(
+      'Invalid empty-database upgrade recovery record'
+    );
+  });
   it('已安装状态可以开始升级', () => {
     const s = { ...fresh(), status: 'installed' as const };
     expect(transition(s, 'upgrading').status).toBe('upgrading');

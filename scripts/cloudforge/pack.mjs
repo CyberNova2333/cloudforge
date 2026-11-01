@@ -44,6 +44,7 @@ export function npmManifest({ version, commit, wranglerVersion }) {
       'worker',
       'client',
       'migrations',
+      'access-protocol.json',
       'actions',
       'wrangler.jsonc.example',
       'history.txt',
@@ -212,6 +213,7 @@ export async function pack(argv) {
     join(ROOT, 'wrangler.jsonc.example'),
     join(out, 'wrangler.jsonc.example')
   );
+  cpSync(join(ROOT, 'access-protocol.json'), join(out, 'access-protocol.json'));
   // GPL-3.0-or-later (LICENSE) over the Apache-2.0 upstream work (LICENSES/Apache-2.0.txt): both ship.
   cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
   cpSync(join(ROOT, 'LICENSES'), join(out, 'LICENSES'), { recursive: true });

@@ -7,6 +7,7 @@ import {
   type WorkerBinding,
 } from '../cloudflare.ts';
 import type { RunOptions, RunResult, Runner } from '../runner.ts';
+import { INSTALL_MARKER_WRITE_SQL } from '../install-marker.ts';
 
 type Handler = (args: string[]) => RunResult | Promise<RunResult>;
 
@@ -183,7 +184,11 @@ export function fakeCloudflare(seed: FakeCloudflareSeed = {}): FakeCloudflare {
       if (/^SELECT name FROM sqlite_master/.test(sql)) {
         return (seed.d1Tables?.[id] ?? []).map((name) => ({ name }));
       }
-      return seed.d1Query?.(id, sql, params ?? []) ?? [];
+      const response = seed.d1Query?.(id, sql, params ?? []);
+      if (response !== undefined) return response;
+      // Transport-only install fixtures acknowledge the write; SQL authority tests use real D1.
+      if (sql === INSTALL_MARKER_WRITE_SQL) return [{ written: params?.[0] }];
+      return [];
     },
     async batchD1(a, id, statements) {
       await enter('batchD1', [a, id, statements]);
