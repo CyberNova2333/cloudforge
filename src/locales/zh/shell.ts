@@ -5,6 +5,7 @@ export const shell: Record<string, string> = {
   Light: '浅色',
   Dark: '深色',
   'Account and theme': '账户与主题',
+  Account: '账户',
   Theme: '主题',
   Appearance: '外观',
   'Your profile': '你的个人资料',
