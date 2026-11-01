@@ -216,3 +216,13 @@ Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；流水线配置已对�
 验证：`python C:/Users/cyber/.gemini/skills/repo-docs/scripts/validate_repo_docs.py --lite --repo-root . repo-docs`（0 错误、0 警告）；`yarn --cwd docs-site docs:build` 静态构建通过（耗时约 1.5s）；`yarn format:check` 格式检查通过。
 
 Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；文档站使用说明与指南变更记录已补齐。
+
+## 兼容库预检与升级阻断（2026-11-01）
+
+选择 foreground patch：旧说明仍称兼容库必须拒绝，已与本轮源码不符。更新权限专题、升级说明和代码地图，明确 `legacy` / `compat-v1` 识别、表约束与权限触发器校验、目标协议和完整迁移集合指纹、确认后与执行步骤前重查，以及空库恢复和已完成 marker 收据的边界。安装归属改为最终 SQL 条件写入；失败响应不冒充数据库没有提交。
+
+Git 推送主流程输入输出没有变化，保留现有 walkthrough。新角色授予、全局旧 Worker 版本屏障和回滚安全仍未实施；只读成功不构成发布授权。
+
+定向验收：预检真实 D1 31项、定义约束真实 D1 18项、归属写入真实 D1 5项、CLI预检43项、升级98项、CLI升级12项、安装39项、目标协议与打包清单14项通过，脚本和Worker类型检查通过。完整冻结树验收及所有中间失败记录在本轮审计报告单列；本段不代替全量或生产验收。
+
+Synced through f4d1c5c71b41eee9efd661fb8eeeed4e2f6f8dc1；此为本轮开始时已推送的基线，新实现仍按本地验证结果记录，未部署或迁移生产。

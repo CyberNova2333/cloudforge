@@ -64,6 +64,12 @@ export interface InstallState {
   upgradedAt?: string;
   /** The version an in-progress upgrade is moving to. */
   upgradeTarget?: string;
+  /** Recorded before migrating a verified empty, installer-created D1. Recovery only; not cloud ownership proof. */
+  upgradeAccessOrigin?: {
+    target: string;
+    databaseId: string;
+    schema: 'empty';
+  };
 }
 
 export type NewStateInput = Pick<
@@ -141,9 +147,41 @@ export function statePath(dir: string, id: string): string {
   return join(dir, `${id}.json`);
 }
 
+/** Reject malformed or transplanted recovery evidence before any caller uses its exception. */
+export function validateUpgradeAccessOrigin(s: InstallState): void {
+  const value = s.upgradeAccessOrigin;
+  if (value === undefined) return;
+  const bounded = (input: unknown) =>
+    typeof input === 'string' && input.length > 0 && input.length <= 128;
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).sort().join(',') !== 'databaseId,schema,target' ||
+    value.schema !== 'empty' ||
+    !bounded(value.target) ||
+    !bounded(value.databaseId) ||
+    value.target !== s.upgradeTarget ||
+    !['upgrading', 'failed'].includes(s.status) ||
+    !Array.isArray(s.resources) ||
+    s.resources.filter((r) => r?.key === 'd1').length !== 1 ||
+    !s.resources.some(
+      (r) =>
+        r?.key === 'd1' &&
+        r.kind === 'd1' &&
+        r.id === value.databaseId &&
+        r.ownership === 'created' &&
+        r.state === 'ready'
+    )
+  )
+    throw new Error('Invalid empty-database upgrade recovery record.');
+}
+
 function parseState(path: string): InstallState {
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as InstallState;
+    const state = JSON.parse(readFileSync(path, 'utf8')) as InstallState;
+    validateUpgradeAccessOrigin(state);
+    return state;
   } catch (e) {
     throw new Error(`State file ${path} is corrupt: ${(e as Error).message}`);
   }

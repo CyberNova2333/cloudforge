@@ -2,6 +2,9 @@
 import { createHash } from 'node:crypto';
 import {
   accessPreflightQuery,
+  accessPreflightDiscoveryQuery,
+  classifyAccessSchema,
+  type AccessInstallation,
   analyzeAccessSnapshot,
 } from './access-preflight-data.ts';
 import type { Cloudflare } from './cloudflare.ts';
@@ -10,7 +13,7 @@ import type { Io } from './collect.ts';
 export type AccessPreflightOptions = {
   accountId: string;
   database: { uuid: string; name: string };
-  installation?: { id: string; ownershipNonce: string };
+  installation?: AccessInstallation;
 };
 
 /** Snapshot identity only: this digest never authorizes a later mutation. */
@@ -30,28 +33,59 @@ export function accessSnapshotDigest(value: unknown): string {
     .digest('hex');
 }
 
+/** A fresh bounded observation, never an authorization token for a later write. */
+export async function readAccessPreflight(
+  ctx: { cf: Pick<Cloudflare, 'queryD1'> },
+  opts: AccessPreflightOptions
+) {
+  try {
+    const query = async (
+      sql: string,
+      params: (string | number)[],
+      field: string
+    ) => {
+      const rows = await ctx.cf.queryD1(
+        opts.accountId,
+        opts.database.uuid,
+        sql,
+        params
+      );
+      if (
+        !Array.isArray(rows) ||
+        rows.length !== 1 ||
+        !rows[0] ||
+        typeof rows[0] !== 'object' ||
+        !Object.hasOwn(rows[0], field)
+      )
+        throw new Error('Invalid response');
+      return rows[0][field];
+    };
+    const discovery = accessPreflightDiscoveryQuery();
+    const schemaVersion = classifyAccessSchema(
+      await query(discovery.sql, discovery.params, 'schemaDiscovery')
+    );
+    if (schemaVersion === 'unsupported') throw new Error('Unsupported schema');
+    const snapshot = accessPreflightQuery(opts.installation, schemaVersion);
+    const analysis = analyzeAccessSnapshot(
+      await query(snapshot.sql, snapshot.params, 'snapshot')
+    );
+    if (analysis.report.schemaVersion !== schemaVersion)
+      throw new Error('Schema changed during read');
+    return analysis;
+  } catch {
+    throw new Error(
+      'Access preflight could not read a valid, bounded compatibility snapshot. Nothing was changed by this check.'
+    );
+  }
+}
+
 /** Only SELECT is available to this path; no lock, state file or mutation command is created. */
 export async function accessPreflight(
   ctx: { cf: Pick<Cloudflare, 'queryD1'>; io: Pick<Io, 'print'> },
   opts: AccessPreflightOptions
 ): Promise<number> {
   try {
-    const query = accessPreflightQuery(opts.installation);
-    const rows = await ctx.cf.queryD1(
-      opts.accountId,
-      opts.database.uuid,
-      query.sql,
-      query.params
-    );
-    if (
-      !Array.isArray(rows) ||
-      rows.length !== 1 ||
-      rows[0] === null ||
-      typeof rows[0] !== 'object' ||
-      !Object.hasOwn(rows[0], 'snapshot')
-    )
-      throw new Error('Invalid snapshot response');
-    const analysis = analyzeAccessSnapshot(rows[0].snapshot);
+    const analysis = await readAccessPreflight(ctx, opts);
     const target = {
       accountId: opts.accountId,
       databaseId: opts.database.uuid,
@@ -60,7 +94,7 @@ export async function accessPreflight(
     const report = {
       ...analysis.report,
       command: 'access-preflight',
-      reportVersion: 1,
+      reportVersion: 2,
       target,
       snapshotDigest: accessSnapshotDigest({
         target,
