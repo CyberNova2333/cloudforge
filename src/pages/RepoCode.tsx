@@ -101,18 +101,6 @@ export default function RepoCode() {
   return (
     <div className={`code-page ${entering}`}>
       <CodeHead title={atRoot ? t('Code') : name} file={data.kind === 'blob'} />
-      {rootTree && (
-        <header className="phead">
-          <div className="phead-main">
-            <h2 className="ph-title">{repo.name}</h2>
-            <p className="lede">
-              {repo.description || (
-                <span className="muted">{t('No description provided.')}</span>
-              )}
-            </p>
-          </div>
-        </header>
-      )}
       <div className={rootTree ? 'cols' : undefined}>
         <div className="col">
           <CodeToolbar

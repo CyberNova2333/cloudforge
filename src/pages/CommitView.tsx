@@ -96,28 +96,26 @@ export default function CommitView() {
   const hasMessage = !!message.body || message.trailers.length > 0;
   return (
     <div className={`code-page commit-view ${entering}`}>
-      <header className="phead">
-        <div className="phead-row">
-          <div className="phead-main">
-            <h2 className="ph-title">{message.subject}</h2>
+      <section className="panel commitbox" aria-label={t('Commit')}>
+        <div className="cb-head">
+          <div className="cb-head-main">
+            <h2 className="cb-title">{message.subject}</h2>
+            {hasMessage && (
+              <div className="cb-message">
+                <CommitBody message={message} />
+              </div>
+            )}
           </div>
-          <div className="phead-actions">
+          <div className="cb-head-actions">
             <Link to={`${base}/tree/${commit.hash}`} className="btn small">
               <CodeIcon />
               {t('Browse files')}
             </Link>
           </div>
         </div>
-      </header>
-      <section className="panel commitbox" aria-label={t('Commit')}>
-        {hasMessage && (
-          <div className="cb-message">
-            <CommitBody message={message} />
-          </div>
-        )}
         <div className="cb-foot">
           <span className="cb-who">
-            <CommitAuthor commit={commit} repo={repo} size={22} />
+            <CommitAuthor commit={commit} repo={repo} size={20} />
             <CoAuthored trailers={message.trailers} />
             <span className="muted">
               {t('committed {when}', { when: timeAgo(commit.committedAt) })}
@@ -134,7 +132,7 @@ export default function CommitView() {
           </span>
           <span className="cb-sha small">
             <span className="muted">{t('commit')}</span>{' '}
-            <span className="mono">{commit.hash}</span>
+            <span className="mono">{shortSha(commit.hash)}</span>
             <CopyButton
               text={commit.hash}
               className="btn small quiet"

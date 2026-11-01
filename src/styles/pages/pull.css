@@ -65,7 +65,7 @@
   background: var(--accent-tint);
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 .view a.pr-branch:hover {
@@ -79,7 +79,7 @@
 }
 .pr-title-edit .ap-input {
   min-height: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
 }
 /* A coding session's chip links to its page. */
@@ -94,13 +94,9 @@
   text-decoration: underline;
 }
 .chip.merged {
-  color: var(--fgColor-done, #8250df);
-  background: color-mix(in srgb, var(--fgColor-done, #8250df) 11%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--fgColor-done, #8250df) 32%,
-    transparent
-  );
+  color: var(--done-fg);
+  background: var(--done-subtle);
+  border-color: var(--done-muted);
 }
 
 /* ---------- What happens next (the merge box) ---------- */
@@ -127,7 +123,7 @@
   border-left-color: var(--line-2);
 }
 .pr-next.tone-merged {
-  border-left-color: var(--fgColor-done, #8250df);
+  border-left-color: var(--done-fg);
 }
 .pr-next-top {
   display: grid;
@@ -142,7 +138,7 @@
   min-width: 0;
 }
 .pr-next-line {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -154,7 +150,7 @@
   padding-left: 18px;
   display: grid;
   gap: 2px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .pr-next-msg {
@@ -163,7 +159,7 @@
 .pr-notice {
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--run);
   background: var(--run-bg);
   border: 1px solid var(--run-line);
@@ -233,7 +229,7 @@
   align-items: center;
   gap: 7px;
   padding: 8px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
   white-space: nowrap;
   border-bottom: 2px solid transparent;
@@ -255,7 +251,7 @@
   color: var(--ink);
 }
 :root[data-skin='dev'] .view .pr-tabs a[aria-current='page'] {
-  border-bottom-color: #fd8c73;
+  border-bottom-color: var(--accent-fg);
 }
 
 /* ---------- Conversation tab: the main column ---------- */
@@ -292,7 +288,7 @@
   align-items: baseline;
   padding: 8px 12px;
   border-top: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .pr-ahead li:first-child {
   border-top: 0;
@@ -318,7 +314,7 @@
   gap: 12px;
   padding: 8px 12px;
   border-top: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .pr-summaries li:first-child {
   border-top: 0;
@@ -403,7 +399,7 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   border-radius: var(--r) var(--r) 0 0;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .pr-card.mine {
@@ -453,7 +449,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 14px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .view .pr-card-foot a {
@@ -469,7 +465,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--bad);
   background: var(--bad-bg);
   border: 1px solid var(--bad-line);
@@ -485,7 +481,7 @@
 }
 .pr-earlier summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 .pr-earlier[open] summary {
@@ -514,16 +510,16 @@
   color: var(--ink-2);
 }
 .pr-event-icon.merged {
-  background: var(--fgColor-done, #8250df);
-  color: #fff;
+  background: var(--done-fg);
+  color: var(--fg-on-emphasis);
 }
 .pr-event-icon.closed {
-  background: var(--bad);
-  color: #fff;
+  background: var(--danger-fg);
+  color: var(--fg-on-emphasis);
 }
 .pr-event-body {
   min-width: 0;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
@@ -624,7 +620,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 .pr-flag-asked {
@@ -634,7 +630,7 @@
   border-radius: 8px;
   background: var(--change-bg);
   border: 1px solid var(--change-line);
-  font-size: 13px;
+  font-size: 12px;
 }
 .pr-flag-asked > p:first-child {
   display: flex;
@@ -644,7 +640,7 @@
 .pr-flag-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: 12px;
 }
 .pr-flag-foot {
   display: grid;
@@ -663,7 +659,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -697,7 +693,7 @@
   gap: 4px 8px;
 }
 .pr-panel-head h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 .pr-reviewers {
@@ -734,7 +730,7 @@
 }
 .pr-notneeded summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 .pr-notneeded ul,
@@ -751,7 +747,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 .pr-approved {
   display: grid;
@@ -798,7 +794,7 @@
 .pr-tech-state {
   display: grid;
   gap: 4px;
-  font-size: 13px;
+  font-size: 12px;
 }
 .pr-tech-state ul {
   margin: 0;
@@ -808,7 +804,7 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 3px 12px;
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 .pr-tech-list dt {
   color: var(--muted);
@@ -832,7 +828,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface);
-  font-size: 13.5px;
+  font-size: 14px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -869,7 +865,7 @@
 }
 .pr-stack-how {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* ---------- Checks ---------- */
@@ -930,7 +926,7 @@
 .ses-tile {
   width: 28px;
   height: 28px;
-  font-size: 15px;
+  font-size: 14px;
 }
 .ses-requests {
   gap: 10px;
@@ -950,7 +946,7 @@
   align-items: start;
   padding: 9px 12px;
   border-top: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .ses-steps li:first-child {
   border-top: 0;
@@ -968,10 +964,10 @@
   color: var(--ink-2);
 }
 .ses-steps li.k-merged .ses-step-icon {
-  color: var(--fgColor-done, #8250df);
+  color: var(--done-fg);
 }
 .ses-steps li.k-closed .ses-step-icon {
-  color: var(--bad);
+  color: var(--danger-fg);
 }
 .ses-step {
   display: grid;
@@ -995,73 +991,85 @@
 /* ---------- Diffs (pull requests, a commit, a new pull request) ---------- */
 .diff-list {
   display: grid;
-  gap: 12px;
+  gap: var(--space-4, 16px);
   min-width: 0;
 }
 /* No overflow clipping here: the file's header sticks while its diff scrolls past. */
 .diff-file {
   min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
+  background: var(--canvas-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px);
   scroll-margin-top: 16px;
 }
 .diff-file-head {
   position: sticky;
-  top: 16px;
+  top: 0;
   z-index: 2;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  min-height: 40px;
   gap: 6px 8px;
-  padding: 7px 12px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-  border-radius: var(--r) var(--r) 0 0;
-  font-size: 12.5px;
+  padding: 6px var(--space-3, 12px);
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0;
+  font-size: var(--text-small-size, 12px);
 }
 .diff-file-head .grow {
   flex: 1;
 }
 .diff-file.shut .diff-file-head {
   border-bottom: 0;
-  border-radius: var(--r);
+  border-radius: var(--radius-md, 6px);
 }
 .diff-toggle {
-  display: grid;
-  place-items: center;
-  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm, 4px);
   background: none;
-  color: var(--muted);
+  color: var(--fg-muted);
   cursor: pointer;
 }
 .diff-toggle:hover {
-  background: var(--surface-3);
-  color: var(--ink);
+  background: var(--neutral-muted);
+  color: var(--fg-default);
 }
 .diff-path {
   min-width: 0;
   overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size, 12px);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--fg-default);
+}
+.diff-copy-path {
+  height: 24px;
+  min-height: 24px;
+  padding: 0 6px;
+  color: var(--fg-muted);
 }
 .diff-note {
-  padding: 16px;
+  padding: var(--space-4, 16px);
   text-align: center;
-  font-size: 13px;
-  color: var(--muted);
+  font-size: var(--text-small-size, 12px);
+  color: var(--fg-muted);
 }
 .diff-scroll {
   overflow-x: auto;
-  border-radius: 0 0 var(--r) var(--r);
+  border-radius: 0 0 var(--radius-md, 6px) var(--radius-md, 6px);
 }
 .diff-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size, 12px);
   line-height: 20px;
   tab-size: 4;
 }
@@ -1070,62 +1078,121 @@
   vertical-align: top;
 }
 .diff-table .dn {
-  width: 1%;
-  min-width: 44px;
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
   text-align: right;
-  color: var(--faint);
+  color: var(--fg-subtle);
   user-select: none;
   white-space: nowrap;
 }
+.diff-table .dn-new,
+.diff-table .dh-gutter {
+  position: relative;
+  border-right: 1px solid var(--border-muted);
+}
+.diff-table .dh-gutter {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  text-align: center;
+  vertical-align: middle;
+}
+.diff-hunk-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.diff-hunk-toggle:hover {
+  background: var(--neutral-muted);
+  color: var(--fg-default);
+}
+.diff-add-line-cue {
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast, 120ms)
+    var(--easing-default, ease-out);
+}
+.diff-table tr:not(.dh):hover .diff-add-line-cue {
+  opacity: 1;
+}
 .diff-table .dc {
   white-space: pre;
-  color: var(--ink);
+  color: var(--fg-default);
 }
 .diff-table .dsign {
   user-select: none;
   margin-right: 6px;
-  color: var(--muted);
+  color: var(--fg-muted);
 }
 .diff-table .da .dc {
-  background: color-mix(in srgb, var(--ok) 11%, transparent);
+  background: var(--success-subtle);
 }
 .diff-table .da .dn {
-  background: color-mix(in srgb, var(--ok) 18%, transparent);
-  color: var(--ink-2);
+  background: var(--success-subtle);
+  border-color: var(--success-muted);
+  color: var(--fg-default);
 }
 .diff-table .da .dsign {
-  color: var(--ok);
+  color: var(--success-fg);
 }
 .diff-table .dd .dc {
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  background: var(--danger-subtle);
 }
 .diff-table .dd .dn {
-  background: color-mix(in srgb, var(--bad) 17%, transparent);
-  color: var(--ink-2);
+  background: var(--danger-subtle);
+  border-color: var(--danger-muted);
+  color: var(--fg-default);
 }
 .diff-table .dd .dsign {
-  color: var(--bad);
+  color: var(--danger-fg);
 }
 .diff-table .dh td {
+  height: 28px;
   padding-top: 4px;
   padding-bottom: 4px;
-  background: var(--accent-tint);
-  color: var(--muted);
+  background: var(--accent-subtle);
+  color: var(--fg-muted);
 }
 .diffstat {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small-size, 12px);
   font-weight: 600;
   white-space: nowrap;
 }
 .ds-add {
-  color: var(--ok);
+  color: var(--success-fg);
 }
 .ds-del {
-  color: var(--bad);
+  color: var(--danger-fg);
 }
 .ds-blocks {
   display: inline-flex;
@@ -1135,13 +1202,13 @@
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: var(--line-2);
+  background: var(--border-default);
 }
 .ds-blocks i.add {
-  background: var(--ok);
+  background: var(--success-fg);
 }
 .ds-blocks i.del {
-  background: var(--bad);
+  background: var(--danger-fg);
 }
 
 /* ---------- Narrow screens ---------- */

@@ -59,40 +59,26 @@ export function CodeToolbar({
   const base = `/${repo.fullName}`;
   const count = repo.branches.length;
   return (
-    <>
-      <div className="codebar">
-        <BranchSelect
-          triggerClassName="btn small"
-          branches={repo.branches}
-          current={data.ref}
-          defaultBranch={repo.defaultBranch}
-          onSelect={(b) =>
-            navigate(
-              `${base}/${isBlob ? 'blob' : 'tree'}/${b}${data.path ? '/' + encodeRepoPath(data.path) : ''}`
-            )
-          }
-        />
-        {atRoot && (
-          <span className="branch-count small muted">
-            <GitBranchIcon />
-            <span>
-              <b>{count}</b> {count === 1 ? t('branch') : t('branches')}
-            </span>
+    <div className="codebar">
+      <BranchSelect
+        triggerClassName="btn small"
+        branches={repo.branches}
+        current={data.ref}
+        defaultBranch={repo.defaultBranch}
+        onSelect={(b) =>
+          navigate(
+            `${base}/${isBlob ? 'blob' : 'tree'}/${b}${data.path ? '/' + encodeRepoPath(data.path) : ''}`
+          )
+        }
+      />
+      {atRoot ? (
+        <span className="branch-count small muted">
+          <GitBranchIcon />
+          <span>
+            <b>{count}</b> {count === 1 ? t('branch') : t('branches')}
           </span>
-        )}
-        <span className="grow" />
-        <button
-          type="button"
-          className="btn small"
-          onClick={focusSearch}
-          title={t('Search this repository (press /)')}
-        >
-          <SearchIcon />
-          {t('Go to file')}
-        </button>
-        {!isBlob && <CloneButton repo={repo} />}
-      </div>
-      {!atRoot && (
+        </span>
+      ) : (
         <PathBar
           repo={repo}
           refName={data.ref}
@@ -100,6 +86,17 @@ export function CodeToolbar({
           isBlob={isBlob}
         />
       )}
-    </>
+      <span className="grow" />
+      <button
+        type="button"
+        className="btn small"
+        onClick={focusSearch}
+        title={t('Search this repository (press /)')}
+      >
+        <SearchIcon />
+        {t('Go to file')}
+      </button>
+      {!isBlob && <CloneButton repo={repo} />}
+    </div>
   );
 }
