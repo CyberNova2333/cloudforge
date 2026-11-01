@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { animate, createScope, utils } from 'animejs';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from '@/components/ThemeProvider';
 import { useCurrentPageHead } from '@/components/ui/PageHead';
@@ -132,6 +133,25 @@ export function AppShell() {
 
   const mainRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // 只增强页面标题；路由切换或减少动效偏好变化时恢复原始样式。
+  useEffect(() => {
+    const title = titleRef.current;
+    if (!title) return;
+    const scope = createScope({
+      mediaQueries: { reduced: '(prefers-reduced-motion: reduce)' },
+    }).add((self) => {
+      if (!self || self.matches['reduced']) return;
+      animate(title, {
+        opacity: [0, 1],
+        y: [8, 0],
+        duration: 300,
+        ease: 'outQuart',
+        onComplete: utils.cleanInlineStyles,
+      });
+    });
+    return () => scope.revert();
+  }, [pathname]);
 
   // The first layout paints without transitions, so the rail never animates from full width on load.
   useEffect(() => {

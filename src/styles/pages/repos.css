@@ -25,7 +25,7 @@
   border: 1px solid var(--line-2);
   border-radius: 8px;
   background: var(--surface);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .board-toolbar input {
   flex: 1;
@@ -96,7 +96,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .board-meta span {
@@ -113,7 +113,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--lc, #8b949e);
+  background: var(--lc, var(--fg-muted));
 }
 .board-crew {
   display: flex;
@@ -137,14 +137,14 @@
   align-content: start;
 }
 .board-big {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 .board-big span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--muted);
   letter-spacing: 0;
@@ -167,7 +167,7 @@
   display: flex;
   gap: 2px;
   height: 10px;
-  border-radius: 99px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--surface-3);
 }

@@ -33,7 +33,7 @@ const LEGEND: { label: string; dash?: string; color?: string }[] = [
   { label: t('stacked on') },
   { label: t('waits on'), dash: '6 4' },
   { label: t('lands after'), dash: '2 3' },
-  { label: t('must change for'), color: '#cf222e' },
+  { label: t('must change for'), color: '#ef4444' },
   { label: t('accounted for'), dash: '6 4' },
 ];
 

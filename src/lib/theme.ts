@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
- * Themes: seven HQ colourways and GitHub, each shown in System, Light or Dark appearance. The preference is per
+ * Themes: eight compatible preset IDs sharing the Enterprise palette, each shown in System, Light or Dark appearance. The preference is per
  * browser (localStorage). `index.html` applies it before the first paint with an inline script that mirrors
  * `rootAttributes`; `ThemeProvider` keeps it applied afterwards. Pure: no DOM access here.
  */
@@ -41,60 +41,60 @@ export interface Theme {
 export const THEMES: readonly Theme[] = [
   {
     id: 'navy',
-    label: t('Navy'),
+    label: `${t('Theme')} 01`,
     skin: 'hq',
     chrome: 'navy',
-    swatch: ['#16203a', '#3730a3'],
+    swatch: ['#0a2440', '#0C5CAB'],
   },
   {
     id: 'ink',
-    label: t('Ink'),
+    label: `${t('Theme')} 02`,
     skin: 'hq',
     chrome: 'ink',
-    swatch: ['#101113', '#3730a3'],
+    swatch: ['#09090b', '#0C5CAB'],
   },
   {
     id: 'slate',
-    label: t('Slate'),
+    label: `${t('Theme')} 03`,
     skin: 'hq',
     chrome: 'slate',
-    swatch: ['#1e242b', '#3730a3'],
+    swatch: ['#162b40', '#0C5CAB'],
   },
   {
     id: 'indigo',
-    label: t('Indigo'),
+    label: `${t('Theme')} 04`,
     skin: 'hq',
     chrome: 'indigo',
-    swatch: ['#241f52', '#3730a3'],
+    swatch: ['#0a4a8a', '#fafafa'],
   },
   {
     id: 'forest',
-    label: t('Forest'),
+    label: `${t('Theme')} 05`,
     skin: 'hq',
     chrome: 'forest',
-    swatch: ['#122a1f', '#3730a3'],
+    swatch: ['#0b345e', '#0C5CAB'],
   },
   {
     id: 'claret',
-    label: t('Claret'),
+    label: `${t('Theme')} 06`,
     skin: 'hq',
     chrome: 'claret',
-    swatch: ['#2c1419', '#3730a3'],
+    swatch: ['#0a1d31', '#0C5CAB'],
   },
   {
     id: 'paper',
-    label: t('Paper'),
+    label: `${t('Theme')} 07`,
     skin: 'hq',
     chrome: 'paper',
-    swatch: ['#dee2ea', '#3730a3'],
+    swatch: ['#0C5CAB', '#fafafa'],
   },
   // The Dev skin restyles the chrome itself (tokens.css), so its chrome value is never shown.
   {
     id: 'github',
-    label: 'GitHub',
+    label: `${t('Theme')} 08`,
     skin: 'dev',
     chrome: 'navy',
-    swatch: ['#f6f8fa', '#1f883d'],
+    swatch: ['#fafafa', '#0C5CAB'],
   },
 ];
 

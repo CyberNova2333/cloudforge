@@ -370,10 +370,10 @@ describe('dayLabels：日期标签', () => {
 
 describe('languageColor：语言颜色', () => {
   it('识别看板中的语言，未知时回退为灰色', () => {
-    expect(languageColor('TypeScript')).toBe('#3178c6');
-    expect(languageColor('Python')).toBe('#3572a5');
-    expect(languageColor('Brainfuck')).toBe('#8b949e');
-    expect(languageColor(null)).toBe('#8b949e');
+    expect(languageColor('TypeScript')).toBe('#0C5CAB');
+    expect(languageColor('Python')).toBe('#397db9');
+    expect(languageColor('Brainfuck')).toBe('#626263');
+    expect(languageColor(null)).toBe('#626263');
   });
 });
 

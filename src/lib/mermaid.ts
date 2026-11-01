@@ -24,12 +24,22 @@ function loadMermaid(dark: boolean): Promise<MermaidApi> {
       startOnLoad: false,
       // Diagrams come from repositories, models and PR titles: no scripts, links, or raw HTML.
       securityLevel: 'strict',
-      theme: dark ? 'dark' : 'default',
+      theme: 'base',
       // Preserve existing diagrams when Mermaid 12 changes its default layout and appearance.
       layout: 'dagre',
       look: 'classic',
       fontFamily: font.fontFamily,
-      themeVariables: font,
+      themeVariables: {
+        ...font,
+        darkMode: dark,
+        background: dark ? '#09090b' : '#fafafa',
+        primaryColor: dark ? '#0a2440' : '#e2eaf2',
+        primaryTextColor: dark ? '#fafafa' : '#09090b',
+        primaryBorderColor: '#0C5CAB',
+        lineColor: dark ? '#b2b2b3' : '#626263',
+        secondaryColor: dark ? '#161618' : '#eeeeef',
+        tertiaryColor: dark ? '#222224' : '#e7e7e8',
+      },
     });
     return mermaid;
   });
