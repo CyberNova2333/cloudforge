@@ -200,6 +200,22 @@
     {
       "name": "cloudforge_access_agent_deleted_v1",
       "sha256": "135f75c04e3aa9ee3501d9cc4ba5216a6e9c0db7286e9bdb1f7a3fa7528b815f"
+    },
+    {
+      "name": "cloudforge_runtime_state_insert_v1",
+      "sha256": "8c74aa8a905c7bfe3f7323b879f9fab3d62198e00d91c7e9802466590ba603bb"
+    },
+    {
+      "name": "cloudforge_runtime_state_update_v1",
+      "sha256": "6cc7c76b02d711fd7093536c70a0ab72e91e3f788cbdd81ec2fc1c3cedd803ea"
+    },
+    {
+      "name": "cloudforge_runtime_state_updated_v1",
+      "sha256": "bdd1539164e204186e3c8f96e86cbf33b05bfb7e42ef8f72594fd6a17d0f68c3"
+    },
+    {
+      "name": "cloudforge_runtime_state_delete_v1",
+      "sha256": "96be54078db961bf4d9b7f42849895cc5da6a5a5560e69e4662b8da16d5af771"
     }
   ]
 }

@@ -1,5 +1,6 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
 import { applyD1Migrations, env } from 'cloudflare:test';
+import { ACCESS_RUNTIME_TRIGGERS } from '../db/access-runtime-triggers';
 import { ACCESS_TRIGGERS } from '../db/access-triggers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -510,7 +511,7 @@ describe('旧权限兼容迁移只读预检（真实D1）', () => {
 
 const compatDb = env.DB;
 async function compatRaw() {
-  const query = accessPreflightQuery(undefined, 'compat-v1');
+  const query = accessPreflightQuery(undefined, 'runtime-bridge-v1');
   const row = await compatDb
     .prepare(query.sql)
     .bind(...query.params)
@@ -534,12 +535,92 @@ async function compatSeed() {
   ]);
 }
 describe('版本感知兼容schema只读预检（真实D1）', () => {
+  it('桥接快照包含运行时底线，历史 compat 查询不能忽略新表', async () => {
+    const found = analyzeAccessSnapshot(await compatRaw());
+    expect(found.report.runtime).toEqual({
+      minimumProtocol: 1,
+      schemaMode: 'compat-v1',
+      rolePublishingEnabled: false,
+      revision: 0,
+    });
+    const oldQuery = accessPreflightQuery(undefined, 'compat-v1');
+    const old = await compatDb
+      .prepare(oldQuery.sql)
+      .bind(...oldQuery.params)
+      .first<{ snapshot: string }>();
+    expect(() => analyzeAccessSnapshot(old!.snapshot)).toThrow(
+      'preflight refused'
+    );
+  });
+  it.each(['missing', 'changed', 'extra'] as const)(
+    '运行时触发器 %s 由同条最终快照拒绝',
+    async (kind) => {
+      const trigger = ACCESS_RUNTIME_TRIGGERS.find(
+        (row) => row.name === 'cloudforge_runtime_state_update_v1'
+      )!;
+      if (kind === 'extra')
+        await compatDb.exec(
+          'CREATE TRIGGER cloudforge_runtime_extra_v1 AFTER UPDATE ON users BEGIN SELECT 1; END'
+        );
+      else {
+        await compatDb.exec(`DROP TRIGGER ${trigger.name}`);
+        if (kind === 'changed')
+          await compatDb.exec(
+            `CREATE TRIGGER ${trigger.name} BEFORE UPDATE ON access_runtime_state BEGIN SELECT 1; END`
+          );
+      }
+      try {
+        await expect(compatRaw().then(analyzeAccessSnapshot)).rejects.toThrow(
+          'integrity'
+        );
+      } finally {
+        if (kind === 'extra')
+          await compatDb.exec('DROP TRIGGER cloudforge_runtime_extra_v1');
+        else {
+          if (kind === 'changed')
+            await compatDb.exec(`DROP TRIGGER ${trigger.name}`);
+          await compatDb.prepare(trigger.sql).run();
+        }
+      }
+    }
+  );
+  it('运行时高代数阻断；缺行、重复、未知mode与角色启用不解释成兼容', async () => {
+    const snapshot = await compatRaw();
+    const raised = structuredClone(snapshot);
+    raised.runtime.state[0].minimumProtocol = 2;
+    const found = analyzeAccessSnapshot(raised);
+    expect(found.blocked).toBe(true);
+    expect(codes(found.report.blockers)).toContain(
+      'unsupported_runtime_protocol'
+    );
+    for (const mutate of [
+      (value: typeof snapshot) => {
+        value.runtime.state = [];
+      },
+      (value: typeof snapshot) => {
+        value.runtime.state.push({ ...value.runtime.state[0] });
+      },
+      (value: typeof snapshot) => {
+        value.runtime.state[0].schemaMode = 'roles-v2';
+      },
+      (value: typeof snapshot) => {
+        value.runtime.state[0].rolePublishingEnabled = 1;
+      },
+      (value: typeof snapshot) => {
+        value.runtime.state[0].revision = 9007199254740992;
+      },
+    ]) {
+      const changed = structuredClone(snapshot);
+      mutate(changed);
+      expect(() => analyzeAccessSnapshot(changed)).toThrow('preflight refused');
+    }
+  });
   it('发现legacy与compat-v1；完整新schema检查约束、trigger、稳定团队指针与claims', async () => {
     await compatSeed();
     const discovery = accessPreflightDiscoveryQuery();
     for (const [database, version] of [
       [db, 'legacy'],
-      [compatDb, 'compat-v1'],
+      [compatDb, 'runtime-bridge-v1'],
     ] as const) {
       const row = await database
         .prepare(discovery.sql)
@@ -551,7 +632,7 @@ describe('版本感知兼容schema只读预检（真实D1）', () => {
       .first<{ generation: number }>();
     const found = analyzeAccessSnapshot(await compatRaw());
     expect(found.blocked).toBe(false);
-    expect(found.report.schemaVersion).toBe('compat-v1');
+    expect(found.report.schemaVersion).toBe('runtime-bridge-v1');
     expect(found.report.accessGeneration).toBe(before!.generation);
     expect(found.report.legacySharedTeamId).toBe('stable-team');
     expect(found.snapshot.compat?.claims).toHaveLength(3);
@@ -562,7 +643,7 @@ describe('版本感知兼容schema只读预检（真实D1）', () => {
     expect(
       await compatDb.prepare('SELECT * FROM access_control_state').first()
     ).toEqual(before);
-    const query = accessPreflightQuery(undefined, 'compat-v1');
+    const query = accessPreflightQuery(undefined, 'runtime-bridge-v1');
     expect(query.params.length).toBeLessThan(100);
     expect(new TextEncoder().encode(query.sql).length).toBeLessThan(100_000);
   });
@@ -679,7 +760,9 @@ describe('版本感知兼容schema只读预检（真实D1）', () => {
     const initial = await compatDb
       .prepare(discovery.sql)
       .first<{ schemaDiscovery: string }>();
-    expect(classifyAccessSchema(initial!.schemaDiscovery)).toBe('compat-v1');
+    expect(classifyAccessSchema(initial!.schemaDiscovery)).toBe(
+      'runtime-bridge-v1'
+    );
     await compatDb.exec('CREATE TABLE team_members(team_id TEXT,user_id TEXT)');
     try {
       await expect(compatRaw().then(analyzeAccessSnapshot)).rejects.toThrow(

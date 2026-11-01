@@ -247,6 +247,37 @@ export const accessControlState = sqliteTable(
   ]
 );
 
+/** Runtime admission fence. This first bridge retains legacy access semantics and closes role publishing. */
+export const accessRuntimeState = sqliteTable(
+  'access_runtime_state',
+  {
+    id: integer('id').primaryKey().default(1),
+    minimumProtocol: integer('minimum_protocol').notNull().default(1),
+    schemaMode: text('schema_mode', { enum: ['compat-v1'] })
+      .notNull()
+      .default('compat-v1'),
+    rolePublishingEnabled: integer('role_publishing_enabled', {
+      mode: 'boolean',
+    })
+      .notNull()
+      .default(false),
+    revision: integer('revision').notNull().default(0),
+  },
+  (t) => [
+    check('access_runtime_singleton', sql`${t.id} = 1`),
+    check(
+      'access_runtime_protocol',
+      sql`typeof(${t.minimumProtocol}) = 'integer' AND ${t.minimumProtocol} >= 1 AND ${t.minimumProtocol} <= 9007199254740991`
+    ),
+    check('access_runtime_mode', sql`${t.schemaMode} = 'compat-v1'`),
+    check('access_runtime_roles_closed', sql`${t.rolePublishingEnabled} = 0`),
+    check(
+      'access_runtime_revision',
+      sql`typeof(${t.revision}) = 'integer' AND ${t.revision} >= 0 AND ${t.revision} <= 9007199254740991`
+    ),
+  ]
+);
+
 /** Canonical URL claims are derived from source subjects by managed triggers; no polymorphic FK is inferred. */
 export const namespaceClaims = sqliteTable(
   'namespace_claims',

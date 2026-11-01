@@ -13,6 +13,8 @@
 
 ## Step 1: 请求先取得仓库权限
 
+过渡运行时先从 D1 读取当前最低协议。状态缺失、无法读取或要求更高协议时，Git/LFS 在认证、读包与 Artifacts 调用前返回不缓存的 503；每次请求重新读取，公开仓库也不例外。该入口检查不能终止已经通过检查的在途推送，也不能约束尚未包含检查的历史 Worker。新角色仍保持关闭，完整发布边界见[权限设计](../../docs/team-access-design.md#首个过渡运行时的实际边界)。
+
 成员通过 Git 客户端向仓库的 HTTPS 地址推送，令牌作为 Basic 密码。入口识别仓库和操作，按当前用户、令牌范围及仓库权限决定是否允许写入。公开仓库可以匿名读取，推送仍需凭据；只读令牌不会因为所属成员能写就获得写权限。
 
 实例强制 MFA 约束浏览器会话；既有 PAT 和部署令牌使用仍遵循各自权限、期限与撤销规则，Git 客户端不进入网页验证码挑战。创建新令牌则需要当前策略合格的浏览器及近期验证。策略启用、旧浏览器重验、OAuth 撤销与最后管理员恢复见[认证专题](../../docs/authentication.md#管理员认证策略)，不从 Git 令牌验证结果推断浏览器已完成 MFA。
@@ -49,7 +51,7 @@
 yarn test:workers worker/src/__tests__/git-http.test.ts worker/src/__tests__/push-protection.test.ts worker/src/__tests__/push-events.test.ts
 ```
 
-上述定向命令只验证 Git 主流程；全项目要求仍以根 AGENTS 和 docs/development.md 为准。本轮只运行文档校验与文档站构建，不运行 workerd、迁移或真实推送。
+上述定向命令只验证 Git 主流程；全项目要求仍以根 AGENTS 和 docs/development.md 为准。各轮实际验证记录见[指南变更记录](../change-log.md)；本地测试不表示真实推送或生产迁移已执行。
 
 理解这条交接后，用[代码地图定位下一次修改](../code-map.md)；需要反查依据时查看[源码调查与边界证据](../references/source-evidence.md)。
 

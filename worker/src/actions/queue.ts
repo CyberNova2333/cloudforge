@@ -4,6 +4,7 @@ import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { workflowJobs, workflowRuns } from '../db/app.schema';
 import { schema } from '../db/schema';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import { stopAbandonedRun } from './abandon';
 import type { DrizzleDB } from '../db/middleware';
 
@@ -298,6 +299,7 @@ export class ActionsQueue
   }
 
   async acquire(req: SlotRequest): Promise<SlotStatus> {
+    await assertAccessRuntime(this.env.DB);
     this.sql.exec(
       "INSERT INTO meta (key, value) VALUES ('limit', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
       Math.max(1, Math.floor(req.limit))
@@ -326,6 +328,7 @@ export class ActionsQueue
   }
 
   async started(jobId: string, now = Date.now()): Promise<void> {
+    await assertAccessRuntime(this.env.DB);
     this.sql.exec(
       'UPDATE entries SET started_at = ? WHERE job_id = ? AND granted_at IS NOT NULL',
       now,
@@ -334,6 +337,8 @@ export class ActionsQueue
   }
 
   async release(jobId: string): Promise<Grant[]> {
+    // Releasing also admits the next job; retain capacity if this runtime is fenced.
+    await assertAccessRuntime(this.env.DB);
     this.sql.exec('DELETE FROM entries WHERE job_id = ?', jobId);
     const grants = this.pump();
     await this.keepSweeping();
@@ -341,6 +346,7 @@ export class ActionsQueue
   }
 
   async cancelRun(runId: string): Promise<Grant[]> {
+    await assertAccessRuntime(this.env.DB);
     this.sql.exec('DELETE FROM entries WHERE run_id = ?', runId);
     const grants = this.pump();
     await this.keepSweeping();
@@ -348,6 +354,7 @@ export class ActionsQueue
   }
 
   async positions(jobIds: string[]): Promise<Record<string, number>> {
+    await assertAccessRuntime(this.env.DB);
     const out: Record<string, number> = {};
     for (const id of jobIds) {
       const s = this.statusOf(id);
@@ -379,6 +386,7 @@ export class ActionsQueue
   async reclaim(
     now = Date.now()
   ): Promise<{ reclaimed: string[]; grants: Grant[] }> {
+    await assertAccessRuntime(this.env.DB);
     const entries = this.sql
       .exec<Entry>(
         'SELECT seq, job_id, run_id, max_ms, granted_at, started_at, queued_at FROM entries ORDER BY seq'

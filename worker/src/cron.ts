@@ -6,6 +6,7 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { runActionsRetention } from './actions/retention';
 import { schema } from './db/schema';
+import { assertAccessRuntime } from './lib/access-runtime';
 import { syncUsageCron } from './usage/sync';
 import { deliverDueWebhooks } from './lib/webhooks';
 import { deliverNotificationEmails } from './lib/notification-email';
@@ -20,6 +21,7 @@ export const FREQUENT_CRON = '*/5 * * * *';
 
 /** The frequent cron's work; each part runs even when the other fails. */
 export async function runFrequentJobs(env: CloudflareBindings) {
+  await assertAccessRuntime(env.DB);
   const db = drizzle(env.DB, { schema });
   await deliverDueWebhooks(env, db).catch((e: unknown) =>
     console.error('[cron] webhook retries failed', e)
@@ -51,5 +53,6 @@ export async function runScheduled(
     console.warn('[cron] no job for', controller.cron);
     return;
   }
+  await assertAccessRuntime(env.DB);
   await job(env);
 }

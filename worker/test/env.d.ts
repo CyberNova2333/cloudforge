@@ -9,6 +9,8 @@ declare global {
       ACCESS_LEGACY_DB: D1Database;
       ACCESS_MIGRATION_DB: D1Database;
       ACCESS_DEFINITION_DB: D1Database;
+      ACCESS_RUNTIME_DB: D1Database;
+      ACCESS_RUNTIME_HTTP_DB: D1Database;
       BETTER_AUTH_SECRET: string;
       R2_ACCESS_KEY_ID: string;
       R2_SECRET_ACCESS_KEY: string;

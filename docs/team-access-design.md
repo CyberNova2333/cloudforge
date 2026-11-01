@@ -2,7 +2,7 @@
 
 # 多团队与五级仓库权限设计
 
-状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema已加入**。初始设计以 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 为基线；兼容schema及共享团队/协作者最终授权检查已陆续实现，不创建团队成员表、不执行生产迁移，也不把下述新接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文承接[路线图](roadmap.md)第 5 项，保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
+状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema及首个过渡运行时已加入**。初始设计以 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 为基线；兼容schema及共享团队/协作者最终授权检查已陆续实现，不创建团队成员表、不执行生产迁移，也不把下述新接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文承接[路线图](roadmap.md)第 5 项，保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
 
 ## 先看一次授权变化
 
@@ -155,7 +155,7 @@ LFS 900秒来自[签名实现](../worker/src/lib/lfs.ts)；Artifacts令牌与che
 
 ## 升级前检查与分期落地
 
-当前已有[只读预检命令](permissions.md#迁移前的只读预检)，明确区分旧模型与 `compat-v1`，检查本次观察的结构、状态和阻断项；已生成受限兼容schema迁移，但没有开放角色授予。升级端用目标协议声明及迁移指纹检查支持范围，并在确认后、迁移前和部署前重查。预检摘要不授权之后的写入；这些分次只读检查不等于D1全局锁，也不替代旧Worker发布/回滚屏障。
+当前已有[只读预检命令](permissions.md#迁移前的只读预检)，明确区分旧模型、`compat-v1` 与 `runtime-bridge-v1`，检查本次观察的结构、状态和阻断项；已生成受限兼容schema迁移，但没有开放角色授予。升级端用目标协议声明及迁移指纹检查支持范围，并在确认后、迁移前和部署前重查。预检摘要不授权之后的写入；这些分次只读检查不等于D1全局锁，也不替代旧Worker发布/回滚屏障。
 
 迁移预检先输出无凭据的实际清单：团队行数、归属仓库数、孤立引用、用户名/slug归一化冲突、旧协作者数、owner/creator存活/封禁情况、团队private等与契约不符的历史行及现有public集合。冲突时停止自动发布角色功能，保持原服务版本可读，提供明确对象id供管理员处理，不挑一方覆盖另一方。
 
@@ -167,6 +167,20 @@ LFS 900秒来自[签名实现](../worker/src/lib/lfs.ts)；Artifacts令牌与che
 | D：部署与再审计       | 隔离环境upgrade验证、逐入口竞态矩阵、全套测试/类型/格式/构建、依赖审计、文档与审计结果。                         | 本地验收不等于生产迁移或部署；生产行为分别授权与核验。                    |
 
 发布应保证旧Worker不会忽略新角色把所有协作者当write：新ACL写接口须在所有服务请求都使用新内核后才启用。旧部署回滚前若已有read/triage记录，必须停写并生成显式降级影响报告，不能仅回滚代码让旧 `.collaborator=true` 判定恢复；不支持无损自动降级。迁移完成标记与feature状态必须来自D1权威，不能仅用某个isolate的env开关宣称全局切换完成。
+
+## 首个过渡运行时的实际边界
+
+`access_runtime_state` 是独立永久单例，记录最低协议、schema 模式、角色发布状态与 revision；本轮生成迁移初始化为 `1 / compat-v1 / false / 0`。数据库守卫禁止删行、替换、重置、降低协议或开启新角色；合法提高最低协议时，同语句推进 ACL generation，使已经接入最终写点 CAS 的团队和协作者操作失去旧快照。没有新增调整该状态的网页、REST、MCP 或维护命令。
+
+当前代码支持协议 1。由 Worker 处理的 HTTP 在认证和解析请求前读取 D1；Git/LFS 的独立入口也各自检查。缺表、缺行、读失败、未知状态或更高协议均拒绝，HTTP 返回不缓存的 503。仅精确 `GET/HEAD /.well-known/cloudforge` 保留不缓存的元数据诊断，并返回 `accessRuntime.ready`；它只描述执行该次请求的代码，不证明全部 Worker 或 Durable Object 已更新。平台直接服务的静态资源不经过该检查，不能据此宣称整个站点内容被关闭。
+
+Workflow 的 run、定时任务、队列推进、容器启动/步骤/日志读取、审查与合并代理的入口和恢复 alarm、实时连接/发布都加入当前状态准入。检查不放入可复用的 durable step，不跨请求缓存。停止容器、销毁和纯本地停止/过期清理保留；会启动下一个任务的队列 release/cancel 不属于纯清理。拒绝恢复时可能暂留容量，需要兼容运行时后续回收，不能为了清理继续调用未知 schema 的业务写入。
+
+这只是让今后支持协议检查的版本具备拒绝能力。**完全不认识该表的早期 Worker 不受这道检查约束**；已经跨过入口、停在 await 或已执行 durable step 中的操作，也没有因此获得完整的逐写点围栏。新角色仍由数据库保持关闭，下一阶段必须完成写点授权、在途任务排空及真实部署范围核验，才能讨论开启角色。
+
+Cloudflare 的部署模型必须逐面核验：当前部署中 0% 流量的版本仍可被 version override 选中；实现 Durable Objects 的 Worker 不生成 Version URLs，因此不能把通用预览 URL 风险直接记为当前 CloudForge 的已存在入口。2026-10-30 官方变更说明 Durable Object 代码默认延迟 300 秒更新，最多可配置 86400 秒，最新 HTTP 可以调用仍运行旧代码的对象；一次 HTTP 探针通过不是全局切换证据。[版本覆盖](https://developers.cloudflare.com/workers/versions-and-deployments/version-overrides/)、[版本 URL 限制](https://developers.cloudflare.com/workers/versions-and-deployments/version-urls/)、[Durable Object 延迟更新](https://developers.cloudflare.com/changelog/post/2026-10-30-durable-objects-deferred-code-updates/)
+
+Worker 版本不包含 D1 数据状态，代码回滚不会还原数据库。Workflows 可等待很长时间；本轮未从官方文档确认既有实例会在部署后切换到新代码，因此将该行为保留为待实测边界，不能推断重新部署会终止旧任务。[版本内容](https://developers.cloudflare.com/workers/versions-and-deployments/)、[Workflows 限制](https://developers.cloudflare.com/workflows/reference/limits/)
 
 ## 实施验收矩阵
 

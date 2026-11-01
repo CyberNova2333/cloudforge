@@ -1,5 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { can, withTokenScope } from './lib/repo-permissions';
+import { accessRuntimeResponse } from './lib/access-runtime-http';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { instanceName } from './lib/settings';
@@ -187,6 +188,8 @@ export async function handleGitRequest(
   env: CloudflareBindings,
   ctx: ExecutionContext
 ): Promise<Response> {
+  const unavailable = await accessRuntimeResponse(env.DB);
+  if (unavailable) return unavailable;
   const url = new URL(request.url);
   const [, owner, name, endpoint] = url.pathname.match(GIT_PATH)!;
   const service =

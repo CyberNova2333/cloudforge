@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   WorkflowEntrypoint,
   type WorkflowEvent,
@@ -5,6 +6,7 @@ import {
 } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import { executeSweep, type SweepParams } from './auto';
 import type { StepRunner } from './resolution';
 import { executeRebase, type RebaseParams } from './rebase';
@@ -56,6 +58,8 @@ export class MergeResolutionWorkflow extends WorkflowEntrypoint<
   MergeResolutionParams
 > {
   async run(event: WorkflowEvent<MergeResolutionParams>, step: WorkflowStep) {
+    // Admission is deliberately not a cached Workflow step.
+    await assertAccessRuntime(this.env.DB);
     const db = drizzle(this.env.DB, { schema });
     // Every run shows in the Actions tab under Agent, step by step (agent-runs/record.ts).
     await recordAgentRun(

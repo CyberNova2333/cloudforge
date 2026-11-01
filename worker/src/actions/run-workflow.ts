@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   WorkflowEntrypoint,
   type WorkflowEvent,
@@ -5,6 +6,7 @@ import {
 } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import { executeRun, type StepRunner } from './executor';
 
 export type ActionsRunParams = { runId: string };
@@ -15,6 +17,8 @@ export class ActionsRun extends WorkflowEntrypoint<
   ActionsRunParams
 > {
   async run(event: WorkflowEvent<ActionsRunParams>, step: WorkflowStep) {
+    // Outside a durable step: replay must read the current runtime floor again.
+    await assertAccessRuntime(this.env.DB);
     await executeRun(
       {
         env: this.env,

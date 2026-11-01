@@ -18,7 +18,7 @@ let root: string;
 let migrationsDir: string;
 const descriptor = new URL('../../../access-protocol.json', import.meta.url);
 const migration = new URL(
-  '../../../migrations/0063_rare_skin.sql',
+  '../../../migrations/0065_silent_albert_cleary.sql',
   import.meta.url
 );
 beforeEach(() => {
@@ -53,16 +53,21 @@ const change = (update: (value: Record<string, unknown>) => void) => {
 describe('升级源码权限协议', () => {
   it('接受实际声明和迁移，返回独立的不可扩权契约', () => {
     const first = read();
-    expect(first.targetSchema).toBe('compat-v1');
-    expect(first.acceptedSchemas).toEqual(['legacy', 'compat-v1']);
+    expect(first.targetSchema).toBe('runtime-bridge-v1');
+    expect(first.acceptedSchemas).toEqual([
+      'legacy',
+      'compat-v1',
+      'runtime-bridge-v1',
+    ]);
+    expect(first.runtimeProtocol).toBe(1);
     first.migration.sha256 = 'changed';
     expect(read().migration.sha256).not.toBe('changed');
   });
 
   it('仅允许 Git 的 CRLF 换行转换', () => {
     const sql = readFileSync(migration, 'utf8').replace(/\r?\n/g, '\r\n');
-    writeFileSync(join(migrationsDir, '0063_rare_skin.sql'), sql);
-    expect(read().targetSchema).toBe('compat-v1');
+    writeFileSync(join(migrationsDir, '0065_silent_albert_cleary.sql'), sql);
+    expect(read().targetSchema).toBe('runtime-bridge-v1');
   });
 
   it.each([
@@ -82,6 +87,10 @@ describe('升级源码权限协议', () => {
         (v.migration = { name: '../secret', sha256: 'x' }),
     ],
     ['unknown format', (v: Record<string, unknown>) => (v.format = 2)],
+    [
+      'false runtime declaration',
+      (v: Record<string, unknown>) => (v.runtimeProtocol = 2),
+    ],
   ])('拒绝 %s', (_name, update) => {
     change(update);
     expect(read).toThrow(
@@ -92,7 +101,7 @@ describe('升级源码权限协议', () => {
   it('确认计划后改动迁移及相邻摘要也不能重新定义 CLI 支持范围', () => {
     read();
     const sql = readFileSync(migration, 'utf8') + '\n-- changed after plan\n';
-    writeFileSync(join(migrationsDir, '0063_rare_skin.sql'), sql);
+    writeFileSync(join(migrationsDir, '0065_silent_albert_cleary.sql'), sql);
     expect(read).toThrow('access protocol');
     change((value) => {
       (value.migration as { sha256: string }).sha256 = createHash('sha256')

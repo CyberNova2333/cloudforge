@@ -1,6 +1,7 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: GPL-3.0-or-later.
 import { accessDefinitionGuardSql } from './access-preflight-definition.ts';
 import { ACCESS_TRIGGERS } from '../../worker/src/db/access-triggers.ts';
+import { ACCESS_RUNTIME_TRIGGERS } from '../../worker/src/db/access-runtime-triggers.ts';
 import { isValidUsername } from '../../worker/src/lib/usernames.ts';
 
 export const ACCESS_PREFLIGHT_LIMIT = 1000;
@@ -39,7 +40,7 @@ export const ACCESS_PREFLIGHT_LEGACY_COLUMNS = {
       .sort(),
 } as const;
 
-export type AccessSchemaVersion = 'legacy' | 'compat-v1';
+export type AccessSchemaVersion = 'legacy' | 'compat-v1' | 'runtime-bridge-v1';
 export type AccessInstallation = {
   id: string;
   ownershipNonce: string;
@@ -64,6 +65,16 @@ export const ACCESS_PREFLIGHT_COMPAT_COLUMNS = {
   ],
   namespace_claims: ['kind:text:0', 'slug:text:0', 'subject_id:text:0'],
 };
+export const ACCESS_PREFLIGHT_BRIDGE_COLUMNS = {
+  ...ACCESS_PREFLIGHT_COMPAT_COLUMNS,
+  access_runtime_state: [
+    'id:integer:0',
+    'minimum_protocol:integer:0',
+    'revision:integer:0',
+    'role_publishing_enabled:integer:0',
+    'schema_mode:text:0',
+  ],
+};
 const schemaProjection = (tables: string[]) =>
   `json_object(${tables
     .flatMap((table) => [
@@ -76,7 +87,7 @@ const tableProjection = (tables: string[]) =>
 const futureTables = `(SELECT json_group_array(name) FROM (SELECT lower(name) AS name FROM sqlite_schema WHERE type IN ('table','view') AND lower(name) IN ('team_members','repository_team_grants') ORDER BY name LIMIT 3))`;
 /** Discovery chooses a static query only; final data reads repeat the schema and marker checks. */
 export function accessPreflightDiscoveryQuery() {
-  const tables = Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS);
+  const tables = Object.keys(ACCESS_PREFLIGHT_BRIDGE_COLUMNS);
   return {
     sql: `SELECT json_object('schema',${schemaProjection(tables)},'tableTypes',${tableProjection(tables)},'unsupportedTables',json(${futureTables})) AS schemaDiscovery`,
     params: [] as (string | number)[],
@@ -96,16 +107,22 @@ export function classifyAccessSchema(
       'tableTypes',
       'unsupportedTables',
     ]);
-    const tables = Object.keys(ACCESS_PREFLIGHT_COMPAT_COLUMNS);
+    const tables = Object.keys(ACCESS_PREFLIGHT_BRIDGE_COLUMNS);
     const metadata = object(data.schema, tables);
     const types = object(data.tableTypes, tables);
     if (!Array.isArray(data.unsupportedTables) || data.unsupportedTables.length)
       return 'unsupported';
-    for (const version of ['legacy', 'compat-v1'] as const) {
+    for (const version of [
+      'legacy',
+      'compat-v1',
+      'runtime-bridge-v1',
+    ] as const) {
       const expected =
         version === 'legacy'
           ? ACCESS_PREFLIGHT_LEGACY_COLUMNS
-          : ACCESS_PREFLIGHT_COMPAT_COLUMNS;
+          : version === 'compat-v1'
+            ? ACCESS_PREFLIGHT_COMPAT_COLUMNS
+            : ACCESS_PREFLIGHT_BRIDGE_COLUMNS;
       if (
         tables.every((table) => {
           const columns = expected[table as keyof typeof expected];
@@ -176,7 +193,18 @@ export function accessPreflightQuery(
   sql: string;
   params: (string | number)[];
 } {
+  if (schemaVersion === 'runtime-bridge-v1')
+    return bridgePreflightQuery(installation);
   if (schemaVersion === 'compat-v1') return compatPreflightQuery(installation);
+  return legacyPreflightQuery(installation);
+}
+
+// Nested projections defer the complete DDL predicate to their final schema version.
+// Only the public legacy query evaluates the legacy definition; never duplicate full guards.
+function legacyPreflightQuery(
+  installation?: AccessInstallation,
+  nested = false
+) {
   const collections = Object.entries(fields).map(([name, columns]) => {
     const table = name === 'collaborators' ? 'repository_collaborators' : name;
     const values = columns.map(
@@ -225,13 +253,13 @@ export function accessPreflightQuery(
     sql: `WITH ${collections.join(',\n')}
 SELECT json_object(
   'format', 1,
-  'definitionValid', ${accessDefinitionGuardSql('legacy')},
+  'definitionValid', ${nested ? '1' : accessDefinitionGuardSql('legacy')},
   'marker', json_object('count', (SELECT count(*) FROM install_state), 'valid',
     CASE WHEN ? = 1 THEN CASE WHEN ${installation?.allowMissing ? '(SELECT count(*) FROM install_state) = 0 OR ' : ''}(SELECT count(*) FROM install_state) = 1 AND EXISTS (SELECT 1 FROM install_state WHERE installation_id = ? AND ownership_nonce = ?) THEN 1 ELSE 0 END
     ELSE CASE WHEN (SELECT count(*) FROM install_state) <= 1 THEN 1 ELSE 0 END END),
   'schema', json_object(${schema.join(', ')}),
   'tableTypesValid', CASE WHEN ${tableTypes.join(' AND ')} THEN 1 ELSE 0 END,
-  'unsupportedTables', json((SELECT json_group_array(name) FROM (SELECT lower(name) AS name FROM sqlite_schema WHERE type IN ('table','view') AND lower(name) IN ('access_control_state','team_members','repository_team_grants','namespace_claims') ORDER BY name LIMIT 5))),
+  'unsupportedTables', json((SELECT json_group_array(name) FROM (SELECT lower(name) AS name FROM sqlite_schema WHERE type IN ('table','view') AND lower(name) IN ('access_control_state','team_members','repository_team_grants','namespace_claims','access_runtime_state') ORDER BY name LIMIT 6))),
   'invalidFields', CASE WHEN ${Object.keys(fields)
     .map((name) => `EXISTS (SELECT 1 FROM ${name}_snapshot WHERE invalid = 1)`)
     .join(' OR ')} THEN 1 ELSE 0 END,
@@ -263,9 +291,10 @@ type Repository = {
 type Collaborator = { repositoryId: string; userId: string };
 type Agent = { userId: string; repositoryId: string | null };
 export type AccessPreflightSnapshot = {
-  format: 1 | 2;
+  format: 1 | 2 | 3;
   definitionValid: boolean;
   compat?: AccessCompatSnapshot;
+  runtime?: AccessRuntimeSnapshot;
   marker: { count: number; valid: boolean };
   schema: Record<string, string[]>;
   tableTypesValid: boolean;
@@ -288,6 +317,7 @@ export type AccessPreflightAnalysis = {
   report: {
     schemaVersion: AccessSchemaVersion;
     accessGeneration: number | null;
+    runtime?: AccessRuntimeSnapshot;
     counts: {
       users: number;
       teams: number;
@@ -382,6 +412,13 @@ export function analyzeAccessSnapshot(raw: unknown): AccessPreflightAnalysis {
   } catch {
     return fail('snapshot is not bounded JSON');
   }
+  if (
+    value &&
+    typeof value === 'object' &&
+    'format' in value &&
+    value.format === 3
+  )
+    return analyzeBridgeSnapshot(value);
   if (
     value &&
     typeof value === 'object' &&
@@ -788,8 +825,11 @@ type AccessCompatSnapshot = {
 };
 const boundedInteger = (column: string) =>
   `CASE WHEN typeof(${column})='integer' AND ${column}>=0 AND ${column}<=9007199254740991 THEN ${column} END`;
-function compatPreflightQuery(installation?: AccessInstallation) {
-  const base = accessPreflightQuery(installation);
+function compatPreflightQuery(
+  installation?: AccessInstallation,
+  version: 'compat-v1' | 'runtime-bridge-v1' = 'compat-v1'
+) {
+  const base = legacyPreflightQuery(installation, true);
   const bt = (column: string, raw = 64, encoded = 96) =>
     boundedText(['', column, raw, encoded]);
   const collection = (table: string, order: string, pairs: string) =>
@@ -804,10 +844,10 @@ SELECT CASE WHEN length(CAST(snapshot AS BLOB)) + 8192
   + 384*(SELECT count(*) FROM (SELECT 1 FROM namespace_claims LIMIT 1001)) <= ${ACCESS_PREFLIGHT_MAX_BYTES}
 THEN json_set(snapshot,
   '$.format',2,
-  '$.definitionValid',${accessDefinitionGuardSql('compat-v1')},
+  '$.definitionValid',${accessDefinitionGuardSql(version)},
   '$.schema',json(${schemaProjection(tables)}),
   '$.tableTypesValid',CASE WHEN ${tables.map((table) => `(SELECT type FROM sqlite_schema WHERE name='${table}')='table'`).join(' AND ')} THEN 1 ELSE 0 END,
-  '$.unsupportedTables',json(${futureTables}),
+  '$.unsupportedTables',json((SELECT json_group_array(name) FROM (SELECT lower(name) AS name FROM sqlite_schema WHERE type IN ('table','view') AND lower(name) IN ('team_members','repository_team_grants','access_runtime_state') ORDER BY name LIMIT 4))),
   '$.compat',json_object(
     'state',${collection('access_control_state', 'id', `'id',${boundedInteger('id')},'generation',${boundedInteger('generation')},'legacySharedTeamId',${bt('legacy_shared_team_id')}`)},
     'teams',${collection('teams', 'id', `'id',${bt('id')},'membershipMode',${bt('membership_mode', 16, 32)},'revision',${boundedInteger('revision')}`)},
@@ -1002,6 +1042,114 @@ function analyzeCompatSnapshot(value: unknown): AccessPreflightAnalysis {
   };
   result.report.schemaVersion = 'compat-v1';
   result.report.accessGeneration = state[0].generation;
+  result.blocked = result.report.blockers.length > 0;
+  return result;
+}
+
+type AccessRuntimeSnapshot = {
+  minimumProtocol: number;
+  schemaMode: 'compat-v1';
+  rolePublishingEnabled: false;
+  revision: number;
+};
+
+function bridgePreflightQuery(installation?: AccessInstallation) {
+  const base = compatPreflightQuery(installation, 'runtime-bridge-v1');
+  const tables = Object.keys(ACCESS_PREFLIGHT_BRIDGE_COLUMNS);
+  return {
+    sql: `WITH compat_snapshot AS (${base.sql})
+SELECT CASE WHEN length(CAST(snapshot AS BLOB)) + 2048 <= ${ACCESS_PREFLIGHT_MAX_BYTES}
+THEN json_set(snapshot,
+  '$.format',3,
+  '$.schema',json(${schemaProjection(tables)}),
+  '$.tableTypesValid',CASE WHEN ${tables.map((table) => `(SELECT type FROM sqlite_schema WHERE name='${table}')='table'`).join(' AND ')} THEN 1 ELSE 0 END,
+  '$.unsupportedTables',json(${futureTables}),
+  '$.runtime',json_object(
+    'state',json((SELECT json_group_array(json_object('id',${boundedInteger('id')},'minimumProtocol',${boundedInteger('minimum_protocol')},'schemaMode',${boundedText(['', 'schema_mode', 16, 32])},'rolePublishingEnabled',${boundedInteger('role_publishing_enabled')},'revision',${boundedInteger('revision')})) FROM (SELECT * FROM access_runtime_state ORDER BY id LIMIT 2))),
+    'triggersValid',CASE WHEN (SELECT count(*) FROM sqlite_schema WHERE type='trigger' AND substr(lower(name),1,19) = 'cloudforge_runtime_') = ${ACCESS_RUNTIME_TRIGGERS.length}
+      AND NOT EXISTS (SELECT 1 FROM json_each(?) expected LEFT JOIN sqlite_schema actual ON actual.name=json_extract(expected.value,'$.name') AND actual.type='trigger' WHERE actual.sql IS NULL OR (trim(actual.sql,char(10)||char(13)||' ;') != trim(json_extract(expected.value,'$.sql'),char(10)||char(13)||' ;') AND trim(actual.sql,char(10)||char(13)||' ;') != trim(replace(json_extract(expected.value,'$.sql'),char(10),char(13)||char(10)),char(10)||char(13)||' ;')))
+      THEN 1 ELSE 0 END
+  )) ELSE '{}' END AS snapshot FROM compat_snapshot`,
+    params: [...base.params, JSON.stringify(ACCESS_RUNTIME_TRIGGERS)],
+  };
+}
+
+function analyzeBridgeSnapshot(value: unknown): AccessPreflightAnalysis {
+  const data = object(value, [
+    'format',
+    'definitionValid',
+    'marker',
+    'schema',
+    'tableTypesValid',
+    'unsupportedTables',
+    'invalidFields',
+    ...Object.keys(fields),
+    'compat',
+    'runtime',
+  ]);
+  const schema = object(
+    data.schema,
+    Object.keys(ACCESS_PREFLIGHT_BRIDGE_COLUMNS)
+  );
+  for (const [table, expected] of Object.entries(
+    ACCESS_PREFLIGHT_BRIDGE_COLUMNS
+  )) {
+    const actual = schema[table];
+    if (
+      !Array.isArray(actual) ||
+      actual.some((column) => typeof column !== 'string') ||
+      JSON.stringify([...actual].sort()) !== JSON.stringify(expected)
+    )
+      return fail('unsupported runtime bridge schema');
+  }
+  const metadata = object(data.runtime, ['state', 'triggersValid']);
+  if (!boolean(metadata.triggersValid))
+    return fail('runtime trigger integrity mismatch');
+  if (!Array.isArray(metadata.state) || metadata.state.length !== 1)
+    return fail('runtime singleton missing or ambiguous');
+  const row = object(metadata.state[0], [
+    'id',
+    'minimumProtocol',
+    'schemaMode',
+    'rolePublishingEnabled',
+    'revision',
+  ]);
+  if (
+    row.id !== 1 ||
+    row.schemaMode !== 'compat-v1' ||
+    row.rolePublishingEnabled !== 0
+  )
+    return fail('unsupported runtime mode or role publication');
+  const minimumProtocol = safeInteger(row.minimumProtocol);
+  if (minimumProtocol < 1) return fail('invalid minimum runtime protocol');
+  const runtime: AccessRuntimeSnapshot = {
+    minimumProtocol,
+    schemaMode: 'compat-v1',
+    rolePublishingEnabled: false,
+    revision: safeInteger(row.revision),
+  };
+  const { runtime: _runtime, ...base } = data;
+  const result = analyzeCompatSnapshot({
+    ...base,
+    format: 2,
+    schema: ACCESS_PREFLIGHT_COMPAT_COLUMNS,
+  });
+  if (minimumProtocol > 1)
+    result.report.blockers.push({
+      code: 'unsupported_runtime_protocol',
+      message:
+        'The database requires a newer runtime protocol than this release supports.',
+      count: 1,
+      samples: [{ id: 'instance' }],
+    });
+  result.snapshot = {
+    ...result.snapshot,
+    format: 3,
+    schema: schema as Record<string, string[]>,
+    runtime,
+  };
+  result.report.schemaVersion = 'runtime-bridge-v1';
+  result.report.runtime = runtime;
   result.blocked = result.report.blockers.length > 0;
   return result;
 }

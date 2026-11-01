@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { expect, it } from 'vitest';
-import { runInDurableObject } from 'cloudflare:test';
+import { env, runInDurableObject } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
 import {
@@ -23,6 +23,7 @@ it('停止容器失败时保留孤儿硬停止闹钟，成功后才删除', asyn
     },
   };
   const runner = Object.assign(Object.create(JobRunner.prototype), {
+    env,
     ctx: {
       container,
       storage: {
@@ -76,6 +77,7 @@ it.each(['exec', 'stdout'])(
       },
     };
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container },
       masks: [],
       registeredMasks: [],
@@ -143,6 +145,7 @@ jobs:
     },
   };
   const runner = Object.assign(Object.create(JobRunner.prototype), {
+    env,
     ctx: { container, storage: { deleteAlarm: async () => {} } },
     masks: [],
     registeredMasks: [],
@@ -393,6 +396,7 @@ it.each(['stdout', 'exception'])(
       },
     };
     const runner = Object.assign(Object.create(JobRunner.prototype), {
+      env,
       ctx: { container, storage: { deleteAlarm: async () => {} } },
       masks: [],
       registeredMasks: [],
