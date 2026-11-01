@@ -8,7 +8,9 @@
  * as shipped once a build emitted it. Run `yarn build` first when dependencies changed.
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const OUTPUT = 'THIRD_PARTY_NOTICES.md';
 const CLIENT_DIR = 'dist/client';
@@ -485,16 +487,35 @@ export function main({
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const { changed, failures, packages } = main();
+  const { changed, failures, packages, content } = main();
   if (failures.length) {
     console.error('第三方许可清单：检查未通过');
     for (const failure of [...new Set(failures)])
       console.error(`  - ${failure}`);
-  } else if (kwarg('--check') && changed)
+  } else if (kwarg('--check') && changed) {
     console.error(
       `第三方许可清单：${OUTPUT} 与安装树不一致，运行 yarn notices 重新生成`
     );
-  else
+    // CI 只留日志，不留工作区：把差异打出来，才知道是清单旧了还是安装/构建不对。
+    writeFileSync(join(tmpdir(), 'third-party-notices.expected.md'), content);
+    try {
+      execFileSync(
+        'diff',
+        [
+          '-u',
+          OUTPUT,
+          join(tmpdir(), 'third-party-notices.expected.md'),
+          '-L',
+          OUTPUT,
+          '-L',
+          'yarn notices',
+        ],
+        { stdio: 'inherit' }
+      );
+    } catch {
+      // diff 的退出码就是「有差异」，差异本身已经打到 stderr 了。
+    }
+  } else
     console.log(
       `第三方许可清单：${OUTPUT} ${changed ? '已写入' : '已是最新'}（${packages} 个包）`
     );
