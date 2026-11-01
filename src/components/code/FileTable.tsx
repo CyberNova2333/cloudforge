@@ -67,13 +67,14 @@ export function FileTable({
                   <Link
                     to={`${base}/${isDir ? 'tree' : 'blob'}/${data.ref}/${encodeRepoPath(e.path)}`}
                     className="ft-name"
+                    title={e.name}
                   >
                     {isDir ? (
                       <FileDirectoryFillIcon className="icon dir" />
                     ) : (
                       <FileIcon className="icon file" />
                     )}
-                    {e.name}
+                    <span className="ft-name-text">{e.name}</span>
                   </Link>
                 </td>
                 <td className="ft-subj">

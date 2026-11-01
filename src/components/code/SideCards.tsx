@@ -30,6 +30,11 @@ export function AboutCard({
   return (
     <section className="panel pad about">
       <h2>{t('About')}</h2>
+      <p className="about-desc">
+        {repo.description || (
+          <span className="muted">{t('No description provided.')}</span>
+        )}
+      </p>
       <ul className="ticks small">
         {readmePath && (
           <li>
