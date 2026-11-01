@@ -66,6 +66,11 @@ jobs:
       - name: Typecheck
         run: yarn typecheck
 
+      # The list is built from this install and this build, so a dependency bump that ships a new
+      # package shows up here instead of in a release.
+      - name: Check third-party notices are current
+        run: yarn notices:check
+
       # Here, not in a module: the gate must never skip the check that every test file runs somewhere.
       - name: Check every test file is in a module
         run: yarn test worker/src/__tests__/ci-workflow.test.ts
