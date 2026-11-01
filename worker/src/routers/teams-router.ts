@@ -1,10 +1,20 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { repositories, reviewerStatuses, teams } from '../db/app.schema';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import {
+  accessControlState,
+  repositories,
+  reviewerStatuses,
+  teams,
+} from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import { requireAdmin } from '../auth/guards';
-import { isValidSlug, namespaceTaken } from '../lib/namespaces';
+import {
+  isLegacyTeamConflict,
+  isNamespaceConflict,
+  isValidSlug,
+  namespaceTaken,
+} from '../lib/namespaces';
 import { accountEmailFor } from '../lib/users';
 import { getTeam, teamNamespace, userNamespace, visibleTo } from '../lib/repos';
 import type { AppEnv } from '../variables';
@@ -110,13 +120,46 @@ teamRouter.openapi(putTeamRoute, async (c) => {
       409
     );
   }
-  if (existing) {
-    await db.update(teams).set({ name, slug }).where(eq(teams.id, existing.id));
-    return c.json({ team: serializeTeam({ ...existing, name, slug }) }, 200);
+  try {
+    if (existing) {
+      const [updated] = await db
+        .update(teams)
+        .set({ name, slug })
+        .where(
+          and(
+            eq(teams.id, existing.id),
+            eq(teams.revision, existing.revision),
+            sql`EXISTS (SELECT 1 FROM ${accessControlState} WHERE ${accessControlState.id}=1 AND ${accessControlState.legacySharedTeamId}=${existing.id})`
+          )
+        )
+        .returning();
+      if (!updated)
+        return c.json(
+          { error: 'The shared team changed. Reload and try again.' },
+          409
+        );
+      // Revision is maintained by an AFTER trigger and is deliberately absent from the old DTO.
+      return c.json({ team: serializeTeam(updated) }, 200);
+    }
+    const [created] = await db
+      .insert(teams)
+      .values({ id: crypto.randomUUID(), slug, name, createdAt: new Date() })
+      .returning();
+    // The INSERT and its trigger claim the stable pointer atomically.
+    return c.json({ team: serializeTeam(created) }, 200);
+  } catch (error) {
+    if (isNamespaceConflict(error))
+      return c.json(
+        { error: 'That username or team name is already claimed.' },
+        409
+      );
+    if (isLegacyTeamConflict(error))
+      return c.json(
+        { error: 'The shared team changed. Reload and try again.' },
+        409
+      );
+    throw error;
   }
-  const team = { id: crypto.randomUUID(), slug, name, createdAt: new Date() };
-  await db.insert(teams).values(team);
-  return c.json({ team: serializeTeam(team) }, 200);
 });
 
 // ── /api/namespaces/{slug}: a user's or the team's page ──────────────────────

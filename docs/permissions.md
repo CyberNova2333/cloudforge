@@ -42,6 +42,18 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 
 本阶段保留 SQL `visibleTo` 的既有公式，用真实 D1 差分校验它与单项/批量的可读集合；没有为统一命名引入逐对象权限查询、跨请求角色缓存或自动刷新旧令牌权限。公共读取、internal 实例成员读取及团队创建者权限保持不变。新的 triage/maintain 只有后续模型、接口及发布围栏就绪后才可授予，不能仅修改这里的映射表提前启用。
 
+## 阶段 B：受限的兼容存储
+
+当前已声明并生成兼容迁移：旧协作者补默认write和revision，共享团队补instance模式和revision，新增永久授权状态与归一化命名空间claims。数据库仍只接受write协作者和一个instance共享团队；五级role/explicit类型为后续扩展预留，不表示已经能授予。team_members及repository_team_grants尚未创建，公开DTO仍保持原字段。
+
+共享团队按状态行中的稳定id读取；状态缺失、指针悬空或不一致会失败，不回退到第一行。团队存活时不能改绑id；无仓库引用时合法删除会清空指针并推进代数，再创建属于新的共享团队。当前没有团队删除API。团队修改按读取的revision和共享指针CAS，竞争返回409；revision由触发器推进，旧Worker的name/slug写法继续可用。
+
+用户名与团队slug由同条SQL内的源守卫和claims维护共同防撞名，覆盖原生管理员创建、用户改名、Agent及旧路由。null用户名不占claim，大小写同义改名不释放给他人，Agent软删除保留命名空间。直接REPLACE/关闭CHECK不能绕过关键状态和命名空间guard。重复协作者写入保持已有row/revision，空RETURNING只代表未新增授权，不作为授权成功屏障。
+
+授权状态行不能删除、替换或重置；相关权限源变化同语句推进独立generation，上限为JS安全整数。代数目前是兼容基础，尚未为所有人类mutation接入最终actor/session/proof/generation CAS。write-only/instance-only限制保护旧权限语义，完整的新角色发布、旧Worker最低版本屏障和回滚流程仍待实现。旧代码首次setup对D1变化计数的假设不适用新触发器；首次管理员初始化应使用包含RETURNING修补的新版本，不能据本节推断任意旧版本可回滚。
+
+迁移只由声明生成。一次性回填以id/hash登记在_data.json，后续DDL/trigger重建不重复初始化状态；多条旧团队、命名空间碰撞、团队private或孤儿引用会阻断，不能静默修数据。详见[升级边界](updating.md#access-compatibility-schema)。
+
 ## 迁移前的只读预检
 
 准备改造团队和角色前，先选择一个明确实例检查旧数据。在源码 checkout 中运行：
@@ -67,7 +79,7 @@ yarn cloudforge access-preflight --database <数据库名或UUID> --account <账
 
 预检报告旧共享团队的候选id、旧协作者按write保留的数量、团队创建者管理员来源、公开仓库集合及异常引用。多条旧团队、用户名/slug归一化冲突、团队private历史行或已出现的新ACL模型都需要单独处理，不能任选第一行、静默改可见性或把新read/triage当作旧write。封禁成员保留的休眠授权不自动删除；Reviewer Agent正常拥有自己的配置仓库，不能一律当坏数据，也不能计作可登录的人类恢复管理员。
 
-每类集合最多1000条，额外一条用于探测溢出；字段、schema元数据和响应大小也有界。超过边界会阻断，不能把截断列表当作完整预检。每类异常样例最多20条，数量与样例分别报告。读取不包含账户邮箱、密码、会话、因素秘密或机器令牌；安装归属秘密只参与绑定比较，不出现在输出中。当前命令针对旧模型，不能用于证明未来角色迁移、真实负载或恢复凭据可用性已验收。
+每类集合最多1000条，额外一条用于探测溢出；字段、schema元数据和响应大小也有界。超过边界会阻断，不能把截断列表当作完整预检。每类异常样例最多20条，数量与样例分别报告。读取不包含账户邮箱、密码、会话、因素秘密或机器令牌；安装归属秘密只参与绑定比较，不出现在输出中。当前命令只接受迁移前旧schema；兼容schema安装后同样拒绝，版本感知诊断仍待后续实现，不能用于证明未来角色迁移、真实负载或恢复凭据可用性已验收。
 
 实现与操作说明见[升级维护](updating.md#legacy-access-preflight)，完整后续模型见[权限设计](team-access-design.md)。
 
@@ -81,6 +93,6 @@ yarn cloudforge access-preflight --database <数据库名或UUID> --account <账
 
 ## 后续实施顺序
 
-阶段 A 已实现内部兼容求值和现有入口的命名能力接入，保持旧权限结果。后续按[设计草案](team-access-design.md)在只读预检后再做声明生成的兼容数据，再实现显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
+阶段 A 已实现内部兼容求值和现有入口的命名能力接入，保持旧权限结果。后续按[设计草案](team-access-design.md)已加入只读预检和声明生成的受限兼容数据；后续先补版本化发布/恢复门槛和最终授权CAS，再实现显式团队成员/授权接口及界面。新增 triage/maintain 不得简单复用 `.write` 或 `.admin` 绕过敏感边界；旧 Worker 不能在回滚后把新 read/triage 协作者当 write。
 
 当前测试入口为 `repo-permissions.test.ts`、`teams-visibility.test.ts`、`public-repos.test.ts`、`repos-pulls.test.ts` 和 `commit-emails.test.ts`；列出文件不表示本页完成全项目或生产验收。需要定位权限职责时从[源码代码地图](../repo-docs/code-map.md)继续，实际运行命令与完成标准见[开发说明](development.md)。

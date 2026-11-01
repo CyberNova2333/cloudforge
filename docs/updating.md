@@ -14,6 +14,18 @@ npx @cybernova2333/cloudforge install
 
 See [Setup](setup.md) for the questions, the flags, and what it creates. State lives in `~/.cloudforge/<name>/` (override the directory with `CLOUDFORGE_HOME`).
 
+## Access compatibility schema
+
+The generated compatibility migration adds four defaulted columns to the existing team/collaborator tables and creates access state plus namespace claims. It does not rebuild old tables, move repository ids, change public/internal visibility or enable new role grants. The database continues to accept only one `instance` shared team and `write` collaborators; explicit teams and other roles are rejected until the later rollout is implemented.
+
+Bootstrap preserves the existing shared-team id and owner/creator references, and refuses ambiguous teams, namespace collisions, team-private rows or broken references. Do not repair these by deleting a conflicting identity or silently changing visibility. The singleton generation is permanent and monotonic; one-time data declarations are tracked by id/hash in generated `_data.json`. Keep this metadata and migration receipts: later DDL/trigger regeneration must not reinitialize state. A completed migration is retried by its receipt, not by replaying bootstrap SQL.
+
+`access-preflight` remains a legacy-only diagnostic and deliberately refuses the new compatible schema. Its exit 0 and digest never authorize this migration or role publication. This phase does not supply a minimum-runtime publication/rollback barrier, and the new generation has not yet fenced every human mutation. The old first-admin setup implementation assumes D1 `meta.changes === 1`; new trigger writes invalidate that assumption, so first-admin initialization must use the new `RETURNING` receipt implementation. Do not treat the additive schema as blanket support for arbitrary older Workers.
+
+Local tests cover populated old data, failed migration rollback and receipt-aware retries using real D1 binding transactions. Remote migration failure injection, production migration, deployment and real rollout require separate authorization and verification. See the [current compatibility boundaries](permissions.md) and [the staged design](team-access-design.md).
+
+The authentication generator update also declares a unique `(client_id, resource_id)` index for OAuth resource links. Its separate generated migration does not rebuild OAuth tables or tighten historical nullable columns. Duplicate old links block that index migration; inspect them and explicitly resolve the duplicate before retrying. Do not automatically delete links or tokens. Migration receipts are per file: the access migration can already be complete when the later index file fails, so retry by the recorded state rather than assuming every prior file rolled back. The legacy access preflight does not check these OAuth duplicates.
+
 ## Legacy access preflight
 
 Before changing the legacy team/collaborator model, inspect one explicitly selected installation. From a checkout:
@@ -26,7 +38,7 @@ yarn cloudforge access-preflight --database <name-or-uuid> --account <id-or-name
 
 This command verifies the actual account/database and recorded installation marker, then reads a single bounded SQL snapshot. It does not run Docker, write local state, migrate or deploy. It accepts no apply, `--yes` or `--expect-plan` flags. Exit 0 means only that this legacy-data observation has no blocking findings; 1 means blocked or unreadable data, and 2 means invalid arguments. The JSON always reports `rolePublishingAllowed: false` and `migrationApplied: false`.
 
-The report checks legacy-team selection, collaborator/write compatibility, creator administration, namespaces, public repositories and anomalous references. Each collection is limited to 1000 rows with an overflow sentinel; fields, schema metadata, output size and finding samples are also bounded. Overflow, malformed results or a newer access schema fail closed. The digest identifies the observation; it is not a later apply authorization or proof that the database is still unchanged. No account emails, credentials or installation ownership nonce are printed.
+The report checks legacy-team selection, collaborator/write compatibility, creator administration, namespaces, public repositories and anomalous references. Each collection is limited to 1000 rows with an overflow sentinel; fields, schema metadata, output size and finding samples are also bounded. Overflow, malformed results or a newer access schema fail closed, including this phase’s compatible schema. The digest identifies the observation; it is not a later apply authorization or proof that the database is still unchanged. No account emails, credentials or installation ownership nonce are printed.
 
 A successful preflight does not implement new roles or prevent an old Worker from running against future ACL data. Generated migrations, final write authorization, global publication and rollback barriers remain separate work. See the [current access behavior](permissions.md) and [migration design](team-access-design.md).
 

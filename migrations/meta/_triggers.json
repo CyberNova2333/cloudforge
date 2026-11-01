@@ -80,6 +80,126 @@
     {
       "name": "cloudforge_user_repository_delete_v1",
       "sha256": "d5386de2bbd365788fea748ec94f874cd2bc772dafd5593d613e9f70a641c25a"
+    },
+    {
+      "name": "cloudforge_access_state_insert_v1",
+      "sha256": "e7302b1828faa94b984985d446df58a2b748e2015a7486ff7c817888e1a3447c"
+    },
+    {
+      "name": "cloudforge_access_state_seed_v1",
+      "sha256": "b524bd719e4d3a6f6e6b98eef154d834ba73f312e4a10542b1ad56dd036f5ccb"
+    },
+    {
+      "name": "cloudforge_access_state_update_v1",
+      "sha256": "0b44f215cf9a1607bbb3baef4288bb1827c01b8d7bc226b4abf4a2e170d52913"
+    },
+    {
+      "name": "cloudforge_access_state_delete_v1",
+      "sha256": "1a793f72968aca80cafb61db1e0106d5622ecfe2e21bb5f426f6bc9932a91705"
+    },
+    {
+      "name": "cloudforge_access_claim_insert_v1",
+      "sha256": "62e59cede50e1da819a776fe0d5e8bba8f56c94c65d4365068f66537366d1dc3"
+    },
+    {
+      "name": "cloudforge_access_claim_update_v1",
+      "sha256": "c2987d556f9780566fd9e5fddeab6f06d2ff0d396f958da9125c08147083915f"
+    },
+    {
+      "name": "cloudforge_access_claim_delete_v1",
+      "sha256": "73a8006c184aae03c700cca4e11442cf13d2feb07eb35d3a12273c4eec5f5bf9"
+    },
+    {
+      "name": "cloudforge_access_user_insert_v1",
+      "sha256": "e00935f358502a68397f35b3a1171e9e307525cb8ec9a57dae54f9e4ac58f309"
+    },
+    {
+      "name": "cloudforge_access_user_update_v1",
+      "sha256": "f96e4e7fa348e8305139dbcd82626dc2dd9a9de318310cd83571434d9a663d5f"
+    },
+    {
+      "name": "cloudforge_access_user_inserted_v1",
+      "sha256": "a421294110c3edf67b790dc2365c9754da029240c0818adec9087e88e9db9fa1"
+    },
+    {
+      "name": "cloudforge_access_user_updated_v1",
+      "sha256": "3d0de75013c5b4406188e32aaaf286f107b36df31001b9ff7c9327d9b4c1a989"
+    },
+    {
+      "name": "cloudforge_access_user_deleted_v1",
+      "sha256": "f1d2197f8d399fb00bfcfdf8dd9b516ecbbe03e1af6a83b55a5ae6518dd47b16"
+    },
+    {
+      "name": "cloudforge_access_team_insert_v1",
+      "sha256": "6ae820067e56457c342bcb27de898d3cc78ccef3d5a24814369e7ed4f0988699"
+    },
+    {
+      "name": "cloudforge_access_team_update_v1",
+      "sha256": "fefcc8e3ae050155ffa7d9781be96bbd668dbfdaafe86a47cf7c46f4fe47498a"
+    },
+    {
+      "name": "cloudforge_access_team_inserted_v1",
+      "sha256": "aef0ab677be44607495d17c13854b2f8d9026cca464a581c8e86ef8ee7a1ad9b"
+    },
+    {
+      "name": "cloudforge_access_team_updated_v1",
+      "sha256": "148f4f6c60e0f2f6421b403a73981144fc1596cf11810599a659399e7144f046"
+    },
+    {
+      "name": "cloudforge_access_team_deleted_v1",
+      "sha256": "6e3305af76013d39d250d3f6b70a7cd535d5dc73fda80cecdf008103c726f4be"
+    },
+    {
+      "name": "cloudforge_access_collaborator_insert_v1",
+      "sha256": "f373ffe48c6a366dbddaa2ec1b23fdbccbc0d9327512ddee0d37b177635e99eb"
+    },
+    {
+      "name": "cloudforge_access_collaborator_update_v1",
+      "sha256": "d0c409b6bd813cf1382b8e0f323cebd23c7ce5b72cc3eae7a62f14305bce23e2"
+    },
+    {
+      "name": "cloudforge_access_collaborator_inserted_v1",
+      "sha256": "89dd136a6c37adf1c0dd3f48b10e6c8a04c20b28488aa38662ac470fbf17262b"
+    },
+    {
+      "name": "cloudforge_access_collaborator_updated_v1",
+      "sha256": "b04db3175c9a12f2d39b67b3cc15648ea209cec154ed3eef323f1871752a3ea3"
+    },
+    {
+      "name": "cloudforge_access_collaborator_deleted_v1",
+      "sha256": "61d2c74622fba09535ef1dd46f32392c636574abc7229abc7375ec8e2ddf6dc5"
+    },
+    {
+      "name": "cloudforge_access_repository_insert_v1",
+      "sha256": "b12cb40baff844d926eaa75a85784107ab5b61dee0bc8ef39f426eb9a86491de"
+    },
+    {
+      "name": "cloudforge_access_repository_update_v1",
+      "sha256": "e6ba2819f49a63de0776dec1e418f065cb4f065f31541b0f8e5d43cccacaf3f4"
+    },
+    {
+      "name": "cloudforge_access_repository_inserted_v1",
+      "sha256": "6c61fa82e47e31f32ff9d1bc83bfcb1404054cedeea94c14a02fcfdd4c9edd96"
+    },
+    {
+      "name": "cloudforge_access_repository_updated_v1",
+      "sha256": "f396b680f33884fb9ca84d67918ade2c785acb571d2554e10fa1d19fe2d3610c"
+    },
+    {
+      "name": "cloudforge_access_repository_deleted_v1",
+      "sha256": "7e1d73b4b9940f8268d31b099661c6042eec7ca47424de295872fa485f383b92"
+    },
+    {
+      "name": "cloudforge_access_agent_inserted_v1",
+      "sha256": "8c9b406a4522a4089062e34833782f8914fc456a77d3c283370f373740cd40dd"
+    },
+    {
+      "name": "cloudforge_access_agent_updated_v1",
+      "sha256": "ba0a33443d379aec4db34abe199615a3be43e8410e8f084e8b17e6f1791e57c5"
+    },
+    {
+      "name": "cloudforge_access_agent_deleted_v1",
+      "sha256": "135f75c04e3aa9ee3501d9cc4ba5216a6e9c0db7286e9bdb1f7a3fa7528b815f"
     }
   ]
 }

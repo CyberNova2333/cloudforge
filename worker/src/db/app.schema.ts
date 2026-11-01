@@ -217,13 +217,53 @@ export const oidcLoginActions = sqliteTable(
   ]
 );
 
-// The instance's one shared team. Its slug shares the URL namespace with usernames.
+// The legacy shared team remains the only writable mode until every access consumer supports roles.
 export const teams = sqliteTable('teams', {
   id: text('id').primaryKey(),
   slug: text('slug').notNull().unique(),
   name: text('name').notNull(),
+  membershipMode: text('membership_mode', { enum: ['instance', 'explicit'] })
+    .notNull()
+    .default('instance'),
+  revision: integer('revision').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+/** The singleton is seeded once by a managed backfill, retained thereafter, and never inferred as zero. */
+export const accessControlState = sqliteTable(
+  'access_control_state',
+  {
+    id: integer('id').primaryKey().default(1),
+    generation: integer('generation').notNull().default(0),
+    // Maintained with the team's legal insert/delete, not a cascading FK update without a generation change.
+    legacySharedTeamId: text('legacy_shared_team_id'),
+  },
+  (t) => [
+    check('access_control_singleton', sql`${t.id} = 1`),
+    check(
+      'access_control_generation',
+      sql`typeof(${t.generation}) = 'integer' AND ${t.generation} >= 0 AND ${t.generation} <= 9007199254740991`
+    ),
+  ]
+);
+
+/** Canonical URL claims are derived from source subjects by managed triggers; no polymorphic FK is inferred. */
+export const namespaceClaims = sqliteTable(
+  'namespace_claims',
+  {
+    slug: text('slug').primaryKey(),
+    kind: text('kind', { enum: ['user', 'team'] }).notNull(),
+    subjectId: text('subject_id').notNull(),
+  },
+  (t) => [
+    uniqueIndex('namespace_claims_subject_uq').on(t.kind, t.subjectId),
+    check('namespace_claims_kind', sql`${t.kind} IN ('user', 'team')`),
+    check(
+      'namespace_claims_canonical',
+      sql`length(${t.slug}) > 0 AND ${t.slug} = lower(${t.slug})`
+    ),
+  ]
+);
 
 export const repositories = sqliteTable(
   'repositories',
@@ -292,6 +332,12 @@ export const repositoryCollaborators = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    role: text('role', {
+      enum: ['read', 'triage', 'write', 'maintain', 'admin'],
+    })
+      .notNull()
+      .default('write'),
+    revision: integer('revision').notNull().default(0),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   },
   (t) => [

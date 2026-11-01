@@ -102,13 +102,6 @@ async function fixture() {
       visibility: 'public',
       teamId: 'team',
     },
-    // The router forbids new team-private settings. Old rows must not silently become less visible.
-    {
-      id: 'legacy-team-private',
-      ownerId: 'creator',
-      visibility: 'private',
-      teamId: 'team',
-    },
   ] as const;
   await db.insert(repositories).values(
     rows.map((row) => ({
@@ -138,49 +131,74 @@ async function fixture() {
 }
 
 describe('阶段A仓库权限兼容内核', () => {
+  it('历史team-private纯规则仍为成员可读，兼容schema拒绝新建该异常行', async () => {
+    const f = await fixture();
+    const team = f.repos.find((row) => row.id === 'team-internal')!;
+    const legacy = { ...team, visibility: 'private' as const };
+    const person = f.people.get('stranger')!;
+    expect(permissionsOf(legacy, person, false)).toEqual(access.read);
+    expect(await permissionsFor(f.db, legacy, person)).toEqual(access.read);
+    expect(
+      (await permissionsForMany(f.db, [legacy], person)).get(legacy.id)
+    ).toEqual(access.read);
+    await expect(
+      f.t.env.DB.prepare(
+        `INSERT INTO repositories(id,owner_id,team_id,visibility,name,artifacts_name,created_at,updated_at) VALUES (?,?,?,'private',?,?,0,0)`
+      )
+        .bind(
+          'legacy-private',
+          team.ownerId,
+          team.teamId,
+          'legacy-private',
+          'r_legacy-private'
+        )
+        .run()
+    ).rejects.toThrow('CloudForge repository access conflict');
+  });
+
   it('单项、批量和SQL可读集合保持既有身份/可见性矩阵，团队创建者不被误当普通成员', async () => {
     const f = await fixture();
     const cases: { person?: string; banned?: boolean; expected: Access[] }[] = [
       {
         person: 'site-admin',
-        expected: ['admin', 'admin', 'admin', 'admin', 'admin', 'admin'],
+        expected: ['admin', 'admin', 'admin', 'admin', 'admin'],
       },
       {
         person: 'owner',
-        expected: ['admin', 'admin', 'admin', 'read', 'read', 'read'],
+        expected: ['admin', 'admin', 'admin', 'read', 'read'],
       },
       {
         person: 'creator',
-        expected: ['none', 'read', 'read', 'admin', 'admin', 'admin'],
+        expected: ['none', 'read', 'read', 'admin', 'admin'],
       },
       {
         person: 'collaborator',
-        expected: ['write', 'read', 'read', 'write', 'read', 'read'],
+        expected: ['write', 'read', 'read', 'write', 'read'],
       },
       {
         person: 'stranger',
-        expected: ['none', 'read', 'read', 'read', 'read', 'read'],
+        expected: ['none', 'read', 'read', 'read', 'read'],
       },
       {
         person: 'no-role',
-        expected: ['none', 'read', 'read', 'read', 'read', 'read'],
+        expected: ['none', 'read', 'read', 'read', 'read'],
       },
       {
         person: 'site-admin',
         banned: true,
-        expected: ['none', 'none', 'read', 'none', 'read', 'none'],
+        expected: ['none', 'none', 'read', 'none', 'read'],
       },
       {
         person: 'owner',
         banned: true,
-        expected: ['none', 'none', 'read', 'none', 'read', 'none'],
+        expected: ['none', 'none', 'read', 'none', 'read'],
       },
       {
         person: 'collaborator',
         banned: true,
-        expected: ['none', 'none', 'read', 'none', 'read', 'none'],
+        expected: ['none', 'none', 'read', 'none', 'read'],
       },
-      { expected: ['none', 'none', 'read', 'none', 'read', 'none'] },
+      { expected: ['none', 'none', 'read', 'none', 'read'] },
     ];
     for (const row of cases) {
       const user = row.person
