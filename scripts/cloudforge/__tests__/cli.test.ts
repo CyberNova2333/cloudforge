@@ -1023,6 +1023,7 @@ describe('upgrade：升级', () => {
       ],
       workerVars: {
         acme: {
+          CLOUDFORGE_VERSION: s.deployedVersion ?? '1.2.0',
           CLOUDFORGE_INSTALLATION: JSON.stringify({
             installationId: s.installationId,
             ownershipNonce: s.ownershipNonce,
