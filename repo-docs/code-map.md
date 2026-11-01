@@ -121,7 +121,7 @@ SSO 的两个额外修改入口：
 
 [协议读取](../worker/src/lib/access-runtime.ts)执行有界、无缓存的 D1 状态检查；[HTTP 拒绝响应](../worker/src/lib/access-runtime-http.ts)供 Hono、Git 与 LFS 的独立入口使用。[安装诊断](../worker/src/routers/install-router.ts)保留精确 GET/HEAD 元数据探针。[数据库守卫](../worker/src/db/access-runtime-triggers.ts)维护永久状态和单调协议，推进 ACL generation；初始化由生成器管理，不能手工追加迁移。
 
-后台入口分别在 `worker/src/actions/`、`worker/src/merge/`、`worker/src/review/agent-reviewer.ts`、`worker/src/live/hub.ts` 与 `worker/src/cron.ts` 检查，纯停止/销毁路径保留。`access-runtime.test.ts`、`access-runtime-http.test.ts` 和 `access-runtime-background.test.ts` 用真实 D1 覆盖状态守卫与拒绝行为；其余回归按最终日志核验。入口准入不是每个 await 后的写点围栏，也不能约束未包含检查的旧代码，角色发布仍关闭。
+后台入口分别在 `worker/src/actions/`、`worker/src/merge/`、`worker/src/review/agent-reviewer.ts`、`worker/src/live/hub.ts` 与 `worker/src/cron.ts` 检查，纯停止/销毁路径保留。`access-runtime.test.ts`、`access-runtime-http.test.ts` 和 `access-runtime-background.test.ts` 用真实 D1 覆盖状态守卫与拒绝行为；其余回归按最终日志核验。[Actions 执行器](../worker/src/actions/executor.ts)在缓存步骤之前检查，队列异常后及容量等待/放行时重新读取；`access-runtime-actions.test.ts`覆盖协议推进、队列故障和步骤重放的拒绝边界。入口准入不是每个 await 后的写点围栏，也不能约束未包含检查的旧代码，角色发布仍关闭。
 
 ## 权限迁移前的只读检查入口
 

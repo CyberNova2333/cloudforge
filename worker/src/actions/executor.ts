@@ -1,6 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { settleStates } from '../pulls/settle';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import { and, eq, exists, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import { autoMergeForCommit } from '../review/auto-merge';
@@ -343,6 +344,8 @@ export async function executeRun(
   runId: string
 ): Promise<Conclusion | null> {
   const { env, db } = deps;
+  // Direct callers and Workflow replay both read the current floor before cached steps.
+  await assertAccessRuntime(env.DB);
   let { step } = deps;
   const ctx = await step.do('load', () => loadRun(env, db, runId));
   if (!ctx || ctx.status === 'completed') return null;
@@ -540,6 +543,7 @@ async function waitForSlot(
   prefix: string
 ): Promise<boolean> {
   const { env, db, step } = deps;
+  await assertAccessRuntime(env.DB);
   if (!queueConfigured(env)) return true;
   // The slot covers the steps and the cache saves after them.
   const maxMinutes =
@@ -585,6 +589,9 @@ async function waitForSlot(
     }
     if (state.cancelled) return false;
   } catch (e) {
+    // A rejected queue RPC may be a runtime fence, not an outage. Re-read D1 rather
+    // than relying on an error class surviving the Durable Object RPC boundary.
+    await assertAccessRuntime(env.DB);
     console.warn(
       '[actions] job queue unavailable; reserving capacity in D1',
       job.id,
@@ -611,6 +618,8 @@ async function reserveCapacity(
 ): Promise<boolean> {
   const { db, env, step } = deps;
   for (let i = 1; ; i++) {
+    // Outside step.do: cached grants and resumed capacity waits must revalidate.
+    await assertAccessRuntime(env.DB);
     const state = await step.do(`${prefix}:${i}`, async () => {
       const limits = await getSettings(db, env, [
         'actions.max_concurrent_jobs',
@@ -670,7 +679,10 @@ async function reserveCapacity(
       };
     });
     if (state.cancelled) return false;
-    if (state.start) return true;
+    if (state.start) {
+      await assertAccessRuntime(env.DB);
+      return true;
+    }
     const minutes =
       QUEUE_DOWN_RECHECK_MINUTES[
         Math.min(i, QUEUE_DOWN_RECHECK_MINUTES.length) - 1
