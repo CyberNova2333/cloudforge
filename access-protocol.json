@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "targetSchema": "compat-v1",
+  "acceptedSchemas": ["legacy", "compat-v1"],
+  "migration": {
+    "name": "0063_rare_skin.sql",
+    "sha256": "224e6ff6e1252113e99e798c1308606ac3270f76d28367e2775ef5593261f001"
+  },
+  "migrationSetSha256": "c591f4470ad367d9d09f53d6233a2f279e04dd6828d3671a589275fd29cca9f6"
+}

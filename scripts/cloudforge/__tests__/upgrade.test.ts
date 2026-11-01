@@ -29,6 +29,15 @@ import {
 } from '../state.ts';
 import { formatUpgradePlan, planUpgrade, upgrade } from '../upgrade.ts';
 import {
+  ACCESS_MIGRATION,
+  ACCESS_MIGRATIONS,
+  ACCESS_PENDING_MIGRATION,
+  accessDatabase,
+  closeAccessDatabases,
+  copyAccessProtocol,
+  migrateAccessDatabase,
+} from './access-upgrade-fixture.ts';
+import {
   fakeCloudflare,
   fakePackage,
   fakeRunner,
@@ -74,6 +83,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  closeAccessDatabases();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -123,7 +133,8 @@ function installedAt120(): InstallState {
 function seedFor(s: InstallState): FakeCloudflareSeed {
   return {
     d1: [{ uuid: 'd1-existing', name: 'acme-db' }],
-    d1Migrations: { 'd1-existing': ['0000_init.sql'] },
+    d1Migrations: { 'd1-existing': ACCESS_MIGRATIONS.slice(0, -1) },
+    ...accessDatabase(s, 'd1-existing').seed,
     r2: {
       'acme-lfs': { [R2_MARKER_KEY]: marker(s, 'lfs') },
       'acme-actions-logs': { [R2_MARKER_KEY]: marker(s, 'actionsLogs') },
@@ -178,14 +189,7 @@ function harness(
     new URL('../../../wrangler.jsonc.example', import.meta.url),
     join(pkgRoot, 'wrangler.jsonc.example')
   );
-  writeFileSync(
-    join(pkgRoot, 'migrations', '0000_init.sql'),
-    'CREATE TABLE a (x);'
-  );
-  writeFileSync(
-    join(pkgRoot, 'migrations', '0001_more.sql'),
-    'CREATE TABLE b (y);'
-  );
+  copyAccessProtocol(pkgRoot);
   const source = packageSource(pkgRoot);
   const deploys: Deploy[] = [];
   const migrations: string[][] = [];
@@ -223,6 +227,9 @@ function harness(
       }
       if (w[0] === 'd1') {
         migrations.push(w);
+        remote.d1Migrations = {
+          'd1-existing': [...ACCESS_MIGRATIONS],
+        };
         return ok();
       }
       throw new Error(`意外的 wrangler 调用：${args.join(' ')}`);
@@ -335,7 +342,7 @@ describe('planUpgrade：规划升级', () => {
     expect(p.from).toBe('1.2.0');
     expect(p.to).toBe(TO);
     expect(p.comparison).toEqual({ kind: 'upgrade' });
-    expect(p.migrations).toEqual(['0001_more.sql']);
+    expect(p.migrations).toEqual([ACCESS_PENDING_MIGRATION]);
     expect(p.create.map((a) => [a.kind, a.name])).toEqual([
       ['r2', 'acme-actions-cache'],
     ]);
@@ -345,7 +352,7 @@ describe('planUpgrade：规划升级', () => {
     expect(p.digest).toMatch(/^[0-9a-f]{12}$/);
     const lines = formatUpgradePlan(p).split('\n');
     expect(lines[0]).toBe('Upgrade acme: 1.2.0 → 1.3.0');
-    expect(lines).toContain('Migrations: 0001_more.sql');
+    expect(lines).toContain(`Migrations: ${ACCESS_PENDING_MIGRATION}`);
     expect(lines).toContain('Create: r2 acme-actions-cache');
     expect(lines).toContain(
       'New secrets: BETTER_AUTH_SECRET, ACTIONS_SECRETS_KEY'
@@ -357,9 +364,17 @@ describe('planUpgrade：规划升级', () => {
 
   it('不存在 d1_migrations 表时所有迁移均待执行', async () => {
     const s = installedAt120();
-    const h = harness({ seed: { ...seedFor(s), d1Migrations: {} } });
+    const h = harness({
+      seed: {
+        ...seedFor(s),
+        d1Migrations: {},
+        d1Tables: {},
+        d1Query: (_id, sql) =>
+          sql.includes('AS access_empty') ? [{ access_empty: 1 }] : [],
+      },
+    });
     const p = await planUpgrade(h.ctx, h.state);
-    expect(p.migrations).toEqual(['0000_init.sql', '0001_more.sql']);
+    expect(p.migrations).toEqual(ACCESS_MIGRATIONS);
   });
 
   it('不存在 d1_migrations 但存在其他表时停止规划', async () => {
@@ -409,7 +424,7 @@ describe('upgrade：升级', () => {
     ).toEqual([true, true, true, true, true, true, true]);
     expect(
       h.cf.state.d1[0]!.queries.some((q) =>
-        q.startsWith('INSERT OR REPLACE INTO install_state')
+        q.startsWith('INSERT INTO install_state')
       )
     ).toBe(true);
     // Every Durable Object namespace id is recorded: none are read again.
@@ -805,7 +820,9 @@ describe('upgrade：升级', () => {
       secrets: ALL_SECRETS,
       seed: {
         ...seedFor(s),
-        d1Migrations: { 'd1-existing': ['0000_init.sql', '0001_more.sql'] },
+        d1Migrations: {
+          'd1-existing': [...ACCESS_MIGRATIONS],
+        },
         r2: {
           ...seedFor(s).r2,
           'acme-actions-cache': { [R2_MARKER_KEY]: marker(s, 'actionsCache') },
@@ -839,7 +856,9 @@ describe('upgrade：升级', () => {
       secrets: ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'SETUP_CODE_HASH'],
       seed: {
         ...seedFor(s),
-        d1Migrations: { 'd1-existing': ['0000_init.sql', '0001_more.sql'] },
+        d1Migrations: {
+          'd1-existing': [...ACCESS_MIGRATIONS],
+        },
         r2: {
           ...seedFor(s).r2,
           'acme-actions-cache': { [R2_MARKER_KEY]: marker(s, 'actionsCache') },
@@ -937,7 +956,7 @@ describe('数据库版本领先于软件包', () => {
       seed: {
         ...seed,
         d1Migrations: {
-          'd1-existing': ['0000_init.sql', '0001_more.sql', ...extra],
+          'd1-existing': [...ACCESS_MIGRATIONS, ...extra],
         },
       },
     });
@@ -1434,5 +1453,333 @@ describe('恢复升级先核对当前远端证据', () => {
       'do not confirm this installation'
     );
     expect(h.deploys).toHaveLength(0);
+  });
+});
+
+describe('权限兼容升级门禁', () => {
+  const withDatabase = (legacy = false) => {
+    const state = installedAt120();
+    const access = accessDatabase(state, 'd1-existing', legacy);
+    const seed = { ...seedFor(state), ...access.seed };
+    if (legacy)
+      seed.d1Migrations = {
+        'd1-existing': ACCESS_MIGRATIONS.filter(
+          (name) => Number(name.slice(0, 4)) <= 62
+        ),
+      };
+    return { ...harness({ state, seed }), db: access.db, seed };
+  };
+  const noCloudWrites = (h: ReturnType<typeof harness>) => {
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
+    expect(
+      h.cf.calls.filter((call) =>
+        [
+          'createD1',
+          'createR2',
+          'putR2Object',
+          'putR2Lifecycle',
+          'batchD1',
+        ].includes(call.method)
+      )
+    ).toEqual([]);
+    expect(h.saved().status).toBe('installed');
+  };
+  it('旧库与兼容库都能生成明确的版本计划', async () => {
+    const old = withDatabase(true);
+    const planned = await planUpgrade(old.ctx, old.state);
+    expect(planned.access.schema).toBe('legacy');
+    expect(planned.migrations).toContain(ACCESS_MIGRATION);
+    const current = withDatabase();
+    expect((await planUpgrade(current.ctx, current.state)).access.schema).toBe(
+      'compat-v1'
+    );
+  });
+  for (const mode of ['plan', 'apply', 'replace'] as const) {
+    it(`${mode} 拒绝额外权限表且不发生云写入`, async () => {
+      const h = withDatabase();
+      h.db.exec('CREATE TABLE team_members (team_id TEXT, user_id TEXT)');
+      await expect(
+        run(h, { plan: mode === 'plan', replaceCustomCode: mode === 'replace' })
+      ).rejects.toThrow('Access preflight');
+      noCloudWrites(h);
+    });
+  }
+  it('拒绝缺失的托管触发器', async () => {
+    const h = withDatabase();
+    h.db.exec('DROP TRIGGER cloudforge_access_claim_delete_v1');
+    await expect(run(h)).rejects.toThrow(/Access/);
+    noCloudWrites(h);
+  });
+  it('拒绝未知 read 授予，即使显式允许替换自定义代码', async () => {
+    const h = withDatabase();
+    h.db.exec(`
+      INSERT INTO users (id,name,email,username,role) VALUES ('a','A','a@example.invalid','owner','admin'), ('b','B','b@example.invalid','member','user');
+      INSERT INTO repositories (id,owner_id,name,visibility,artifacts_name,created_at,updated_at) VALUES ('r','a','repo','private','r_repo',0,0);
+      INSERT INTO repository_collaborators (repository_id,user_id,created_at) VALUES ('r','b',0);
+      DROP TRIGGER cloudforge_access_collaborator_update_v1;
+      UPDATE repository_collaborators SET role='read' WHERE repository_id='r';
+    `);
+    await expect(run(h, { replaceCustomCode: true })).rejects.toThrow(/Access/);
+    noCloudWrites(h);
+  });
+  it('拒绝另一安装的标记', async () => {
+    const h = withDatabase();
+    h.db.exec("UPDATE install_state SET ownership_nonce = 'changed'");
+    await expect(run(h)).rejects.toThrow(/Access/);
+    noCloudWrites(h);
+  });
+  it('拒绝兼容结构与迁移收据不一致', async () => {
+    const h = withDatabase();
+    h.seed.d1Migrations = {
+      'd1-existing': ACCESS_MIGRATIONS.filter(
+        (name) => Number(name.slice(0, 4)) <= 62
+      ),
+    };
+    await expect(run(h)).rejects.toThrow(
+      'schema and migration receipts disagree'
+    );
+    noCloudWrites(h);
+  });
+  it('软件包缺少协议或迁移内容被修改时拒绝计划', async () => {
+    const h = withDatabase();
+    writeFileSync(
+      join(h.ctx.source.migrationsDir, ACCESS_MIGRATION),
+      'SELECT 1;'
+    );
+    await expect(run(h, { replaceCustomCode: true })).rejects.toThrow(
+      'access protocol'
+    );
+    noCloudWrites(h);
+  });
+  for (const when of ['before-plan', 'during-confirmation'] as const) {
+    it(`${when} 出现额外迁移必须在云写入前停止`, async () => {
+      const h = withDatabase();
+      const alter = () =>
+        writeFileSync(
+          join(h.ctx.source.migrationsDir, '0065_unknown_acl.sql'),
+          'CREATE TABLE team_members (id TEXT);'
+        );
+      if (when === 'before-plan') alter();
+      else
+        h.ctx.io.confirm = async () => {
+          alter();
+          return true;
+        };
+      await expect(
+        run(h, { yes: when === 'before-plan', replaceCustomCode: true })
+      ).rejects.toThrow('access protocol');
+      noCloudWrites(h);
+    });
+  }
+  it('确认期间数据库结构改变时在首个云写入前停止', async () => {
+    const h = withDatabase();
+    h.ctx.io.confirm = async () => {
+      h.db.exec('CREATE TABLE team_members (id TEXT)');
+      return true;
+    };
+    await expect(run(h, { yes: false })).rejects.toThrow(/Access/);
+    noCloudWrites(h);
+  });
+  it('等待可选凭据期间结构改变时在首个云写入前停止', async () => {
+    const state = installedAt120();
+    const access = accessDatabase(state, 'd1-existing');
+    const h = harness({
+      state,
+      seed: { ...seedFor(state), ...access.seed },
+      secrets: GENERATED,
+    });
+    await expect(
+      run(h, {
+        askOptional: async () => {
+          access.db.exec('CREATE TABLE team_members (id TEXT)');
+          return {};
+        },
+      })
+    ).rejects.toThrow(/Access/);
+    noCloudWrites(h);
+  });
+  it('确认期间普通成员变化不使计划失效', async () => {
+    const h = withDatabase();
+    h.ctx.io.confirm = async () => {
+      h.db.exec(
+        "INSERT INTO users (id,name,email,username,role) VALUES ('u','U','u@example.invalid','member','user')"
+      );
+      return true;
+    };
+    expect((await run(h, { yes: false })).status).toBe('installed');
+  });
+  it('确认期间目标迁移被替换时在首个云写入前停止', async () => {
+    const h = withDatabase();
+    h.ctx.io.confirm = async () => {
+      writeFileSync(
+        join(h.ctx.source.migrationsDir, ACCESS_MIGRATION),
+        'SELECT 1;'
+      );
+      return true;
+    };
+    await expect(run(h, { yes: false })).rejects.toThrow('access protocol');
+    noCloudWrites(h);
+  });
+  it('资源准备后变更结构时停止迁移及部署', async () => {
+    const h = withDatabase();
+    const original = h.cf.putR2Lifecycle.bind(h.cf);
+    h.cf.putR2Lifecycle = async (...args) => {
+      await original(...args);
+      h.db.exec('CREATE TABLE team_members (id TEXT)');
+    };
+    await expect(run(h)).rejects.toThrow(/Access/);
+    expect(h.migrations).toHaveLength(0);
+    expect(h.deploys).toHaveLength(0);
+    expect(h.saved().status).toBe('failed');
+  });
+  it('迁移命令之后结构异常时停止部署', async () => {
+    const h = withDatabase();
+    const original = h.runner.run.bind(h.runner);
+    h.runner.run = async (...args) => {
+      const out = await original(...args);
+      if (args[1].includes('migrations'))
+        h.db.exec('CREATE TABLE team_members (id TEXT)');
+      return out;
+    };
+    await expect(run(h)).rejects.toThrow(/Access/);
+    expect(h.migrations).toHaveLength(1);
+    expect(h.deploys).toHaveLength(0);
+  });
+  it('恢复升级重新检查当前结构，旧完成收据不绕过', async () => {
+    const h = withDatabase();
+    h.failDeploys();
+    await expect(run(h)).rejects.toThrow('boom');
+    h.okDeploys();
+    h.db.exec('CREATE TABLE team_members (id TEXT)');
+    const count = h.deploys.length;
+    await expect(
+      run(h, { resume: true, replaceCustomCode: true })
+    ).rejects.toThrow(/Access/);
+    expect(h.deploys).toHaveLength(count);
+  });
+});
+
+describe('空数据库升级恢复', () => {
+  const emptyHarness = () => {
+    const state = installedAt120();
+    const access = accessDatabase(state, 'd1-existing', false, true);
+    const seed = { ...seedFor(state), ...access.seed, d1Migrations: {} };
+    const h = harness({ state, seed });
+    const original = h.runner.run.bind(h.runner);
+    let migrated = false;
+    h.runner.run = async (...args) => {
+      const result = await original(...args);
+      if (args[1].includes('migrations') && !migrated) {
+        migrateAccessDatabase(access.db);
+        migrated = true;
+      }
+      return result;
+    };
+    return { ...h, db: access.db, seed };
+  };
+  it('空库计划迁移后允许零标记并最终写入本安装标记', async () => {
+    const h = emptyHarness();
+    const done = await run(h);
+    expect(done.status).toBe('installed');
+    expect(done.upgradeAccessOrigin).toBeUndefined();
+    expect(
+      h.db.prepare('SELECT ownership_nonce FROM install_state').get()
+        ?.ownership_nonce
+    ).toBe(h.state.ownershipNonce);
+  });
+  it('空库迁移后部署失败仍可凭绑定数据库的本地来源恢复', async () => {
+    const h = emptyHarness();
+    h.failDeploys();
+    await expect(run(h)).rejects.toThrow('boom');
+    expect(h.saved().upgradeAccessOrigin).toEqual({
+      target: TO,
+      databaseId: 'd1-existing',
+      schema: 'empty',
+    });
+    h.okDeploys();
+    expect((await run(h, { resume: true })).status).toBe('installed');
+  });
+  it('迁移成功但迁移命令回执丢失仍可恢复', async () => {
+    const h = emptyHarness();
+    const original = h.runner.run.bind(h.runner);
+    let fail = true;
+    h.runner.run = async (...args) => {
+      const result = await original(...args);
+      if (args[1].includes('migrations') && fail) {
+        fail = false;
+        return { code: 1, stdout: '', stderr: 'lost-migration-receipt' };
+      }
+      return result;
+    };
+    await expect(run(h)).rejects.toThrow('lost-migration-receipt');
+    expect(
+      h.saved().steps.some((step) => step.key === `upgrade:${TO}:migrations`)
+    ).toBe(false);
+    expect((await run(h, { resume: true })).status).toBe('installed');
+  });
+  it('迁移前复查失败不能保存可用于零标记恢复的来源', async () => {
+    const h = emptyHarness();
+    const original = h.cf.putR2Lifecycle.bind(h.cf);
+    h.cf.putR2Lifecycle = async (...args) => {
+      await original(...args);
+      migrateAccessDatabase(h.db);
+    };
+    await expect(run(h)).rejects.toThrow(/Access/);
+    expect(h.saved().upgradeAccessOrigin).toBeUndefined();
+    expect(h.migrations).toHaveLength(0);
+    expect(h.deploys).toHaveLength(0);
+  });
+  for (const origin of ['empty', 'adopted'] as const) {
+    it(`${origin} 标记步骤完成后丢失标记不得恢复为成功`, async () => {
+      const h = (() => {
+        if (origin === 'empty') return emptyHarness();
+        const state = {
+          ...installedAt120(),
+          adoptedAt: '2026-10-16T00:00:00.000Z',
+        };
+        const access = accessDatabase(state, 'd1-existing');
+        const seed = { ...seedFor(state), ...access.seed };
+        return { ...harness({ state, seed }), db: access.db, seed };
+      })();
+      const original = h.ctx.fetchImpl;
+      let unavailable = true;
+      h.ctx.fetchImpl = async (...args) => {
+        if (String(args[0]).includes('/api/setup/status') && unavailable)
+          return new Response('', { status: 503 });
+        return original(...args);
+      };
+      await expect(run(h)).rejects.toThrow();
+      expect(
+        h.saved().steps.some((step) => step.key === `upgrade:${TO}:markers`)
+      ).toBe(true);
+      h.db.exec('DELETE FROM install_state');
+      unavailable = false;
+      const count = h.deploys.length;
+      await expect(run(h, { resume: true })).rejects.toThrow(/Access/);
+      expect(h.deploys).toHaveLength(count);
+      expect(h.saved().status).toBe('failed');
+    });
+  }
+  it('空库来源不容许恢复时忽略已存在的另一安装标记', async () => {
+    const h = emptyHarness();
+    h.failDeploys();
+    await expect(run(h)).rejects.toThrow('boom');
+    h.db.exec(
+      "INSERT INTO install_state (installation_id,ownership_nonce,updated_at) VALUES ('other','other',0)"
+    );
+    const count = h.deploys.length;
+    h.okDeploys();
+    await expect(run(h, { resume: true })).rejects.toThrow(/Access/);
+    expect(h.deploys).toHaveLength(count);
+  });
+  it('已有兼容库没有标记不能伪装为空库恢复', async () => {
+    const state = installedAt120();
+    const access = accessDatabase(state, 'd1-existing');
+    access.db.exec('DELETE FROM install_state');
+    const h = harness({ state, seed: { ...seedFor(state), ...access.seed } });
+    await expect(run(h)).rejects.toThrow(/Access/);
+    expect(h.deploys).toHaveLength(0);
+    expect(h.migrations).toHaveLength(0);
   });
 });
