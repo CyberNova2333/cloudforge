@@ -164,3 +164,11 @@ Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95；以上设计规范、U
 验证：`yarn typecheck` 全量通过；`yarn test:workers src/lib/`（59 测试文件、815 用例）全部通过；`yarn test:workers` Git 主流程定向测试（3 文件、38 用例）全部通过；`yarn build` Vite 生产打包通过；`yarn format:check` 格式检查通过。
 
 Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85；前端目录分层已完成，当前为本地工作树。
+
+## CI 模块测试路径同步（2026-11-01）
+
+选择 foreground patch：前端重构后，`.github/workflows/ci.yml` 中显式指定的 5 个认证测试路径（`authenticationPolicy.test.ts`、`oidcApi.test.ts`、`oidcSignInApi.test.ts`、`signInLock.test.ts`、`recentAuthentication.test.ts`）仍指向旧的根目录路径，导致 `ci-workflow.test.ts` 在 CNB 流水线中检查失败。将该 5 项测试路径同步为 `src/lib/auth/` 子目录路径。
+
+验证：`yarn typecheck` 通过；`worker/src/__tests__/ci-workflow.test.ts`（11 项）全部通过；`yarn format:check` 通过。
+
+Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da；流水线配置已对齐新目录结构。

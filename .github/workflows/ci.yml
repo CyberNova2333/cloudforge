@@ -304,14 +304,14 @@ jobs:
             worker/src/__tests__/oidc-session-source.test.ts
             worker/src/__tests__/session-secret-cache.test.ts
             worker/src/__tests__/oidc-sign-in.test.ts
-          src/lib/authenticationPolicy.test.ts
-          src/lib/oidcApi.test.ts
-            src/lib/oidcSignInApi.test.ts
-            src/lib/signInLock.test.ts
+          src/lib/auth/authenticationPolicy.test.ts
+          src/lib/auth/oidcApi.test.ts
+            src/lib/auth/oidcSignInApi.test.ts
+            src/lib/auth/signInLock.test.ts
           worker/src/__tests__/recent-authentication.test.ts
           worker/src/__tests__/user-deletion.test.ts
           worker/src/__tests__/mcp-grant-revocation.test.ts
-          src/lib/recentAuthentication.test.ts
+          src/lib/auth/recentAuthentication.test.ts
           worker/src/__tests__/request-limits.test.ts
           worker/src/__tests__/password-reset.test.ts
           worker/src/__tests__/session-cookie.test.ts
