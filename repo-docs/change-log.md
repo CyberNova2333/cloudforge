@@ -141,3 +141,13 @@ Synced through a960ecf4756886333288ae99ed0515df9d08a047；这是本轮已核验�
 本地模拟基线4项复现及修补后升级测试72项均通过；额外覆盖DO二次部署失收据、主部署完成后远端变化、首次无marker接管的在线恢复。它们没有访问真实云，也不能证明全球流量版本收敛或跨机器部署原子互斥。未新增迁移或状态格式，未推送、部署。最终类型、全量回归与交付记录另行核验。
 
 Synced through 7ca392012fac3f688ee747e9a138eac39c35a526；该权限修补提交已经本地签名验证，新增安装器修补仍为当前工作树。
+
+## Primer 设计规范、SPA 界面改造与文档站主题同步（2026-11-01）
+
+选择 foreground patch：新增根目录 `DESIGN.md`（GitHub Primer 功能色原语、14px 正文锚点、8px 间距系统与 6 大组件状态契约），完成 `src/` 下全局导航壳层、仓库首页、文件浏览器、提交时间线、Diff 查看器及全量交互焦点环改造，并补充 Docker + Playwright 12 项 Light/Dark 视觉与 `axe-core` 无障碍回归基线（`e2e/visual-baseline.spec.ts`）。同步提交独立文档站 `docs-site/.vitepress/theme/` 的本地字体、昼夜切换开关与渐进动效扩展（无 JS 或减少动效偏好下正文照常可见）。
+
+根 `AGENTS.md` 与 `docs/development.md` 已同步 `DESIGN.md`、`e2e/` 职责入口及文档站主题边界；Git HTTPS 推送主流程与后端存储契约未发生变更。
+
+验证：`DESIGN.md` 规范校验（0 错误、0 警告）、`yarn agents:sync --check`、`yarn typecheck`、客户端生产构建、Docker Playwright 12 项视觉与无障碍回归（`maxDiffPixels: 0`，critical 违规 0）、`ci-workflow.test.ts` 与前端库单元测试（82 项）及脚本/钩子测试（112 项）通过。
+
+Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95；以上设计规范、UI 改造与视觉基线已变基至最新 main 分支。
