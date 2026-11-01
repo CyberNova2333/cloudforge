@@ -25,7 +25,7 @@ that side of an `OR`.
 
 | Package              | License    | What it does                                                                    | Ship   |
 | -------------------- | ---------- | ------------------------------------------------------------------------------- | ------ |
-| `elkjs@0.9.3`        | `EPL-2.0`  | Alternative layout engine mermaid uses for `layout: elk` diagrams               | client |
+| `elkjs@0.9.3`        | `EPL-2.0`  | The ELK layout engine mermaid uses for `layout: elk` diagrams                   | client |
 | `node-liblzma@2.2.0` | `LGPL-3.0` | liblzma binding that just-bash (@cloudflare/computer) uses for .tar.xz archives | worker |
 
 - **`elkjs`** — Kept, not dropped. EPL-2.0 is file-level copyleft: unmodified (source at github.com/kieler/elkjs) as a binary inside a GPL-3.0-or-later work, it asks only that the source stay available, which a public build already satisfies. It rides in mermaid's diagram chunk and nothing in this app reaches it: `src/lib/ui/mermaid.ts` initializes mermaid with `layout: 'dagre'`, and `mermaidText()` in `src/lib/pulls/pullGraph.ts` encodes `#`, `%` and `<` out of every title, branch and label, so repository content, model output and PR titles cannot open a `%%{init}%%` directive or a `flowchart-elk` diagram. Dropping it would cost `flowchart-elk` rendering for 1.4 MB nobody downloads by default.
