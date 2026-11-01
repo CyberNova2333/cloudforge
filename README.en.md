@@ -173,14 +173,17 @@ CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark
 
 ## Documentation site
 
-The [Chinese living guide](repo-docs/README.md) follows one real workflow and states what it leaves uncovered. Build or serve it with its separate Node.js dependencies:
+The [Chinese living guide](repo-docs/README.md) follows one real workflow and states what it leaves uncovered. Start from [one real run](repo-docs/walkthroughs/one-real-run.md), [code map](repo-docs/code-map.md), and [source evidence](repo-docs/references/source-evidence.md).
+
+The documentation site uses VitePress, with dependencies completely isolated from the application in `docs-site/package.json`. Markdown is authored once in `repo-docs/` and included by the site; repository source links are rendered as exact file paths without packaging private sources or local assets. Bundled with self-hosted offline fonts (IBM Plex Sans, JetBrains Mono), Primer-aligned dark/light toggle, and progressive motion with `prefers-reduced-motion` and no-JS fallback.
 
 ```sh
 yarn --cwd docs-site install --frozen-lockfile
 yarn --cwd docs-site docs:dev --host 127.0.0.1
 yarn --cwd docs-site docs:build
+yarn --cwd docs-site docs:preview
 ```
 
-The documentation site uses the default VitePress theme, with dependencies installed separately from the application. Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated build. Markdown remains in `repo-docs/` and is included by the site. Repository source links are shown as exact paths; source files and local resources are not published.
+Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated verification build. Docs builds verify documentation presentation only, not application health or deployment.
 
 Administrators can preview and require MFA for human members. See the [authentication policy](docs/authentication.md#管理员认证策略) for restricted sessions, OAuth revocation and offline recovery boundaries.

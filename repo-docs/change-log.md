@@ -2,9 +2,28 @@
 
 # 指南变更记录
 
-| Timestamp                      | Request                                                      | Actions                                                                    | Verification                                   | Result                                                                                                           |
-| ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 2026-10-29 19:08 Asia/Shanghai | widened docs sync：补齐中英文入口、中文源码指南和 Agent 路由 | 以一条主流程建立 Lite + 代码地图，保留既有丰富说明；文档站接入，根规则归一 | 两遍源码调查完成；文档校验及站点构建结果见下文 | Synced through 8e716e548e70555a7933d3b8575f25399a07e809；此锚点只标识当前 Git HEAD，工作树未提交行为不声明已发布 |
+| Timestamp                      | Request                                                      | Actions                                                                                                    | Verification                                                  | Result                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 2026-10-29 19:08 Asia/Shanghai | widened docs sync：补齐中英文入口、中文源码指南和 Agent 路由 | 以一条主流程建立 Lite + 代码地图，保留既有丰富说明；文档站接入，根规则归一                                 | 两遍源码调查完成；文档校验及站点构建结果见下文                | Synced through 8e716e548e70555a7933d3b8575f25399a07e809；此锚点只标识当前 Git HEAD，工作树未提交行为不声明已发布 |
+| 2026-10-29 Asia/Shanghai       | 统一维护复核：补齐入口与规范提交历史                         | 补齐中英 README 入口、安全与贡献说明；本地分支规范化提交并验证签名                                         | 9 项共用护栏测试、3 项规则生成器回归通过                      | Synced through 8e716e548e70555a7933d3b8575f25399a07e809                                                          |
+| 2026-10-29 Asia/Shanghai       | 文档站恢复默认主题                                           | 统一使用 VitePress 默认主题，移除额外配色与入场动效                                                        | 文档结构校验与站点构建通过                                    | Synced through 8e716e548e70555a7933d3b8575f25399a07e809                                                          |
+| 2026-10-29 Asia/Shanghai       | 认证策略说明同步                                             | 将管理员强制 MFA 从规划更新为当前源码行为，补齐会话绑定与离线恢复说明                                      | 50 项认证与会话定向测试通过                                   | Synced through 706d5e4fa0cd9bcc5f585417cef2e34a68dcc9f2                                                          |
+| 2026-10-30 Asia/Shanghai       | 强制 MFA 边界复核                                            | foreground patch：补齐认证专题、路线图与主流程关于强制 MFA 和恢复边界的说明                                | Lite 结构与源码链接校验通过（0 错误 0 警告）                  | Synced through f260898b93e54b6be681e65dc28a2525f63b2a54                                                          |
+| 2026-10-30 Asia/Shanghai       | OIDC 安全基础阶段设计                                        | foreground patch：新增 OIDC 专题，明确关闭 SDK 默认联结面及下一阶段显式绑定设计                            | Lite 结构校验与定向格式检查通过                               | Synced through 8cc0692f29aaa319b6846e70858aa0f8b6a27800                                                          |
+| 2026-10-31 Asia/Shanghai       | OIDC 显式绑定实现同步                                        | foreground patch：同步管理员发布、不可转移身份、一次回调、D1 触发器及组件实现                              | 真实 D1 后端 29 项、协议 52 项、HTTP 9 次及组件 23 项通过     | Synced through 98c22799b8a631ecc887583efc6733fd441928ea                                                          |
+| 2026-10-31 Asia/Shanghai       | 已有 OIDC 绑定的 SSO 登录                                    | foreground patch：同步原生登录插件、严格 Origin、来源撤权及签名 memo 密钥指纹绑定修复                      | 协议 70 项、SSO 后端 26 项及前端纯逻辑 37 项通过              | Synced through 32abd5c19562f17624ec0383fa99daeb5a213a5a                                                          |
+| 2026-10-31 12:20 Asia/Shanghai | 停止确认、账户边界与多团队设计                               | foreground patch：同步多团队五级模型设计、资源停止级联边界与团队可见性规则                                 | 真实 D1 来源 23 项、仓库删除 9 项、队列 37 项通过             | Synced through 4f3c39099810b81cf24dd1d13f144f9dce3c7a0f                                                          |
+| 2026-10-31 12:39 Asia/Shanghai | 权限内核兼容层阶段 A                                         | foreground patch：同步命名能力 can、成员 read scope 共享上限与代码地图                                     | 129 仓库及通知候选回归通过                                    | Synced through e3cc3c8e74824ffe97be739ae883afc10b1d1be7                                                          |
+| 2026-10-31 13:02 Asia/Shanghai | 旧权限数据只读预检                                           | foreground patch：同步只读预检维护命令、旧模型异常边界与 1000 条集合限制                                   | 真实 D1 脚本与 Worker 测试通过                                | Synced through f11d136e60b32fb235061b58a7e8d645ac6d2871                                                          |
+| 2026-10-31 14:31 Asia/Shanghai | 受限兼容schema与数据库写点                                   | foreground patch：同步受限兼容列、一次性 bootstrap 回填与 D1 写点收据边界                                  | 真实 D1、生成幂等与认证 schema 生成通过                       | Synced through 1891649960ffe1ba2b6ee020c1d7ec827c88ac76                                                          |
+| 2026-11-01 Asia/Shanghai       | 认证生成工具依赖纳入锁文件                                   | foreground patch：将认证 CLI 替换为本地锁定的 auth@1.7.7，更新维护说明                                     | 依赖安装、审计及生成结果通过                                  | Synced through 1891649960ffe1ba2b6ee020c1d7ec827c88ac76                                                          |
+| 2026-11-01 Asia/Shanghai       | 团队与协作者授权写点                                         | foreground patch：补齐共享团队与协作者写点的授权快照与真实 D1 竞态检查                                     | 6 文件 117 项定向测试通过，复现 4 项迟到写入                  | Synced through a960ecf4756886333288ae99ed0515df9d08a047                                                          |
+| 2026-11-01 Asia/Shanghai       | 升级恢复的远端变化检查                                       | foreground patch：补齐恢复前的 Cloudflare 安装归属/版本与可达站点交叉核验                                  | 本地模拟基线 4 项与升级测试 72 项通过                         | Synced through 7ca392012fac3f688ee747e9a138eac39c35a526                                                          |
+| 2026-11-01 Asia/Shanghai       | Primer 设计系统规范与 UI 改造                                | foreground patch：新增 DESIGN.md 规范，改造导航壳层、仓库页、Diff 视图及 Docker Playwright 视觉/无障碍基线 | 12 项视觉基线、axe-core 0 违规、类型与全量单元测试通过        | Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95                                                          |
+| 2026-11-01 Asia/Shanghai       | 移除账户下拉菜单预设主题选择网格                             | 用户请求：删除登录后头像菜单中的主题选择网格，收敛至系统/显式入口                                          | 单元测试、类型检查与生产构建通过                              | Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85                                                          |
+| 2026-11-01 Asia/Shanghai       | 前端目录分层结构重构                                         | 用户请求：消除平铺散落，按领域划分子目录整理 pages/、components/ 和 lib/                                   | 类型检查 0 错误、59 文件 815 项测试通过、生产构建通过         | Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da                                                          |
+| 2026-11-01 Asia/Shanghai       | CI 模块测试路径同步                                          | 修复 CNB 流水线：对齐 .github/workflows/ci.yml 中的认证测试子目录路径                                      | worker/src/**tests**/ci-workflow.test.ts 11 项通过            | Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1                                                          |
+| 2026-11-01 Asia/Shanghai       | 补全独立文档站说明与指南变更记录                             | 用户请求：完善文档站使用说明（本地离线字体、渐进动效、主题切换）及 changelog 记录                          | 文档验证（0 错误）、docs-site 生产构建通过、Prettier 检查通过 | Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1                                                          |
 
 ## 验证范围
 
@@ -152,6 +171,14 @@ Synced through 7ca392012fac3f688ee747e9a138eac39c35a526；该权限修补提交�
 
 Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95；以上设计规范、UI 改造与视觉基线已变基至最新 main 分支。
 
+## 移除账户下拉菜单预设主题选择网格（2026-11-01）
+
+选择 foreground patch：根据交互体验规范，移除登录后右上角用户头像下拉菜单（`src/components/shell/AccountMenu.tsx`）中的预设主题选择网格，简化常用功能菜单视觉层次与 DOM 复杂度。主题状态管理继续由前端全局上下文及独立配置入口承载。
+
+验证：`yarn typecheck` 通过；Shell 导航壳层与菜单测试通过；客户端生产构建通过。
+
+Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85；主题菜单项已移除并完成生产部署。
+
 ## 前端目录分层结构重构（2026-11-01）
 
 选择 foreground patch：整理前端消除无层次平铺散落现象。将 `src/pages/`（55 文件）、`src/components/`（49 根文件）和 `src/lib/`（133 文件）全量按领域职能归类至下级子目录（保留 git 历史追溯并由 `git mv` 实施）。根目录下零平铺散落文件：
@@ -163,7 +190,7 @@ Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95；以上设计规范、U
 
 验证：`yarn typecheck` 全量通过；`yarn test:workers src/lib/`（59 测试文件、815 用例）全部通过；`yarn test:workers` Git 主流程定向测试（3 文件、38 用例）全部通过；`yarn build` Vite 生产打包通过；`yarn format:check` 格式检查通过。
 
-Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85；前端目录分层已完成，当前为本地工作树。
+Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da；前端目录分层已完成，已合入 main 并完成生产部署。
 
 ## CI 模块测试路径同步（2026-11-01）
 
@@ -171,4 +198,21 @@ Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85；前端目录分层已�
 
 验证：`yarn typecheck` 通过；`worker/src/__tests__/ci-workflow.test.ts`（11 项）全部通过；`yarn format:check` 通过。
 
-Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da；流水线配置已对齐新目录结构。
+Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；流水线配置已对齐新目录结构，CNB CI 验证通过。
+
+## 补全独立文档站说明与指南变更记录（2026-11-01）
+
+选择 foreground patch：补全独立文档站（`docs-site/`）的设计理念、架构细节与运行指南；将指南变更记录（`repo-docs/change-log.md`）汇总表与历次提交历史完全对齐。
+
+明确文档站核心特性：
+
+- **依赖完全隔离**：文档站拥有独立的 `docs-site/package.json`，独立管理 VitePress 与 Vue 依赖。安装和构建不会污染仓库根部的锁文件与核心运行时依赖。
+- **单点维护契约**：指南正文全部在 `repo-docs/` 统一维护。`docs-site/` 内的各个页面通过 VitePress 的 include 机制直接引入源文件，绝不冗余维护多份文档。
+- **安全路径映射**：通过 `docs-site/.vitepress/guide-links.mts` 插件，将 Markdown 中引用文档目录之外的仓库文件链接安全转换为精确的代码文件路径，避免将私有业务代码或本机开发资产打包进静态构建产物。
+- **全本地自托管字体**：内置 IBM Plex Sans（Latin 400/500/600/700）与 JetBrains Mono 字体文件于 `docs-site/.vitepress/theme/fonts/`，无任何外部 Google Fonts、公共 CDN 或第三方网络依赖，确保离线与私有化环境完全可用。
+- **Primer 风格昼夜切换**：采用 Shadow DOM 封装的自定义元素 `<theme-toggle>`（`docs-site/.vitepress/theme/toggle.ts`），与 `DESIGN.md` 中定义的 GitHub Primer 功能色与表面层级无缝契合。
+- **渐进式动效与无障碍降级**：基于本地 Anime.js（`docs-site/.vitepress/theme/motion.ts`）实现细腻的页面过渡动效。在禁用 JavaScript 的环境下，全站内容与排版保持完整可读；当系统开启 `prefers-reduced-motion` 偏好时自动关闭动效。
+
+验证：`python C:/Users/cyber/.gemini/skills/repo-docs/scripts/validate_repo_docs.py --lite --repo-root . repo-docs`（0 错误、0 警告）；`yarn --cwd docs-site docs:build` 静态构建通过（耗时约 1.5s）；`yarn format:check` 格式检查通过。
+
+Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；文档站使用说明与指南变更记录已补齐。

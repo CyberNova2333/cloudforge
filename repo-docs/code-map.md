@@ -125,6 +125,22 @@ SSO 的两个额外修改入口：
 
 [失败升级恢复](../scripts/cloudforge/upgrade.ts)在读取本地进度后重新核验Cloudflare设置里的安装归属和版本，并与可达站点交叉检查；本地旧状态不能授权覆盖较新部署。`scripts/cloudforge/__tests__/upgrade.test.ts`以本地模拟云接口/执行器覆盖停止和故障恢复路径，具体操作及尚未覆盖的跨机器并发边界见[升级恢复说明](../docs/updating.md#resuming-a-failed-upgrade-safely)。该修补不等于新角色发布屏障已完成。
 
+## 前端页面与组件分层路由
+
+前端消除无层次平铺散落，全量按业务职能与领域划分：
+
+- [Primer 设计系统规范](../DESIGN.md)：Primer 功能色原语、14px 正文锚点、8px 空间网格系统与 6 大基础组件契约。
+- `src/pages/`：划分为 `admin/`、`agents/`、`auth/`、`issues/`、`overview/`、`pulls/`、`repo/`、`settings/` 等领域子目录。
+- `src/components/`：划分为 `actions/`、`admin/`、`agents/`、`approvals/`、`auth/`、`code/`、`health/`、`issue/`、`notifications/`、`pull/`、`repo/`、[导航壳层与账户菜单](../src/components/shell/AccountMenu.tsx)、`ui/` 等领域子目录。
+- `src/lib/`：划分为 `actions/`、`admin/`、`agents/`、`api/`、`approvals/`、`auth/`、`i18n/`、`issues/`、`notifications/`、`pulls/`、`repo/`、`search/`、`theme/`、`ui/`、`utils/` 等工具库子目录。
+- 相关验证：`yarn typecheck`、`yarn test:workers src/lib/`（59 文件 815 项测试）及 Playwright 视觉基线（`e2e/visual-baseline.spec.ts`）。
+
+## 独立文档站与指南维护入口
+
+[文档站配置](../docs-site/.vitepress/config.mts)与[依赖声明](../docs-site/package.json)完全隔离于根工作区，不污染核心业务运行时；正文由 `repo-docs/` 单点提供并通过 VitePress include 机制引入。[安全路径拦截](../docs-site/.vitepress/guide-links.mts)将仓库源文件引用转化为安全精确路径；全本地自托管离线字体位于 `docs-site/.vitepress/theme/fonts/`，配合 Shadow DOM 昼夜切换开关与 Anime.js 渐进动效引擎（均支持无 JS 与减少动效降级）。
+
+相关验证：`yarn --cwd docs-site docs:build`（通过）与文档包结构校验。
+
 ## 覆盖范围
 
 覆盖 Git HTTPS 推送入口、引用保护、Artifacts 交接和持久化推送事件；只追踪这些目录内与推送有关的文件。PR 审查、合并、Actions 执行器、OAuth/MFA、MCP、安装器、SPA 与其他数据库模块留给既有 docs 专题，本包不声称完整架构覆盖。认证策略的预览、受限会话、OAuth 撤销和离线恢复边界见 [认证专题](../docs/authentication.md#管理员认证策略)。提交、远端推送与生产部署分别核验。

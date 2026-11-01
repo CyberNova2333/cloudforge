@@ -40,6 +40,9 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | `yarn cf-typegen`                                | Regenerate `worker/worker-configuration.d.ts` from `wrangler.jsonc.ci`                                                                                                                                           |
 | `yarn agents:sync`                               | Generate the `CLAUDE.md` entry point importing the canonical `AGENTS.md`, and `.agents/skills/` copies from `.claude/skills/`; never overwrite `AGENTS.md`                                                       |
 | `yarn cloudforge access-preflight --name <name>` | Read-only legacy-access snapshot and compatibility diagnostics; no migration or role publication. Manual deployments require `--database` plus `--account`; see [updating](updating.md#legacy-access-preflight). |
+| `yarn --cwd docs-site docs:dev`                  | VitePress dev server for the living guide on `http://127.0.0.1:5173`                                                                                                                                             |
+| `yarn --cwd docs-site docs:build`                | Production static HTML build of the documentation site to `docs-site/.vitepress/dist/`                                                                                                                           |
+| `yarn --cwd docs-site docs:preview`              | Local HTTP preview of the built documentation site                                                                                                                                                               |
 
 ## OIDC linking and sign-in checks
 
@@ -87,6 +90,8 @@ yarn agents:sync --check
 DESIGN.md            Design system specification (Primer functional tokens, 14px anchor, 8px spacing)
 src/                 React SPA (Primer CSS + DESIGN.md tokens, react-router, TanStack Query)
 e2e/                 Playwright visual regression & axe-core accessibility baseline (Light & Dark)
+docs-site/           Isolated VitePress documentation site (self-hosted fonts, Shadow DOM theme toggle)
+repo-docs/           Living Chinese source code guide (single source of truth for docs-site)
 worker/src/
   index.ts           Worker entry: Hono app + git endpoint
   git-http.ts        git smart-HTTP proxy to Artifacts
@@ -100,6 +105,23 @@ migrations/          Generated D1 migrations
 ```
 
 API docs are served at `/api/swagger-ui` while running, to signed-in members (better-auth's at `/api/auth/reference`).
+
+## Documentation site
+
+The Chinese living guide in `repo-docs/` is rendered as an independent static site inside `docs-site/` using VitePress. Its dependencies (`vitepress`, `vue`) are completely decoupled in `docs-site/package.json` and do not touch the root lockfile or Worker runtime dependencies.
+
+```bash
+yarn --cwd docs-site install --frozen-lockfile
+yarn --cwd docs-site docs:dev --host 127.0.0.1
+yarn --cwd docs-site docs:build
+yarn --cwd docs-site docs:preview
+```
+
+- **Single source of truth**: Documentation content is authored exclusively in `repo-docs/`. Pages in `docs-site/` import Markdown directly via VitePress include syntax (such as `&lt;!--@include: ../repo-docs/README.md--&gt;`).
+- **Safe source path mapping**: `docs-site/.vitepress/guide-links.mts` rewrites links outside the documentation root into exact source paths, preventing local file leaks or broken links in production.
+- **Offline & self-hosted**: IBM Plex Sans and JetBrains Mono fonts are bundled in `docs-site/.vitepress/theme/fonts/` with zero third-party CDN or Google Fonts calls.
+- **Theme toggle & progressive motion**: Custom Shadow DOM element in `toggle.ts` matches Primer light/dark tokens; motion engine in `motion.ts` uses Anime.js and honors `prefers-reduced-motion` and no-JS fallback.
+- **Isolated build verification**: Append `-- --outDir <external-directory>` to build outside the repository to verify zero repository pollution. Builds verify documentation presentation only, not application health or deployment.
 
 ## Demo data
 

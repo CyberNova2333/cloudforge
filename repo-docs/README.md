@@ -34,7 +34,41 @@ yarn test:workers worker/src/__tests__/git-http.test.ts worker/src/__tests__/pus
 yarn typecheck
 ```
 
-文档站的启动与构建命令见根 README 的文档入口。文档构建只验证说明页面，不证明业务可用或已部署。
+## 独立文档站与本地运行
+
+`docs-site/` 是基于 VitePress 搭建的独立文档站点，与 CloudForge 核心业务应用完全解耦，为维护者与读者提供完整源码指南的可视化交互阅读体验。
+
+### 架构与核心特性
+
+- **依赖完全隔离**：文档站拥有独立的 `docs-site/package.json`，独立管理 VitePress 与 Vue 依赖。安装和构建不会污染仓库根部的锁文件与核心运行时依赖。
+- **单点维护契约**：指南正文全部在 `repo-docs/` 统一维护。`docs-site/` 内的各个页面（如 `index.md`、`change-log.md`、`code-map.md`）通过 VitePress 的 include 机制（如 `&lt;!--@include: ../repo-docs/README.md--&gt;`）直接引入源文件，绝不冗余维护多份文档。
+- **安全路径映射**：通过 `docs-site/.vitepress/guide-links.mts` 插件，将 Markdown 中引用文档目录之外的仓库文件链接安全转换为精确的代码文件路径，避免将私有业务代码或本机开发资产打包进静态构建产物。
+- **全本地自托管字体**：内置 IBM Plex Sans（Latin 400/500/600/700）与 JetBrains Mono 字体文件于 `docs-site/.vitepress/theme/fonts/`，无任何外部 Google Fonts、公共 CDN 或第三方网络依赖，确保离线与私有化环境完全可用。
+- **Primer 风格昼夜切换**：采用 Shadow DOM 封装的自定义元素 `<theme-toggle>`（`docs-site/.vitepress/theme/toggle.ts`），与 `DESIGN.md` 中定义的 GitHub Primer 功能色与表面层级无缝契合。
+- **渐进式动效与无障碍降级**：基于本地 Anime.js（`docs-site/.vitepress/theme/motion.ts`）实现细腻的页面过渡动效。在禁用 JavaScript 的环境下，全站内容与排版保持完整可读；当系统开启 `prefers-reduced-motion` 偏好时自动关闭动效。
+
+### 常用命令
+
+文档站相关命令需在 `docs-site` 目录下执行（或通过根目录加 `--cwd` 参数）：
+
+```sh
+# 1. 安装文档站专属依赖（首次运行或依赖更新后）
+yarn --cwd docs-site install --frozen-lockfile
+
+# 2. 启动本地开发预览服务器（带热重载，默认 http://127.0.0.1:5173）
+yarn --cwd docs-site docs:dev --host 127.0.0.1
+
+# 3. 生产静态构建（产物输出至 docs-site/.vitepress/dist/）
+yarn --cwd docs-site docs:build
+
+# 4. 隔离目录构建（输出至仓库外部绝对路径，用于零污染验证）
+yarn --cwd docs-site docs:build -- --outDir <仓库外绝对目录>
+
+# 5. 本地预览已构建的生产静态站点
+yarn --cwd docs-site docs:preview
+```
+
+文档构建只验证说明页面，不证明业务可用或已部署。
 
 ## 既有专题
 
