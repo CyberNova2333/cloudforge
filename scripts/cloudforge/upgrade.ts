@@ -87,7 +87,7 @@ export type UpgradePlan = {
   configChanged: boolean;
   /** Observed schema and exact target migration contract; never a runtime/rollback barrier. */
   access: {
-    schema: 'empty' | 'legacy' | 'compat-v1';
+    schema: 'empty' | 'legacy' | 'compat-v1' | 'runtime-bridge-v1';
     protocol: AccessProtocol;
   };
   /** First 12 hex of sha256 over the plan lines. */
@@ -360,13 +360,24 @@ async function checkAccess(
     throw new Error(
       'The target package does not support the current access schema. Upgrade stopped.'
     );
-  if ((schema === 'compat-v1') === migrations.includes(protocol.migration.name))
+  if (
+    (schema === 'runtime-bridge-v1') ===
+      migrations.includes(protocol.migration.name) ||
+    (schema !== 'legacy' && schema !== 'empty') ===
+      migrations.includes('0063_rare_skin.sql')
+  )
     throw new Error(
       'Access schema and migration receipts disagree. Upgrade stopped.'
     );
   if (requireTarget && schema !== protocol.targetSchema)
     throw new Error(
       'Access migration did not establish the target schema. Deployment stopped.'
+    );
+  // A local completed-step receipt cannot override the live database journal.
+  // This also protects resumed upgrades and the final marker/verification path.
+  if (requireTarget && migrations.length > 0)
+    throw new Error(
+      'Pending database migrations remain. Deployment stopped; reconcile the database migration receipts before resuming.'
     );
   if (expected && !requireTarget && expected.schema !== schema)
     throw new Error(

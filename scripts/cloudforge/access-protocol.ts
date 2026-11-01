@@ -7,8 +7,9 @@ import type { Source } from './source.ts';
 /** A declaration understood by this CLI, not an attestation of deployed Worker code. */
 export type AccessProtocol = {
   format: 1;
-  targetSchema: 'compat-v1';
-  acceptedSchemas: ['legacy', 'compat-v1'];
+  targetSchema: 'runtime-bridge-v1';
+  acceptedSchemas: ['legacy', 'compat-v1', 'runtime-bridge-v1'];
+  runtimeProtocol: 1;
   migration: { name: string; sha256: string };
   migrationSetSha256: string;
 };
@@ -17,14 +18,15 @@ export type AccessProtocol = {
 // migration and its adjacent JSON must not silently redefine what this CLI supports.
 const EXPECTED: AccessProtocol = {
   format: 1,
-  targetSchema: 'compat-v1',
-  acceptedSchemas: ['legacy', 'compat-v1'],
+  targetSchema: 'runtime-bridge-v1',
+  acceptedSchemas: ['legacy', 'compat-v1', 'runtime-bridge-v1'],
+  runtimeProtocol: 1,
   migration: {
-    name: '0063_rare_skin.sql',
-    sha256: '224e6ff6e1252113e99e798c1308606ac3270f76d28367e2775ef5593261f001',
+    name: '0065_silent_albert_cleary.sql',
+    sha256: 'b0f336dcef791573dc2c370d7c00db59b36715875e476aa0db3205283dca7897',
   },
   migrationSetSha256:
-    'c591f4470ad367d9d09f53d6233a2f279e04dd6828d3671a589275fd29cca9f6',
+    '97782c8cd0130e25b53c46eccc003e4b2a48d3aaf9d499b91b58fd5444e97a9d',
 };
 const keys = (
   value: unknown,
@@ -56,11 +58,13 @@ export function readAccessProtocol(
         'format',
         'targetSchema',
         'acceptedSchemas',
+        'runtimeProtocol',
         'migration',
         'migrationSetSha256',
       ]) ||
       value.format !== EXPECTED.format ||
       value.targetSchema !== EXPECTED.targetSchema ||
+      value.runtimeProtocol !== EXPECTED.runtimeProtocol ||
       JSON.stringify(value.acceptedSchemas) !==
         JSON.stringify(EXPECTED.acceptedSchemas) ||
       !keys(value.migration, ['name', 'sha256']) ||
@@ -83,7 +87,7 @@ export function readAccessProtocol(
     const files = readdirSync(source.migrationsDir)
       .filter((name) => name.endsWith('.sql'))
       .sort();
-    if (files.length !== 65) throw new Error('Unexpected migration set');
+    if (files.length !== 66) throw new Error('Unexpected migration set');
     const entries = files.map((name) => [
       name,
       createHash('sha256')

@@ -40,6 +40,7 @@ import {
 import { lessonAttempt } from '../learn/lessons';
 import { KNOWLEDGE_DIR } from '../learn/validate';
 import { aiGateway } from '../lib/ai-gateway';
+import { assertAccessRuntime } from '../lib/access-runtime';
 import { gitForName } from '../lib/repos';
 import { checkoutHead, notCheckedOutText } from './checkout';
 import { ignoreMatcher } from './ignore';
@@ -189,6 +190,8 @@ export class AgentReviewer
   readonly registry = createRegistry();
   readonly harness = new PiHarness({
     harness: async ({ storage, context }) => {
+      // A delayed SDK callback must never reopen work after teardown cleared its handle.
+      if (this.wiped) throw new Error('Reviewer stopped');
       const models = createModels();
       models.setProvider(this.ai.provider);
       return Harness.open(
@@ -362,14 +365,19 @@ export class AgentReviewer
         // 'aborted', which status() reports as the limit.
         hook(GenerationTask, {
           beforeRequest: async (_request, _api, context) => {
+            if (this.wiped) throw new Error('Reviewer stopped');
             const decision = piRequestDecision(
               await this.usage(),
               meta,
               (await this.ctx.storage.get<string>('limited')) ?? null
             );
+            // dispose() clears Pi's opening handle before joining this hook. A late
+            // abort would otherwise open another harness while the old one closes.
+            if (this.wiped) throw new Error('Reviewer stopped');
             if (decision.action === 'proceed') return undefined;
             if (decision.first) {
               await this.ctx.storage.put('limited', decision.reason);
+              if (this.wiped) throw new Error('Reviewer stopped');
               this.ctx.waitUntil(this.notifySettled());
             }
             // Not awaited: the abort joins this invocation, which is waiting here.
@@ -460,8 +468,9 @@ export class AgentReviewer
     }
   }
 
-  start(request: PiStartRequest): Promise<PiStartResult> {
-    if (this.gate.stopped) return Promise.resolve(PI_START_STOPPED);
+  async start(request: PiStartRequest): Promise<PiStartResult> {
+    if (this.gate.stopped) return PI_START_STOPPED;
+    await assertAccessRuntime(this.env.DB);
     return this.gate.run(() => this.startOnce(request));
   }
 
@@ -564,8 +573,9 @@ export class AgentReviewer
     return piStartResult(meta);
   }
 
-  startLearning(request: LearnStartRequest): Promise<PiStartResult> {
-    if (this.gate.stopped) return Promise.resolve(PI_START_STOPPED);
+  async startLearning(request: LearnStartRequest): Promise<PiStartResult> {
+    if (this.gate.stopped) return PI_START_STOPPED;
+    await assertAccessRuntime(this.env.DB);
     return this.gate.run(() => this.startLearningOnce(request));
   }
 
@@ -641,6 +651,7 @@ export class AgentReviewer
 
   /** Learn mode: AGENT.md and knowledge/ files that differ from the checkout (never the transcript). */
   async learned(): Promise<LearnedFiles> {
+    await assertAccessRuntime(this.env.DB);
     const meta = await this.meta();
     if (meta?.mode !== 'learn') return { files: {} };
     const baseline =
@@ -661,6 +672,7 @@ export class AgentReviewer
   }
 
   async status(): Promise<PiStatus> {
+    await assertAccessRuntime(this.env.DB);
     const meta = await this.meta();
     const toolCalls = await this.toolCalls.read();
     const usage = await this.usage();
@@ -709,13 +721,28 @@ export class AgentReviewer
     await this.ctx.storage.setAlarm(at + PI_TOMBSTONE_MS);
   }
 
+  /** Guard Lifecycle's implicit request entry before it can initialize Pi. */
+  async fetch(request: Request): Promise<Response> {
+    await assertAccessRuntime(this.env.DB);
+    return this.lifecycle.fetch(request);
+  }
+
   /**
    * A stopped object's only alarm forgets it, tombstone included (the Lifecycle's alarms were disabled and deleted with
    * the rest); any other is the Lifecycle's (pi's jobs, `expire`).
    */
   async alarm() {
     const stopped = await this.stopped();
-    if (stopped === undefined) return this.lifecycle.alarm();
+    if (stopped === undefined) {
+      try {
+        await assertAccessRuntime(this.env.DB);
+      } catch {
+        // Do not resume model work, but keep the local hard-stop/teardown available.
+        await this.stop();
+        return;
+      }
+      return this.lifecycle.alarm();
+    }
     if (Date.now() < stopped + PI_TOMBSTONE_MS)
       return this.ctx.storage.setAlarm(stopped + PI_TOMBSTONE_MS);
     await this.ctx.storage.deleteAll();
@@ -734,8 +761,10 @@ export class AgentReviewer
   private async wipe() {
     this.wiped = true;
     this.gate.stop();
-    await this.harness.abort({ operationId: PI_OPERATION }).catch(() => false);
     await this.lifecycle.disableAlarms();
+    // abort() opens a cold Pi harness and resumes its persisted tasks before cancelling.
+    // dispose() only closes an already-open harness; close seals admission, aborts and
+    // joins live invocations. It is safe even when runtime admission was denied.
     await this.harness.dispose();
     await this.ctx.storage.deleteAll();
     this.toolCalls.reset();
