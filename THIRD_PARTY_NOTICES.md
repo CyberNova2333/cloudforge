@@ -8,8 +8,9 @@ CloudForge is distributed under GPL-3.0-or-later (`LICENSE`). It is a fork of Gi
 original portions remain under the Apache License 2.0 (`LICENSES/Apache-2.0.txt`, unchanged,
 "Copyright 2026 GitOrange contributors").
 
-The build ships 381 packages: everything reachable from `dependencies` in
-`package.json`, plus optional dependencies that installed. Each keeps its own license, and
+The build ships 345 packages: everything reachable from `dependencies` in
+`package.json`, plus optional dependencies that installed, excluding the recorded runtime-only
+native codecs and packages reachable only through them. Each keeps its own license, and
 `build/license-banners.ts` prepends each bundled package's license and copyright to the client
 file it ends up in. Development tooling (`devDependencies`) is not distributed.
 
@@ -23,13 +24,11 @@ These are the only components under a copyleft license other than this project's
 other package is MIT, Apache-2.0, ISC, BSD, OFL, Unlicense, 0BSD or MIT-0, or may be taken on
 that side of an `OR`.
 
-| Package              | License    | What it does                                                                    | Ship   |
-| -------------------- | ---------- | ------------------------------------------------------------------------------- | ------ |
-| `elkjs@0.9.3`        | `EPL-2.0`  | The ELK layout engine mermaid uses for `layout: elk` diagrams                   | client |
-| `node-liblzma@2.2.0` | `LGPL-3.0` | liblzma binding that just-bash (@cloudflare/computer) uses for .tar.xz archives | worker |
+| Package       | License   | What it does                                                  | Ship   |
+| ------------- | --------- | ------------------------------------------------------------- | ------ |
+| `elkjs@0.9.3` | `EPL-2.0` | The ELK layout engine mermaid uses for `layout: elk` diagrams | client |
 
 - **`elkjs`** — Kept, not dropped. EPL-2.0 is file-level copyleft: unmodified (source at github.com/kieler/elkjs) as a binary inside a GPL-3.0-or-later work, it asks only that the source stay available, which a public build already satisfies. It rides in mermaid's diagram chunk and nothing in this app reaches it: `src/lib/ui/mermaid.ts` initializes mermaid with `layout: 'dagre'`, and `mermaidText()` in `src/lib/pulls/pullGraph.ts` encodes `#`, `%` and `<` out of every title, branch and label, so repository content, model output and PR titles cannot open a `%%{init}%%` directive or a `flowchart-elk` diagram. Dropping it would cost `flowchart-elk` rendering for 1.4 MB nobody downloads by default.
-- **`node-liblzma`** — Never bundled: the npm bin binding cannot be built for Workers, so the worker requires it at runtime and gets nothing, leaving `.tar.xz` unsupported. Should a deployment need that archive format, LGPL-3.0 only requires keeping the library replaceable, so ship it next to the build rather than as part of it.
 
 ## Fonts
 
@@ -42,22 +41,19 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 
 ## Packages by license
 
-| License                               | Packages |
-| ------------------------------------- | -------- |
-| `MIT`                                 | 253      |
-| `Apache-2.0`                          | 50       |
-| `ISC`                                 | 41       |
-| `BSD-3-Clause`                        | 24       |
-| `OFL-1.1`                             | 3        |
-| `Unlicense`                           | 2        |
-| `(BSD-2-Clause OR MIT OR Apache-2.0)` | 1        |
-| `(MIT OR WTFPL)`                      | 1        |
-| `(MPL-2.0 OR Apache-2.0)`             | 1        |
-| `0BSD`                                | 1        |
-| `BSD-2-Clause`                        | 1        |
-| `EPL-2.0`                             | 1        |
-| `LGPL-3.0`                            | 1        |
-| `MIT-0`                               | 1        |
+| License                   | Packages |
+| ------------------------- | -------- |
+| `MIT`                     | 229      |
+| `Apache-2.0`              | 47       |
+| `ISC`                     | 35       |
+| `BSD-3-Clause`            | 24       |
+| `OFL-1.1`                 | 3        |
+| `Unlicense`               | 2        |
+| `(MPL-2.0 OR Apache-2.0)` | 1        |
+| `0BSD`                    | 1        |
+| `BSD-2-Clause`            | 1        |
+| `EPL-2.0`                 | 1        |
+| `MIT-0`                   | 1        |
 
 ### MIT
 
@@ -179,9 +175,7 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `better-auth`                                        | 1.7.7        | client   | https://github.com/better-auth/better-auth                     |
 | `better-call`                                        | 1.4.0        | worker   | https://github.com/better-auth/better-call                     |
 | `bignumber.js`                                       | 9.3.1        | worker   | https://github.com/MikeMcl/bignumber.js                        |
-| `bl`                                                 | 4.1.0        | worker   | https://github.com/rvagg/bl                                    |
 | `bowser`                                             | 2.14.1       | worker   | https://github.com/bowser-js/bowser                            |
-| `buffer`                                             | 5.7.1        | worker   | https://github.com/feross/buffer                               |
 | `capnweb`                                            | 0.12.0       | worker   | https://github.com/cloudflare/capnweb                          |
 | `capnweb`                                            | 0.10.0       | worker   | https://github.com/cloudflare/capnweb                          |
 | `clsx`                                               | 2.1.1        | worker   | https://github.com/lukeed/clsx                                 |
@@ -200,10 +194,7 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `data-uri-to-buffer`                                 | 4.0.1        | worker   | https://github.com/TooTallNate/node-data-uri-to-buffer         |
 | `dayjs`                                              | 1.11.23      | client   | https://github.com/iamkun/dayjs                                |
 | `debug`                                              | 4.4.3        | worker   | https://github.com/debug-js/debug                              |
-| `decompress-response`                                | 6.0.0        | worker   | https://github.com/sindresorhus/decompress-response            |
-| `deep-extend`                                        | 0.6.0        | worker   | https://github.com/unclechu/node-deep-extend                   |
 | `defu`                                               | 6.1.7        | client   | https://github.com/unjs/defu                                   |
-| `end-of-stream`                                      | 1.4.5        | worker   | https://github.com/mafintosh/end-of-stream                     |
 | `es-toolkit`                                         | 1.52.0       | client   | https://github.com/toss/es-toolkit                             |
 | `esbuild`                                            | 0.28.2       | worker   | https://github.com/evanw/esbuild                               |
 | `event-target-polyfill`                              | 0.0.4        | worker   | https://github.com/benlesh/event-target-polyfill               |
@@ -213,8 +204,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `fetch-blob`                                         | 3.2.0        | worker   | https://github.com/node-fetch/fetch-blob                       |
 | `file-type`                                          | 21.3.4       | worker   | https://github.com/sindresorhus/file-type                      |
 | `formdata-polyfill`                                  | 4.0.10       | worker   | https://jimmywarting@github.com/jimmywarting/FormData          |
-| `fs-constants`                                       | 1.0.0        | worker   | https://github.com/mafintosh/fs-constants                      |
-| `github-from-package`                                | 0.0.0        | worker   | https://github.com/substack/github-from-package                |
 | `hachure-fill`                                       | 0.5.2        | worker   | https://github.com/pshihn/hachure-fill                         |
 | `hono`                                               | 4.13.12      | worker   | https://github.com/honojs/hono                                 |
 | `http-proxy-agent`                                   | 9.1.0        | worker   | https://github.com/TooTallNate/proxy-agents                    |
@@ -245,20 +234,13 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `mime-db`                                            | 1.52.0       | worker   | https://github.com/jshttp/mime-db                              |
 | `mime-types`                                         | 2.1.35       | worker   | https://github.com/jshttp/mime-types                           |
 | `mimetext`                                           | 3.0.28       | worker   | https://github.com/muratgozel/MIMEText                         |
-| `mimic-response`                                     | 3.1.0        | worker   | https://github.com/sindresorhus/mimic-response                 |
-| `minimist`                                           | 1.2.8        | worker   | https://github.com/minimistjs/minimist                         |
-| `mkdirp-classic`                                     | 0.5.3        | worker   | https://github.com/mafintosh/mkdirp-classic                    |
 | `modern-tar`                                         | 0.7.7        | worker   | https://github.com/ayuhito/modern-tar                          |
 | `ms`                                                 | 2.1.3        | worker   | https://github.com/vercel/ms                                   |
 | `nanoid`                                             | 5.1.16       | worker   | https://github.com/ai/nanoid                                   |
 | `nanostores`                                         | 1.5.4        | client   | https://github.com/nanostores/nanostores                       |
-| `napi-build-utils`                                   | 2.0.0        | worker   | https://github.com/inspiredware/napi-build-utils               |
-| `node-abi`                                           | 3.96.0       | worker   | https://github.com/electron/node-abi                           |
-| `node-addon-api`                                     | 8.9.2        | worker   | https://github.com/nodejs/node-addon-api                       |
 | `node-diff3`                                         | 3.2.1        | worker   | https://github.com/bhousel/node-diff3                          |
 | `node-domexception`                                  | 1.0.0        | worker   | https://github.com/jimmywarting/node-domexception              |
 | `node-fetch`                                         | 3.3.2        | worker   | https://github.com/node-fetch/node-fetch                       |
-| `node-gyp-build`                                     | 4.8.4        | worker   | https://github.com/prebuild/node-gyp-build                     |
 | `obug`                                               | 2.2.1        | worker   | https://github.com/sxzz/obug                                   |
 | `openapi3-ts`                                        | 4.6.1        | worker   | https://github.com/metadevpro/openapi3-ts                      |
 | `p-retry`                                            | 4.6.2        | worker   | https://github.com/sindresorhus/p-retry                        |
@@ -271,15 +253,12 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `picomatch`                                          | 4.0.7        | worker   | https://github.com/micromatch/picomatch                        |
 | `points-on-curve`                                    | 0.2.0        | worker   | https://github.com/pshihn/bezier-points                        |
 | `points-on-path`                                     | 0.2.1        | worker   | https://github.com/pshihn/points-on-path                       |
-| `prebuild-install`                                   | 7.1.3        | worker   | https://github.com/prebuild/prebuild-install                   |
 | `proxy-agent-negotiate`                              | 1.1.0        | worker   | https://github.com/TooTallNate/proxy-agents                    |
-| `pump`                                               | 3.0.4        | worker   | https://github.com/mafintosh/pump                              |
 | `re2js`                                              | 1.4.0        | worker   | github:le0pard/re2js                                           |
 | `react`                                              | 18.3.1       | client   | https://github.com/facebook/react                              |
 | `react-dom`                                          | 18.3.1       | client   | https://github.com/facebook/react                              |
 | `react-router`                                       | 7.18.4       | client   | https://github.com/remix-run/react-router                      |
 | `react-router-dom`                                   | 7.18.4       | worker   | https://github.com/remix-run/react-router                      |
-| `readable-stream`                                    | 3.6.2        | worker   | https://github.com/nodejs/readable-stream                      |
 | `retry`                                              | 0.13.1       | worker   | https://github.com/tim-kos/node-retry                          |
 | `rou3`                                               | 0.9.2        | worker   | https://github.com/h3js/rou3                                   |
 | `roughjs`                                            | 4.6.6        | client   | https://github.com/pshihn/rough                                |
@@ -289,17 +268,11 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `seek-bzip`                                          | 2.0.0        | worker   | https://github.com/cscott/seek-bzip                            |
 | `set-cookie-parser`                                  | 2.7.2        | worker   | https://github.com/nfriedly/set-cookie-parser                  |
 | `set-cookie-parser`                                  | 3.1.2        | worker   | https://github.com/nfriedly/set-cookie-parser                  |
-| `simple-concat`                                      | 1.0.1        | worker   | https://github.com/feross/simple-concat                        |
-| `simple-get`                                         | 4.0.1        | worker   | https://github.com/feross/simple-get                           |
 | `sql.js`                                             | 1.14.2       | worker   | http://github.com/sql-js/sql.js                                |
 | `standardwebhooks`                                   | 1.1.1        | worker   | https://github.com/standard-webhooks/standard-webhooks         |
-| `string_decoder`                                     | 1.3.0        | worker   | https://github.com/nodejs/string_decoder                       |
-| `strip-json-comments`                                | 2.0.1        | worker   | https://github.com/sindresorhus/strip-json-comments            |
 | `strnum`                                             | 2.4.2        | worker   | https://github.com/NaturalIntelligence/strnum                  |
 | `strtok3`                                            | 10.3.5       | worker   | https://github.com/Borewit/strtok3                             |
 | `stylis`                                             | 4.4.0        | client   | https://github.com/thysultan/stylis.js                         |
-| `tar-fs`                                             | 2.1.5        | worker   | https://github.com/mafintosh/tar-fs                            |
-| `tar-stream`                                         | 2.2.0        | worker   | https://github.com/mafintosh/tar-stream                        |
 | `tinyexec`                                           | 1.3.1        | worker   | https://github.com/tinylibs/tinyexec                           |
 | `token-types`                                        | 6.1.2        | worker   | https://github.com/Borewit/token-types                         |
 | `ts-algebra`                                         | 2.0.0        | worker   | https://github.com/ThomasAribart/ts-algebra                    |
@@ -309,7 +282,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `uint8array-extras`                                  | 1.6.0        | worker   | https://github.com/sindresorhus/uint8array-extras              |
 | `undici`                                             | 7.30.1       | worker   | https://github.com/nodejs/undici                               |
 | `undici-types`                                       | 8.9.0        | worker   | https://github.com/nodejs/undici                               |
-| `util-deprecate`                                     | 1.0.2        | worker   | https://github.com/TooTallNate/util-deprecate                  |
 | `uuid`                                               | 14.0.2       | client   | https://github.com/uuidjs/uuid                                 |
 | `verkit`                                             | 0.3.2        | worker   | https://github.com/sxzz/verkit                                 |
 | `web-streams-polyfill`                               | 3.3.3        | worker   | https://github.com/MattiasBuelens/web-streams-polyfill         |
@@ -347,7 +319,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `@chevrotain/types`                         | 13.2.0   | worker   | https://github.com/Chevrotain/chevrotain                  |
 | `@chevrotain/utils`                         | 13.2.0   | client   | https://github.com/Chevrotain/chevrotain                  |
 | `@google/genai`                             | 2.21.0   | worker   | https://github.com/googleapis/js-genai                    |
-| `@mongodb-js/zstd`                          | 7.0.0    | worker   | https://github.com/mongodb-js/zstd                        |
 | `@opentelemetry/semantic-conventions`       | 1.43.0   | worker   | https://github.com/open-telemetry/opentelemetry-js        |
 | `@smithy/core`                              | 3.35.1   | worker   | https://github.com/smithy-lang/smithy-typescript          |
 | `@smithy/credential-provider-imds`          | 4.5.2    | worker   | https://github.com/smithy-lang/smithy-typescript          |
@@ -356,7 +327,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `@smithy/signature-v4`                      | 5.7.4    | worker   | https://github.com/smithy-lang/smithy-typescript          |
 | `@smithy/types`                             | 4.19.0   | worker   | https://github.com/smithy-lang/smithy-typescript          |
 | `chevrotain`                                | 13.2.0   | client   | https://github.com/Chevrotain/chevrotain                  |
-| `detect-libc`                               | 2.1.2    | worker   | https://github.com/lovell/detect-libc                     |
 | `drizzle-orm`                               | 0.45.3   | worker   | https://github.com/drizzle-team/drizzle-orm               |
 | `ecdsa-sig-formatter`                       | 1.0.11   | worker   | ssh://git@github.com/Brightspace/node-ecdsa-sig-formatter |
 | `gaxios`                                    | 7.3.1    | worker   | https://github.com/googleapis/google-cloud-node           |
@@ -369,14 +339,12 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `long`                                      | 5.3.2    | worker   | https://github.com/dcodeIO/long.js                        |
 | `openai`                                    | 7.19.0   | worker   | github:openai/openai-node                                 |
 | `run`                                       | 2.1.3    | worker   | https://github.com/vercel-labs/run                        |
-| `tunnel-agent`                              | 0.6.0    | worker   | https://github.com/mikeal/tunnel-agent                    |
 | `typescript`                                | 5.9.3    | worker   | https://github.com/microsoft/TypeScript                   |
 
 ### ISC
 
 | Package              | Version | Artifact | Source                                   |
 | -------------------- | ------- | -------- | ---------------------------------------- |
-| `chownr`             | 1.1.4   | worker   | https://github.com/isaacs/chownr         |
 | `d3`                 | 7.9.0   | worker   | https://github.com/d3/d3                 |
 | `d3-array`           | 3.2.4   | client   | https://github.com/d3/d3-array           |
 | `d3-axis`            | 3.0.0   | client   | https://github.com/d3/d3-axis            |
@@ -408,14 +376,9 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `d3-transition`      | 3.0.1   | client   | https://github.com/d3/d3-transition      |
 | `d3-zoom`            | 3.0.0   | client   | https://github.com/d3/d3-zoom            |
 | `delaunator`         | 5.1.0   | worker   | https://github.com/mapbox/delaunator     |
-| `inherits`           | 2.0.4   | worker   | https://github.com/isaacs/inherits       |
-| `ini`                | 1.3.8   | worker   | https://github.com/isaacs/ini            |
 | `ini`                | 6.0.0   | worker   | https://github.com/npm/ini               |
 | `internmap`          | 2.0.3   | client   | https://github.com/mbostock/internmap    |
 | `internmap`          | 1.0.1   | client   | https://github.com/mbostock/internmap    |
-| `once`               | 1.4.0   | worker   | https://github.com/isaacs/once           |
-| `semver`             | 7.8.5   | worker   | https://github.com/npm/node-semver       |
-| `wrappy`             | 1.0.2   | worker   | https://github.com/npm/wrappy            |
 | `yaml`               | 2.9.1   | worker   | github:eemeli/yaml                       |
 
 ### BSD-3-Clause
@@ -462,18 +425,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `fast-sha256`       | 1.3.0   | worker   | https://github.com/dchest/fast-sha256-js     |
 | `robust-predicates` | 3.0.3   | worker   | https://github.com/mourner/robust-predicates |
 
-### (BSD-2-Clause OR MIT OR Apache-2.0)
-
-| Package | Version | Artifact | Source                            |
-| ------- | ------- | -------- | --------------------------------- |
-| `rc`    | 1.2.8   | worker   | https://github.com/dominictarr/rc |
-
-### (MIT OR WTFPL)
-
-| Package           | Version | Artifact | Source                                           |
-| ----------------- | ------- | -------- | ------------------------------------------------ |
-| `expand-template` | 2.0.3   | worker   | https://github.com/ralphtheninja/expand-template |
-
 ### (MPL-2.0 OR Apache-2.0)
 
 | Package     | Version | Artifact | Source                              |
@@ -497,12 +448,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | Package | Version | Artifact | Source                          |
 | ------- | ------- | -------- | ------------------------------- |
 | `elkjs` | 0.9.3   | client   | https://github.com/kieler/elkjs |
-
-### LGPL-3.0
-
-| Package        | Version | Artifact | Source                                   |
-| -------------- | ------- | -------- | ---------------------------------------- |
-| `node-liblzma` | 2.2.0   | worker   | https://github.com/oorabona/node-liblzma |
 
 ### MIT-0
 

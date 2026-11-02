@@ -53,6 +53,12 @@ const cwd = process.cwd();
 // Licenses that cannot ship inside a GPL-3.0-or-later work without a recorded decision.
 const BROADER = /^(A?GPL-|SSPL-|BUSL-|CC-BY-NC|Commons-Clause)/i;
 const WEAK = /^(MPL-|EPL-|LGPL-)/i;
+// These optional native codecs are only loaded by just-bash's tar command, which the app's
+// file-only Workspaces do not expose. Decisions are recorded in the exceptions file. Stop at
+// this edge rather than pruning resolved directories: another production dependency may need
+// the same hoisted package. Native-only descendants then never enter the distributed graph,
+// regardless of whether the optional codec (or any of its descendants) installed here.
+const RUNTIME_ONLY = new Set(['node-liblzma', '@mongodb-js/zstd']);
 
 /** Node resolution for `name` from `from`: nearest node_modules wins. */
 function resolvePackage(name, from) {
@@ -83,6 +89,7 @@ function distributedPackages(root) {
   }));
   while (queue.length) {
     const { name, from, requiredBy, optional } = queue.pop();
+    if (RUNTIME_ONLY.has(name)) continue;
     const dir = resolvePackage(name, from);
     // Optional dependencies are platform-specific (sharp, esbuild); only the matching ones install.
     if (!dir) {
@@ -92,6 +99,7 @@ function distributedPackages(root) {
     if (noted.has(dir)) continue;
     noted.add(dir);
     const pkg = readJson(join(dir, 'package.json'));
+    if (RUNTIME_ONLY.has(pkg.name)) continue;
     const license = licenseOf(pkg, dir);
     distributed.set(`${pkg.name}@${pkg.version}`, {
       name: pkg.name,
@@ -355,7 +363,8 @@ export function main({
     '"Copyright 2026 GitOrange contributors").',
     '',
     `The build ships ${distributed.size} packages: everything reachable from \`dependencies\` in`,
-    '`package.json`, plus optional dependencies that installed. Each keeps its own license, and',
+    '`package.json`, plus optional dependencies that installed, excluding the recorded runtime-only',
+    'native codecs and packages reachable only through them. Each keeps its own license, and',
     "`build/license-banners.ts` prepends each bundled package's license and copyright to the client",
     'file it ends up in. Development tooling (`devDependencies`) is not distributed.',
     '',

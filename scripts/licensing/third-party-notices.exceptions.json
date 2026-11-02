@@ -1,5 +1,5 @@
 {
-  "$comment": "Copyleft components that ship. Each entry is a decision with its reason, not a mute button: scripts/licensing/third-party-notices.mjs fails when one is missing, or when its placement no longer matches the build. An entry marked `paths: false` also claims the app can never reach it; the script re-reads the render path and fails as soon as that claim stops being true.",
+  "$comment": "Copyleft components that ship, and the runtime-only native codecs excluded from the distributed dependency graph. Each entry records a decision and its reason. scripts/licensing/third-party-notices.mjs checks copyleft placement against client banners. Diagram entries marked `paths: false` with `placement: none` also require the existing render-path checks. The `runtimeOnly` codec decisions instead describe the audited file-only Workspace setup; they are not validated by the unrelated mermaid render-path checks. Reassess them if backends or imports change. Only edges into these codecs stop traversal; dependencies also reachable through ordinary production edges remain listed.",
   "reasons": [
     {
       "name": "elkjs",
@@ -13,8 +13,17 @@
       "name": "node-liblzma",
       "version": "2.2.0",
       "does": "liblzma binding that just-bash (@cloudflare/computer) uses for .tar.xz archives",
-      "placement": "worker",
-      "reason": "Never bundled: the npm bin binding cannot be built for Workers, so the worker requires it at runtime and gets nothing, leaving `.tar.xz` unsupported. Should a deployment need that archive format, LGPL-3.0 only requires keeping the library replaceable, so ship it next to the build rather than as part of it."
+      "placement": "none",
+      "runtimeOnly": true,
+      "reason": "This optional native codec is not shipped. `Workspace` is constructed with storage only, without backends, in `worker/src/merge/resolver.ts` and `worker/src/review/agent-reviewer.ts`; their `createPiTools({ workspace })` setup exposes file tools, not command execution. just-bash loads `node-liblzma` dynamically inside its tar xz codec. The audited Worker bundle contains no native codec. Exclude this node and dependencies reachable only through it whether installation succeeded or not; retain any dependency also reachable from an ordinary production edge. Adding a shell backend or another import requires a new distribution decision."
+    },
+    {
+      "name": "@mongodb-js/zstd",
+      "version": "7.0.0",
+      "does": "Optional native Zstandard codec loaded by just-bash's tar command",
+      "placement": "none",
+      "runtimeOnly": true,
+      "reason": "The same audited file-only Workspaces do not expose just-bash command execution. Its tar zstd codec dynamically imports this optional native module; the audited Worker bundle contains no native codec. Installation availability must not change the notices, while shared dependencies reached through ordinary production edges must remain listed. Reassess this exclusion if backends or imports change."
     }
   ]
 }
