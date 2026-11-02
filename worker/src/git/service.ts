@@ -27,7 +27,7 @@ const WALK_PAGE = 100;
 /** Commits `commitsBetween` walks after only uninteresting ones are queued (git's SLOP). */
 const WALK_SLOP = 5;
 
-type WalkBudget = { reads: number; truncated: boolean };
+type WalkBudget = { reads: number; truncated: boolean; strict?: boolean };
 
 /** Commits by committer time, newest first (ties by hash, so walks are deterministic): a binary heap. */
 class DateQueue {
@@ -216,22 +216,29 @@ export class GitService {
     return c;
   }
 
-  async tree(sha: string): Promise<Entry[]> {
+  async tree(sha: string, strict = false): Promise<Entry[]> {
     const hit = this.trees.get(sha);
     if (hit) return hit;
     const staged = this.staged.get(sha);
     const t =
       staged?.type === 'tree'
         ? parseTree(staged.data)
-        : ((await (await this.client.repo()).readTree(sha)) ?? []);
+        : await (await this.client.repo()).readTree(sha);
+    // Do not cache a missing object as a legitimate empty tree: strict safety checks must distinguish the two,
+    // even when a permissive reader tried the same object first. A transient miss remains retryable.
+    if (t === null) {
+      if (strict) throw new Error(`Missing Git tree ${sha}`);
+      return [];
+    }
     this.trees.set(sha, t);
     return t;
   }
 
-  async blob(sha: string): Promise<Uint8Array | null> {
+  async blob(sha: string, strict = false): Promise<Uint8Array | null> {
     const staged = this.staged.get(sha);
     if (staged?.type === 'blob') return staged.data;
     const b = await this.readBlob(sha);
+    if (b === null && strict) throw new Error(`Missing Git blob ${sha}`);
     return b ? new Uint8Array(await b.arrayBuffer()) : null;
   }
 
@@ -322,7 +329,9 @@ export class GitService {
     }
     budget.reads++;
     await this.log(sha, WALK_PAGE);
-    return this.commits.get(sha) ?? (await this.commit(sha));
+    const commit = this.commits.get(sha) ?? (await this.commit(sha));
+    if (!commit && budget.strict) budget.truncated = true;
+    return commit;
   }
 
   /** Reads the first-parent chains a walk starts from, and the walk's starting commits (null when one is missing). */
@@ -338,12 +347,13 @@ export class GitService {
    */
   private async mergeBases(
     a: string,
-    b: string
+    b: string,
+    strict = false
   ): Promise<{ bases: string[]; complete: boolean }> {
     const A = 1;
     const B = 2;
     const STALE = 4;
-    const budget: WalkBudget = { reads: 0, truncated: false };
+    const budget: WalkBudget = { reads: 0, truncated: false, strict };
     const [ca, cb] = await this.walkStart([a, b], budget);
     if (!ca || !cb) return { bases: [], complete: !budget.truncated };
     const flags = new Map<string, number>([
@@ -381,13 +391,20 @@ export class GitService {
     return (await this.mergeBases(base, head)).bases[0] ?? null;
   }
 
-  /** Whether `ancestor` is in `descendant`'s history (itself included); null when the walk gave up first. */
+  /** Whether `ancestor` is in `descendant`'s history (itself included); null when the walk gave up first.
+   * Strict safety checks also treat a missing history object as unknown rather than proof of non-containment.
+   */
   async isAncestor(
     ancestor: string,
-    descendant: string
+    descendant: string,
+    strict = false
   ): Promise<boolean | null> {
     if (ancestor === descendant) return true;
-    const { bases, complete } = await this.mergeBases(ancestor, descendant);
+    const { bases, complete } = await this.mergeBases(
+      ancestor,
+      descendant,
+      strict
+    );
     if (bases.includes(ancestor)) return true;
     return complete ? false : null;
   }
@@ -477,11 +494,12 @@ export class GitService {
   async diffTrees(
     a: string | null,
     b: string | null,
-    prefix = ''
+    prefix = '',
+    strict = false
   ): Promise<FileChange[]> {
     if (a === b) return [];
-    const left = a ? await this.tree(a) : [];
-    const right = b ? await this.tree(b) : [];
+    const left = a ? await this.tree(a, strict) : [];
+    const right = b ? await this.tree(b, strict) : [];
     const lmap = new Map(left.map((e) => [e.name, e]));
     const rmap = new Map(right.map((e) => [e.name, e]));
     const names = [...new Set([...lmap.keys(), ...rmap.keys()])].sort();
@@ -498,7 +516,8 @@ export class GitService {
           ...(await this.diffTrees(
             lt ? l!.hash : null,
             rt ? r!.hash : null,
-            path + '/'
+            path + '/',
+            strict
           ))
         );
       }

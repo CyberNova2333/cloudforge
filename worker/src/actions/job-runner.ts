@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
-import { assertAccessRuntime } from '../access/runtime';
+import { assertAccessRuntime, readAccessRuntime } from '../access/runtime';
 import {
   mask,
   maskValues,
@@ -33,6 +33,8 @@ export interface StepResult {
   state?: Record<string, string>;
   /** Set when the container stopped under the step (e.g. a deploy), as opposed to the step failing. */
   interrupted?: string;
+  /** Admission refused before any container command; never restart completed job steps for this. */
+  refused?: 'runtime-admission';
 }
 
 /** Executor-facing RPC surface of the Durable Object. */
@@ -115,7 +117,18 @@ export class JobRunner
   }
 
   async runStep(req: StepRequest): Promise<StepResult> {
-    await assertAccessRuntime(this.env.DB);
+    // RPC does not preserve custom Error prototypes. Return this known pre-exec
+    // refusal as data so it cannot be mistaken for an unknown mid-command reset.
+    if (!(await readAccessRuntime(this.env.DB)).ready)
+      return {
+        refused: 'runtime-admission',
+        exitCode: 1,
+        timedOut: false,
+        log: 'CloudForge runtime admission refused; the command was not started.',
+        outputs: {},
+        envAdds: {},
+        pathAdds: [],
+      };
     if (!this.ctx.container?.running)
       throw new Error('The runner container is no longer running');
     const files = {

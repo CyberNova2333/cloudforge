@@ -232,3 +232,20 @@ After a declaration change, `yarn db:generate` owns both managed triggers and ap
 The Worker tests keep the access singleton while deleting ordinary fixture subjects through production triggers. Its generation is not reset. Separate local-only D1 bindings hold pre-migration anomaly fixtures and populated upgrade/failure cases; the normal application DB always retains the new guards. Legacy `access-preflight` fixtures stop at migration 0062 and explicitly test refusal of the compatible schema. No test disables production triggers to manufacture a passing result.
 
 Namespace guards include source-table `lower(...)` checks as a safety backstop. Their low-frequency writes may scan members; a 129-row fixture proves bounded parameters and consistency, not constant-time throughput. Add expression indexes only through reviewed declarations with workload evidence. A zero-row duplicate grant is a no-op, not proof that a new authorization was written. D1 trigger writes can change `meta.changes`; use outer `RETURNING` receipts when an exact affected row matters.
+
+## Process and runner dependency boundaries
+
+Source-mode installer commands use the same shell-free Yarn/Corepack resolver as Git hooks. On Windows, a standard
+`.cmd` shim is parsed into its Node.js entry instead of being executed by a shell. Arguments and stdin stay separate;
+an existing but invalid Yarn installation fails explicitly instead of falling back to another package manager.
+
+The runner's global npm dependencies are independent of the application lockfile. Its Dockerfile pins the Node 24
+base digest, installs a specific npm version with Yarn, and replaces npm's older bundled Undici with a patched
+same-major package. Validate the dependency actually resolved from npm, then scan the final image after apt installs;
+application `yarn audit` and a base-image scan do not cover the final runner. Distribution packages without an
+available security update remain separate audit items.
+
+An Actions command refused before execution returns a serializable runtime-admission result. It is persisted as a
+preparation failure, without restarting the job or running subsequent always/post commands. Unknown RPC/container
+interruptions retain their existing restart behavior. Cache eviction deletes at most 1000 R2 keys per call; a failed
+batch is retried from the remaining object listing.

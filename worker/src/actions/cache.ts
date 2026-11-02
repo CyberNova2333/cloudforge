@@ -159,7 +159,10 @@ export async function enforceCacheLimit(
     evict.push(o.key);
     total -= o.size;
   }
-  if (evict.length) await env.ACTIONS_CACHE.delete(evict);
+  // R2 accepts at most 1000 keys per delete. On failure, propagate it so the
+  // next enforcement lists the remaining objects and retries the unfinished work.
+  for (let i = 0; i < evict.length; i += 1000)
+    await env.ACTIONS_CACHE.delete(evict.slice(i, i + 1000));
   return evict;
 }
 

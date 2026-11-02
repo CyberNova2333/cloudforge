@@ -145,6 +145,15 @@ Merging is rebase + fast-forward. Artifacts has no merge API and the binding can
 3. Record the merged PR, event, audit entry, and landing checkpoint in one D1 batch. Follow-up work (stack reconciliation, branch cleanup, Actions, agent config, and lessons) has separate completion checkpoints and stable Workflow identifiers.
 4. A retry or daily retention cron resumes an interrupted landing (`merge/landing-recovery.ts`). Recovery requires both its saved receipt and the landed head to be reachable from the target, so an unrelated already-contained PR is not automatically marked merged. An attempt whose target has moved off its base without its result (`landingStatus` `stale`) can never take its compare-and-swap: the refused push, a later merge or recovery closes it, so neither later merges nor recovery re-check it.
 
+Landing refuses when commit containment cannot be established: truncated or incomplete history, unreadable commits,
+trees or blobs, and patch-id failures are not treated as proof that an open PR shares no commits. Merged diffs and
+Revert read the exact pre-CAS base from a recorded landing intent. Older linear landings retain their counted-base
+fallback; an older multi-parent landing without that evidence cannot be automatically reverted.
+
+Release creation checks unrecorded landings anywhere in the chosen head's ancestry, then fences newly recorded PRs
+and new landing attempts in the final D1 batch. A refused cut can leave its immutable tag for a same-head retry;
+it never deletes or moves the tag to clean up a database race.
+
 Git and D1 do not share a transaction. A force-push that removes the landed commit before recovery removes the evidence needed for automatic recovery; an identical manual push after a prepared receipt is indistinguishable from the intended landing. Preserve the target history while resolving an interrupted landing.
 
 On merge or close, the head commit is pinned at `refs/pull/<n>/head`, so a pull request's diff stays viewable after its branch is deleted.

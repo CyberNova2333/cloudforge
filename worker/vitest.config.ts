@@ -4,6 +4,7 @@ import {
   readD1Migrations,
 } from '@cloudflare/vitest-pool-workers';
 import { availableParallelism } from 'node:os';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 import ChineseReporter from '../scripts/testing/test-reporter';
 
@@ -20,6 +21,7 @@ const workers =
   Math.min(8, Math.max(1, Math.floor(availableParallelism() / 2)));
 
 export default defineConfig({
+  resolve: { alias: { '@': resolve('./src') } },
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.test.jsonc' },

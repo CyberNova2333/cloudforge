@@ -220,7 +220,23 @@ webhooksRouter.openapi(createRouteDef, async (c) => {
     createdAt: now,
     updatedAt: now,
   };
-  await db.insert(webhooks).values(hook);
+  // The count and insert share a D1 statement across concurrent requests/isolate instances.
+  const inserted = await db.get<{ id: string }>(sql`
+    INSERT INTO webhooks
+      (id, repository_id, url, secret, events, active, created_by_id, last_status,
+       last_delivered_at, created_at, updated_at)
+    SELECT ${hook.id}, ${repo.id}, ${hook.url}, ${hook.secret}, ${JSON.stringify(hook.events)},
+      ${hook.active ? 1 : 0}, ${hook.createdById}, NULL, NULL, ${now.getTime()}, ${now.getTime()}
+    WHERE (SELECT COUNT(*) FROM webhooks WHERE repository_id = ${repo.id}) < ${MAX_WEBHOOKS_PER_REPO}
+    RETURNING id
+  `);
+  if (!inserted)
+    return c.json(
+      {
+        error: `A repository can have at most ${MAX_WEBHOOKS_PER_REPO} webhooks`,
+      },
+      422
+    );
   await recordAudit(db, {
     repositoryId: repo.id,
     actorId: c.get('user')!.id,

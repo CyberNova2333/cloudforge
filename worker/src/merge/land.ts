@@ -29,7 +29,7 @@ import { checksAt, reviewGateFor, reviewReasonText } from '../review/gate';
 import { landTargetIs, landTargetOf } from '../pulls/land-target';
 import { protectedBy } from '../repositories/protected-branches';
 import { stackGate } from '../stack/gate';
-import { holdsWhole, lineageOf, sharedWith } from '../stack/lineage';
+import { lineageOf, sharedWith } from '../stack/lineage';
 import {
   closeStaleLanding,
   finishLanding,
@@ -160,6 +160,14 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     };
   // Never move the target past another open pull request's unlanded commits, whatever the stack tree says.
   const carried = await carriedPull(git, db, pr, target, headSha);
+  if (carried === 'unknown')
+    return {
+      ok: false,
+      status: 409,
+      reason: 'stack',
+      error:
+        'Couldn’t completely check for commits from other open pull requests. Retry, or shorten the branch history before merging.',
+    };
   if (carried)
     return {
       ok: false,
@@ -347,7 +355,7 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
  * Another open pull request into the same target whose own commits (or rebased copies of them) this head carries,
  * so landing it would land them too: one this head holds whole (its parent), or one it shares some commits with that
  * was opened first (they branched from the same work, which belongs to the older one). Never one that holds this
- * head whole (its child). Null when there is none, or git can't tell.
+ * head whole (its child). Null when there is none; unknown when evidence is incomplete.
  */
 export async function carriedPull(
   git: GitService,
@@ -355,11 +363,11 @@ export async function carriedPull(
   pr: PullRequest,
   target: string,
   headSha: string
-): Promise<{ number: number; count: number } | null> {
+): Promise<{ number: number; count: number } | null | 'unknown'> {
   try {
     const refs = await git.refs();
     const tip = refs.get(`refs/heads/${target}`);
-    if (!tip) return null;
+    if (!tip) return 'unknown';
     const others = await db
       .select({
         id: pullRequests.id,
@@ -377,23 +385,44 @@ export async function carriedPull(
       )
       .all();
     if (!others.length) return null;
-    const mine = await lineageOf(git, tip, headSha);
-    if (!mine.ids.length) return null;
+    const compare = [];
     for (const o of others.sort((x, y) => x.number - y.number)) {
       const h = refs.get(`refs/heads/${o.headRef}`);
-      if (!h) continue;
-      const theirs = await lineageOf(git, tip, h);
-      const count = (await sharedWith(git, mine, theirs)).size;
+      if (!h || h === headSha) continue;
+      // Exact ancestry does not depend on the bounded rebase-identity sample. This also lets a short parent land
+      // before a long child without claiming that the child's truncated identities are complete.
+      const carried = await git.isAncestor(h, headSha, true);
+      if (carried === null) return 'unknown';
+      if (carried) {
+        const landed = await git.isAncestor(h, tip, true);
+        if (landed === null) return 'unknown';
+        if (!landed) return { number: o.number, count: 1 };
+        continue;
+      }
+      const child = await git.isAncestor(headSha, h, true);
+      if (child === null) return 'unknown';
+      if (!child) compare.push({ ...o, head: h });
+    }
+    if (!compare.length) return null;
+    const mine = await lineageOf(git, tip, headSha, true);
+    if (mine.truncated) return 'unknown';
+    if (!mine.ids.length) return null;
+    for (const o of compare) {
+      const theirs = await lineageOf(git, tip, o.head, true);
+      if (theirs.truncated) return 'unknown';
+      const count = (await sharedWith(git, mine, theirs, true)).size;
       if (!count) continue;
       // Its child (it holds all of this head, or the same commits): landing this one first is the right order.
       if (count === new Set(mine.ids).size) continue;
-      if ((await holdsWhole(git, mine, theirs)) || o.number < pr.number)
+      // The strict intersection above already proved the patches. Re-reading through permissive discovery helpers
+      // could lose that verdict on a second transient failure (especially when the parent was opened later).
+      if (count === new Set(theirs.ids).size || o.number < pr.number)
         return { number: o.number, count };
     }
     return null;
   } catch (e) {
     console.warn('[merge] carried-commits check failed', pr.id, e);
-    return null;
+    return 'unknown';
   }
 }
 
