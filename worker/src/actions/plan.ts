@@ -290,11 +290,11 @@ function planJob(
     { number: 1, name: 'Set up job' },
     ...job.steps.map((s, i) => ({
       number: i + 2,
-      name: safeInterpolate(stepDisplayName(s), ctx),
+      name: s.name ? safeInterpolate(s.name, ctx) : stepDisplayName(s),
     })),
     ...posts.map((i, k) => ({
       number: job.steps.length + 2 + k,
-      name: `Post ${safeInterpolate(stepDisplayName(job.steps[i]), ctx)}`,
+      name: `Post ${job.steps[i].name ? safeInterpolate(job.steps[i].name!, ctx) : stepDisplayName(job.steps[i])}`,
     })),
     { number: job.steps.length + 2 + posts.length, name: 'Complete job' },
   ];

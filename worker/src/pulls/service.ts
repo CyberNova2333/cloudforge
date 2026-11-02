@@ -238,11 +238,13 @@ export async function openPull(opts: {
   opts.after(
     queueRuns(env, db, repo, opts.repoFullName, {
       kind: 'pull_request',
+      action: 'opened',
       number: pr.number,
       title: pr.title,
       baseRef: landTargetOf(pr),
       headRef: pr.headRef,
       headSha,
+      baseSha,
       actorId: opts.author.id,
     }).catch((e) => console.error('[actions] queue failed', e))
   );

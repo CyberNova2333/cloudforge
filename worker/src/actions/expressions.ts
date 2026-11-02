@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * GitHub Actions `${{ … }}` expressions. Follows GitHub's rules: strings compare
  * case-insensitively; mismatched types compare as numbers.
@@ -14,6 +15,20 @@ export interface EvalOptions {
 }
 
 export class ExpressionError extends Error {}
+
+/** Container-computed results are private to one step's expression context. */
+export const HASH_FILES = '__hashFiles';
+export const hashFilesKey = (patterns: string[], follow: boolean) =>
+  JSON.stringify([follow, ...patterns]);
+
+export class HashFilesNeeded extends ExpressionError {
+  constructor(
+    readonly patterns: string[],
+    readonly follow: boolean
+  ) {
+    super('hashFiles() is only available in a step.');
+  }
+}
 
 type Token =
   | { t: 'num'; v: number }
@@ -326,6 +341,22 @@ function evalNode(
         }
         case 'tojson':
           return JSON.stringify(args()[0], null, 2);
+        case 'hashfiles': {
+          const all = args().map(toText);
+          const follow = all[0] === '--follow-symbolic-links';
+          const patterns = follow ? all.slice(1) : all;
+          if (!patterns.length || patterns.length > 64)
+            throw new ExpressionError(
+              'hashFiles() needs between 1 and 64 patterns.'
+            );
+          if (patterns.some((p) => p.length > 4096))
+            throw new ExpressionError('hashFiles() pattern is too long.');
+          const table = ctx[HASH_FILES];
+          const key = hashFilesKey(patterns, follow);
+          if (table && typeof table === 'object' && !Array.isArray(table))
+            if (Object.hasOwn(table, key)) return table[key];
+          throw new HashFilesNeeded(patterns, follow);
+        }
         case 'fromjson': {
           try {
             return JSON.parse(toText(args()[0])) as Value;

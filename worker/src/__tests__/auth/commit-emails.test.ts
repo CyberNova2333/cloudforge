@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../../db/schema';
 import { usersByCommitEmail } from '../../repositories/commit-authors';
+import { hashToken } from '../../auth/tokens';
 import {
   addMember,
   bootstrapAdmin,
@@ -70,7 +71,7 @@ describe('设置 → 邮箱', () => {
     expect(mail.to).toBe('me@work.example');
     expect(mail.subject).toBe('Verify your email for CloudForge');
     expect(mail.text).toMatch(
-      /http:\/\/test\.local\/settings\/emails\/verify\?token=gve_[0-9a-f]+/
+      /http:\/\/test\.local\/settings\/emails\/verify\?token=cfe_[0-9a-f]+/
     );
 
     const list = (await (
@@ -92,6 +93,20 @@ describe('设置 → 邮箱', () => {
     expect(
       (await addEmail(t, admin, 'a@b.example', 'x'.repeat(41))).status
     ).toBe(400);
+  });
+
+  it('仍接受更名前已签发且未过期的 gve_ 链接，并保持单次使用', async () => {
+    const t = makeEnv();
+    const admin = await bootstrapAdmin(t);
+    await addEmail(t, admin, 'legacy@example.com');
+    const legacy = `gve_${'ab'.repeat(24)}`;
+    await t.env.DB.prepare(
+      'UPDATE user_emails SET verification_token_hash = ? WHERE email = ?'
+    )
+      .bind(await hashToken(legacy), 'legacy@example.com')
+      .run();
+    expect((await verify(t, admin, legacy)).status).toBe(200);
+    expect((await verify(t, admin, legacy)).status).toBe(404);
   });
 
   it('确保邮箱在成员与主邮箱之间唯一', async () => {

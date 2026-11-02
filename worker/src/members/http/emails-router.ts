@@ -140,7 +140,8 @@ export async function sendVerification(
   row: UserEmail,
   username: string
 ): Promise<boolean | null> {
-  const token = randomToken('gve_', 24);
+  // Verification looks up the complete token by hash, retaining previously issued gve_ links.
+  const token = randomToken('cfe_', 24);
   const now = new Date();
   const [updated] = await db
     .update(userEmails)

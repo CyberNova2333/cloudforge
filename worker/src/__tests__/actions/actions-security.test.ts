@@ -376,6 +376,7 @@ jobs:
       },
     } as StepRunner;
     const runner = {
+      hashFiles: async () => '',
       boot: async () => ({ ms: 0 }),
       destroy: async () => {},
       runStep: async () => ({
@@ -441,6 +442,7 @@ jobs:
     } as StepRunner;
     const requests: StepRequest[] = [];
     const runner = {
+      hashFiles: async () => '',
       boot: async () => ({ ms: 0 }),
       destroy: async () => {},
       runStep: async (req: StepRequest): Promise<StepResult> => {
@@ -549,6 +551,7 @@ jobs:
     let token = '';
     const requests: StepRequest[] = [];
     const runner = {
+      hashFiles: async () => '',
       boot: async () => ({ ms: 0 }),
       destroy: async () => {},
       runStep: async (req: StepRequest): Promise<StepResult> => {

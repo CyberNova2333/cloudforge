@@ -33,6 +33,9 @@ import { GitService } from '../git/service';
 import { gitFor, findRepoById } from '../repositories/service';
 import {
   ExpressionError,
+  HASH_FILES,
+  HashFilesNeeded,
+  hashFilesKey,
   evaluateCondition,
   interpolate,
   truthy,
@@ -40,9 +43,16 @@ import {
   type JobStatus,
   type Value,
 } from './expressions';
-import { WORKSPACE, type JobRunnerApi, type StepRequest } from './job-runner';
+import {
+  EVENT_PATH,
+  WORKSPACE,
+  type JobRunnerApi,
+  type StepRequest,
+} from './job-runner';
+import { sha256Hex } from '../git/bytes';
 import { mask } from './commands';
 import { jobValues, secretMasks } from './secrets';
+import { eventPayload } from './event-payload';
 import {
   openState,
   persistState,
@@ -187,6 +197,10 @@ class RunnerInterruptedError extends Error {}
 /** Local only: created from the RPC result, never transported as an Error. */
 class RunnerAdmissionError extends Error {}
 
+type GuardedRunner = Omit<JobRunnerApi, 'hashFiles'> & {
+  hashFiles(patterns: string[], follow: boolean): Promise<string>;
+};
+
 async function executionState(
   execute: () => Promise<SealedState>
 ): Promise<SealedState> {
@@ -204,8 +218,9 @@ function maskingRunner(
   base: JobRunnerApi,
   masks: string[],
   runId: string,
-  db: Db
-): JobRunnerApi {
+  db: Db,
+  eventPayload?: string
+): GuardedRunner {
   const assertActive = async () => {
     const run = await db
       .select({ status: workflowRuns.status })
@@ -221,6 +236,17 @@ function maskingRunner(
       return base.boot(instance, maxMs);
     },
     destroy: () => base.destroy(),
+    hashFiles: async (patterns, follow) => {
+      await assertActive();
+      const result = await base.hashFiles(patterns, follow);
+      if (typeof result !== 'string')
+        throw new RunnerAdmissionError(
+          'CloudForge runtime admission refused; the command was not started.'
+        );
+      if (!/^([0-9a-f]{64})?$/.test(result))
+        throw new Error('The runner returned an invalid hashFiles() result.');
+      return result;
+    },
     runStep: async (req) => {
       // Composite subcommands and preparation can await between the outer step
       // guard and this dispatch. Cancellation is not a runner interruption.
@@ -233,6 +259,7 @@ function maskingRunner(
         result = await base.runStep({
           ...req,
           masks: [...masks],
+          eventPayload,
         });
       } catch (error) {
         throw new RunnerInterruptedError(
@@ -247,6 +274,10 @@ function maskingRunner(
       if (result.refused === 'runtime-admission')
         throw new RunnerAdmissionError(
           'CloudForge runtime admission refused; the command was not started.'
+        );
+      if (result.preparationError === 'event-file')
+        throw new Error(
+          'Could not prepare the workflow event file; the command was not started.'
         );
       rememberMasks(runId, masks, result.masks ?? []);
       return {
@@ -275,6 +306,8 @@ interface RunContext {
   actor: string;
   workflowPath: string;
   workflowText: string | null;
+  /** Optional for Workflow load steps cached before event snapshots were introduced. */
+  eventPayload?: Record<string, Value>;
   serverUrl: string;
   jobs: Pick<
     WorkflowJob,
@@ -297,7 +330,12 @@ async function loadRun(
   if (!found) return null;
   const actor = run.actorId
     ? await db
-        .select({ username: users.username })
+        .select({
+          id: users.id,
+          username: users.username,
+          name: users.name,
+          image: users.image,
+        })
         .from(users)
         .where(eq(users.id, run.actorId))
         .get()
@@ -313,6 +351,25 @@ async function loadRun(
     .from(workflowJobs)
     .where(eq(workflowJobs.runId, runId));
   const files = await readWorkflowFiles(gitFor(env, found.repo), run.headSha);
+  let payload: Record<string, Value> | undefined;
+  if (run.event === 'push' || run.event === 'pull_request')
+    try {
+      payload = await eventPayload(gitFor(env, found.repo), {
+        event: run.event,
+        ref: run.ref,
+        headSha: run.headSha,
+        data: run.eventData,
+        serverUrl: env.BASE_URL ?? '',
+        repo: found.repo,
+        owner: found.namespace,
+        sender: actor
+          ? { ...actor, username: actor.username ?? actor.name }
+          : null,
+      });
+    } catch {
+      // Supplemental metadata must not prevent legacy/minimal event execution.
+      console.warn('[actions] supplemental event metadata unavailable');
+    }
   return {
     runId,
     repoId: found.repo.id,
@@ -328,6 +385,7 @@ async function loadRun(
     actor: actor?.username ?? '',
     workflowPath: run.workflowPath,
     workflowText: files.find((f) => f.path === run.workflowPath)?.text ?? null,
+    ...(payload && { eventPayload: payload }),
     serverUrl: env.BASE_URL ?? '',
     jobs,
   };
@@ -407,6 +465,7 @@ export async function executeRun(
       workflow: wf.name ?? ctx.workflowPath,
       serverUrl: ctx.serverUrl,
       ...ctx.eventData,
+      event: ctx.eventPayload,
     }
   ) as Record<string, Value>;
 
@@ -809,7 +868,13 @@ async function runJob(
     return { key: def.key, result: 'skipped', outputs: {} };
   }
 
-  const runner = maskingRunner(deps.runner(job.id), masks, ctx.runId, db);
+  const runner = maskingRunner(
+    deps.runner(job.id),
+    masks,
+    ctx.runId,
+    db,
+    JSON.stringify(github.event ?? {})
+  );
   const posts = postStepIndexes(def.steps);
   const lastStep = def.steps.length + 2 + posts.length;
 
@@ -1211,7 +1276,7 @@ async function runAttempt(
   wf: WorkflowDef,
   def: JobDef,
   job: RunContext['jobs'][number],
-  runner: JobRunnerApi,
+  runner: GuardedRunner,
   masks: string[],
   exprCtx: (extra?: Record<string, Value>) => Record<string, Value>,
   name: string,
@@ -1335,13 +1400,17 @@ async function runAttempt(
 
   for (const [i, s] of def.steps.entries()) {
     const number = i + 2;
+    const hashed: Record<string, Value> = {};
     const stepCtx = () => {
       // env layers: workflow → job → GITHUB_ENV → step; each sees the ones before.
       let envCtx: Record<string, string> = {};
       const layer = (vars: Record<string, string>) => {
         const next = { ...envCtx };
         for (const [k, v] of Object.entries(vars))
-          next[k] = interpolate(v, exprCtx({ env: envCtx, steps }));
+          next[k] = interpolate(
+            v,
+            exprCtx({ env: envCtx, steps, [HASH_FILES]: hashed })
+          );
         envCtx = next;
       };
       layer(wf.env);
@@ -1350,7 +1419,12 @@ async function runAttempt(
       layer(s.env);
       return {
         env: envCtx,
-        ctx: exprCtx({ env: envCtx, steps, job: { status: jobStatus } }),
+        ctx: exprCtx({
+          env: envCtx,
+          steps,
+          job: { status: jobStatus },
+          [HASH_FILES]: hashed,
+        }),
       };
     };
 
@@ -1360,18 +1434,69 @@ async function runAttempt(
       ctx: Record<string, Value>;
     } | null = null;
     let prepError: string | null = null;
+    let hashAdmissionRefused = false;
+    if (!runnerGone)
+      try {
+        await resolveHashFiles(
+          hashed,
+          () => {
+            const p = stepCtx();
+            if (!evaluateCondition(s.if, p.ctx, { status: jobStatus })) return;
+            for (const template of stepTemplates(s))
+              interpolate(template, p.ctx);
+          },
+          async (patterns, follow) => {
+            const result = await step.do(
+              `${name}:step:${number}:hashFiles:${await sha256Hex(hashFilesKey(patterns, follow))}`,
+              { ...NO_RETRY, timeout: '3 minutes' },
+              async () => {
+                try {
+                  return await runner.hashFiles(patterns, follow);
+                } catch (error) {
+                  // Persist terminal control flow as data; Workflow/RPC error prototypes do not survive replay.
+                  if (error instanceof RunnerAdmissionError)
+                    return { refused: 'runtime-admission' } as const;
+                  throw error;
+                }
+              }
+            );
+            if (typeof result !== 'string')
+              throw new RunnerAdmissionError(
+                'CloudForge runtime admission refused; the command was not started.'
+              );
+            return result;
+          }
+        );
+      } catch (error) {
+        hashAdmissionRefused = error instanceof RunnerAdmissionError;
+        prepError = mask(
+          error instanceof Error ? error.message : String(error),
+          masks
+        );
+      }
     try {
+      if (prepError) throw new Error(prepError);
       prepared = stepCtx();
       run = evaluateCondition(s.if, prepared.ctx, { status: jobStatus });
     } catch (e) {
       prepError = e instanceof Error ? e.message : String(e);
-      run = jobStatus === 'success';
+      // A terminal refusal must be recorded even if an earlier command has already failed.
+      run = hashAdmissionRefused || jobStatus === 'success';
     }
     if (Date.now() > deadline && run) {
       prepError = `The job exceeded its timeout of ${def.timeoutMinutes} minutes.`;
     }
 
     if (runnerGone) run = false;
+
+    let shownName: { name: string } | null = null;
+    if (prepared && s.name?.includes('${{'))
+      try {
+        // Names are stored in D1 and visible independently of the masked job log.
+        shownName = { name: mask(interpolate(s.name, prepared.ctx), masks) };
+      } catch {
+        // Keep the planned name when its expression is unavailable.
+      }
 
     if (!run) {
       await step.do(`${name}:step:${number}:skip`, async () => {
@@ -1380,6 +1505,7 @@ async function runAttempt(
           status: 'completed',
           conclusion: 'skipped',
           completedAt: now,
+          ...shownName,
         });
         return true;
       });
@@ -1401,10 +1527,15 @@ async function runAttempt(
         },
         async () =>
           executionState(async () => {
+            if (hashAdmissionRefused)
+              throw new RunnerAdmissionError(
+                'CloudForge runtime admission refused; the command was not started.'
+              );
             if (
               !(await setStep(db, job.id, number, {
                 status: 'in_progress',
                 startedAt: new Date(),
+                ...shownName,
               }))
             )
               return { unavailable: true, preparation: true } as const;
@@ -1589,6 +1720,39 @@ function safeTruthy(expr: string, ctx: Record<string, Value>) {
   }
 }
 
+/** Bound container work per step while allowing dependent/nested expressions to resolve in order. */
+async function resolveHashFiles(
+  table: Record<string, Value>,
+  evaluateAll: () => void,
+  compute: (patterns: string[], follow: boolean) => Promise<string>
+): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      evaluateAll();
+      return;
+    } catch (error) {
+      if (!(error instanceof HashFilesNeeded)) return;
+      if (i >= 32)
+        throw new ExpressionError(
+          'A step may use at most 32 distinct hashFiles() calls.'
+        );
+      const key = hashFilesKey(error.patterns, error.follow);
+      if (Object.hasOwn(table, key)) throw error;
+      table[key] = await compute(error.patterns, error.follow);
+    }
+  }
+}
+
+function stepTemplates(s: StepDef): string[] {
+  return [
+    s.name,
+    s.run,
+    s.workingDirectory,
+    typeof s.continueOnError === 'string' ? s.continueOnError : undefined,
+    ...Object.values(s.with),
+  ].filter((s): s is string => typeof s === 'string' && s.includes('${{'));
+}
+
 async function putLog(
   env: CloudflareBindings,
   ctx: RunContext,
@@ -1682,7 +1846,11 @@ async function buildCommand(
     RUNNER_TEMP: '/tmp',
     PATH: [...state.pathAdds, DEFAULT_PATH].join(':'),
   };
-  const stepEnv = { ...baseEnv, ...prepared.env };
+  const stepEnv = {
+    ...baseEnv,
+    ...prepared.env,
+    GITHUB_EVENT_PATH: EVENT_PATH,
+  };
 
   try {
     if (s.run !== undefined) {
@@ -2049,10 +2217,7 @@ async function buildCommand(
           : ctx.repoFullName,
       GITHUB_ACTION_REF: remote.kind === 'github' ? remote.ref : '',
       RUNNER_TOOL_CACHE: TOOL_CACHE,
-      GITHUB_EVENT_PATH: EVENT_PATH,
-      CLOUDFORGE_EVENT: JSON.stringify(g.event ?? {}),
     };
-    const writeEvent = `printf '%s' "$CLOUDFORGE_EVENT" > "$GITHUB_EVENT_PATH"`;
     const entries = [...(meta.pre ? [meta.pre] : []), meta.main];
     const r = remote;
     return {
@@ -2060,9 +2225,7 @@ async function buildCommand(
         number: state.number,
         argv: [
           ...SHELLS.bash,
-          [writeEvent, ...entries.map((e) => nodeScript(r, WORKSPACE, e))].join(
-            '\n'
-          ),
+          entries.map((e) => nodeScript(r, WORKSPACE, e)).join('\n'),
         ],
         cwd: WORKSPACE,
         env: actionEnv,
@@ -2071,10 +2234,7 @@ async function buildCommand(
       },
       ...(meta.post && {
         post: {
-          argv: [
-            ...SHELLS.bash,
-            [writeEvent, nodeScript(r, WORKSPACE, meta.post)].join('\n'),
-          ],
+          argv: [...SHELLS.bash, nodeScript(r, WORKSPACE, meta.post)],
           cwd: WORKSPACE,
           env: actionEnv,
           postIf: meta.postIf,
@@ -2175,7 +2335,6 @@ interface CompositeCall {
 }
 
 /** Where a JavaScript action finds the event payload ($GITHUB_EVENT_PATH). */
-const EVENT_PATH = '/tmp/cloudforge-event.json';
 
 /** action.yml of an action, read once per isolate for a while (a tag like @v4 can move, so not forever). */
 const metaCache = new Map<string, { at: number; meta: Promise<ActionMeta> }>();
@@ -2264,7 +2423,7 @@ async function runComposite(
   def: JobDef,
   prepared: { env: Record<string, string>; ctx: Record<string, Value> },
   state: Parameters<typeof buildCommand>[6],
-  runner: JobRunnerApi,
+  runner: GuardedRunner,
   call: CompositeCall,
   depth = 0
 ): Promise<{
@@ -2317,21 +2476,36 @@ async function runComposite(
     action_path: dir,
   };
   for (const sub of call.meta.steps) {
+    const hashed: Record<string, Value> = {};
     const base = {
       ...outer,
       github,
       inputs: call.inputs,
       steps,
       job: { status },
+      [HASH_FILES]: hashed,
     };
     let subEnv: Record<string, string> = { ...prepared.env, ...envAdds };
     let run: boolean;
     let error: string | null = null;
     try {
+      await resolveHashFiles(
+        hashed,
+        () => {
+          let env = subEnv;
+          for (const [key, value] of Object.entries(sub.env))
+            env = { ...env, [key]: interpolate(value, { ...base, env }) };
+          const ctx = { ...base, env };
+          if (!evaluateCondition(sub.if, ctx, { status })) return;
+          for (const template of stepTemplates(sub)) interpolate(template, ctx);
+        },
+        (patterns, follow) => runner.hashFiles(patterns, follow)
+      );
       for (const [k, v] of Object.entries(sub.env))
         subEnv = { ...subEnv, [k]: interpolate(v, { ...base, env: subEnv }) };
       run = evaluateCondition(sub.if, { ...base, env: subEnv }, { status });
     } catch (e) {
+      if (e instanceof RunnerAdmissionError) throw e;
       error = e instanceof Error ? e.message : String(e);
       run = status === 'success';
     }
@@ -2347,7 +2521,7 @@ async function runComposite(
     const subCtx = { ...base, env: subEnv };
     let label = stepDisplayName(sub);
     try {
-      label = interpolate(label, subCtx);
+      if (sub.name) label = interpolate(sub.name, subCtx);
     } catch {
       // Shown as written.
     }

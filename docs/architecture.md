@@ -226,8 +226,27 @@ Preparation and database failures also stop the job without restarting earlier c
 override these failures. Only runner RPC failures or explicit interruption retain the container restart policy.
 This does not guarantee exactly-once external actions if the platform disappears before confirming a step result.
 
-Pull-request runs store the event's base/head refs, number, and title with the run. Execution and reruns use this
-snapshot, so `github.base_ref` and `github.head_ref` remain available after the PR changes.
+**Step expressions.** Explicit step names are evaluated when the step starts or is skipped, using the current
+matrix, environment and prior step outputs; persisted names use the job's masks. A default `Run <first line>`
+label retains the workflow's source text. `hashFiles()` reads files in the container's current workspace when a
+step needs the value, including files created by preceding steps. Top-level steps persist each distinct result
+under its own durable step identity; composite substeps compute at their own execution point. It supports relative
+globs, exclusions, dotfiles and matched directories; no match is an empty string. The implementation confines reads
+to workspace files and uses sorted path order, so multi-file digests need not equal GitHub's directory-listing order.
+Planning-time contexts such as job selection cannot call it. Each step accepts at most 32 distinct queries, each
+with 1–64 patterns of at most 4096 characters; each container computation has a 120-second limit. See
+[`hash-files.ts`](../worker/src/actions/hash-files.ts) and the [compatibility checks](development.md#actions-compatibility-checks).
+
+**Event snapshots.** Push runs retain the observed before SHA. Pull-request runs retain base/head refs, number,
+title, action, observed base SHA and supplemental PR facts with the run. Execution and reruns use this snapshot,
+so `github.base_ref`, `github.head_ref` and PR metadata do not read a later PR state. The GitHub-shaped
+`github.event` is also available at `GITHUB_EVENT_PATH` for ordinary commands, JavaScript actions, composite
+substeps and post commands; the runner prepares the same event JSON before each command. Supplemental event data
+is bounded to 96 KiB, at most 20 commits and 16 KiB of PR body before further size reduction. Optional fields or
+commit file lists may be omitted or shortened. Legacy runs expose unrecorded event facts as unknown rather than
+reconstructing them from current refs or PR state. Older cached Workflow contexts keep their original minimal
+event. This is a supported subset of GitHub payloads, not a complete webhook compatibility guarantee
+([`event-payload.ts`](../worker/src/actions/event-payload.ts)).
 
 Run details, MCP step summaries, cancellation and runner usage updates bind job ID sets as JSON in D1.
 The 20-job limit on each matrix does not bound the total jobs across a workflow's separate matrices.
