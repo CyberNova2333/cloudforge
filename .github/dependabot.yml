@@ -27,6 +27,17 @@ updates:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
 
+  # The runner's custom Git LFS build has its own pinned Go dependency graph.
+  - package-ecosystem: gomod
+    directory: '/actions/runner/git-lfs'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
   # Actions are pinned to commit SHAs with their version in a comment; Dependabot moves both.
   - package-ecosystem: github-actions
     directory: '/'

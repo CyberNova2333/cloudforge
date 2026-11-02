@@ -90,17 +90,30 @@ Worker 按业务归属组织。各域的 `http/` 保存 HTTP 路由或协议适�
 
 项目命令仍以[根 package.json](../package.json)的 Yarn scripts 为入口。工具脚本按职责归组，安装器的命令行入口仍为 `scripts/cloudforge/cli.ts`，发布包入口仍为 `scripts/cloudforge/pack.mjs`。
 
-| 工具职责                     | 位置与入口                                                                                                                   |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 本地开发与演示数据           | `scripts/development/dev.mjs`、`scripts/development/visual-server.mjs`；`scripts/seed-demo/` 的入口、数据、历史和 fixture    |
-| 测试执行、报告与 Git 检查    | `scripts/testing/test-workers.mjs`、`scripts/testing/test-reporter.ts`；`scripts/githooks/`                                  |
-| 数据库、认证表与绑定类型生成 | `scripts/database/generate-db.mjs`、`scripts/database/auth-schema-config.ts`；`scripts/cloudflare/cf-typegen.mjs`            |
-| 规则同步、许可、本地化和发布 | `scripts/agents/`、`scripts/licensing/`、`scripts/i18n/`、`scripts/release/`                                                 |
-| 安装器命令、计划和本地状态   | `scripts/cloudforge/commands/`、`planning/`、`installation/`；CLI 组合这些模块                                               |
-| 安装器外部接口、恢复和分发   | `scripts/cloudforge/platform/`、`recovery/`、`access/`、`distribution/`、`ui/`                                               |
-| Node 脚本验证                | 各工具的 `__tests__/`；安装器测试在 `scripts/cloudforge/__tests__/` 内按职责分组，共用 `scripts/cloudforge/vitest.config.ts` |
+| 工具职责                      | 位置与入口                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 本地开发与演示数据            | `scripts/development/dev.mjs`、`scripts/development/visual-server.mjs`；`scripts/seed-demo/` 的入口、数据、历史和 fixture               |
+| 测试执行、报告与 Git 检查     | `scripts/testing/test-workers.mjs`、`scripts/testing/test-reporter.ts`；`scripts/githooks/`                                             |
+| Actions 文件摘要的 POSIX 回归 | `scripts/actions/__tests__/hash-files.test.ts`，通过 Node 执行实际容器程序；Linux 验证链接、目录和特殊文件，Windows 明确跳过 POSIX 用例 |
+| 数据库、认证表与绑定类型生成  | `scripts/database/generate-db.mjs`、`scripts/database/auth-schema-config.ts`；`scripts/cloudflare/cf-typegen.mjs`                       |
+| 规则同步、许可、本地化和发布  | `scripts/agents/`、`scripts/licensing/`、`scripts/i18n/`、`scripts/release/`                                                            |
+| 安装器命令、计划和本地状态    | `scripts/cloudforge/commands/`、`planning/`、`installation/`；CLI 组合这些模块                                                          |
+| 安装器外部接口、恢复和分发    | `scripts/cloudforge/platform/`、`recovery/`、`access/`、`distribution/`、`ui/`                                                          |
+| Node 脚本验证                 | 各工具的 `__tests__/`；安装器测试在 `scripts/cloudforge/__tests__/` 内按职责分组，共用 `scripts/cloudforge/vitest.config.ts`            |
 
 目录改变不授予运行安装、发布或恢复命令的权限；操作边界仍见[开发说明](../docs/development.md)、[升级维护](../docs/updating.md)及根规则。
+
+## Actions 的事件与步骤表达式入口
+
+推送后，运行保存事件事实；命令执行时，步骤读取本轮工作区和先前步骤的输出。这样生成的缓存摘要可以包含前一步写出的文件，PR 后续编辑也不会改变已经排队运行的事件正文。支持范围与大小限制见[Actions 架构](../docs/architecture.md#actions)，使用与验证命令见[兼容性检查](../docs/development.md#actions-compatibility-checks)。
+
+| 改动目标           | 入口及职责                                                                                                                                                                                                              | 相关验证                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 入队事实与重跑     | [触发器](../worker/src/actions/trigger.ts) 保存 before SHA、PR action/base SHA 和补充 PR 快照；重跑复制已有事实                                                                                                         | `actions-event-payload.test.ts`、`actions-security.test.ts`                     |
+| 事件结构与固定文件 | [事件投影](../worker/src/actions/event-payload.ts) 构造有界 JSON；[容器执行入口](../worker/src/actions/job-runner.ts) 在每条命令前准备 `GITHUB_EVENT_PATH`，兼容旧请求                                                  | `actions-event-payload.test.ts`、`actions-github-compat.test.ts`                |
+| 文件摘要与动态名称 | [表达式](../worker/src/actions/expressions.ts) 声明步骤期查询；[执行器](../worker/src/actions/executor.ts) 调度摘要、复用顶层步骤结果并更新脱敏名称；[容器程序](../worker/src/actions/hash-files.ts) 匹配工作区普通文件 | `actions-github-compat.test.ts`、`scripts/actions/__tests__/hash-files.test.ts` |
+
+例如 checkout 后，可用 `hashFiles('**/yarn.lock')` 的结果构造带 `deps-` 前缀的缓存键；无匹配时摘要为空串。多文件摘要按路径排序，不应承诺与 GitHub 的目录枚举顺序完全相同；作业规划期不可读取容器文件。旧运行缺少的历史事实继续表示未知，完整 GitHub webhook 字段并未全部实现。
 
 ## Agent 规则同步工具
 
@@ -181,6 +194,17 @@ SSO 的两个额外修改入口：
 这个诊断入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。真正升级时，[归属写入约束](../scripts/cloudforge/installation/install-marker.ts)在最终D1写语句中再次核对安装id和nonce，并要求收据；它不把前置观察当作后续覆盖归属的授权。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
 
 [失败升级恢复](../scripts/cloudforge/commands/upgrade.ts)在读取本地进度后重新核验Cloudflare设置里的安装归属和版本，并与可达站点交叉检查；本地旧状态不能授权覆盖较新部署。`scripts/cloudforge/__tests__/commands/upgrade.test.ts`以本地模拟云接口/执行器覆盖停止和故障恢复路径，具体操作及尚未覆盖的跨机器并发边界见[升级恢复说明](../docs/updating.md#resuming-a-failed-upgrade-safely)。该修补不等于新角色发布屏障已完成。
+
+## Actions 容器工具链
+
+工作流命令使用构建后的容器镜像。镜像构建上下文是 [runner 目录](../actions/runner/Dockerfile)，安装器发布包保留整个目录，因此依赖锁、构建脚本和来源记录随包分发。
+
+| 职责              | 维护入口                                                                                                     | 验证入口                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| 镜像与运行工具    | [镜像定义](../actions/runner/Dockerfile)                                                                     | 最终镜像构建、扫描与离线功能检查                                            |
+| Git LFS 定制构建  | [构建脚本](../actions/runner/git-lfs/build.sh) 与同目录的模块锁                                              | 上游 Go 测试、模块与许可校验                                                |
+| Python 包管理工具 | [离线重建脚本](../actions/runner/python/rebuild-pip.py) 与 [固定来源](../actions/runner/python/sources.json) | 确定性重建、包元数据与离线安装检查                                          |
+| 容器功能检查      | [离线检查脚本](../actions/runner/smoke.cjs)                                                                  | [开发说明](../docs/development.md#process-and-runner-dependency-boundaries) |
 
 ## 前端页面与组件分层路由
 
