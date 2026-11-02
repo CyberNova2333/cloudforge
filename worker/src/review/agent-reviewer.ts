@@ -39,9 +39,9 @@ import {
 } from '../learn/contract';
 import { lessonAttempt } from '../learn/lessons';
 import { KNOWLEDGE_DIR } from '../learn/validate';
-import { aiGateway } from '../lib/ai-gateway';
-import { assertAccessRuntime } from '../lib/access-runtime';
-import { gitForName } from '../lib/repos';
+import { aiGateway } from '../ai/gateway';
+import { assertAccessRuntime } from '../access/runtime';
+import { gitForName } from '../repositories/service';
 import { checkoutHead, notCheckedOutText } from './checkout';
 import { ignoreMatcher } from './ignore';
 import { sameAttempt } from './outcome';

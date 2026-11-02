@@ -2,7 +2,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { workflowJobs, workflowRuns, workflowSteps } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { inJsonArray } from '../lib/sql-set';
+import { inJsonArray } from '../shared/sql-set';
 import { runnersStopped } from '../usage/record';
 
 /** Call only after confirmed destruction; this records D1 progress without stopping a resource itself. */

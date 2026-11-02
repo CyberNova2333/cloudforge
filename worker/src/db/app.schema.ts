@@ -562,7 +562,7 @@ export const pullRequests = sqliteTable(
     baseRef: text('base_ref').notNull(),
     headRef: text('head_ref').notNull(),
     // Where it finally lands. base_ref is what the diff is against and may be a parent PR's head branch when
-    // stacked; readers that mean "where this lands" use landTargetOf (worker/src/lib/land-target.ts).
+    // stacked; readers that mean "where this lands" use landTargetOf (worker/src/pulls/land-target.ts).
     // NULL (every row from before this column): lands into base_ref. Set on create and on every retarget.
     landTarget: text('land_target'),
     state: text('state', { enum: ['open', 'closed', 'merged'] })
@@ -590,7 +590,7 @@ export const pullRequests = sqliteTable(
     createdVia: text('created_via'),
     sessionLabel: text('session_label'),
     request: text('request'),
-    // The release this change calls for, set by its author or a writer until it lands (see worker/src/lib/semver.ts).
+    // The release this change calls for, set by its author or a writer until it lands (see worker/src/releases/version.ts).
     // NULL: no say; the repository's next release decides.
     versionBump: text('version_bump', { enum: ['major', 'minor', 'patch'] }),
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
@@ -1267,7 +1267,7 @@ export const mergeResolutions = sqliteTable(
 );
 
 // ── Instance settings ────────────────────────────────────────────────────────
-// Instance-wide settings a site admin changes without a deploy (worker/src/lib/settings.ts is
+// Instance-wide settings a site admin changes without a deploy (worker/src/instance/settings.ts is
 // the registry of keys). A missing row means the default: the wrangler var, or a built-in value.
 
 export const instanceSettings = sqliteTable('instance_settings', {
@@ -1281,7 +1281,7 @@ export const instanceSettings = sqliteTable('instance_settings', {
 
 // ── Accounts ─────────────────────────────────────────────────────────────────
 // A person's own settings, one row per (user, key): the personal twin of instance_settings. The keys, their
-// types and defaults live in worker/src/lib/user-settings.ts, so a new personal setting needs no migration. A
+// types and defaults live in worker/src/members/preferences.ts, so a new personal setting needs no migration. A
 // missing row means the default.
 export const userPreferences = sqliteTable(
   'user_preferences',
@@ -1744,7 +1744,7 @@ export const prEvents = sqliteTable(
 export type PrEvent = typeof prEvents.$inferSelect;
 
 // ── Audit log ────────────────────────────────────────────────────────────────
-// Who did what, recorded by recordAudit (worker/src/lib/audit.ts), which never throws. The log a page shows merges
+// Who did what, recorded by recordAudit (worker/src/audit/service.ts), which never throws. The log a page shows merges
 // these with pr_events (listAudit). `repository_id` null ⇒ an instance event (tokens, settings, agents, a deleted
 // repository); a repository's own events go with it.
 

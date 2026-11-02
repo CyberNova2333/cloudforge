@@ -26,9 +26,9 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { landTargetOf } from '../lib/land-target';
-import { findRepoById, readableByMembers } from '../lib/repos';
-import { getSetting } from '../lib/settings';
+import { landTargetOf } from '../pulls/land-target';
+import { findRepoById, readableByMembers } from '../repositories/service';
+import { getSetting } from '../instance/settings';
 import type { MergeResolutionParams } from '../merge/workflow';
 import { flagTitleOf } from '../review/gate';
 import { chunks } from '../stack/view';

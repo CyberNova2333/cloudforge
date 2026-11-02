@@ -6,7 +6,7 @@
 import { concat, decoder } from './bytes';
 import { FLUSH, parsePktLines, pktLine } from './pktline';
 import { ZERO_SHA } from './remote';
-import { protectedBy } from '../lib/protected-branches';
+import { protectedBy } from '../repositories/protected-branches';
 
 export type PushCommand = { old: string; new: string; ref: string };
 

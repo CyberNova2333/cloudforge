@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * Records every MERGE_RESOLUTION Workflow (review, rebase, stack discovery, sweep, lesson) as
  * an agent run with steps, for the Actions tab. Applied once, at the Workflow entrypoint, around the
@@ -8,7 +9,7 @@
  * rows instead of adding new ones. Recording never fails a step or the Workflow: every write is
  * caught and logged.
  */
-import { landTargetOf } from '../lib/land-target';
+import { landTargetOf } from '../pulls/land-target';
 import { and, desc, eq, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   agentLessons,

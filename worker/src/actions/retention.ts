@@ -2,7 +2,7 @@
 import { and, asc, eq, inArray, isNotNull, lt } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { agentRuns, instanceSettings, workflowRuns } from '../db/app.schema';
-import { getSetting, RETENTION_STATUS_KEY } from '../lib/settings';
+import { getSetting, RETENTION_STATUS_KEY } from '../instance/settings';
 import {
   AGENT_RUN_STALE_MS,
   DID_NOT_FINISH,
@@ -12,14 +12,14 @@ import { stopStaleReviews } from '../review/head';
 import { recoverLessons } from '../learn/recover';
 import { recoverLandings } from '../merge/landing-recovery';
 import { recoverPullCloses } from '../pulls/close-recovery';
-import { recoverPushEvents } from '../lib/push-events';
-import { recoverRepositoryDeletions } from '../lib/repo-deletion';
-import { prunePullRefs } from '../lib/pull-refs';
-import { prunePushStaging } from '../lib/push-staging';
+import { recoverPushEvents } from '../git/push-events';
+import { recoverRepositoryDeletions } from '../repositories/deletion';
+import { prunePullRefs } from '../pulls/refs';
+import { prunePushStaging } from '../git/push-staging';
 import {
   deliverNotificationEmails,
   pruneNotifications,
-} from '../lib/notification-email';
+} from '../notifications/email-delivery';
 import { deleteRunArtifacts } from './artifacts';
 
 /** Runs deleted per batch, and batches per invocation (a backlog clears over several days). */

@@ -1,0 +1,38 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+/**
+ * Routes Workers AI calls through AI Gateway `AI_GATEWAY` (`default` is auto-created; `off`
+ * bypasses it), tagged with feature, instance, and record metadata.
+ */
+export type AiFeature =
+  | 'review-summary'
+  | 'review-classify'
+  | 'review-select'
+  | 'review-investigate'
+  | 'review-trigger'
+  | 'review-agent'
+  | 'review-agent-pi'
+  | 'review-agent-learn'
+  | 'review-delegate'
+  | 'merge-resolution'
+  | 'stack-decide'
+  | 'stack-explain'
+  | 'ci-relevance';
+
+export function aiGateway(
+  env: Pick<CloudflareBindings, 'AI_GATEWAY' | 'BASE_URL'>,
+  feature: AiFeature,
+  extra: Record<string, string> = {}
+): { id: string; metadata: Record<string, string> } | undefined {
+  const id = env.AI_GATEWAY?.trim() || 'default';
+  if (id === 'off') return undefined;
+  let instance = '';
+  try {
+    instance = new URL(env.BASE_URL).host;
+  } catch {
+    // No BASE_URL: leave the instance out.
+  }
+  return {
+    id,
+    metadata: { feature, ...(instance ? { instance } : {}), ...extra },
+  };
+}

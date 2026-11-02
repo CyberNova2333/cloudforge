@@ -12,7 +12,7 @@ import {
   usageSyncs,
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { findReposByIds } from '../lib/repos';
+import { findReposByIds } from '../repositories/service';
 import {
   aiTokenCost,
   BYTES_PER_GB,

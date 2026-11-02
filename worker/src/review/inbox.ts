@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { DrizzleDB } from '../db/middleware';
@@ -18,10 +18,14 @@ import {
 import { NO_MODEL, SUPERSEDED } from '../merge/resolution';
 import { latestStates } from '../pulls/events';
 import type { PullState } from '../pulls/state';
-import { findReposByIds, gitFor, permissionsForMany } from '../lib/repos';
-import { personRefs } from '../lib/person-ref';
-import { pullSessionIds } from '../lib/sessions';
-import { usersById, type PublicUser } from '../lib/users';
+import {
+  findReposByIds,
+  gitFor,
+  permissionsForMany,
+} from '../repositories/service';
+import { personRefs } from '../members/person-ref';
+import { pullSessionIds } from '../pulls/sessions';
+import { usersById, type PublicUser } from '../members/users';
 import { chunks } from '../stack/view';
 import type { SessionUser } from '../variables';
 import { flagJson } from './reviewers-view';

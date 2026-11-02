@@ -1,6 +1,6 @@
 import type { PullRequest } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { getSetting } from '../lib/settings';
+import { getSetting } from '../instance/settings';
 
 /** Why an author may not approve their own pull request or decide its findings for a person. */
 export const SELF_APPROVAL_REFUSED =

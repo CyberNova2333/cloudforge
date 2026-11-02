@@ -4,7 +4,7 @@ import {
   actionsVariables,
   type ActionsVariable,
 } from '../db/app.schema';
-import { inJsonArray } from '../lib/sql-set';
+import { inJsonArray } from '../shared/sql-set';
 import type { DrizzleDB } from '../db/middleware';
 import { maskValues } from './commands';
 

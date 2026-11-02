@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
-import { cutRelease, listReleases, unreleased } from '../lib/releases';
+import { can } from '../repositories/permissions';
+import { cutRelease, listReleases, unreleased } from '../releases/service';
 import { publishChange } from '../live/publish';
 import { McpToolError } from './errors';
 import { appName } from './moderators';

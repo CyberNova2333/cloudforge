@@ -14,7 +14,7 @@ import {
 import { ZERO_SHA } from '../git/remote';
 import type { GitService } from '../git/service';
 import { decoder } from '../git/bytes';
-import { gitFor } from '../lib/repos';
+import { gitFor } from '../repositories/service';
 import {
   planJobs,
   pullRequestMatches,
@@ -26,8 +26,8 @@ import {
   WorkflowFileError,
   type WorkflowDef,
 } from './workflow-file';
-import { landTargetOf } from '../lib/land-target';
-import { getSetting } from '../lib/settings';
+import { landTargetOf } from '../pulls/land-target';
+import { getSetting } from '../instance/settings';
 import type { Value } from './expressions';
 
 type Db = DrizzleD1Database<typeof schema>;

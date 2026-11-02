@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { attributeCommits } from '../lib/commit-authors';
+import { attributeCommits } from '../repositories/commit-authors';
 import {
   pullRequests,
   repositories,
@@ -10,9 +10,9 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { recordAudit } from '../lib/audit';
-import { createRepository } from '../lib/repo-create';
-import { INSIGHT_PERIODS, repoInsights } from '../lib/insights';
+import { recordAudit } from '../audit/service';
+import { createRepository } from '../repositories/create';
+import { INSIGHT_PERIODS, repoInsights } from '../repositories/insights';
 import { isMonth, usageReport } from '../usage/report';
 import {
   findRepo,
@@ -22,7 +22,7 @@ import {
   teamNamespace,
   userNamespace,
   visibleTo,
-} from '../lib/repos';
+} from '../repositories/service';
 import type { SessionUser } from '../variables';
 import { McpToolError } from './errors';
 import { AGENT_TOOLS } from './agent-tools';

@@ -1,0 +1,94 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { describe, expect, it } from 'vitest';
+import { encoder } from '../../git/bytes';
+import { makeBlob, makeCommit, makeTree } from '../../git/objects';
+import { parseRefAdvertisement, pktLine, FLUSH } from '../../git/pktline';
+import { concat } from '../../git/bytes';
+
+// Expected hashes are what `git hash-object` / `git mktree` produce for the same content.
+describe('Git 对象编码', () => {
+  it('blob 哈希与 Git 完全一致', async () => {
+    expect((await makeBlob('')).sha).toBe(
+      'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
+    );
+    expect((await makeBlob('hello\n')).sha).toBe(
+      'ce013625030ba8dba906f756967f9e9ca394464a'
+    );
+  });
+
+  it('空树哈希与 Git 完全一致', async () => {
+    expect((await makeTree([])).sha).toBe(
+      '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+    );
+  });
+
+  it('排序目录时视其名称带有斜杠后缀', async () => {
+    const blob = await makeBlob('x');
+    const tree = await makeTree([
+      {
+        name: 'a',
+        mode: '40000',
+        hash: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+      },
+      { name: 'a.txt', mode: '100644', hash: blob.sha },
+    ]);
+    const text = new TextDecoder('latin1').decode(tree.data);
+    expect(text.indexOf('a.txt')).toBeLessThan(text.indexOf('40000 a\0'));
+  });
+
+  it('固定输入生成稳定的提交哈希', async () => {
+    const c = await makeCommit({
+      tree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+      parents: [],
+      author: { name: 'A', email: 'a@example.com', timestamp: 1700000000 },
+      message: 'init',
+    });
+    // Same bytes piped through `git hash-object -t commit --stdin`.
+    expect(c.sha).toBe('0ecda3d68435b49f8de8d1bbaa00149ba94664b2');
+  });
+});
+
+describe('引用公告', () => {
+  it('解析引用及 HEAD 符号引用', () => {
+    const body = concat([
+      pktLine('# service=git-upload-pack\n'),
+      FLUSH,
+      pktLine(
+        `${'a'.repeat(40)} HEAD\0multi_ack symref=HEAD:refs/heads/main agent=x\n`
+      ),
+      pktLine(`${'b'.repeat(40)} refs/heads/feature\n`),
+      pktLine(`${'a'.repeat(40)} refs/heads/main\n`),
+      FLUSH,
+    ]);
+    const ad = parseRefAdvertisement(body);
+    expect(ad.head).toBe('refs/heads/main');
+    expect(ad.refs.get('refs/heads/feature')).toBe('b'.repeat(40));
+    expect(ad.refs.get('refs/heads/main')).toBe('a'.repeat(40));
+  });
+
+  it('将附注标签最终指向的提交与引用分开处理', () => {
+    const body = concat([
+      pktLine(`${'a'.repeat(40)} refs/heads/main\0agent=x\n`),
+      pktLine(`${'c'.repeat(40)} refs/tags/v1.0.0\n`),
+      pktLine(`${'a'.repeat(40)} refs/tags/v1.0.0^{}\n`),
+      FLUSH,
+    ]);
+    const ad = parseRefAdvertisement(body);
+    expect(ad.refs.get('refs/tags/v1.0.0')).toBe('c'.repeat(40));
+    expect(ad.refs.has('refs/tags/v1.0.0^{}')).toBe(false);
+    expect(ad.peeled.get('refs/tags/v1.0.0')).toBe('a'.repeat(40));
+  });
+
+  it('将空仓库公告视为没有引用', () => {
+    const body = concat([
+      pktLine(`${'0'.repeat(40)} capabilities^{}\0agent=x\n`),
+      FLUSH,
+    ]);
+    expect(parseRefAdvertisement(body).refs.size).toBe(0);
+  });
+
+  it('以十六进制编码 pkt-line 长度，并计入 4 字节前缀', () => {
+    expect(new TextDecoder().decode(pktLine('hi\n'))).toBe('0007hi\n');
+    expect(encoder.encode('0000')).toEqual(FLUSH);
+  });
+});

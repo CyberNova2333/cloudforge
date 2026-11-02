@@ -8,8 +8,8 @@ import {
   oauthRefreshTokens,
 } from '../db/auth.schema';
 import { mcpModerators, oauthGrantGenerations } from '../db/app.schema';
-import { mcpServerName } from '../lib/app-name';
-import { instanceName } from '../lib/settings';
+import { mcpServerName } from '../instance/name';
+import { instanceName } from '../instance/settings';
 import type { AppEnv } from '../variables';
 import { McpToolError } from './errors';
 import {

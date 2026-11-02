@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -9,11 +9,11 @@ import {
 } from '../db/app.schema';
 import type { GitService } from '../git/service';
 import { users } from '../db/auth.schema';
-import { findRepoById, gitFor, permissionsFor } from '../lib/repos';
+import { findRepoById, gitFor, permissionsFor } from '../repositories/service';
 import { landPull, mergingPause } from '../merge/land';
 import { resolutionConfigured } from '../merge/resolution';
 import { rebaseTips, rebaseView } from '../merge/rebase';
-import { landTargetOf } from '../lib/land-target';
+import { landTargetOf } from '../pulls/land-target';
 import { stackGate } from '../stack/gate';
 import { checksAt, reviewGateFor, reviewReasonText } from './gate';
 import { hasInvitedAgents } from './keys';

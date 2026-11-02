@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 // External CI status reporting over MCP, with the same permissions and validation as the REST API.
 import { commitStatusStates, type CommitStatus } from '../db/app.schema';
 import {
@@ -7,9 +7,9 @@ import {
   createStatus,
   latestStatuses,
   statusInputSchema,
-} from '../lib/commit-statuses';
-import { usersById } from '../lib/users';
-import { emitStatus } from '../lib/webhook-events';
+} from '../repositories/commit-statuses';
+import { usersById } from '../members/users';
+import { emitStatus } from '../webhooks/events';
 import { publishChange } from '../live/publish';
 import { settleStates } from '../pulls/settle';
 import { autoMergeForCommit } from '../review/auto-merge';

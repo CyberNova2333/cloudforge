@@ -3,9 +3,9 @@ import { eq, sql } from 'drizzle-orm';
 import { users } from '../db/auth.schema';
 import { isAgentUser } from '../agents/identity';
 import type { DrizzleDB } from '../db/middleware';
-import { emailConfigured } from '../lib/email';
-import { namespaceTaken } from '../lib/namespaces';
-import { getSetting, getSettings, signupDomains } from '../lib/settings';
+import { emailConfigured } from '../notifications/email';
+import { namespaceTaken } from '../members/namespaces';
+import { getSetting, getSettings, signupDomains } from '../instance/settings';
 
 /**
  * Self sign-up (`POST /api/auth/sign-up/email`), governed by Site admin → Settings → Accounts: refused while it is

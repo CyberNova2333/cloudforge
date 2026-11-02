@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { POLICY_REQUIRE_MFA_SQL, POLICY_VERSION_SQL } from '../auth/policy';
 import { RECENT_AUTHENTICATION_MS } from '../auth/recent';
 import { OidcError } from './errors';

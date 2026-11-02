@@ -1,7 +1,8 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq } from 'drizzle-orm';
 import { repositoryAgents } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { d1Of } from '../pulls/events';
 import { settleStates } from '../pulls/settle';
 import { autoMergeRepository } from '../review/auto-merge';

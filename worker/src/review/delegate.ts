@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 /**
  * "Let Claude decide": CloudForge AI answers a reviewer agent's findings for a person, as that person, with the
@@ -23,17 +23,21 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { aiGateway } from '../lib/ai-gateway';
-import { withRateLimitRetry, type RateLimitRetry } from '../lib/ai-retry';
-import { auditEventsWhere, recordAudit, type AuditEvent } from '../lib/audit';
+import { aiGateway } from '../ai/gateway';
+import { withRateLimitRetry, type RateLimitRetry } from '../ai/retry';
+import {
+  auditEventsWhere,
+  recordAudit,
+  type AuditEvent,
+} from '../audit/service';
 import {
   findRepoById,
   findReposByIds,
   permissionsFor,
   permissionsForMany,
-} from '../lib/repos';
-import { getSetting } from '../lib/settings';
-import { inJsonArray } from '../lib/sql-set';
+} from '../repositories/service';
+import { getSetting } from '../instance/settings';
+import { inJsonArray } from '../shared/sql-set';
 import { chunks } from '../stack/view';
 import { recordAiUsage, usageFromResponse } from '../usage/record';
 import type { SessionUser } from '../variables';
