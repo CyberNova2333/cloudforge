@@ -5,44 +5,60 @@ import { realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { accessPreflight } from './access-preflight.ts';
-import { adoptFromCheckout, pickCheckoutState } from './adopt.ts';
-import { adoptWorker, planAdoptWorker } from './adopt-worker.ts';
-import { install, resumeInstalled, type Ctx, type Optional } from './apply.ts';
-import { assertConfigWritable, OPTIONAL_ITEMS } from './apply-steps.ts';
-import { restCloudflare, type Cloudflare } from './cloudflare.ts';
-import { clackIo, collect, type Io } from './collect.ts';
-import { ConfigConflict } from './config.ts';
+import { accessPreflight } from './access/access-preflight.ts';
+import { adoptFromCheckout, pickCheckoutState } from './commands/adopt.ts';
+import { adoptWorker, planAdoptWorker } from './commands/adopt-worker.ts';
+import {
+  install,
+  resumeInstalled,
+  type Ctx,
+  type Optional,
+} from './commands/apply.ts';
+import {
+  assertConfigWritable,
+  OPTIONAL_ITEMS,
+} from './commands/apply-steps.ts';
+import { restCloudflare, type Cloudflare } from './platform/cloudflare.ts';
+import { clackIo, collect, type Io } from './ui/collect.ts';
+import { ConfigConflict } from './installation/config.ts';
 import {
   cloudforgeHome,
   installDir,
   listInstalls,
   pickInstall,
   pickResumable,
-} from './home.ts';
-import { installationIdOf, resourceNames, validateName } from './names.ts';
-import { observe } from './observe.ts';
-import { computePlan, formatPlan } from './plan.ts';
-import { preflight } from './preflight.ts';
-import { findDatabase, resetPassword } from './reset-password.ts';
-import { recoveryReasonProblem, resetMfa } from './reset-mfa.ts';
-import { processRunner, type Runner } from './runner.ts';
-import { checkoutSource, packageSource, type Source } from './source.ts';
+} from './installation/home.ts';
+import {
+  installationIdOf,
+  resourceNames,
+  validateName,
+} from './planning/names.ts';
+import { observe } from './planning/observe.ts';
+import { computePlan, formatPlan } from './planning/plan.ts';
+import { preflight } from './platform/preflight.ts';
+import { findDatabase, resetPassword } from './recovery/reset-password.ts';
+import { recoveryReasonProblem, resetMfa } from './recovery/reset-mfa.ts';
+import { processRunner, type Runner } from './platform/runner.ts';
+import {
+  checkoutSource,
+  packageSource,
+  type Source,
+} from './distribution/source.ts';
 import {
   analyticsTokenLink,
   checkAnalyticsToken,
   r2TokenLink,
-} from './secrets.ts';
+} from './platform/secrets.ts';
 import {
   hasStep,
   listStates,
   newState,
   readState,
   type InstallState,
-} from './state.ts';
-import { findState, status, UsageError } from './status.ts';
-import { upgrade } from './upgrade.ts';
-import { latestOnNpm } from './versions.ts';
+} from './installation/state.ts';
+import { findState, status, UsageError } from './commands/status.ts';
+import { upgrade } from './commands/upgrade.ts';
+import { latestOnNpm } from './distribution/versions.ts';
 
 export const usage = (
   source: Source

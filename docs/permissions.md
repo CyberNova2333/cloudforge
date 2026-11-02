@@ -22,7 +22,7 @@
 | 其他有效实例成员           | 团队、internal、public 仓库 | 拒绝           | 拒绝     |
 | 匿名或封禁成员             | 仅 public 仓库              | 拒绝           | 拒绝     |
 
-[仓库权限入口](../worker/src/lib/repos.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合；单项、批量与通知候选复用[权限兼容内核](../worker/src/lib/repo-permissions.ts)的 `permissionsOf` 规则。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者以仓库/成员联合键标识；兼容迁移新增 role 和 revision，当前数据库仍只允许 write，不能虚构旧记录原先具有 read/admin 等级。
+[仓库权限入口](../worker/src/repositories/service.ts)的 `permissionsFor`、`permissionsForMany` 与 `visibleTo` 必须给出一致可读集合；单项、批量与通知候选复用[权限兼容内核](../worker/src/repositories/permissions.ts)的 `permissionsOf` 规则。单项入口不可见时返回404；批量列表、搜索、通知和命名空间页面不能另算一套可见性。协作者以仓库/成员联合键标识；兼容迁移新增 role 和 revision，当前数据库仍只允许 write，不能虚构旧记录原先具有 read/admin 等级。
 
 Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集；read scope 不因签发者是管理员而变成写。仓库部署令牌有独立身份，只能用于其不可变仓库 id 的 Git/LFS，签发者仍须是有效管理员，不能继承 REST/MCP 或受保护引用权限。具体限制见[部署令牌](deploy-tokens.md)。
 
@@ -54,7 +54,7 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 
 ## 当前授权管理写入
 
-共享团队 PUT 与协作者 PUT/DELETE 已接入[最终写入检查](../worker/src/lib/access-write.ts)。例如管理员发起团队改名后、SQL 执行前被撤销管理员身份，该请求返回409，团队、命名空间及成功审计均不改变。正常改名保留稳定团队id和原DTO。
+共享团队 PUT 与协作者 PUT/DELETE 已接入[最终写入检查](../worker/src/access/write.ts)。例如管理员发起团队改名后、SQL 执行前被撤销管理员身份，该请求返回409，团队、命名空间及成功审计均不改变。正常改名保留稳定团队id和原DTO。
 
 这些入口要求浏览器近期本地密码及已启用的第二因子证明。写入同时核验当前管理员或仓库所有者、封禁状态、活会话、认证/策略代际、OIDC来源、原证明时间、密码账户和因子身份，以及最初读取的ACL generation；新证明不会替换在途请求的旧快照。过期判定使用执行SQL时的数据库时间。团队另查revision与稳定指针，协作者另查URL仍指向同一仓库和目标账户，删除还查原协作者revision。
 
@@ -99,7 +99,7 @@ yarn cloudforge access-preflight --database <数据库名或UUID> --account <账
 
 ## 账户资料和管理边界
 
-成员列表与用户命名空间资料使用同一个账户邮箱规则：只有站点管理员和成员本人能看到该账户邮箱；其他成员收到 null，团队和 Agent 不公开账户邮箱。命名空间 API 仍要求成员登录。Git 提交对象原本携带的作者/提交者邮箱属于提交数据，不由这个账户字段规则隐藏或改写。实现和回归见[公共成员投影](../worker/src/lib/users.ts)、[邮箱与提交归属测试](../worker/src/__tests__/commit-emails.test.ts)。
+成员列表与用户命名空间资料使用同一个账户邮箱规则：只有站点管理员和成员本人能看到该账户邮箱；其他成员收到 null，团队和 Agent 不公开账户邮箱。命名空间 API 仍要求成员登录。Git 提交对象原本携带的作者/提交者邮箱属于提交数据，不由这个账户字段规则隐藏或改写。实现和回归见[公共成员投影](../worker/src/members/users.ts)、[邮箱与提交归属测试](../worker/src/__tests__/auth/commit-emails.test.ts)。
 
 站点管理员写接口还受近期本地密码、已启用因素、受限会话及 OIDC 来源约束，仓库 admin 不等于站点 admin。[认证专题](authentication.md)说明原生接口、MFA 策略和离线恢复；不能从 SDK 插件已注册推断所有管理员操作都可直接执行。
 

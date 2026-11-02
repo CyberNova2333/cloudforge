@@ -1,9 +1,10 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** How a learn run ends a lesson: failed, or its edit validated and committed (or nothing), fenced on the run. */
 import { eq } from 'drizzle-orm';
 import { agentLessons, type AgentLesson } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { refreshAgentConfig } from '../agents/refresh';
-import { gitFor } from '../lib/repos';
+import { gitFor } from '../repositories/service';
 import { publishChange } from '../live/publish';
 import { recordEvent } from '../pulls/events';
 import type { PiStatus } from '../review/pi-contract';

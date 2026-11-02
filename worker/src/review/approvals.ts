@@ -4,7 +4,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prApprovals, type PullRequest } from '../db/app.schema';
 import type { GitService } from '../git/service';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { resolutionConfigured } from '../merge/resolution';
 import { d1Of } from '../pulls/events';
 import { settleStates } from '../pulls/settle';

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { agents, personalAccessTokens } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { hashToken } from '../lib/tokens';
+import { hashToken } from './tokens';
 import type { SessionUser } from '../variables';
 
 /** The API paths that take a token: posting and reading commit statuses. */

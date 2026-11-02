@@ -1,5 +1,6 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { ClassifierAnswer, EdgeKind } from '../db/app.schema';
-import { aiGateway, type AiFeature } from '../lib/ai-gateway';
+import { aiGateway, type AiFeature } from '../ai/gateway';
 import {
   classifierModel,
   toAnswers,
@@ -7,7 +8,7 @@ import {
   type ClefQuestion,
 } from '../review/models';
 import { recordAiUsage, usageFromResponse } from '../usage/record';
-import { withRateLimitRetry } from '../lib/ai-retry';
+import { withRateLimitRetry } from '../ai/retry';
 
 /** One side of a pair, as the models see it. */
 export type PrSide = {

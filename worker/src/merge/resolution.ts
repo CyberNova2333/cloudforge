@@ -1,8 +1,9 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { and, desc, eq, isNull, notLike, or, sql } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { mergeResolutions, type MergeResolution } from '../db/app.schema';
-import { getSetting } from '../lib/settings';
+import { getSetting } from '../instance/settings';
 
 /** R2 key of a resolution's transcript. */
 export const transcriptKey = (repoId: string, id: string) =>

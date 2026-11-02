@@ -1,0 +1,407 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { describe, expect, it } from 'vitest';
+import { CloudflareError, restCloudflare } from '../../platform/cloudflare.ts';
+import { fakeCloudflare } from '../helpers/fakes.ts';
+
+type Call = { method: string; url: URL; body?: string };
+
+function fakeFetch(respond: (call: Call, n: number) => Response): {
+  fetch: typeof fetch;
+  calls: Call[];
+} {
+  const calls: Call[] = [];
+  const f = (async (url: string, init?: RequestInit) => {
+    const call = {
+      method: init?.method ?? 'GET',
+      url: new URL(url),
+      body: init?.body as string | undefined,
+    };
+    calls.push(call);
+    return respond(call, calls.length);
+  }) as unknown as typeof fetch;
+  return { fetch: f, calls };
+}
+
+const ok = (result: unknown, info?: object) =>
+  Response.json({ success: true, errors: [], result, result_info: info });
+const noSleep = { sleep: async () => {} };
+
+describe('restCloudflare：Cloudflare REST 客户端', () => {
+  it('将错误响应封装转换为 CloudflareError', async () => {
+    const { fetch } = fakeFetch(() =>
+      Response.json(
+        { success: false, errors: [{ code: 10000, message: 'Auth' }] },
+        { status: 403 }
+      )
+    );
+    const err = await restCloudflare('t', fetch, noSleep)
+      .listD1('a')
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(CloudflareError);
+    expect(err.status).toBe(403);
+    expect(err.codes).toEqual([10000]);
+    expect(err.path).toContain('/d1/database');
+    expect(err.message).not.toContain('Bearer');
+  });
+
+  it('listAccounts 发送 per_page=50；Artifacts 和 workers/domains 不发送', async () => {
+    const acc = fakeFetch(() => ok([]));
+    await restCloudflare('t', acc.fetch, noSleep).listAccounts();
+    expect(acc.calls[0]!.url.searchParams.get('per_page')).toBe('50');
+    const art = fakeFetch(() => ok([]));
+    const cf = restCloudflare('t', art.fetch, noSleep);
+    await cf.listArtifactsNamespaces('a');
+    await cf.workerDomains('a');
+    expect(art.calls.map((c) => c.url.searchParams.has('per_page'))).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it('listR2 根据 result_info.cursor 读取两页', async () => {
+    const { fetch, calls } = fakeFetch((c) =>
+      c.url.searchParams.get('cursor') === 'c1'
+        ? ok({ buckets: [{ name: 'b2' }] }, {})
+        : ok({ buckets: [{ name: 'b1' }] }, { cursor: 'c1' })
+    );
+    expect(await restCloudflare('t', fetch, noSleep).listR2('a')).toEqual([
+      'b1',
+      'b2',
+    ]);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.url.searchParams.get('per_page')).toBe('1000');
+  });
+
+  it('游标重复时停止', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok({ buckets: [{ name: 'b' }] }, { cursor: 'same' })
+    );
+    await restCloudflare('t', fetch, noSleep).listR2('a');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('合并分页结果', async () => {
+    const { fetch, calls } = fakeFetch((c) =>
+      c.url.searchParams.get('page') === null
+        ? ok([{ uuid: '1', name: 'a' }], { total_pages: 2 })
+        : ok([{ uuid: '2', name: 'b' }], { total_pages: 2 })
+    );
+    const rows = await restCloudflare('t', fetch, noSleep).listD1('acc');
+    expect(rows.map((r) => r.uuid)).toEqual(['1', '2']);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('GET 遇到 429 时遵循有上限的 Retry-After 重试一次', async () => {
+    const waits: number[] = [];
+    const { fetch, calls } = fakeFetch((_, n) =>
+      n === 1
+        ? new Response('', { status: 429, headers: { 'Retry-After': '99' } })
+        : ok([{ id: 'x', name: 'X' }])
+    );
+    const rows = await restCloudflare('t', fetch, {
+      sleep: async (ms) => void waits.push(ms),
+    }).listAccounts();
+    expect(rows).toEqual([{ id: 'x', name: 'X' }]);
+    expect(calls).toHaveLength(2);
+    expect(waits).toEqual([10_000]);
+  });
+
+  it('POST 遇到 500 时不重试', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      Response.json(
+        { success: false, errors: [{ code: 1, message: 'boom' }] },
+        { status: 500 }
+      )
+    );
+    await expect(
+      restCloudflare('t', fetch, noSleep).createD1('a', 'db')
+    ).rejects.toBeInstanceOf(CloudflareError);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('workersSubdomain：404 返回 null，否则返回子域名', async () => {
+    const miss = fakeFetch(() =>
+      Response.json({ success: false, errors: [] }, { status: 404 })
+    );
+    expect(
+      await restCloudflare('t', miss.fetch, noSleep).workersSubdomain('a')
+    ).toBeNull();
+    const hit = fakeFetch(() => ok({ subdomain: 'me' }));
+    expect(
+      await restCloudflare('t', hit.fetch, noSleep).workersSubdomain('a')
+    ).toBe('me');
+  });
+
+  it('findZone 逐级向上查找域名并返回首个匹配项', async () => {
+    const { fetch, calls } = fakeFetch((c) =>
+      c.url.searchParams.get('name') === 'example.com'
+        ? ok([{ id: 'z', name: 'example.com', status: 'active' }])
+        : ok([])
+    );
+    const z = await restCloudflare('t', fetch, noSleep).findZone(
+      'a',
+      'git.a.example.com'
+    );
+    expect(z).toEqual({ id: 'z', name: 'example.com', status: 'active' });
+    expect(calls.map((c) => c.url.searchParams.get('name'))).toEqual([
+      'git.a.example.com',
+      'a.example.com',
+      'example.com',
+    ]);
+  });
+
+  it('queryD1 发送 SQL 和参数并返回首个结果集', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok([{ results: [{ n: 1 }] }, { results: [{ n: 2 }] }])
+    );
+    const rows = await restCloudflare('t', fetch, noSleep).queryD1(
+      'a',
+      'db',
+      'select ?',
+      [1]
+    );
+    expect(rows).toEqual([{ n: 1 }]);
+    expect(JSON.parse(calls[0]!.body!)).toEqual({
+      sql: 'select ?',
+      params: [1],
+    });
+  });
+
+  it('batchD1 在一次请求中发送全部语句，并按语句返回结果集', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok([{ results: [{ n: 1 }] }, { results: [] }])
+    );
+    const rows = await restCloudflare('t', fetch, noSleep).batchD1('a', 'db', [
+      { sql: 'select ?', params: [1] },
+      { sql: 'delete from x' },
+    ]);
+    expect(rows).toEqual([[{ n: 1 }], []]);
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0]!.body!)).toEqual({
+      batch: [
+        { sql: 'select ?', params: [1] },
+        { sql: 'delete from x', params: [] },
+      ],
+    });
+  });
+
+  it('putR2Lifecycle 将规则转换为 API 格式', async () => {
+    const { fetch, calls } = fakeFetch(() => ok({}));
+    await restCloudflare('t', fetch, noSleep).putR2Lifecycle('a', 'b', [
+      { id: 'expire-7d', prefix: 'actions-cache/', days: 7 },
+    ]);
+    expect(calls[0]!.method).toBe('PUT');
+    expect(JSON.parse(calls[0]!.body!).rules[0]).toEqual({
+      id: 'expire-7d',
+      enabled: true,
+      conditions: { prefix: 'actions-cache/' },
+      deleteObjectsTransition: { condition: { type: 'Age', maxAge: 604800 } },
+    });
+  });
+
+  for (const invalid of [
+    null,
+    {},
+    [],
+    [{}],
+    [{ results: null }],
+    [{ results: [null] }],
+    [{ success: false, results: [] }],
+  ]) {
+    it(`D1 成功信封中的损坏结果不能冒充空查询：${JSON.stringify(invalid)}`, async () => {
+      const { fetch, calls } = fakeFetch(() => ok(invalid));
+      const cf = restCloudflare('t', fetch, noSleep);
+      await expect(cf.queryD1('a', 'db', 'SELECT 1')).rejects.toThrow(
+        'invalid query response'
+      );
+      expect(calls).toHaveLength(1);
+    });
+  }
+
+  it('D1 批次缺少结果集时失败，不能将未知写入结果默认为空', async () => {
+    const { fetch, calls } = fakeFetch(() => ok([{ results: [] }]));
+    await expect(
+      restCloudflare('t', fetch, noSleep).batchD1('a', 'db', [
+        { sql: 'UPDATE one SET value = ? ', params: ['secret-not-to-log'] },
+        { sql: 'UPDATE two SET value = 1' },
+      ])
+    ).rejects.toThrow('invalid query response');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('R2 对象使用原始正文，404 返回 null', async () => {
+    const miss = fakeFetch(() => new Response('', { status: 404 }));
+    expect(
+      await restCloudflare('t', miss.fetch, noSleep).getR2Object(
+        'a',
+        'b',
+        'k/x'
+      )
+    ).toBeNull();
+    const hit = fakeFetch(() => new Response('hello'));
+    expect(
+      await restCloudflare('t', hit.fetch, noSleep).getR2Object('a', 'b', 'k/x')
+    ).toBe('hello');
+    expect(hit.calls[0]!.url.pathname).toMatch(/\/objects\/k\/x$/);
+  });
+
+  it('DNS 查询发送到 cloudflare-dns.com 且不携带令牌', async () => {
+    const { fetch, calls } = fakeFetch((c) =>
+      Response.json({
+        Status: 0,
+        Answer:
+          c.url.searchParams.get('type') === 'A'
+            ? [{ name: 'git.example.com.', type: 1, data: '192.0.2.1' }]
+            : [],
+      })
+    );
+    expect(
+      await restCloudflare('t', fetch, noSleep).dnsRecords(
+        'z1',
+        'git.example.com'
+      )
+    ).toEqual([{ type: 'A', content: '192.0.2.1' }]);
+    for (const c of calls) {
+      expect(c.url.origin).toBe('https://cloudflare-dns.com');
+      expect(c.url.searchParams.get('name')).toBe('git.example.com');
+    }
+  });
+
+  it('workerRoutes 列出区域路由及其脚本', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok([
+        { id: 'r1', pattern: 'git.example.com/*', script: 'other' },
+        { id: 'r2', pattern: 'x.example.com/*' },
+      ])
+    );
+    expect(
+      await restCloudflare('t', fetch, noSleep).workerRoutes('z1')
+    ).toEqual([
+      { pattern: 'git.example.com/*', script: 'other' },
+      { pattern: 'x.example.com/*', script: null },
+    ]);
+    expect(calls[0]!.url.pathname).toBe('/client/v4/zones/z1/workers/routes');
+  });
+
+  it('r2IsEmpty 最多列出一个对象', async () => {
+    const empty = fakeFetch(() => ok([]));
+    expect(
+      await restCloudflare('t', empty.fetch, noSleep).r2IsEmpty('a', 'b')
+    ).toBe(true);
+    expect(empty.calls[0]!.url.pathname).toBe(
+      '/client/v4/accounts/a/r2/buckets/b/objects'
+    );
+    expect(empty.calls[0]!.url.searchParams.get('per_page')).toBe('1');
+    const full = fakeFetch(() => ok([{ key: 'x' }], { is_truncated: true }));
+    expect(
+      await restCloudflare('t', full.fetch, noSleep).r2IsEmpty('a', 'b')
+    ).toBe(false);
+    expect(full.calls).toHaveLength(1);
+  });
+
+  it('workerVars 仅保留 plain_text 绑定，404 返回 null', async () => {
+    const { fetch } = fakeFetch(() =>
+      ok({
+        bindings: [
+          { type: 'plain_text', name: 'A', text: '1' },
+          { type: 'd1', name: 'DB' },
+        ],
+      })
+    );
+    expect(
+      await restCloudflare('t', fetch, noSleep).workerVars('a', 's')
+    ).toEqual({ A: '1' });
+    const miss = fakeFetch(() =>
+      Response.json({ success: false, errors: [] }, { status: 404 })
+    );
+    expect(
+      await restCloudflare('t', miss.fetch, noSleep).workerVars('a', 's')
+    ).toBeNull();
+  });
+
+  it('workerSettings 返回所有绑定', async () => {
+    const bindings = [
+      { type: 'plain_text', name: 'A', text: '1' },
+      { type: 'd1', name: 'DB', id: 'uuid-1' },
+      { type: 'secret_text', name: 'S' },
+      { type: 'r2_bucket', name: 'LFS', bucket_name: 'b' },
+      { type: 'artifacts', name: 'ARTIFACTS', namespace: 'n' },
+      {
+        type: 'durable_object_namespace',
+        name: 'LIVE',
+        class_name: 'LiveHub',
+      },
+    ];
+    const { fetch, calls } = fakeFetch(() => ok({ bindings }));
+    expect(
+      await restCloudflare('t', fetch, noSleep).workerSettings('a', 'my worker')
+    ).toEqual({ bindings });
+    expect(calls[0]!.url.pathname).toBe(
+      '/client/v4/accounts/a/workers/scripts/my%20worker/settings'
+    );
+  });
+
+  it('workerSettings：404 返回 null', async () => {
+    const miss = fakeFetch(() =>
+      Response.json({ success: false, errors: [] }, { status: 404 })
+    );
+    expect(
+      await restCloudflare('t', miss.fetch, noSleep).workerSettings('a', 's')
+    ).toBeNull();
+  });
+
+  it('durableObjectNamespaces 保留 API 提供的 use_sqlite', async () => {
+    const { fetch } = fakeFetch(() =>
+      ok([
+        { id: 'n1', script: 'w', class: 'A', use_sqlite: true },
+        { id: 'n2', script: 'w', class: 'B' },
+      ])
+    );
+    expect(
+      await restCloudflare('t', fetch, noSleep).durableObjectNamespaces('a')
+    ).toEqual([
+      { id: 'n1', script: 'w', class: 'A', sqlite: true },
+      { id: 'n2', script: 'w', class: 'B' },
+    ]);
+  });
+
+  it('listContainerApps 映射 Durable Object 命名空间', async () => {
+    const { fetch, calls } = fakeFetch(() =>
+      ok([
+        {
+          id: 'app1',
+          name: 'w-jobrunner',
+          durable_objects: { namespace_id: 'ns1' },
+        },
+        { id: 'app2', name: 'plain' },
+      ])
+    );
+    expect(
+      await restCloudflare('t', fetch, noSleep).listContainerApps('a')
+    ).toEqual([
+      { id: 'app1', name: 'w-jobrunner', namespaceId: 'ns1' },
+      { id: 'app2', name: 'plain', namespaceId: null },
+    ]);
+    expect(calls[0]!.url.pathname).toBe(
+      '/client/v4/accounts/a/containers/applications'
+    );
+  });
+});
+
+describe('fakeCloudflare：模拟 Cloudflare', () => {
+  it('初始化状态、记录调用并支持 failNext', async () => {
+    const cf = fakeCloudflare({
+      r2: { b: { k: 'v' } },
+      d1: [{ uuid: 'u', name: 'db' }],
+    });
+    expect(await cf.getR2Object('a', 'b', 'k')).toBe('v');
+    await cf.putR2Object('a', 'b', 'k2', 'w');
+    expect(await cf.getR2Object('a', 'b', 'k2')).toBe('w');
+    expect(await cf.listR2('a')).toEqual(['b']);
+    cf.failNext('createD1', new CloudflareError('x', 500, [], '/p'));
+    await expect(cf.createD1('a', 'n')).rejects.toBeInstanceOf(CloudflareError);
+    expect((await cf.createD1('a', 'n')).uuid).toBeTruthy();
+    expect(cf.calls.map((c) => c.method)).toContain('putR2Object');
+    expect((await cf.listD1('a')).map((d) => d.name)).toEqual(['db', 'n']);
+  });
+});

@@ -11,12 +11,17 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { recordAudit } from '../lib/audit';
-import { isNamespaceConflict, namespaceTaken } from '../lib/namespaces';
-import { createRepository } from '../lib/repo-create';
-import { gitFor, teamNamespace, userNamespace, visibleTo } from '../lib/repos';
-import { isValidUsername } from '../lib/usernames';
-import { toPublicUser } from '../lib/users';
+import { recordAudit } from '../audit/service';
+import { isNamespaceConflict, namespaceTaken } from '../members/namespaces';
+import { createRepository } from '../repositories/create';
+import {
+  gitFor,
+  teamNamespace,
+  userNamespace,
+  visibleTo,
+} from '../repositories/service';
+import { isValidUsername } from '../members/usernames';
+import { toPublicUser } from '../members/users';
 import type { SessionUser } from '../variables';
 import { AGENT_PATH, parseAgentConfig } from './config';
 import { agentEmail, avatarUrl } from './identity';

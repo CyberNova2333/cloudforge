@@ -19,7 +19,7 @@
 
 实例强制 MFA 约束浏览器会话；既有 PAT 和部署令牌使用仍遵循各自权限、期限与撤销规则，Git 客户端不进入网页验证码挑战。创建新令牌则需要当前策略合格的浏览器及近期验证。策略启用、旧浏览器重验、OAuth 撤销与最后管理员恢复见[认证专题](../../docs/authentication.md#管理员认证策略)，不从 Git 令牌验证结果推断浏览器已完成 MFA。
 
-[对应实现](../../worker/src/git-http.ts)，定位 `authenticateRepoRequest、handleGitRequest`。
+[对应实现](../../worker/src/git/http/handler.ts)，定位 `authenticateRepoRequest、handleGitRequest`。
 
 ## Step 2: 引用变动先经过保护
 
@@ -31,24 +31,24 @@
 
 允许的更新交给 Artifacts；服务器端的仓库凭据留在 Worker。回复支持状态报告时只采纳成功的引用，否则重新读取引用核对目标值。因此 HTTP 成功不能直接解释为每条引用都更新成功。
 
-[对应实现](../../worker/src/git-http.ts)，定位 `successfulPushRefs、applied、recordPush`。
+[对应实现](../../worker/src/git/http/handler.ts)，定位 `successfulPushRefs、applied、recordPush`。
 
 ## Step 4: 先记事件，再返回推送结果
 
 只要存在实际生效的引用，平台先把更新写入 D1 的推送事件，再安排后台后续工作并返回 Git 回复。这样响应后的执行被截断时仍有恢复依据。事件会触发配置刷新、检查、状态更新等工作，但这些工作的业务细节不在本指南范围内。
 
-[对应实现](../../worker/src/lib/push-events.ts)，定位 `recordPush、afterPush、runPushEvent`。
+[对应实现](../../worker/src/git/push-events.ts)，定位 `recordPush、afterPush、runPushEvent`。
 
 ## Step 5: 中断后按事件恢复
 
 恢复按租约和尝试次数领取未完成事件，成功后标记完成；失败释放领取状态，留待下一次推送或定期恢复。后续处理需要允许重复执行，不能把一次后台调用当作唯一交付凭据。
 
-[对应实现](../../worker/src/__tests__/push-events.test.ts)，定位 `“后台被中断的事件”与“同一仓库的下一次推送”用例`。
+[对应实现](../../worker/src/__tests__/git/push-events.test.ts)，定位 `“后台被中断的事件”与“同一仓库的下一次推送”用例`。
 
 ## 检查这条解释
 
 ```sh
-yarn test:workers worker/src/__tests__/git-http.test.ts worker/src/__tests__/push-protection.test.ts worker/src/__tests__/push-events.test.ts
+yarn test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
 ```
 
 上述定向命令只验证 Git 主流程；全项目要求仍以根 AGENTS 和 docs/development.md 为准。各轮实际验证记录见[指南变更记录](../change-log.md)；本地测试不表示真实推送或生产迁移已执行。

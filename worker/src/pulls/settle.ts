@@ -8,11 +8,11 @@ import {
   pullRequests,
 } from '../db/app.schema';
 import { publishChange } from '../live/publish';
-import { findRepoById, gitFor } from '../lib/repos';
+import { findRepoById, gitFor } from '../repositories/service';
 import { reviewConfigured } from '../review/head';
 import { recordStates } from './events';
 import { pullStates } from './signals';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { landTargetIs, landTargetOf } from './land-target';
 
 /**
  * Recomputes the states of a repository's open PRs (those into `scope.branch` only, when given) and records

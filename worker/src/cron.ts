@@ -6,10 +6,10 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { runActionsRetention } from './actions/retention';
 import { schema } from './db/schema';
-import { assertAccessRuntime } from './lib/access-runtime';
+import { assertAccessRuntime } from './access/runtime';
 import { syncUsageCron } from './usage/sync';
-import { deliverDueWebhooks } from './lib/webhooks';
-import { deliverNotificationEmails } from './lib/notification-email';
+import { deliverDueWebhooks } from './webhooks/service';
+import { deliverNotificationEmails } from './notifications/email-delivery';
 import { cleanupOidcSignIn } from './oidc/sign-in';
 
 /** Usage & cost: pulls the previous days' Cloudflare analytics (02:30 UTC). */

@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, asc, desc, eq } from 'drizzle-orm';
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import {
   prEvents,
   pullRequestComments,
@@ -10,11 +10,11 @@ import {
   workflowSteps,
   type PullRequest,
 } from '../db/app.schema';
-import { findRepo, gitFor, permissionsFor } from '../lib/repos';
-import { usersById } from '../lib/users';
-import { inJsonArray } from '../lib/sql-set';
-import { addComment, openPull, pullShas } from '../lib/pulls';
-import { BUMPS, type Bump } from '../lib/semver';
+import { findRepo, gitFor, permissionsFor } from '../repositories/service';
+import { usersById } from '../members/users';
+import { inJsonArray } from '../shared/sql-set';
+import { addComment, openPull, pullShas } from '../pulls/service';
+import { BUMPS, type Bump } from '../releases/version';
 import { actionsConfigured, rerun } from '../actions/trigger';
 import { landPull } from '../merge/land';
 import { rebaseTips, rebaseView, retryRebase } from '../merge/rebase';
@@ -35,8 +35,8 @@ import type { Dependency, TreeNode } from '../stack/tree';
 import { McpToolError } from './errors';
 import { appName } from './moderators';
 import type { ToolContext, ToolModule } from './tools';
-import { landShas, landTargetOf } from '../lib/land-target';
-import { releasedIn } from '../lib/releases';
+import { landShas, landTargetOf } from '../pulls/land-target';
+import { releasedIn } from '../releases/service';
 
 export const text = (t: string) => ({ type: 'text' as const, text: t });
 const json = (v: unknown) => text(JSON.stringify(v, null, 2));

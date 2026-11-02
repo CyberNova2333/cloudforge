@@ -6,7 +6,7 @@ import {
 } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { assertAccessRuntime } from '../access/runtime';
 import { executeRun, type StepRunner } from './executor';
 
 export type ActionsRunParams = { runId: string };

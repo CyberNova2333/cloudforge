@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { settleStates } from '../pulls/settle';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { assertAccessRuntime } from '../access/runtime';
 import { and, eq, exists, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { pingingSteps } from '../live/publish';
 import { autoMergeForCommit } from '../review/auto-merge';
@@ -30,7 +30,7 @@ import {
 } from '../db/app.schema';
 import { ArtifactsRepoClient } from '../git/remote';
 import { GitService } from '../git/service';
-import { gitFor, findRepoById } from '../lib/repos';
+import { gitFor, findRepoById } from '../repositories/service';
 import {
   ExpressionError,
   evaluateCondition,
@@ -75,7 +75,7 @@ import {
 } from './remote';
 import { runnerStarted, runnersStopped } from '../usage/record';
 import { markStoppedJob } from './abandon';
-import { getSetting, getSettings } from '../lib/settings';
+import { getSetting, getSettings } from '../instance/settings';
 import {
   actionsQueue,
   markStarted,

@@ -12,7 +12,7 @@ import {
 import { REBASE_COMMITTER } from '../git/rebase';
 import { GitPushError, ZERO_SHA } from '../git/remote';
 import type { GitService } from '../git/service';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { resolutionConfigured } from './resolution';
 import {
   afterRebase,
@@ -26,8 +26,8 @@ import {
   type RebaseTips,
 } from './rebase';
 import { checksAt, reviewGateFor, reviewReasonText } from '../review/gate';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
-import { protectedBy } from '../lib/protected-branches';
+import { landTargetIs, landTargetOf } from '../pulls/land-target';
+import { protectedBy } from '../repositories/protected-branches';
 import { stackGate } from '../stack/gate';
 import { holdsWhole, lineageOf, sharedWith } from '../stack/lineage';
 import {

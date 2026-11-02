@@ -276,7 +276,7 @@ export const errors: Record<string, string> = {
   combined: '合并成功',
   'merged anyway': '仍然合并',
 
-  // ── Site admin → Settings (worker/src/lib/settings.ts) ────────────────────
+  // ── Site admin → Settings (worker/src/instance/settings.ts) ────────────────────
   General: '常规',
   'AI models': 'AI 模型',
   Reviews: '评审',
@@ -346,7 +346,7 @@ export const errors: Record<string, string> = {
   'The most Actions jobs that run at the same time across the instance, each in its own container. Jobs past the limit wait in a queue, first come first served, and the run page shows how many are ahead.':
     '整个实例中同时运行的 Actions 作业上限，每个作业在各自的容器中运行。超出上限的作业会按先来后到在队列中等待，运行页面会显示前面还有多少。',
 
-  // ── Site admin → Setup (worker/src/lib/setup-checks.ts) ───────────────────
+  // ── Site admin → Setup (worker/src/instance/setup-checks.ts) ───────────────────
   Secrets: '密钥',
   Bindings: '绑定',
   Connectivity: '连通性',

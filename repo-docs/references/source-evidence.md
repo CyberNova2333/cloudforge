@@ -4,20 +4,20 @@
 
 ## Evidence Traversal Log
 
-| Pass   | Purpose                  | Inspected evidence                                                                                                                                              | What changed in the model                                                                                        |
-| ------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Pass 1 | 建立输入、状态和输出路径 | `worker/src/git-http.ts`, `worker/src/git/push-protection.ts`, `worker/src/git-http.ts`；根 README、package 或构建入口、Agent 规则                              | 固定 walkthrough 的代表性行为，并列出交接位置。                                                                  |
-| Pass 2 | 反查失败与遗漏依赖       | `worker/src/__tests__/git-http.test.ts`, `worker/src/__tests__/push-protection.test.ts`, `worker/src/__tests__/push-events.test.ts`；配置、已有文档与范围内目录 | 复查引用保护、部署凭据首次推送、成功引用筛选与事件恢复测试；确认 HTTP 成功、引用成功和后续完成是三个不同观察点。 |
+| Pass   | Purpose                  | Inspected evidence                                                                                                                                                          | What changed in the model                                                                                        |
+| ------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Pass 1 | 建立输入、状态和输出路径 | `worker/src/git/http/handler.ts`, `worker/src/git/push-protection.ts`, `worker/src/git/http/handler.ts`；根 README、package 或构建入口、Agent 规则                          | 固定 walkthrough 的代表性行为，并列出交接位置。                                                                  |
+| Pass 2 | 反查失败与遗漏依赖       | `worker/src/__tests__/git/git-http.test.ts`, `worker/src/__tests__/git/push-protection.test.ts`, `worker/src/__tests__/git/push-events.test.ts`；配置、已有文档与范围内目录 | 复查引用保护、部署凭据首次推送、成功引用筛选与事件恢复测试；确认 HTTP 成功、引用成功和后续完成是三个不同观察点。 |
 
 ## 证据表
 
 | Claim                    | Evidence                                                                                                          | Confidence | Caveat                           | Used by                                                               |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- | ---------- | -------------------------------- | --------------------------------------------------------------------- |
-| 请求先取得仓库权限       | [源码定位](../../worker/src/git-http.ts)：`authenticateRepoRequest、handleGitRequest`                             | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
+| 请求先取得仓库权限       | [源码定位](../../worker/src/git/http/handler.ts)：`authenticateRepoRequest、handleGitRequest`                     | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
 | 引用变动先经过保护       | [源码定位](../../worker/src/git/push-protection.ts)：`decidePush；在入口中搜索 readReceiveRequest 与 deployToken` | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
-| 存储回复决定哪些更新成立 | [源码定位](../../worker/src/git-http.ts)：`successfulPushRefs、applied、recordPush`                               | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
-| 先记事件，再返回推送结果 | [源码定位](../../worker/src/lib/push-events.ts)：`recordPush、afterPush、runPushEvent`                            | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
-| 中断后按事件恢复         | [源码定位](../../worker/src/__tests__/push-events.test.ts)：`“后台被中断的事件”与“同一仓库的下一次推送”用例`      | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
+| 存储回复决定哪些更新成立 | [源码定位](../../worker/src/git/http/handler.ts)：`successfulPushRefs、applied、recordPush`                       | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
+| 先记事件，再返回推送结果 | [源码定位](../../worker/src/git/push-events.ts)：`recordPush、afterPush、runPushEvent`                            | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
+| 中断后按事件恢复         | [源码定位](../../worker/src/__tests__/git/push-events.test.ts)：`“后台被中断的事件”与“同一仓库的下一次推送”用例`  | Confirmed  | 源码静态确认；本轮未运行业务路径 | [主流程](../walkthroughs/one-real-run.md)、[代码地图](../code-map.md) |
 
 ## 反证与后续问题
 
