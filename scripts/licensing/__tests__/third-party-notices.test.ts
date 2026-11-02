@@ -97,6 +97,98 @@ describe('第三方许可清单', () => {
     expect(run().failures).toEqual([]);
   });
 
+  it.each(['node-liblzma', '@mongodb-js/zstd'])(
+    '%s 安装与否不改变清单，也不遍历仅由它引用的子树',
+    (native) => {
+      install('a', 'MIT', { optionalDependencies: { [native]: '1.0.0' } });
+      const absent = run();
+      expect(absent.failures).toEqual([]);
+      install(native, 'LGPL-3.0', {
+        dependencies: { 'native-only': '1.0.0', missing: '1.0.0' },
+      });
+      install('native-only', 'AGPL-3.0-only', {
+        dependencies: { 'native-leaf': '1.0.0' },
+      });
+      install('native-leaf', 'MIT');
+      const present = run();
+      expect(present.failures).toEqual([]);
+      expect(present.content).toBe(absent.content);
+      expect(present.packages).toBe(1);
+      rmSync(join(root, 'node_modules', native), { recursive: true });
+      expect(run().content).toBe(absent.content);
+    }
+  );
+
+  it.each([
+    ['a', 'normal'],
+    ['normal', 'a'],
+  ])('根节点顺序 %s → %s 不会漏计正常路径共享的依赖', (...order) => {
+    write('package.json', {
+      name: 'app',
+      dependencies: Object.fromEntries(order.map((name) => [name, '1.0.0'])),
+    });
+    install('a', 'MIT', {
+      optionalDependencies: { 'node-liblzma': '1.0.0' },
+    });
+    install('normal', 'MIT', { dependencies: { shared: '1.0.0' } });
+    install('shared', 'MIT', { dependencies: { leaf: '1.0.0' } });
+    install('leaf', 'MIT');
+    const absent = run();
+    install('node-liblzma', 'LGPL-3.0', {
+      dependencies: { shared: '1.0.0', 'native-only': '1.0.0' },
+    });
+    install('native-only', 'MIT');
+    const present = run();
+    expect(present.failures).toEqual([]);
+    expect(present.packages).toBe(4);
+    expect(present.content).toBe(absent.content);
+    expect(present.content).toContain('`shared`');
+    expect(present.content).toContain('`leaf`');
+    expect(present.content).not.toContain('`native-only`');
+  });
+
+  it('共享生产依赖的必需子包未安装时仍报错', () => {
+    install('a', 'MIT', {
+      dependencies: { shared: '1.0.0' },
+      optionalDependencies: { 'node-liblzma': '1.0.0' },
+    });
+    install('node-liblzma', 'LGPL-3.0', {
+      dependencies: { shared: '1.0.0' },
+    });
+    install('shared', 'MIT', { dependencies: { missing: '1.0.0' } });
+    expect(run().failures.join('\n')).toContain('missing (required by shared');
+  });
+
+  it('传递引入的运行时原生模块及其独占子树也不随安装漂移', () => {
+    install('a', 'MIT', { dependencies: { wrapper: '1.0.0' } });
+    install('wrapper', 'MIT', {
+      optionalDependencies: { 'node-liblzma': '1.0.0' },
+    });
+    const absent = run();
+    install('node-liblzma', 'LGPL-3.0', {
+      dependencies: { '@mongodb-js/zstd': '1.0.0', 'native-only': '1.0.0' },
+    });
+    install('@mongodb-js/zstd', 'MIT', {
+      dependencies: { 'native-only': '1.0.0' },
+    });
+    install('native-only', 'AGPL-3.0-only');
+    const present = run();
+    expect(present.failures).toEqual([]);
+    expect(present.content).toBe(absent.content);
+    expect(present.packages).toBe(2);
+  });
+
+  it('运行时原生模块若实际进入客户端产物仍拒绝忽略', () => {
+    install('a', 'MIT', {
+      optionalDependencies: { 'node-liblzma': '1.0.0' },
+    });
+    install('node-liblzma', 'LGPL-3.0');
+    banner(['a@1.0.0', 'node-liblzma@1.0.0']);
+    expect(run().failures.join('\n')).toContain(
+      'node-liblzma@1.0.0 不在依赖树内'
+    );
+  });
+
   it('未安装的必需依赖报错', () => {
     install('a', 'MIT', { dependencies: { missing: '1.0.0' } });
     expect(run().failures.join('\n')).toContain('missing');
