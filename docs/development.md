@@ -233,17 +233,51 @@ The Worker tests keep the access singleton while deleting ordinary fixture subje
 
 Namespace guards include source-table `lower(...)` checks as a safety backstop. Their low-frequency writes may scan members; a 129-row fixture proves bounded parameters and consistency, not constant-time throughput. Add expression indexes only through reviewed declarations with workload evidence. A zero-row duplicate grant is a no-op, not proof that a new authorization was written. D1 trigger writes can change `meta.changes`; use outer `RETURNING` receipts when an exact affected row matters.
 
+## Actions compatibility checks
+
+Step-time expressions can use `hashFiles()` against the current checked-out workspace. For example, a step may
+set `key: deps-${{ hashFiles('**/yarn.lock') }}` in a cache action after checkout. An unmatched pattern returns an
+empty string. Matching supports exclusions and dotfiles; file reads stay inside the workspace. Results use sorted
+paths, so a multi-file digest need not be byte-for-byte identical to GitHub's directory-listing order. Calls are
+unavailable during job planning. Keep the limits and replay behavior in the [Actions architecture](architecture.md#actions)
+when changing the implementation.
+
+Explicit step names resolve again with the runtime context, while generated `Run <first line>` names keep the
+workflow's original text. Both ordinary `run` commands and actions receive `GITHUB_EVENT_PATH`; `github.event`
+contains the supported push or pull-request snapshot. Old runs retain unknown fields, and payload size limits can
+shorten optional metadata. Do not infer support for every GitHub webhook field or action from these additions.
+
+```sh
+yarn test:workers worker/src/__tests__/actions/actions-github-compat.test.ts worker/src/__tests__/actions/actions-event-payload.test.ts worker/src/__tests__/actions/actions-syntax.test.ts
+yarn vitest run --config scripts/cloudforge/vitest.config.ts scripts/actions/__tests__/hash-files.test.ts
+```
+
+The second command uses the actual container program through Node. Its POSIX filesystem cases run on Linux;
+Windows reports those cases as skipped. CI's `test-actions` owns the two new Worker suites; the Node configuration
+discovers `scripts/actions/` through its existing `scripts/**/*.test.ts` include.
+
 ## Process and runner dependency boundaries
 
 Source-mode installer commands use the same shell-free Yarn/Corepack resolver as Git hooks. On Windows, a standard
 `.cmd` shim is parsed into its Node.js entry instead of being executed by a shell. Arguments and stdin stay separate;
 an existing but invalid Yarn installation fails explicitly instead of falling back to another package manager.
 
-The runner's global npm dependencies are independent of the application lockfile. Its Dockerfile pins the Node 24
-base digest, installs a specific npm version with Yarn, and replaces npm's older bundled Undici with a patched
-same-major package. Validate the dependency actually resolved from npm, then scan the final image after apt installs;
-application `yarn audit` and a base-image scan do not cover the final runner. Distribution packages without an
-available security update remain separate audit items.
+The runner's dependencies are independent of the application lockfile. Its Dockerfile pins the Node 24 and Go
+builder digests, verifies the Git LFS source archive and module locks, runs the upstream Go tests, and copies only
+the custom binary and license records into the runtime image. Global npm uses tested, pinned dependencies for all
+consumers, including nested packages. Python uses verified wheels and a reproducible pip vendoring update; the
+custom pip version is distinct from its upstream release. Build inputs and provenance live in `actions/runner/`.
+
+Build the final image with `docker build --platform linux/amd64 -t cloudforge-runner-test actions/runner`.
+Run its offline functional checks by mounting `actions/runner/smoke.cjs` at `/smoke.cjs` read-only, with
+`--network none --read-only --tmpfs /tmp --entrypoint node`, and pass `/smoke.cjs` as the command. The checks cover
+the actual npm dependency resolution, package installation, Python wheel builds, basic compilers, and local Git LFS
+transfers. The installed Git LFS license manifest is checked too. Cloudflare currently requires
+[Linux AMD64 container images](https://developers.cloudflare.com/containers/concepts/architecture/).
+
+Scan the final image after all package installation steps; application `yarn audit` and a base-image scan do not
+cover the final runner. Keep upstream package metadata and remaining distribution findings visible. These local
+checks do not establish production deployment or cloud-container end-to-end results.
 
 An Actions command refused before execution returns a serializable runtime-admission result. It is persisted as a
 preparation failure, without restarting the job or running subsequent always/post commands. Unknown RPC/container
