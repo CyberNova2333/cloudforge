@@ -1,3 +1,5 @@
+<!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
+
 # CloudForge：一次真实主流程
 
 成员向仓库推送一条分支时，平台必须同时守住仓库权限、Git 引用保护和后续任务的可恢复性。本指南沿这次推送解释代码托管的一条主路径，帮助维护者区分“对象已写入”和“后续处理已完成”。
@@ -36,6 +38,8 @@
 ## Step 4: 先记事件，再返回推送结果
 
 只要存在实际生效的引用，平台先把更新写入 D1 的推送事件，再安排后台后续工作并返回 Git 回复。这样响应后的执行被截断时仍有恢复依据。事件会触发配置刷新、检查、状态更新等工作，但这些工作的业务细节不在本指南范围内。
+
+后续若排入 Actions，运行还会保留本次推送观察到的 before SHA；PR 运行另有自己的事件快照。命令可从 `github.event` 或 `GITHUB_EVENT_PATH` 读取支持的事件信息，旧运行缺失的历史字段保留未知。事件大小有上限，补充提交列表和文件列表可能缩减；具体支持范围见[Actions 交接入口](../code-map.md#actions-的事件与步骤表达式入口)。
 
 [对应实现](../../worker/src/git/push-events.ts)，定位 `recordPush、afterPush、runPushEvent`。
 

@@ -68,6 +68,9 @@ describe('表达式', () => {
   it('拒绝未知上下文和函数', () => {
     expect(() => evaluate('secretz.X', ctx)).toThrow(/Unrecognized/);
     expect(() => evaluate("hashFiles('**/*.lock')", ctx)).toThrow(
+      /only available in a step/
+    );
+    expect(() => evaluate('unknownFunction()', ctx)).toThrow(
       /Unsupported function/
     );
   });

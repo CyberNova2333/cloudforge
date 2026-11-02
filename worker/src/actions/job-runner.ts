@@ -9,6 +9,7 @@ import {
   workflowCommands,
 } from './commands';
 import type { InstanceType } from './plan';
+import { HASH_FILES_SCRIPT } from './hash-files';
 
 export interface StepRequest {
   number: number;
@@ -18,6 +19,8 @@ export interface StepRequest {
   timeoutMs: number;
   /** Values masked as *** in the log. */
   masks: string[];
+  /** Public event snapshot; written to the fixed event path after runtime admission. */
+  eventPayload?: string;
 }
 
 export interface StepResult {
@@ -35,16 +38,23 @@ export interface StepResult {
   interrupted?: string;
   /** Admission refused before any container command; never restart completed job steps for this. */
   refused?: 'runtime-admission';
+  /** Known pre-execution failure; completed commands must not be replayed for this. */
+  preparationError?: 'event-file';
 }
 
 /** Executor-facing RPC surface of the Durable Object. */
 export interface JobRunnerApi {
   boot(instance: InstanceType, maxMs: number): Promise<{ ms: number }>;
   runStep(req: StepRequest): Promise<StepResult>;
+  hashFiles(
+    patterns: string[],
+    follow: boolean
+  ): Promise<string | { refused: 'runtime-admission' }>;
   destroy(): Promise<void>;
 }
 
 export const WORKSPACE = '/workspace';
+export const EVENT_PATH = '/tmp/cloudforge-event.json';
 const STATE_DIR = '/tmp/_cloudforge';
 /** Per-step log cap; the start is dropped so the end (where failures are) survives. */
 const MAX_LOG_BYTES = 4 * 1024 * 1024;
@@ -131,6 +141,31 @@ export class JobRunner
       };
     if (!this.ctx.container?.running)
       throw new Error('The runner container is no longer running');
+    if (req.eventPayload !== undefined) {
+      try {
+        const event = await this.container.exec(
+          [
+            'sh',
+            '-c',
+            'printf %s "$CLOUDFORGE_EVENT" > "$1"',
+            'sh',
+            EVENT_PATH,
+          ],
+          { env: { CLOUDFORGE_EVENT: req.eventPayload } }
+        );
+        if ((await event.exitCode) !== 0) throw new Error('event-file');
+      } catch {
+        return {
+          exitCode: 1,
+          timedOut: false,
+          log: 'Could not prepare the workflow event file.',
+          outputs: {},
+          envAdds: {},
+          pathAdds: [],
+          preparationError: 'event-file',
+        };
+      }
+    }
     const files = {
       GITHUB_ENV: `${STATE_DIR}/env_${req.number}`,
       GITHUB_OUTPUT: `${STATE_DIR}/output_${req.number}`,
@@ -310,6 +345,52 @@ export class JobRunner
       state,
       ...(interrupted ? { interrupted } : {}),
     };
+  }
+
+  /** Hash the current workspace without executing workflow commands. */
+  async hashFiles(
+    patterns: string[],
+    follow: boolean
+  ): Promise<string | { refused: 'runtime-admission' }> {
+    // Refusal is data across RPC, so it can never trigger a job restart.
+    if (!(await readAccessRuntime(this.env.DB)).ready)
+      return { refused: 'runtime-admission' };
+    if (!this.ctx.container?.running)
+      throw new Error('The runner container is no longer running');
+    if (
+      !patterns.length ||
+      patterns.length > 64 ||
+      patterns.some((p) => typeof p !== 'string' || p.length > 4096)
+    )
+      throw new Error('Invalid hashFiles() patterns.');
+    const proc = await this.container.exec(
+      [
+        '/usr/bin/timeout',
+        '--kill-after=5s',
+        '120s',
+        'node',
+        '-e',
+        HASH_FILES_SCRIPT,
+      ],
+      {
+        cwd: WORKSPACE,
+        env: {
+          PATH: '/usr/local/bin:/usr/bin:/bin',
+          HOME: '/root',
+          HASH_PATTERNS: JSON.stringify(patterns),
+          HASH_FOLLOW: follow ? '1' : '',
+        },
+        stderr: 'combined',
+      }
+    );
+    const output = proc.stdout ? await new Response(proc.stdout).text() : '';
+    const code = await proc.exitCode;
+    const hash = output.trim();
+    if (code === 0 && /^([0-9a-f]{64})?$/.test(hash)) return hash;
+    // Do not return file names, patterns or untrusted process output in diagnostics.
+    throw new Error(
+      `hashFiles() failed${code === 124 || code === 137 ? ' or exceeded its 120 second limit' : ''} (exit ${code}).`
+    );
   }
 
   /** Output so far of the running step, for live logs. */

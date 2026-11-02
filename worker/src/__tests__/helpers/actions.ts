@@ -181,18 +181,30 @@ export function harness(
     relevance?: RelevanceModelFor;
     /** Where the fake Workflow's events land; one of its own by default. */
     events?: RunEvents;
+    hashFiles?: (
+      patterns: string[],
+      follow: boolean
+    ) =>
+      | string
+      | { refused: 'runtime-admission' }
+      | Promise<string | { refused: 'runtime-admission' }>;
+    /** Durable-result cache for replay tests; never contains a running callback. */
+    durableResults?: Map<string, unknown>;
   } = {}
 ) {
   const events: RunEvents = opts.events ?? [];
   const requests: StepRequest[] = [];
   const destroyed: string[] = [];
   const boots: string[] = [];
+  const hashed: { patterns: string[]; follow: boolean; after: number }[] = [];
   const stepNames: string[] = [];
   const alive = new Set<string>();
   let peak = 0;
   const step = {
     do: async (name: string, a: unknown, b?: unknown) => {
       stepNames.push(name);
+      if (opts.durableResults?.has(name))
+        return structuredClone(opts.durableResults.get(name));
       if (opts.failSetup && name.endsWith(':setup'))
         throw new Error(opts.failSetup);
       const fn = (b ?? a) as () => Promise<unknown>;
@@ -202,7 +214,9 @@ export function harness(
         : 0;
       for (let attempt = 0; ; attempt++) {
         try {
-          return await fn();
+          const value = await fn();
+          opts.durableResults?.set(name, structuredClone(value));
+          return value;
         } catch (e) {
           if (attempt >= retries) throw e;
         }
@@ -225,6 +239,10 @@ export function harness(
     },
   } as unknown as StepRunner;
   const runner = (jobId: string): JobRunnerApi => ({
+    hashFiles: async (patterns, follow) => {
+      hashed.push({ patterns, follow, after: requests.length });
+      return opts.hashFiles ? opts.hashFiles(patterns, follow) : '';
+    },
     boot: async () => {
       if (opts.failBoot) throw new Error(opts.failBoot);
       boots.push(jobId);
@@ -262,7 +280,15 @@ export function harness(
       },
       runId
     );
-  return { run, requests, destroyed, boots, stepNames, peak: () => peak };
+  return {
+    run,
+    requests,
+    destroyed,
+    boots,
+    hashed,
+    stepNames,
+    peak: () => peak,
+  };
 }
 
 export const script = (r: StepRequest) => r.argv[r.argv.length - 1];
