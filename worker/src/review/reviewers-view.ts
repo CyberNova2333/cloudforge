@@ -12,8 +12,8 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { GitService } from '../git/service';
-import { personRefs, type PersonRef } from '../lib/person-ref';
-import { usersById, type PublicUser } from '../lib/users';
+import { personRefs, type PersonRef } from '../members/person-ref';
+import { usersById, type PublicUser } from '../members/users';
 import { resolutionConfigured } from '../merge/resolution';
 import { autoMergeStatus, type AutoMergeStatus } from './auto-merge';
 import { flagTitleOf, reviewGateFor, type ReviewVerdict } from './gate';

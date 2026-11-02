@@ -9,7 +9,7 @@ import {
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { d1Of } from '../pulls/events';
-import { gitFor } from '../lib/repos';
+import { gitFor } from '../repositories/service';
 import { readAgentConfig, type AgentEngine } from '../agents/config';
 import {
   plainQuestion,

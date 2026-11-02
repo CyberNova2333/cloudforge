@@ -22,7 +22,7 @@
 
 ## 权限
 
-沿用 `permissionsFor`（`worker/src/lib/repos.ts`），不新增角色：
+沿用 `permissionsFor`（`worker/src/repositories/service.ts`），不新增角色：
 
 | 操作                     | 谁可以                                                 |
 | ------------------------ | ------------------------------------------------------ |

@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import { SELF_APPROVAL_REFUSED, selfApprovalRefused } from './self-approval';
 import { and, eq, exists, isNull, or } from 'drizzle-orm';
 import { settleStates } from '../pulls/settle';
@@ -18,10 +18,10 @@ import {
 } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { GitService } from '../git/service';
-import { recordAudit } from '../lib/audit';
-import { personRefs, type PersonRef } from '../lib/person-ref';
-import { permissionsFor } from '../lib/repos';
-import { userByUsername } from '../lib/users';
+import { recordAudit } from '../audit/service';
+import { personRefs, type PersonRef } from '../members/person-ref';
+import { permissionsFor } from '../repositories/service';
+import { userByUsername } from '../members/users';
 import { maybeAutoMerge } from './auto-merge';
 
 /** A finding's title (its `value.title`), for the audit log. */

@@ -12,8 +12,8 @@ import {
 import type { FileChange, GitService } from '../git/service';
 import { pingingSteps } from '../live/publish';
 import { recordEvent } from '../pulls/events';
-import { findRepoById, gitFor } from '../lib/repos';
-import { pullShas } from '../lib/pulls';
+import { findRepoById, gitFor } from '../repositories/service';
+import { pullShas } from '../pulls/service';
 import type { StepRunner } from '../merge/resolution';
 import type { WorkflowStepConfig } from 'cloudflare:workers';
 import { reviewConfigured } from '../review/head';
@@ -27,7 +27,7 @@ import {
   type PrSide,
   type StackModels,
 } from './models';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { landTargetIs, landTargetOf } from '../pulls/land-target';
 import { maybeAutoMerge } from '../review/auto-merge';
 import { executeReconcile } from './reconcile';
 import { acyclicVerdict } from './acyclic';

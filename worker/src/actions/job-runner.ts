@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { DurableObject } from 'cloudflare:workers';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { assertAccessRuntime } from '../access/runtime';
 import {
   mask,
   maskValues,

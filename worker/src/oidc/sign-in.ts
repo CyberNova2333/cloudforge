@@ -11,7 +11,7 @@ import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto';
 import { createOTP } from '@better-auth/utils/otp';
 import { z } from 'zod';
 import { drizzle } from 'drizzle-orm/d1';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { mustVerifyEmail } from '../auth/signup';
 import { oidcSessionSourceSql } from '../auth/assurance';
 import { POLICY_REQUIRE_MFA_SQL, POLICY_VERSION_SQL } from '../auth/policy';

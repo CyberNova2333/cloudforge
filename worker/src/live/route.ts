@@ -1,8 +1,8 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 import type { Handler } from 'hono';
 import type { AppEnv } from '../variables';
-import { findRepo, permissionsFor } from '../lib/repos';
+import { findRepo, permissionsFor } from '../repositories/service';
 import {
   APPROVALS_CHANNEL,
   connectLive,

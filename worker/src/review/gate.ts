@@ -20,7 +20,7 @@ import {
   statusVerdict,
   type CheckVerdict,
 } from './checks';
-import { latestStatuses } from '../lib/commit-statuses';
+import { latestStatuses } from '../repositories/commit-statuses';
 import { hasInvitedAgents, headReviewId } from './keys';
 
 export type ReviewReason = Extract<

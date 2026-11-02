@@ -953,7 +953,7 @@ export type UsageReport = {
   notMeasured: string[];
 };
 
-/* ---------- Crew redesign: the endpoints the new pages read (worker/src/routers/…). Timestamps here are epoch
+/* ---------- Crew redesign: the endpoints the new pages read (worker/src/<domain>/http/). Timestamps here are epoch
    milliseconds, unlike the older types above, which carry ISO strings. ---------- */
 
 /** What an agent is doing on a repository's open pull requests: a reviewer status, or `idle` when it is on none. */

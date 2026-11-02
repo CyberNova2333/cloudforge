@@ -43,9 +43,9 @@ import {
   type RebaseResult,
 } from '../git/rebase';
 import type { GitService } from '../git/service';
-import { landTargetOf } from '../lib/land-target';
-import { protectedBy } from '../lib/protected-branches';
-import { findRepoById, gitFor } from '../lib/repos';
+import { landTargetOf } from '../pulls/land-target';
+import { protectedBy } from '../repositories/protected-branches';
+import { findRepoById, gitFor } from '../repositories/service';
 import { pingingSteps, publishChange } from '../live/publish';
 import { recordEvent } from '../pulls/events';
 import { maybeAutoMerge } from '../review/auto-merge';

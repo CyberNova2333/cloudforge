@@ -12,7 +12,7 @@
 # label means nothing on GitHub, which gets ubuntu-latest).
 #
 # Every test file belongs to exactly one module. Adding a test file? Add it to its module's
-# `yarn test` line below; worker/src/__tests__/ci-workflow.test.ts (run by build) fails otherwise.
+# `yarn test` line below; worker/src/__tests__/platform/ci-workflow.test.ts (run by build) fails otherwise.
 name: CI
 
 on:
@@ -73,7 +73,7 @@ jobs:
 
       # Here, not in a module: the gate must never skip the check that every test file runs somewhere.
       - name: Check every test file is in a module
-        run: yarn test worker/src/__tests__/ci-workflow.test.ts
+        run: yarn test worker/src/__tests__/platform/ci-workflow.test.ts
 
   gate:
     name: Relevance
@@ -93,19 +93,19 @@ jobs:
           skip-below: 0.2
           # Shared test setup and the schema every test runs against (added to the defaults).
           always-run-paths: |
-            scripts/test-reporter.ts
-            scripts/test-workers.mjs
-            scripts/generate-db.mjs
-            scripts/cloudforge/reset-mfa.ts
+            scripts/testing/test-reporter.ts
+            scripts/testing/test-workers.mjs
+            scripts/database/generate-db.mjs
+            scripts/cloudforge/recovery/reset-mfa.ts
             worker/src/__tests__/helpers/**
             worker/test/**
             worker/src/db/**
             migrations/**
           modules: |
             stacking: Stacked pull requests: stack discovery and pair edges, the stack tree, reconcile and retargeting, stack gates on landing, and land targets (worker/src/stack/, pull_requests.land_target)
-            review: Reviewing and merging pull requests: reviews by reviewer agents (worker/src/review/: per-file one-liners, the Clef trigger, agent reviews and their findings (single pass, and engine: pi reviews in the AgentReviewer Durable Object with its read-only checkout), the review gate and person approvals, .orangeignore, auto-merge), the Approvals inbox, pull request states (worker/src/pulls/: state reasons, signals, settle, pr_events), merging and landing (worker/src/merge/, landPull), the merge queue and pausing merging (worker/src/lib/queue.ts), reverting a merged pull request (worker/src/lib/revert.ts), three-way tree merges and diff3 conflicts (worker/src/git/service.ts), AI conflict resolution (MergeResolver, MERGE_RESOLUTION attempts and sweeps), generated-file matching, and agent runs (worker/src/agent-runs/: how the review, conflict resolution, sweep, and stack discovery Workflows record their steps, decisions, and AI usage, and agent run retention), agents learning from dismissed change requests (worker/src/learn/: lessons, the learn mode of AgentReviewer, validating and committing the learned edit)
-            actions: CloudForge Actions (worker/src/actions/: workflow syntax and expressions, triggers, job planning and runner sizes, the executor and JobRunner containers, the job queue, the cache, log retention, the cloudforge/relevance action), the Cron Triggers (worker/src/cron.ts), and git transport and storage: the git smart-HTTP endpoint (worker/src/git-http.ts), git objects, packfiles and pkt-lines (worker/src/git/), Git LFS (worker/src/lfs-http.ts, worker/src/lib/lfs.ts), and raw file serving
-            core: The API outside the modules above (worker/src/routers/, worker/src/lib/, worker/src/auth/, worker/src/index.ts): repositories, pull requests and issues (worker/src/lib/issues.ts, worker/src/lib/issue-links.ts), notifications (worker/src/lib/notifications.ts, notification-email.ts, mentions.ts), access and visibility (worker/src/lib/repos.ts), setup and invitations, teams, Site admin and instance settings, the audit log (worker/src/lib/audit.ts), branches and the branch map (worker/src/lib/branches.ts), coding sessions (worker/src/lib/sessions.ts), repository health (worker/src/lib/health.ts), the Live page payload (worker/src/lib/live-feed.ts), global search (worker/src/lib/search.ts), reviewer agent presets (worker/src/agents/presets.ts), commit emails and attribution, live updates (worker/src/live/), usage and cost (worker/src/usage/), insights, the AI Gateway, API smoke tests; the MCP server (worker/src/mcp/: JSON-RPC tools) and its OAuth sign-in (better-auth OAuth provider, JWT access tokens, consent); and the web app's client-side libraries in src/lib (agent prompts, syntax highlighting, repository URLs, the stack tree and pull request state display)
+            review: Reviewing and merging pull requests: reviews by reviewer agents (worker/src/review/: per-file one-liners, the Clef trigger, agent reviews and their findings (single pass, and engine: pi reviews in the AgentReviewer Durable Object with its read-only checkout), the review gate and person approvals, .orangeignore, auto-merge), the Approvals inbox, pull request states (worker/src/pulls/: state reasons, signals, settle, pr_events), merging and landing (worker/src/merge/, landPull), the merge queue and pausing merging (worker/src/merge/queue.ts), reverting a merged pull request (worker/src/pulls/revert.ts), three-way tree merges and diff3 conflicts (worker/src/git/service.ts), AI conflict resolution (MergeResolver, MERGE_RESOLUTION attempts and sweeps), generated-file matching, and agent runs (worker/src/agent-runs/: how the review, conflict resolution, sweep, and stack discovery Workflows record their steps, decisions, and AI usage, and agent run retention), agents learning from dismissed change requests (worker/src/learn/: lessons, the learn mode of AgentReviewer, validating and committing the learned edit)
+            actions: CloudForge Actions (worker/src/actions/: workflow syntax and expressions, triggers, job planning and runner sizes, the executor and JobRunner containers, the job queue, the cache, log retention, the cloudforge/relevance action), the Cron Triggers (worker/src/cron.ts), and git transport and storage: the git smart-HTTP endpoint (worker/src/git/http/handler.ts), git objects, packfiles and pkt-lines (worker/src/git/), Git LFS (worker/src/lfs/http/handler.ts, worker/src/lfs/storage.ts), and raw file serving
+            core: The API outside the modules above (worker/src/auth/, worker/src/access/, worker/src/instance/, worker/src/members/, worker/src/repositories/, worker/src/http/, worker/src/shared/, worker/src/index.ts): repositories, pull requests and issues (worker/src/issues/service.ts, worker/src/issues/links.ts), notifications (worker/src/notifications/service.ts, worker/src/notifications/email-delivery.ts, worker/src/notifications/mentions.ts), access and visibility (worker/src/repositories/service.ts), setup and invitations, teams, Site admin and instance settings, the audit log (worker/src/audit/service.ts), branches and the branch map (worker/src/repositories/branches.ts), coding sessions (worker/src/pulls/sessions.ts), repository health (worker/src/repositories/health.ts), the Live page payload (worker/src/live/feed.ts), global search (worker/src/search/service.ts), reviewer agent presets (worker/src/agents/presets.ts), commit emails and attribution, live updates (worker/src/live/), usage and cost (worker/src/usage/), insights, the AI Gateway, API smoke tests; the MCP server (worker/src/mcp/: JSON-RPC tools) and its OAuth sign-in (better-auth OAuth provider, JWT access tokens, consent); and the web app's client-side libraries in src/lib (agent prompts, syntax highlighting, repository URLs, the stack tree and pull request state display)
 
   test-stacking:
     name: Test (stacking)
@@ -134,14 +134,14 @@ jobs:
       - name: Test
         run: >-
           yarn test
-          worker/src/__tests__/stacking-discovery.test.ts
-          worker/src/__tests__/stacking-landing.test.ts
-          worker/src/__tests__/stack-tree.test.ts
-          worker/src/__tests__/stack-safety.test.ts
-          worker/src/__tests__/stacking-retarget-atomic.test.ts
-          worker/src/__tests__/land-target.test.ts
-          worker/src/__tests__/stacking-rebase.test.ts
-          worker/src/__tests__/stacking-git.test.ts
+          worker/src/__tests__/stack/stacking-discovery.test.ts
+          worker/src/__tests__/stack/stacking-landing.test.ts
+          worker/src/__tests__/stack/stack-tree.test.ts
+          worker/src/__tests__/stack/stack-safety.test.ts
+          worker/src/__tests__/stack/stacking-retarget-atomic.test.ts
+          worker/src/__tests__/stack/land-target.test.ts
+          worker/src/__tests__/stack/stacking-rebase.test.ts
+          worker/src/__tests__/stack/stacking-git.test.ts
 
   test-review:
     name: Test (review and merge)
@@ -170,49 +170,49 @@ jobs:
       - name: Test
         run: >-
           yarn test
-          worker/src/__tests__/review.test.ts
-          worker/src/__tests__/review-gate.test.ts
-          worker/src/__tests__/review-carry.test.ts
-          worker/src/__tests__/review-diagram.test.ts
-          worker/src/__tests__/agent-review-contract.test.ts
-          worker/src/__tests__/agent-review.test.ts
-          worker/src/__tests__/branch-identity-security.test.ts
-          worker/src/__tests__/agent-review-earlier.test.ts
-          worker/src/__tests__/agent-review-lifecycle.test.ts
-          worker/src/__tests__/agent-review-pi-contract.test.ts
-          worker/src/__tests__/agent-review-checkout.test.ts
-          worker/src/__tests__/agent-review-pi.test.ts
-          worker/src/__tests__/agent-review-pi-tombstone.test.ts
-          worker/src/__tests__/agent-learning-lessons.test.ts
-          worker/src/__tests__/agent-learning-commit.test.ts
-          worker/src/__tests__/agent-learning-learner.test.ts
-          worker/src/__tests__/agent-learning-run.test.ts
-          worker/src/__tests__/agent-learning-recovery.test.ts
-          worker/src/__tests__/pull-approvals.test.ts
-          worker/src/__tests__/self-approval.test.ts
-          worker/src/__tests__/approvals.test.ts
-          worker/src/__tests__/owner-questions.test.ts
-          worker/src/__tests__/delegate.test.ts
-          worker/src/__tests__/delegation-d1-boundaries.test.ts
-          worker/src/__tests__/delegation-revocation.test.ts
-          worker/src/__tests__/pull-states.test.ts
-          worker/src/__tests__/rebase-runs.test.ts
-          worker/src/__tests__/rebase-resolution.test.ts
-          worker/src/__tests__/rebase-retry.test.ts
-          worker/src/__tests__/pulls-ai-resolution.test.ts
-          worker/src/__tests__/pulls-list.test.ts
-          worker/src/__tests__/git-merge.test.ts
-          worker/src/__tests__/git-encoding.test.ts
-          worker/src/__tests__/git-ancestry.test.ts
-          worker/src/__tests__/git-rebase.test.ts
-          worker/src/__tests__/merge-generated.test.ts
-          worker/src/__tests__/rebase-landing.test.ts
-          worker/src/__tests__/landing-recovery.test.ts
-          worker/src/__tests__/sweep-pagination.test.ts
-          worker/src/__tests__/agent-runs.test.ts
-          worker/src/__tests__/queue.test.ts
-          worker/src/__tests__/revert.test.ts
-          worker/src/__tests__/release-bump.test.ts
+          worker/src/__tests__/review/review.test.ts
+          worker/src/__tests__/review/review-gate.test.ts
+          worker/src/__tests__/review/review-carry.test.ts
+          worker/src/__tests__/review/review-diagram.test.ts
+          worker/src/__tests__/review/agent-review-contract.test.ts
+          worker/src/__tests__/review/agent-review.test.ts
+          worker/src/__tests__/git/branch-identity-security.test.ts
+          worker/src/__tests__/review/agent-review-earlier.test.ts
+          worker/src/__tests__/review/agent-review-lifecycle.test.ts
+          worker/src/__tests__/review/agent-review-pi-contract.test.ts
+          worker/src/__tests__/review/agent-review-checkout.test.ts
+          worker/src/__tests__/review/agent-review-pi.test.ts
+          worker/src/__tests__/review/agent-review-pi-tombstone.test.ts
+          worker/src/__tests__/agents/agent-learning-lessons.test.ts
+          worker/src/__tests__/agents/agent-learning-commit.test.ts
+          worker/src/__tests__/agents/agent-learning-learner.test.ts
+          worker/src/__tests__/agents/agent-learning-run.test.ts
+          worker/src/__tests__/agents/agent-learning-recovery.test.ts
+          worker/src/__tests__/review/pull-approvals.test.ts
+          worker/src/__tests__/review/self-approval.test.ts
+          worker/src/__tests__/review/approvals.test.ts
+          worker/src/__tests__/review/owner-questions.test.ts
+          worker/src/__tests__/review/delegate.test.ts
+          worker/src/__tests__/review/delegation-d1-boundaries.test.ts
+          worker/src/__tests__/review/delegation-revocation.test.ts
+          worker/src/__tests__/pulls/pull-states.test.ts
+          worker/src/__tests__/merge/rebase-runs.test.ts
+          worker/src/__tests__/merge/rebase-resolution.test.ts
+          worker/src/__tests__/merge/rebase-retry.test.ts
+          worker/src/__tests__/pulls/pulls-ai-resolution.test.ts
+          worker/src/__tests__/pulls/pulls-list.test.ts
+          worker/src/__tests__/git/git-merge.test.ts
+          worker/src/__tests__/git/git-encoding.test.ts
+          worker/src/__tests__/git/git-ancestry.test.ts
+          worker/src/__tests__/git/git-rebase.test.ts
+          worker/src/__tests__/merge/merge-generated.test.ts
+          worker/src/__tests__/merge/rebase-landing.test.ts
+          worker/src/__tests__/merge/landing-recovery.test.ts
+          worker/src/__tests__/merge/sweep-pagination.test.ts
+          worker/src/__tests__/agents/agent-runs.test.ts
+          worker/src/__tests__/merge/queue.test.ts
+          worker/src/__tests__/merge/revert.test.ts
+          worker/src/__tests__/releases/release-bump.test.ts
 
   test-actions:
     name: Test (actions and git)
@@ -241,29 +241,29 @@ jobs:
       - name: Test
         run: >-
           yarn test
-          worker/src/__tests__/actions.test.ts
-          worker/src/__tests__/actions-syntax.test.ts
-          worker/src/__tests__/actions-queue.test.ts
-          worker/src/__tests__/actions-relevance.test.ts
-          worker/src/__tests__/actions-remote.test.ts
-          worker/src/__tests__/actions-artifacts.test.ts
-          worker/src/__tests__/actions-secrets.test.ts
-          worker/src/__tests__/actions-security.test.ts
-          worker/src/__tests__/actions-log-errors.test.ts
-          worker/src/__tests__/actions-d1-limits.test.ts
-          worker/src/__tests__/cron.test.ts
-          worker/src/__tests__/git-http.test.ts
-          worker/src/__tests__/deploy-token-transport.test.ts
-          worker/src/__tests__/deploy-token-enumeration.test.ts
-          worker/src/__tests__/push-protection.test.ts
-          worker/src/__tests__/artifacts-cache.test.ts
-          worker/src/__tests__/actions-cache.test.ts
-          worker/src/__tests__/push-events.test.ts
-          worker/src/__tests__/pull-refs.test.ts
-          worker/src/__tests__/git-objects.test.ts
-          worker/src/__tests__/git-blob-limits.test.ts
-          worker/src/__tests__/lfs.test.ts
-          worker/src/__tests__/raw-files.test.ts
+          worker/src/__tests__/actions/actions.test.ts
+          worker/src/__tests__/actions/actions-syntax.test.ts
+          worker/src/__tests__/actions/actions-queue.test.ts
+          worker/src/__tests__/actions/actions-relevance.test.ts
+          worker/src/__tests__/actions/actions-remote.test.ts
+          worker/src/__tests__/actions/actions-artifacts.test.ts
+          worker/src/__tests__/actions/actions-secrets.test.ts
+          worker/src/__tests__/actions/actions-security.test.ts
+          worker/src/__tests__/actions/actions-log-errors.test.ts
+          worker/src/__tests__/actions/actions-d1-limits.test.ts
+          worker/src/__tests__/platform/cron.test.ts
+          worker/src/__tests__/git/git-http.test.ts
+          worker/src/__tests__/git/deploy-token-transport.test.ts
+          worker/src/__tests__/git/deploy-token-enumeration.test.ts
+          worker/src/__tests__/git/push-protection.test.ts
+          worker/src/__tests__/git/artifacts-cache.test.ts
+          worker/src/__tests__/actions/actions-cache.test.ts
+          worker/src/__tests__/git/push-events.test.ts
+          worker/src/__tests__/git/pull-refs.test.ts
+          worker/src/__tests__/git/git-objects.test.ts
+          worker/src/__tests__/git/git-blob-limits.test.ts
+          worker/src/__tests__/git/lfs.test.ts
+          worker/src/__tests__/git/raw-files.test.ts
 
   test-core:
     name: Test (core, mcp, ui)
@@ -292,106 +292,106 @@ jobs:
       - name: Test
         run: >-
           yarn test
-          worker/src/__tests__/repos-pulls.test.ts
-          worker/src/__tests__/auth-boundaries.test.ts
-          worker/src/__tests__/two-factor.test.ts
-          worker/src/__tests__/mfa-reset.test.ts
-          worker/src/__tests__/session-assurance.test.ts
-          worker/src/__tests__/authentication-surface.test.ts
-          worker/src/__tests__/reauthentication.test.ts
-          worker/src/__tests__/authentication-policy.test.ts
-          worker/src/__tests__/authentication-policy-audit.test.ts
-          worker/src/__tests__/authentication-policy-session.test.ts
-          worker/src/__tests__/authentication-policy-oauth.test.ts
-          worker/src/__tests__/oauth-account-linking.test.ts
-          worker/src/__tests__/oidc-provider.test.ts
-          worker/src/__tests__/oidc-linking.test.ts
-            worker/src/__tests__/oidc-session-source.test.ts
-            worker/src/__tests__/session-secret-cache.test.ts
-            worker/src/__tests__/oidc-sign-in.test.ts
+          worker/src/__tests__/repos/repos-pulls.test.ts
+          worker/src/__tests__/auth/auth-boundaries.test.ts
+          worker/src/__tests__/auth/two-factor.test.ts
+          worker/src/__tests__/auth/mfa-reset.test.ts
+          worker/src/__tests__/auth/session-assurance.test.ts
+          worker/src/__tests__/auth/authentication-surface.test.ts
+          worker/src/__tests__/auth/reauthentication.test.ts
+          worker/src/__tests__/auth/authentication-policy.test.ts
+          worker/src/__tests__/auth/authentication-policy-audit.test.ts
+          worker/src/__tests__/auth/authentication-policy-session.test.ts
+          worker/src/__tests__/auth/authentication-policy-oauth.test.ts
+          worker/src/__tests__/auth/oauth-account-linking.test.ts
+          worker/src/__tests__/oidc/oidc-provider.test.ts
+          worker/src/__tests__/oidc/oidc-linking.test.ts
+            worker/src/__tests__/oidc/oidc-session-source.test.ts
+            worker/src/__tests__/auth/session-secret-cache.test.ts
+            worker/src/__tests__/oidc/oidc-sign-in.test.ts
           src/lib/auth/authenticationPolicy.test.ts
           src/lib/auth/oidcApi.test.ts
             src/lib/auth/oidcSignInApi.test.ts
             src/lib/auth/signInLock.test.ts
-          worker/src/__tests__/recent-authentication.test.ts
-          worker/src/__tests__/user-deletion.test.ts
-          worker/src/__tests__/mcp-grant-revocation.test.ts
+          worker/src/__tests__/auth/recent-authentication.test.ts
+          worker/src/__tests__/auth/user-deletion.test.ts
+          worker/src/__tests__/mcp/mcp-grant-revocation.test.ts
           src/lib/auth/recentAuthentication.test.ts
-          worker/src/__tests__/request-limits.test.ts
-          worker/src/__tests__/password-reset.test.ts
-          worker/src/__tests__/session-cookie.test.ts
-          worker/src/__tests__/request-log.test.ts
-          worker/src/__tests__/same-origin.test.ts
-          worker/src/__tests__/repo-deletion.test.ts
-          worker/src/__tests__/email-index.test.ts
-          worker/src/__tests__/d1-set-boundaries.test.ts
-          worker/src/__tests__/protected-branches.test.ts
-          worker/src/__tests__/setup-code.test.ts
-          worker/src/__tests__/setup-invites.test.ts
-          worker/src/__tests__/invitation-concurrency.test.ts
-          worker/src/__tests__/teams-visibility.test.ts
-          worker/src/__tests__/repo-permissions.test.ts
-          worker/src/__tests__/access-preflight.test.ts
-          worker/src/__tests__/access-preflight-definition.test.ts
-          worker/src/__tests__/install-marker.test.ts
-          worker/src/__tests__/access-schema.test.ts
-          worker/src/__tests__/access-runtime.test.ts
-          worker/src/__tests__/access-runtime-http.test.ts
-          worker/src/__tests__/access-runtime-background.test.ts
-          worker/src/__tests__/access-runtime-actions.test.ts
-          worker/src/__tests__/access-compat.test.ts
-          worker/src/__tests__/access-write.test.ts
-          worker/src/__tests__/access-team-write.test.ts
-          worker/src/__tests__/access-collaborators.test.ts
-          worker/src/__tests__/access-migration.test.ts
-          worker/src/__tests__/admin-setup.test.ts
-          worker/src/__tests__/settings.test.ts
-          worker/src/__tests__/commit-emails.test.ts
-          worker/src/__tests__/email-concurrency.test.ts
-          worker/src/__tests__/smoke.test.ts
-          worker/src/__tests__/live.test.ts
-          worker/src/__tests__/live-open.test.ts
-          worker/src/__tests__/semver.test.ts
-          worker/src/__tests__/releases.test.ts
-          worker/src/__tests__/releases-router.test.ts
-          worker/src/__tests__/mcp-releases.test.ts
-          worker/src/__tests__/usage.test.ts
-          worker/src/__tests__/insights.test.ts
-          worker/src/__tests__/ai-gateway.test.ts
-          worker/src/__tests__/ai-rate-limit.test.ts
-          worker/src/__tests__/mcp.test.ts
-          worker/src/__tests__/mcp-moderator.test.ts
-          worker/src/__tests__/mcp-agents.test.ts
-          worker/src/__tests__/agents-config.test.ts
-          worker/src/__tests__/agents-template.test.ts
-          worker/src/__tests__/agents-admin.test.ts
-          worker/src/__tests__/agents-repos.test.ts
-          worker/src/__tests__/agents-auth.test.ts
-          worker/src/__tests__/agents-refresh.test.ts
-          worker/src/__tests__/agents-profile.test.ts
-          worker/src/__tests__/agents-presets.test.ts
-          worker/src/__tests__/audit.test.ts
-          worker/src/__tests__/sessions.test.ts
-          worker/src/__tests__/branches.test.ts
-          worker/src/__tests__/repo-stats.test.ts
-          worker/src/__tests__/agent-stats.test.ts
-          worker/src/__tests__/agent-learning-surfaces.test.ts
-          worker/src/__tests__/health.test.ts
-          worker/src/__tests__/search.test.ts
-          worker/src/__tests__/live-feed.test.ts
-          worker/src/__tests__/install-wellknown.test.ts
-          worker/src/__tests__/public-repos.test.ts
-          worker/src/__tests__/signup.test.ts
-          worker/src/__tests__/issues.test.ts
-          worker/src/__tests__/issue-links.test.ts
-          worker/src/__tests__/mcp-issues.test.ts
-          worker/src/__tests__/notifications.test.ts
-          worker/src/__tests__/mentions.test.ts
-          worker/src/__tests__/commit-statuses.test.ts
-          worker/src/__tests__/mcp-commit-statuses.test.ts
-          worker/src/__tests__/webhooks.test.ts
-          worker/src/__tests__/deploy-tokens.test.ts
-          worker/src/__tests__/webhooks-security.test.ts
+          worker/src/__tests__/platform/request-limits.test.ts
+          worker/src/__tests__/auth/password-reset.test.ts
+          worker/src/__tests__/auth/session-cookie.test.ts
+          worker/src/__tests__/platform/request-log.test.ts
+          worker/src/__tests__/auth/same-origin.test.ts
+          worker/src/__tests__/repos/repo-deletion.test.ts
+          worker/src/__tests__/auth/email-index.test.ts
+          worker/src/__tests__/platform/d1-set-boundaries.test.ts
+          worker/src/__tests__/repos/protected-branches.test.ts
+          worker/src/__tests__/platform/setup-code.test.ts
+          worker/src/__tests__/platform/setup-invites.test.ts
+          worker/src/__tests__/auth/invitation-concurrency.test.ts
+          worker/src/__tests__/access/teams-visibility.test.ts
+          worker/src/__tests__/access/repo-permissions.test.ts
+          worker/src/__tests__/access/access-preflight.test.ts
+          worker/src/__tests__/access/access-preflight-definition.test.ts
+          worker/src/__tests__/platform/install-marker.test.ts
+          worker/src/__tests__/access/access-schema.test.ts
+          worker/src/__tests__/access/access-runtime.test.ts
+          worker/src/__tests__/access/access-runtime-http.test.ts
+          worker/src/__tests__/access/access-runtime-background.test.ts
+          worker/src/__tests__/access/access-runtime-actions.test.ts
+          worker/src/__tests__/access/access-compat.test.ts
+          worker/src/__tests__/access/access-write.test.ts
+          worker/src/__tests__/access/access-team-write.test.ts
+          worker/src/__tests__/access/access-collaborators.test.ts
+          worker/src/__tests__/access/access-migration.test.ts
+          worker/src/__tests__/platform/admin-setup.test.ts
+          worker/src/__tests__/platform/settings.test.ts
+          worker/src/__tests__/auth/commit-emails.test.ts
+          worker/src/__tests__/auth/email-concurrency.test.ts
+          worker/src/__tests__/platform/smoke.test.ts
+          worker/src/__tests__/live/live.test.ts
+          worker/src/__tests__/live/live-open.test.ts
+          worker/src/__tests__/releases/semver.test.ts
+          worker/src/__tests__/releases/releases.test.ts
+          worker/src/__tests__/releases/releases-router.test.ts
+          worker/src/__tests__/mcp/mcp-releases.test.ts
+          worker/src/__tests__/usage/usage.test.ts
+          worker/src/__tests__/repos/insights.test.ts
+          worker/src/__tests__/agents/ai-gateway.test.ts
+          worker/src/__tests__/agents/ai-rate-limit.test.ts
+          worker/src/__tests__/mcp/mcp.test.ts
+          worker/src/__tests__/mcp/mcp-moderator.test.ts
+          worker/src/__tests__/mcp/mcp-agents.test.ts
+          worker/src/__tests__/agents/agents-config.test.ts
+          worker/src/__tests__/agents/agents-template.test.ts
+          worker/src/__tests__/agents/agents-admin.test.ts
+          worker/src/__tests__/agents/agents-repos.test.ts
+          worker/src/__tests__/agents/agents-auth.test.ts
+          worker/src/__tests__/agents/agents-refresh.test.ts
+          worker/src/__tests__/agents/agents-profile.test.ts
+          worker/src/__tests__/agents/agents-presets.test.ts
+          worker/src/__tests__/platform/audit.test.ts
+          worker/src/__tests__/repos/sessions.test.ts
+          worker/src/__tests__/repos/branches.test.ts
+          worker/src/__tests__/repos/repo-stats.test.ts
+          worker/src/__tests__/agents/agent-stats.test.ts
+          worker/src/__tests__/agents/agent-learning-surfaces.test.ts
+          worker/src/__tests__/repos/health.test.ts
+          worker/src/__tests__/repos/search.test.ts
+          worker/src/__tests__/live/live-feed.test.ts
+          worker/src/__tests__/platform/install-wellknown.test.ts
+          worker/src/__tests__/repos/public-repos.test.ts
+          worker/src/__tests__/auth/signup.test.ts
+          worker/src/__tests__/issues/issues.test.ts
+          worker/src/__tests__/issues/issue-links.test.ts
+          worker/src/__tests__/mcp/mcp-issues.test.ts
+          worker/src/__tests__/issues/notifications.test.ts
+          worker/src/__tests__/issues/mentions.test.ts
+          worker/src/__tests__/webhooks/commit-statuses.test.ts
+          worker/src/__tests__/mcp/mcp-commit-statuses.test.ts
+          worker/src/__tests__/webhooks/webhooks.test.ts
+          worker/src/__tests__/auth/deploy-tokens.test.ts
+          worker/src/__tests__/webhooks/webhooks-security.test.ts
           src/lib/
 
   # The npm package (scripts/cloudforge/pack.mjs): pack it, prove the shipped build deploys from a
@@ -417,7 +417,7 @@ jobs:
           file=$(npm pack ./build/npm --pack-destination "$RUNNER_TEMP/pkg" | tail -n 1)
           echo "TARBALL=$RUNNER_TEMP/pkg/$file" >> "$GITHUB_ENV"
       - name: Generate an install's config for the package
-        run: node scripts/cloudforge/smoke-config.ts build/npm "$RUNNER_TEMP/smoke"
+        run: node scripts/cloudforge/distribution/smoke-config.ts build/npm "$RUNNER_TEMP/smoke"
       # No Docker here: --containers-rollout=none makes wrangler skip building the runner image.
       - name: The shipped build deploys with the generated config (dry run)
         run: yarn -s wrangler deploy --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/o" --config "$RUNNER_TEMP/smoke/wrangler.jsonc"

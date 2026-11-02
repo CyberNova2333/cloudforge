@@ -9,8 +9,8 @@ import {
 } from '../db/app.schema';
 import { ArtifactsRepoClient } from '../git/remote';
 import { GitService } from '../git/service';
-import { aiGateway } from '../lib/ai-gateway';
-import { withRateLimitRetry, type RateLimitRetry } from '../lib/ai-retry';
+import { aiGateway } from '../ai/gateway';
+import { withRateLimitRetry, type RateLimitRetry } from '../ai/retry';
 import { ignoreMatcher } from '../review/ignore';
 import {
   classifierModel,

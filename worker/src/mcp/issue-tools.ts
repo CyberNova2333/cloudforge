@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { can } from '../lib/repo-permissions';
+import { can } from '../repositories/permissions';
 // Issues over MCP (docs/issues.md), with the web's permissions: readers list, read, open and comment; the author or
 // someone with push access edits, closes and reopens; push access sets labels and assignees.
 import { asc, eq } from 'drizzle-orm';
@@ -22,10 +22,10 @@ import {
   reopenIssue,
   setIssueAssignees,
   setIssueLabels,
-} from '../lib/issues';
-import { pullsNaming } from '../lib/issue-links';
-import type { NotifyCtx } from '../lib/notifications';
-import { userByUsername, usersById } from '../lib/users';
+} from '../issues/service';
+import { pullsNaming } from '../issues/links';
+import type { NotifyCtx } from '../notifications/service';
+import { userByUsername, usersById } from '../members/users';
 import { publishChange } from '../live/publish';
 import { McpToolError } from './errors';
 import { prNumber, repoFor, repositoryProp, str, text } from './pull-tools';

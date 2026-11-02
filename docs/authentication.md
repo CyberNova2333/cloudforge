@@ -124,7 +124,7 @@ PAT 和部署令牌保留为非交互机器凭据，既有凭据使用仍按原�
 
 离线 `reset-mfa` 可以清除遗失因子，但保留实例策略。最后管理员使用同样的独立离线恢复流程：运行前明确账户、安装或数据库、成员和审计原因；恢复后凭原密码进入绑定通道，确认新因子、保存恢复码，再联合重验，才能恢复管理权限。此恢复不自动撤销既有 OAuth/PAT/部署令牌，也不声明这些凭据满足 MFA；怀疑泄漏时需另外撤销。
 
-实现入口为 `worker/src/auth/policy.ts`、`policy-management.ts`、`worker/src/db/auth-policy-triggers.ts` 与 `worker/src/routers/authentication-policy-router.ts`。相应认证策略、会话、OAuth 与审计测试位于 `worker/src/__tests__/authentication-policy*.test.ts`，验证版本围栏、陈旧预览、联合证明及机器凭据边界。新增表、会话列和触发器来自生成迁移 `0056`；生产迁移和部署需单独明确授权。此说明描述代码行为，不将提交、推送或本地验证视为线上已启用。
+实现入口为 `worker/src/auth/policy.ts`、`policy-management.ts`、`worker/src/db/auth-policy-triggers.ts` 与 `worker/src/auth/http/authentication-policy-router.ts`。相应认证策略、会话、OAuth 与审计测试位于 `worker/src/__tests__/authentication-policy*.test.ts`，验证版本围栏、陈旧预览、联合证明及机器凭据边界。新增表、会话列和触发器来自生成迁移 `0056`；生产迁移和部署需单独明确授权。此说明描述代码行为，不将提交、推送或本地验证视为线上已启用。
 
 ## OIDC 显式绑定与 SSO 登录
 

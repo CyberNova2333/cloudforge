@@ -1,6 +1,6 @@
 // The signed-in person's notifications over MCP (docs/notifications.md): read the inbox, mark it read.
 import { notificationReasons } from '../db/app.schema';
-import { listInbox, markRead } from '../lib/inbox';
+import { listInbox, markRead } from '../notifications/inbox';
 import { publishToUsers } from '../live/publish';
 import { McpToolError } from './errors';
 import { str, text } from './pull-tools';

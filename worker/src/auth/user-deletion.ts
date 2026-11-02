@@ -5,7 +5,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { isAgentUser } from '../agents/identity';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import { oidcSessionSourceSql } from './assurance';
 import { recentAuthorizationGuard } from './recent';
 

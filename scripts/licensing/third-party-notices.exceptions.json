@@ -1,0 +1,20 @@
+{
+  "$comment": "Copyleft components that ship. Each entry is a decision with its reason, not a mute button: scripts/licensing/third-party-notices.mjs fails when one is missing, or when its placement no longer matches the build. An entry marked `paths: false` also claims the app can never reach it; the script re-reads the render path and fails as soon as that claim stops being true.",
+  "reasons": [
+    {
+      "name": "elkjs",
+      "version": "0.9.3",
+      "does": "The ELK layout engine mermaid uses for `layout: elk` diagrams",
+      "placement": "client",
+      "paths": false,
+      "reason": "Kept, not dropped. EPL-2.0 is file-level copyleft: unmodified (source at github.com/kieler/elkjs) as a binary inside a GPL-3.0-or-later work, it asks only that the source stay available, which a public build already satisfies. It rides in mermaid's diagram chunk and nothing in this app reaches it: `src/lib/ui/mermaid.ts` initializes mermaid with `layout: 'dagre'`, and `mermaidText()` in `src/lib/pulls/pullGraph.ts` encodes `#`, `%` and `<` out of every title, branch and label, so repository content, model output and PR titles cannot open a `%%{init}%%` directive or a `flowchart-elk` diagram. Dropping it would cost `flowchart-elk` rendering for 1.4 MB nobody downloads by default."
+    },
+    {
+      "name": "node-liblzma",
+      "version": "2.2.0",
+      "does": "liblzma binding that just-bash (@cloudflare/computer) uses for .tar.xz archives",
+      "placement": "worker",
+      "reason": "Never bundled: the npm bin binding cannot be built for Workers, so the worker requires it at runtime and gets nothing, leaving `.tar.xz` unsupported. Should a deployment need that archive format, LGPL-3.0 only requires keeping the library replaceable, so ship it next to the build rather than as part of it."
+    }
+  ]
+}

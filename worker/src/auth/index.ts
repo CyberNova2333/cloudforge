@@ -14,9 +14,9 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
 import { oauthResources } from '../db/auth.schema';
 import { schema } from '../db/schema';
-import { isValidUsername } from '../lib/usernames';
+import { isValidUsername } from '../members/usernames';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
-import { isNamespaceConflict, namespaceTaken } from '../lib/namespaces';
+import { isNamespaceConflict, namespaceTaken } from '../members/namespaces';
 import { isAgentUser } from '../agents/identity';
 import { eq } from 'drizzle-orm';
 import { mcpModerators } from '../db/app.schema';
@@ -24,9 +24,9 @@ import {
   emailConfigured,
   sendPasswordReset,
   sendSignupVerification,
-} from '../lib/email';
-import { recordAudit } from '../lib/audit';
-import { emailClaimedByOther } from '../lib/email-claims';
+} from '../notifications/email';
+import { recordAudit } from '../audit/service';
+import { emailClaimedByOther } from '../members/email-claims';
 import {
   cloudforgeTwoFactor,
   mfaSessionPaths,

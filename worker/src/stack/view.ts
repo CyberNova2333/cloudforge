@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, inArray, or } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -7,9 +8,9 @@ import {
   type PullRequest,
 } from '../db/app.schema';
 import type { GitService } from '../git/service';
-import { usersById, type PublicUser } from '../lib/users';
+import { usersById, type PublicUser } from '../members/users';
 import { buildTree, type EdgeInput, type TreeNode } from './tree';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { landTargetIs, landTargetOf } from '../pulls/land-target';
 
 export type StackNodeView = TreeNode & {
   title: string;

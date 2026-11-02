@@ -1,7 +1,8 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, eq, inArray, or } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prEdges, pullRequests, type EdgeKind } from '../db/app.schema';
-import { landTargetIs } from '../lib/land-target';
+import { landTargetIs } from '../pulls/land-target';
 import { chunks } from './view';
 
 const BLOCKING = new Set<EdgeKind>([

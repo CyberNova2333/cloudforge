@@ -6,8 +6,8 @@ import {
   type PullRequest,
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { landTargetOf } from '../lib/land-target';
-import { findRepoById } from '../lib/repos';
+import { landTargetOf } from './land-target';
+import { findRepoById } from '../repositories/service';
 import { publishChange } from '../live/publish';
 import { queueLessons } from '../learn/lessons';
 import { startSweep } from '../merge/auto';

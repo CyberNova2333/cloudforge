@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /** Lessons as people see them: on an agent's profile and over MCP, only for pull requests the viewer can read. */
 import { and, desc, eq, inArray, lte, sql } from 'drizzle-orm';
 import {
@@ -9,7 +10,7 @@ import {
   type LessonStatus,
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { findReposByIds, visibleTo } from '../lib/repos';
+import { findReposByIds, visibleTo } from '../repositories/service';
 import { flagTitleOf } from '../review/gate';
 import { chunks } from '../stack/view';
 import type { SessionUser } from '../variables';

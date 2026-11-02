@@ -4,7 +4,7 @@ import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { workflowJobs, workflowRuns } from '../db/app.schema';
 import { schema } from '../db/schema';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { assertAccessRuntime } from '../access/runtime';
 import { stopAbandonedRun } from './abandon';
 import type { DrizzleDB } from '../db/middleware';
 

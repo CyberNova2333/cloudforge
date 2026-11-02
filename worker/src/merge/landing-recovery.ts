@@ -9,7 +9,7 @@ import {
 } from '../db/app.schema';
 import type { DrizzleDB } from '../db/middleware';
 import type { GitService } from '../git/service';
-import { findRepoById, gitFor } from '../lib/repos';
+import { findRepoById, gitFor } from '../repositories/service';
 import { publishChange } from '../live/publish';
 import { settleStates } from '../pulls/settle';
 import { queueLessons } from '../learn/lessons';
@@ -19,9 +19,9 @@ import { unwindLanding } from '../stack/landing';
 import { startSweep } from './auto';
 import { deleteMergedBranch } from './land';
 import { d1Of } from '../pulls/events';
-import { closeLinkedIssues } from '../lib/issue-links';
-import { notify } from '../lib/notifications';
-import { emitPush } from '../lib/webhook-events';
+import { closeLinkedIssues } from '../issues/links';
+import { notify } from '../notifications/service';
+import { emitPush } from '../webhooks/events';
 
 export const landingReceipt = (pr: number, id: string) =>
   `refs/pull/${pr}/landings/${id}`;

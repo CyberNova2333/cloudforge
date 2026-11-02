@@ -13,8 +13,8 @@ import {
 import { PiHarness } from 'agents/harness/pi';
 import { Lifecycle } from 'agents/lifecycle';
 import { createAI } from 'agents/models/pi-ai';
-import { aiGateway } from '../lib/ai-gateway';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { aiGateway } from '../ai/gateway';
+import { assertAccessRuntime } from '../access/runtime';
 
 /** The fallback model; each request names the configured one (Site admin, else `RESOLVER_MODEL`). */
 export const DEFAULT_RESOLVER_MODEL = '@cf/zai-org/glm-5.3';

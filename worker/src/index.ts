@@ -14,70 +14,70 @@ import {
   requireAuthUnlessPublicRead,
 } from './auth/guards';
 import { injectDb } from './db/middleware';
-import { handleGitRequest, isGitRequest } from './git-http';
-import { handleLfsRequest, isLfsRequest } from './lfs-http';
-import { invitesRouter } from './routers/invites-router';
-import { actionsRouter } from './routers/actions-router';
+import { handleGitRequest, isGitRequest } from './git/http/handler';
+import { handleLfsRequest, isLfsRequest } from './lfs/http/handler';
+import { invitesRouter } from './members/http/invites-router';
+import { actionsRouter } from './actions/http/actions-router';
 import {
   actionsVariablesRouter,
   adminActionsVariablesRouter,
-} from './routers/actions-variables-router';
-import { agentRunsRouter } from './routers/agent-runs-router';
-import { pullsRouter } from './routers/pulls-router';
-import { issuesRouter } from './routers/issues-router';
-import { statusesRouter } from './routers/statuses-router';
-import { webhooksRouter } from './routers/webhooks-router';
-import { deployTokensRouter } from './routers/deploy-tokens-router';
+} from './actions/http/actions-variables-router';
+import { agentRunsRouter } from './agent-runs/http/agent-runs-router';
+import { pullsRouter } from './pulls/http/pulls-router';
+import { issuesRouter } from './issues/http/issues-router';
+import { statusesRouter } from './repositories/http/statuses-router';
+import { webhooksRouter } from './webhooks/http/webhooks-router';
+import { deployTokensRouter } from './auth/http/deploy-tokens-router';
 import {
   notificationsRouter,
   repoNotificationsRouter,
-} from './routers/notifications-router';
-import { reposRouter } from './routers/repos-router';
-import { setupRouter } from './routers/setup-router';
-import { tokensRouter } from './routers/tokens-router';
-import { emailsRouter } from './routers/emails-router';
-import { usersRouter } from './routers/users-router';
-import { namespacesRouter, teamRouter } from './routers/teams-router';
+} from './notifications/http/notifications-router';
+import { reposRouter } from './repositories/http/repos-router';
+import { setupRouter } from './instance/http/setup-router';
+import { tokensRouter } from './auth/http/tokens-router';
+import { emailsRouter } from './members/http/emails-router';
+import { usersRouter } from './members/http/users-router';
+import { namespacesRouter, teamRouter } from './members/http/teams-router';
 import { mcpApiRouter, mcpRouter } from './mcp';
 import { wellKnownRouter } from './mcp/well-known';
-import { installRouter } from './routers/install-router';
+import { installRouter } from './instance/http/install-router';
 import type { AppEnv } from './variables';
 import type { Context, MiddlewareHandler } from 'hono';
-import type { RepoEnv } from './lib/repos';
+import type { RepoEnv } from './repositories/service';
 import { publishChange } from './live/publish';
 import { liveSocket } from './live/route';
-import { approvalsRouter } from './routers/approvals-router';
-import { meRouter } from './routers/me-router';
-import { insightsRouter } from './routers/insights-router';
-import { adminSetupRouter } from './routers/admin-setup-router';
-import { adminRouter } from './routers/admin-router';
-import { authenticationPolicyRouter } from './routers/authentication-policy-router';
+import { approvalsRouter } from './review/http/approvals-router';
+import { meRouter } from './members/http/me-router';
+import { insightsRouter } from './repositories/http/insights-router';
+import { adminSetupRouter } from './instance/http/admin-setup-router';
+import { adminRouter } from './instance/http/admin-router';
+import { authenticationPolicyRouter } from './auth/http/authentication-policy-router';
 import {
   oidcMeRouter,
   oidcAdminRouter,
   oidcCallbackRouter,
-} from './routers/oidc-router';
+} from './oidc/http/oidc-router';
 import {
   adminAgentsRouter,
   agentsRouter,
   repoAgentsRouter,
-} from './routers/agents-router';
-import { usageRouter } from './routers/usage-router';
-import { adminAuditRouter, repoAuditRouter } from './routers/audit-router';
-import { branchesRouter } from './routers/branches-router';
-import { releasesRouter } from './routers/releases-router';
-import { sessionsRouter } from './routers/sessions-router';
-import { queueRouter } from './routers/queue-router';
-import { healthRouter } from './routers/health-router';
-import { searchRouter } from './routers/search-router';
+} from './agents/http/agents-router';
+import { usageRouter } from './usage/http/usage-router';
+import { adminAuditRouter, repoAuditRouter } from './audit/http/audit-router';
+import { branchesRouter } from './repositories/http/branches-router';
+import { releasesRouter } from './releases/http/releases-router';
+import { sessionsRouter } from './pulls/http/sessions-router';
+import { queueRouter } from './merge/http/queue-router';
+import { healthRouter } from './repositories/http/health-router';
+import { searchRouter } from './search/http/search-router';
 import { sameOriginWrites } from './auth/same-origin';
-import { redactedLog } from './lib/request-log';
+import { redactedLog } from './http/request-log';
 import { runScheduled } from './cron';
 import { acceptsToken, tokenUser } from './auth/token-auth';
 import {
   accessRuntimeResponse,
   isAccessRuntimeProbe,
-} from './lib/access-runtime-http';
+} from './access/http/runtime';
 
 const app = new OpenAPIHono<AppEnv>();
 

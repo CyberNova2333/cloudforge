@@ -30,7 +30,7 @@
 yarn install
 yarn dev
 # 以下为维护者验证命令，本轮未运行
-yarn test:workers worker/src/__tests__/git-http.test.ts worker/src/__tests__/push-protection.test.ts worker/src/__tests__/push-events.test.ts
+yarn test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
 yarn typecheck
 ```
 

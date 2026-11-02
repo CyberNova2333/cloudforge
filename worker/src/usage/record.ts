@@ -15,9 +15,9 @@ import {
 } from '../db/app.schema';
 import { productOf } from './pricing';
 import type { DrizzleDB } from '../db/middleware';
-import type { AiFeature } from '../lib/ai-gateway';
+import type { AiFeature } from '../ai/gateway';
 import { currentAgentStep, refreshStepUsage } from '../agent-runs/context';
-import { inJsonArray } from '../lib/sql-set';
+import { inJsonArray } from '../shared/sql-set';
 
 export interface TokenUsage {
   tokensIn: number | null;

@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// The New repository form's rules, the same ones the server enforces (worker/src/lib/repos.ts and repo-create.ts),
+// The New repository form's rules, the same ones the server enforces (worker/src/repositories/service.ts and create.ts),
 // so a bad name is explained as it is typed rather than after pressing Create.
 
 import { t } from '../i18n/i18n';

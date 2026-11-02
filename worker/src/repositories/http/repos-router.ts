@@ -1,0 +1,1166 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+import { can } from '../permissions';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { rebase, REBASE_COMMITTER } from '../../git/rebase';
+import { and, asc, desc, eq, or, sql } from 'drizzle-orm';
+import {
+  lfsObjects,
+  issues,
+  pullRequests,
+  repositories,
+  teams,
+  repositoryCollaborators,
+  type Repository,
+} from '../../db/app.schema';
+import { users } from '../../db/auth.schema';
+import { accessWriteGuard, captureAccessWrite } from '../../access/write';
+import { landTargetIs } from '../../pulls/land-target';
+import type { DrizzleDB } from '../../db/middleware';
+import { isAgentUser } from '../../agents/identity';
+import { decoder } from '../../git/bytes';
+import { GitPushError } from '../../git/remote';
+import type { GitService } from '../../git/service';
+import {
+  isValidRepoName,
+  getTeam,
+  gitFor,
+  loadRepo,
+  normalizeRepoName,
+  teamNamespace,
+  userNamespace,
+  visibleTo,
+  type Namespace,
+  type RepoEnv,
+} from '../service';
+import { deleteRepository } from '../deletion';
+import { recordAudit } from '../../audit/service';
+import { createRepository, nameTaken } from '../create';
+import { repoStats } from '../stats';
+import {
+  invalidProtectedPatterns,
+  MAX_PROTECTED_PATTERN_LENGTH,
+  MAX_PROTECTED_PATTERNS,
+  normalizeProtectedPatterns,
+  protectedBy,
+} from '../protected-branches';
+import {
+  LFS_NOT_CONFIGURED,
+  OID_RE,
+  lfsConfigured,
+  parseLfsPointer,
+  presign,
+} from '../../lfs/storage';
+import {
+  toPublicUser,
+  userByUsername,
+  type PublicUser,
+} from '../../members/users';
+import { attributeCommits } from '../commit-authors';
+import {
+  json200Response,
+  json201Response,
+  json400Response,
+  json403Response,
+  json404Response,
+  json409Response,
+  errorSchema,
+  okSchema,
+  validationHook,
+} from '../../http/openapi-helpers';
+import {
+  commitSchema,
+  fileDiffSchema,
+  ownerRepoParams,
+  permsSchema,
+  publicUserSchema,
+  repoSchema,
+  repoWithStatsSchema,
+} from '../../http/schemas';
+
+const MAX_FILE_VIEW = 1024 * 1024;
+
+export function serializeRepo(r: Repository, ns: Namespace) {
+  return {
+    id: r.id,
+    owner: { id: ns.id, username: ns.username, name: ns.name, image: ns.image },
+    ownerType: ns.kind,
+    visibility: r.visibility,
+    name: r.name,
+    fullName: `${ns.username}/${r.name}`,
+    description: r.description,
+    defaultBranch: r.defaultBranch,
+    protectedBranches: r.protectedBranches ?? [],
+    deleteMergedBranches: r.deleteMergedBranches,
+    hasIssues: r.hasIssues,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+/** Splits "feature/x/src/a.ts" into the longest matching branch name and the remaining path. */
+export async function resolveRefPath(
+  git: GitService,
+  refPath: string,
+  fallback: string
+) {
+  const clean = refPath.replace(/^\/+|\/+$/g, '');
+  if (!clean) return { ref: fallback, path: '' };
+  const branches = (await git.branches())
+    .map((b) => b.name)
+    .sort((a, b) => b.length - a.length);
+  for (const b of branches) {
+    if (clean === b) return { ref: b, path: '' };
+    if (clean.startsWith(b + '/'))
+      return { ref: b, path: clean.slice(b.length + 1) };
+  }
+  const [first, ...rest] = clean.split('/');
+  return { ref: first, path: rest.join('/') };
+}
+
+export const reposRouter = new OpenAPIHono<RepoEnv>({
+  defaultHook: validationHook,
+});
+reposRouter.use('/:owner/:repo', loadRepo);
+reposRouter.use('/:owner/:repo/*', loadRepo);
+
+// ── list / create ────────────────────────────────────────────────────────────
+
+const listRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Repositories'],
+  request: {
+    query: z.object({
+      stats: z.enum(['1', 'true', '0', 'false']).optional().openapi({
+        description:
+          'With 1, each repository also carries `stats`: its open pull requests by whose move it is, what merged this week, its agents, branches and language.',
+      }),
+    }),
+  },
+  responses: {
+    ...json200Response(z.array(repoWithStatsSchema), 'All repositories'),
+  },
+});
+reposRouter.openapi(listRoute, async (c) => {
+  const db = c.get('db');
+  const rows = await db
+    .select({ repo: repositories, owner: users, team: teams })
+    .from(repositories)
+    .innerJoin(users, eq(users.id, repositories.ownerId))
+    .leftJoin(teams, eq(teams.id, repositories.teamId))
+    .where(visibleTo(c.get('user')))
+    .orderBy(desc(repositories.updatedAt))
+    .all();
+  const withStats = ['1', 'true'].includes(c.req.valid('query').stats ?? '');
+  const stats = withStats
+    ? await repoStats(
+        c.env,
+        db,
+        rows.map((r) => r.repo)
+      )
+    : null;
+  return c.json(
+    rows.map((r) => ({
+      ...serializeRepo(
+        r.repo,
+        r.team ? teamNamespace(r.team) : userNamespace(r.owner)
+      ),
+      ...(stats ? { stats: stats.get(r.repo.id) } : {}),
+    })),
+    200
+  );
+});
+
+const createRepoRoute = createRoute({
+  method: 'post',
+  path: '/',
+  tags: ['Repositories'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            name: z.string().min(1).max(100),
+            description: z.string().max(350).optional(),
+            addReadme: z.boolean().default(false),
+            // Personal repos default to private; team repos are internal unless public.
+            owner: z.enum(['user', 'team']).default('user'),
+            visibility: z
+              .enum(['private', 'internal', 'public'])
+              .default('private'),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    ...json201Response(repoSchema, 'Created'),
+    ...json400Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(createRepoRoute, async (c) => {
+  const result = await createRepository(
+    c.env,
+    c.get('db'),
+    c.get('user')!,
+    c.req.valid('json')
+  );
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  await recordAudit(c.get('db'), {
+    repositoryId: result.repo.id,
+    actorId: c.get('user')!.id,
+    action: 'repository.created',
+    target: `${result.namespace.username}/${result.repo.name}`,
+    data: { visibility: result.repo.visibility },
+  });
+  return c.json(serializeRepo(result.repo, result.namespace), 201);
+});
+
+// ── one repo ─────────────────────────────────────────────────────────────────
+
+const repoDetailSchema = repoSchema.extend({
+  permissions: permsSchema,
+  cloneUrl: z.string(),
+  empty: z.boolean(),
+  branches: z.array(z.object({ name: z.string(), sha: z.string() })),
+  openPullCount: z.number(),
+  /** 0 when the repository has issues turned off. */
+  openIssueCount: z.number(),
+});
+
+const getRepoRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}',
+  tags: ['Repositories'],
+  request: { params: ownerRepoParams },
+  responses: {
+    ...json200Response(repoDetailSchema, 'Repository'),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(getRepoRoute, async (c) => {
+  const repo = c.get('repo');
+  const ns = c.get('namespace');
+  const branches = await c.get('git').branches();
+  const [open, openIssues] = await Promise.all([
+    c
+      .get('db')
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(pullRequests)
+      .where(
+        and(
+          eq(pullRequests.repositoryId, repo.id),
+          eq(pullRequests.state, 'open')
+        )
+      )
+      .get(),
+    repo.hasIssues
+      ? c
+          .get('db')
+          .select({ n: sql<number>`COUNT(*)` })
+          .from(issues)
+          .where(
+            and(eq(issues.repositoryId, repo.id), eq(issues.state, 'open'))
+          )
+          .get()
+      : undefined,
+  ]);
+  return c.json(
+    {
+      ...serializeRepo(repo, ns),
+      permissions: c.get('perms'),
+      cloneUrl: `${new URL(c.req.url).origin}/${ns.username}/${repo.name}.git`,
+      empty: branches.length === 0,
+      branches,
+      openPullCount: Number(open?.n ?? 0),
+      openIssueCount: Number(openIssues?.n ?? 0),
+    },
+    200
+  );
+});
+
+const updateRepoRoute = createRoute({
+  method: 'patch',
+  path: '/{owner}/{repo}',
+  tags: ['Repositories'],
+  request: {
+    params: ownerRepoParams,
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            name: z.string().min(1).max(100).optional(),
+            description: z.string().max(350).nullable().optional(),
+            defaultBranch: z.string().min(1).optional(),
+            visibility: z.enum(['private', 'internal', 'public']).optional(),
+            // Replaces the list; [] or null clears it.
+            protectedBranches: z
+              .array(z.string().max(MAX_PROTECTED_PATTERN_LENGTH))
+              .max(MAX_PROTECTED_PATTERNS)
+              .nullable()
+              .optional()
+              .openapi({
+                description:
+                  'Branch name patterns CloudForge never rebases and that only change by merging a pull request or a repository admin’s fast-forward push (never deleted or force-pushed): exact names, or globs (* within one path segment, ** across segments). At most 50, each 1–100 characters without whitespace. The default branch is always protected.',
+                example: ['release/*', 'develop'],
+              }),
+            hasIssues: z.boolean().optional().openapi({
+              description:
+                'Turn the Issues page and API on or off. Turning them off keeps the issues; turning them back on shows them again.',
+            }),
+            deleteMergedBranches: z.boolean().optional().openapi({
+              description:
+                'Delete a pull request’s head branch when it lands, by the merge button or auto-merge (never the default or a protected branch, or one another open pull request uses).',
+            }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    ...json200Response(repoSchema, 'Updated'),
+    ...json400Response,
+    ...json403Response,
+    ...json404Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(updateRepoRoute, async (c) => {
+  if (!can(c.get('perms'), 'editSettings'))
+    return c.json({ error: 'You must be an admin of this repository' }, 403);
+  const db = c.get('db');
+  const repo = c.get('repo');
+  const body = c.req.valid('json');
+  const patch: Partial<Repository> = { updatedAt: new Date() };
+  if (body.name !== undefined && body.name !== repo.name) {
+    const name = normalizeRepoName(body.name);
+    if (!isValidRepoName(name))
+      return c.json({ error: 'Repository name is invalid' }, 400);
+    if (await nameTaken(db, repo, name))
+      return c.json({ error: 'Name already exists in this namespace' }, 409);
+    patch.name = name;
+  }
+  if (body.description !== undefined)
+    patch.description = body.description?.trim() || null;
+  if (body.visibility !== undefined && body.visibility !== repo.visibility) {
+    if (repo.teamId && body.visibility === 'private')
+      return c.json(
+        { error: 'Team repositories are always visible to every member' },
+        400
+      );
+    patch.visibility = body.visibility;
+  }
+  if (body.defaultBranch !== undefined) {
+    if (!(await c.get('git').refs()).has(`refs/heads/${body.defaultBranch}`))
+      return c.json({ error: 'Branch not found' }, 400);
+    patch.defaultBranch = body.defaultBranch;
+  }
+  if (body.protectedBranches !== undefined) {
+    const patterns = (body.protectedBranches ?? []).map((p) => p.trim());
+    const invalid = invalidProtectedPatterns(patterns);
+    if (invalid) return c.json({ error: invalid }, 400);
+    patch.protectedBranches = normalizeProtectedPatterns(patterns);
+  }
+  if (body.deleteMergedBranches !== undefined)
+    patch.deleteMergedBranches = body.deleteMergedBranches;
+  if (body.hasIssues !== undefined) patch.hasIssues = body.hasIssues;
+  await db.update(repositories).set(patch).where(eq(repositories.id, repo.id));
+  await auditRepoChanges(
+    db,
+    c.get('user')!.id,
+    repo,
+    patch,
+    c.get('namespace')
+  );
+  return c.json(serializeRepo({ ...repo, ...patch }, c.get('namespace')), 200);
+});
+
+/** What the settings route changed, for the audit log: visibility on its own, the rest as one `settings.changed`. */
+async function auditRepoChanges(
+  db: DrizzleDB,
+  actorId: string,
+  before: Repository,
+  patch: Partial<Repository>,
+  ns: Namespace
+) {
+  const target = `${ns.username}/${patch.name ?? before.name}`;
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const key of [
+    'name',
+    'description',
+    'defaultBranch',
+    'protectedBranches',
+    'deleteMergedBranches',
+    'hasIssues',
+  ] as const) {
+    if (!(key in patch)) continue;
+    const list = key === 'protectedBranches';
+    const from = list ? (before[key] ?? []) : before[key];
+    const to = list ? (patch[key] ?? []) : patch[key];
+    if (JSON.stringify(from) !== JSON.stringify(to))
+      changes[key] = { from, to };
+  }
+  if (Object.keys(changes).length)
+    await recordAudit(db, {
+      repositoryId: before.id,
+      actorId,
+      action: 'settings.changed',
+      target,
+      data: { changes },
+    });
+  if (patch.visibility !== undefined && patch.visibility !== before.visibility)
+    await recordAudit(db, {
+      repositoryId: before.id,
+      actorId,
+      action: 'visibility.changed',
+      target,
+      data: { from: before.visibility, to: patch.visibility },
+    });
+}
+
+const deleteRepoRoute = createRoute({
+  method: 'delete',
+  path: '/{owner}/{repo}',
+  tags: ['Repositories'],
+  request: { params: ownerRepoParams },
+  responses: {
+    ...json200Response(okSchema, 'Deleted'),
+    ...json403Response,
+    ...json404Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(deleteRepoRoute, async (c) => {
+  if (!can(c.get('perms'), 'deleteRepository'))
+    return c.json({ error: 'You must be an admin of this repository' }, 403);
+  const repo = c.get('repo');
+  const deleted = await deleteRepository(
+    c.env,
+    c.get('db'),
+    repo,
+    c.get('user')!.id,
+    `${c.get('namespace').username}/${repo.name}`
+  );
+  if (!deleted)
+    return c.json(
+      {
+        error:
+          'Actions are still stopping or changed. Retry deleting the repository.',
+      },
+      409
+    );
+  return c.json({ ok: true as const }, 200);
+});
+
+// ── collaborators ────────────────────────────────────────────────────────────
+
+const collabParams = ownerRepoParams.extend({ username: z.string() });
+
+/** A URL must still identify the same repository and human account at the write point. */
+function collaboratorTargetGuard(
+  repositoryId: string,
+  targetId: string,
+  params: z.infer<typeof collabParams>,
+  adding: boolean
+) {
+  return sql`EXISTS (SELECT 1 FROM users collaborator_target
+    WHERE collaborator_target.id = ${targetId}
+      AND collaborator_target.username = ${params.username.toLowerCase()}
+      AND ${adding ? sql`NOT EXISTS (SELECT 1 FROM agents WHERE user_id = collaborator_target.id)` : sql`1`})
+    AND EXISTS (SELECT 1 FROM repositories collaborator_repo
+      JOIN users collaborator_owner ON collaborator_owner.id = collaborator_repo.owner_id
+      LEFT JOIN teams collaborator_team ON collaborator_team.id = collaborator_repo.team_id
+      WHERE collaborator_repo.id = ${repositoryId}
+        AND collaborator_repo.name = ${params.repo}
+        AND ((collaborator_repo.team_id IS NULL AND collaborator_owner.username = ${params.owner.toLowerCase()})
+          OR (collaborator_repo.team_id IS NOT NULL AND collaborator_team.slug = ${params.owner.toLowerCase()})))`;
+}
+
+const collaboratorConflict = {
+  error: 'Repository access changed. Refresh and try again.',
+};
+
+const listCollabRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/collaborators',
+  tags: ['Collaborators'],
+  request: { params: ownerRepoParams },
+  responses: {
+    ...json200Response(z.array(publicUserSchema), 'Collaborators'),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(listCollabRoute, async (c) => {
+  const rows = await c
+    .get('db')
+    .select({ user: users })
+    .from(repositoryCollaborators)
+    .innerJoin(users, eq(users.id, repositoryCollaborators.userId))
+    .where(eq(repositoryCollaborators.repositoryId, c.get('repo').id))
+    .all();
+  return c.json(
+    rows.map((r) => toPublicUser(r.user)),
+    200
+  );
+});
+
+const addCollabRoute = createRoute({
+  method: 'put',
+  path: '/{owner}/{repo}/collaborators/{username}',
+  tags: ['Collaborators'],
+  request: { params: collabParams },
+  responses: {
+    ...json200Response(okSchema, 'Added'),
+    ...json400Response,
+    ...json403Response,
+    ...json404Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(addCollabRoute, async (c) => {
+  c.header('Cache-Control', 'no-store');
+  if (!can(c.get('perms'), 'manageAccess'))
+    return c.json({ error: 'You must be an admin of this repository' }, 403);
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return c.json({ error: 'A verified browser session is required' }, 403);
+  const db = c.get('db');
+  const repositoryId = c.get('repo').id;
+  const authorization = await captureAccessWrite(db, recent, {
+    kind: 'repository',
+    repositoryId,
+  });
+  if (!authorization) return c.json(collaboratorConflict, 409);
+  const params = c.req.valid('param');
+  const user = await userByUsername(db, params.username);
+  if (!user) return c.json({ error: 'User not found' }, 404);
+  if (await isAgentUser(c.get('db'), user.id))
+    return c.json(
+      {
+        error:
+          'Agents can’t be collaborators. Invite it under Settings → Agents.',
+      },
+      400
+    );
+  const guard = sql`${accessWriteGuard(authorization)} AND ${collaboratorTargetGuard(repositoryId, user.id, params, true)}`;
+  // Duplicate PUT succeeds only while the same authority and target still hold.
+  const current = await db.get<{ present: number }>(sql`
+    SELECT EXISTS (SELECT 1 FROM repository_collaborators
+      WHERE repository_id = ${repositoryId} AND user_id = ${user.id}) AS present
+    WHERE ${guard}`);
+  if (!current) return c.json(collaboratorConflict, 409);
+  if (current.present) return c.json({ ok: true as const }, 200);
+  const added = await db.all<{ id: string }>(sql`
+    INSERT INTO repository_collaborators (repository_id, user_id, created_at)
+    SELECT ${repositoryId}, ${user.id}, ${Math.floor(Date.now() / 1000)} WHERE ${guard}
+      AND NOT EXISTS (SELECT 1 FROM repository_collaborators
+        WHERE repository_id = ${repositoryId} AND user_id = ${user.id})
+    RETURNING user_id AS id`);
+  if (!added.length) return c.json(collaboratorConflict, 409);
+  await recordAudit(db, {
+    repositoryId,
+    actorId: recent.userId,
+    action: 'collaborator.added',
+    target: user.username ?? user.id,
+  });
+  return c.json({ ok: true as const }, 200);
+});
+
+const removeCollabRoute = createRoute({
+  method: 'delete',
+  path: '/{owner}/{repo}/collaborators/{username}',
+  tags: ['Collaborators'],
+  request: { params: collabParams },
+  responses: {
+    ...json200Response(okSchema, 'Removed'),
+    ...json403Response,
+    ...json404Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(removeCollabRoute, async (c) => {
+  c.header('Cache-Control', 'no-store');
+  if (!can(c.get('perms'), 'manageAccess'))
+    return c.json({ error: 'You must be an admin of this repository' }, 403);
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return c.json({ error: 'A verified browser session is required' }, 403);
+  const db = c.get('db');
+  const repositoryId = c.get('repo').id;
+  const authorization = await captureAccessWrite(db, recent, {
+    kind: 'repository',
+    repositoryId,
+  });
+  if (!authorization) return c.json(collaboratorConflict, 409);
+  const params = c.req.valid('param');
+  const user = await userByUsername(db, params.username);
+  if (!user) return c.json({ error: 'User not found' }, 404);
+  // Revocation also cleans up anomalous legacy agent grants; it grants no access.
+  const guard = sql`${accessWriteGuard(authorization)} AND ${collaboratorTargetGuard(repositoryId, user.id, params, false)}`;
+  // Missing DELETE is a no-op only after one authoritative check, with no audit.
+  const current = await db.get<{ revision: number | null }>(sql`
+    SELECT (SELECT revision FROM repository_collaborators
+      WHERE repository_id = ${repositoryId} AND user_id = ${user.id}) AS revision
+    WHERE ${guard}`);
+  if (!current) return c.json(collaboratorConflict, 409);
+  if (current.revision === null) return c.json({ ok: true as const }, 200);
+  const removed = await db
+    .delete(repositoryCollaborators)
+    .where(
+      and(
+        eq(repositoryCollaborators.repositoryId, repositoryId),
+        eq(repositoryCollaborators.userId, user.id),
+        eq(repositoryCollaborators.revision, current.revision),
+        guard
+      )
+    )
+    .returning({ id: repositoryCollaborators.userId });
+  if (!removed.length) return c.json(collaboratorConflict, 409);
+  await recordAudit(db, {
+    repositoryId,
+    actorId: recent.userId,
+    action: 'collaborator.removed',
+    target: user.username ?? user.id,
+  });
+  return c.json({ ok: true as const }, 200);
+});
+
+// ── branches ─────────────────────────────────────────────────────────────────
+
+const deleteBranchRoute = createRoute({
+  method: 'delete',
+  path: '/{owner}/{repo}/branches',
+  tags: ['Branches'],
+  request: { params: ownerRepoParams, query: z.object({ name: z.string() }) },
+  responses: {
+    ...json200Response(okSchema, 'Deleted'),
+    ...json400Response,
+    ...json403Response,
+    ...json404Response,
+    ...json409Response,
+  },
+});
+reposRouter.openapi(deleteBranchRoute, async (c) => {
+  if (!can(c.get('perms'), 'push'))
+    return c.json({ error: 'You do not have push access' }, 403);
+  const { name } = c.req.valid('query');
+  const repo = c.get('repo');
+  if (name === repo.defaultBranch)
+    return c.json({ error: 'Cannot delete the default branch' }, 400);
+  if (protectedBy(repo.protectedBranches, name))
+    return c.json({ error: `${name} is a protected branch.` }, 409);
+  // A branch an open pull request comes from, builds on or lands on is in use (as Clean up and landing keep it).
+  const usedBy = await c
+    .get('db')
+    .select({ number: pullRequests.number })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.repositoryId, repo.id),
+        eq(pullRequests.state, 'open'),
+        or(
+          eq(pullRequests.headRef, name),
+          eq(pullRequests.baseRef, name),
+          landTargetIs(name)
+        )
+      )
+    )
+    .orderBy(asc(pullRequests.number))
+    .get();
+  if (usedBy)
+    return c.json(
+      { error: `Open pull request #${usedBy.number} uses ${name}.` },
+      409
+    );
+  // The branch itself, not a tag or commit of that name; deleting one that isn't there does nothing and records nothing.
+  const sha = (await c.get('git').refs()).get(`refs/heads/${name}`);
+  if (sha) {
+    // Compare-and-swap on the tip just read: a push in between wins and the deletion is refused.
+    try {
+      await c.get('git').deleteBranch(name, sha);
+    } catch (e) {
+      if (e instanceof GitPushError)
+        return c.json(
+          { error: 'The branch has new commits since you looked. Try again.' },
+          409
+        );
+      throw e;
+    }
+    await recordAudit(c.get('db'), {
+      repositoryId: c.get('repo').id,
+      actorId: c.get('user')!.id,
+      action: 'branch.deleted',
+      target: name,
+      data: { sha },
+    });
+  }
+  return c.json({ ok: true as const }, 200);
+});
+
+// ── contents ─────────────────────────────────────────────────────────────────
+
+const entrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  type: z.string(),
+  mode: z.string(),
+  hash: z.string(),
+});
+
+const contentsSchema = z.object({
+  ref: z.string(),
+  path: z.string(),
+  commitSha: z.string().nullable(),
+  latestCommit: commitSchema.nullable(),
+  kind: z.enum(['tree', 'blob', 'empty']),
+  entries: z.array(entrySchema).optional(),
+  readme: z
+    .object({ path: z.string(), text: z.string() })
+    .nullable()
+    .optional(),
+  file: z
+    .object({
+      path: z.string(),
+      size: z.number(),
+      binary: z.boolean(),
+      tooLarge: z.boolean(),
+      text: z.string().nullable(),
+      // Set when the blob is a Git LFS pointer; `stored` says whether the content was uploaded.
+      lfs: z
+        .object({ oid: z.string(), size: z.number(), stored: z.boolean() })
+        .nullable(),
+    })
+    .optional(),
+});
+
+const contentsRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/contents',
+  tags: ['Contents'],
+  request: {
+    params: ownerRepoParams,
+    query: z.object({ refPath: z.string().default('') }),
+  },
+  responses: {
+    ...json200Response(contentsSchema, 'Tree or file'),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(contentsRoute, async (c) => {
+  const git = c.get('git');
+  const repo = c.get('repo');
+  const { ref, path } = await resolveRefPath(
+    git,
+    c.req.valid('query').refPath,
+    repo.defaultBranch
+  );
+  // The configured default is a branch name, even when its name is also a valid object id.
+  const sha =
+    ref === repo.defaultBranch
+      ? (await git.refs()).get(`refs/heads/${ref}`)
+      : await git.resolve(ref);
+  if (!sha) {
+    if ((await git.branches()).length === 0) {
+      return c.json(
+        {
+          ref,
+          path,
+          commitSha: null,
+          latestCommit: null,
+          kind: 'empty' as const,
+        },
+        200
+      );
+    }
+    return c.json({ error: 'Ref not found' }, 404);
+  }
+  const [entry, latest] = await Promise.all([
+    git.entryAt(sha, path),
+    git.log(sha, 1),
+  ]);
+  if (!entry) return c.json({ error: 'Path not found' }, 404);
+  const [latestCommit = null] = await attributeCommits(
+    c.get('db'),
+    latest.slice(0, 1)
+  );
+  const base = { ref, path, commitSha: sha, latestCommit };
+  if (entry.type === 'tree') {
+    const entries = entry.entries
+      .map((e) => ({ ...e, path: path ? `${path}/${e.name}` : e.name }))
+      .sort((a, b) =>
+        (a.type === 'tree') === (b.type === 'tree')
+          ? a.name.localeCompare(b.name)
+          : a.type === 'tree'
+            ? -1
+            : 1
+      );
+    const readmeEntry = entries.find(
+      (e) => e.type !== 'tree' && /^readme(\.(md|markdown|txt))?$/i.test(e.name)
+    );
+    let readme = null;
+    if (readmeEntry) {
+      const blob = await git.readBlob(readmeEntry.hash);
+      if (blob && blob.size < MAX_FILE_VIEW)
+        readme = { path: readmeEntry.path, text: await blob.text() };
+    }
+    return c.json({ ...base, kind: 'tree' as const, entries, readme }, 200);
+  }
+  const blob = await git.readBlob(entry.entry.hash);
+  const tooLarge = (blob?.size ?? 0) > MAX_FILE_VIEW;
+  const bytes =
+    blob && !tooLarge
+      ? new Uint8Array(await blob.arrayBuffer())
+      : new Uint8Array();
+  const binary = bytes.subarray(0, 8000).includes(0);
+  const pointer =
+    !binary && bytes.length <= 1024
+      ? parseLfsPointer(decoder.decode(bytes))
+      : null;
+  const lfs = pointer
+    ? {
+        ...pointer,
+        stored: !!(await c
+          .get('db')
+          .select({ id: lfsObjects.id })
+          .from(lfsObjects)
+          .where(
+            and(
+              eq(lfsObjects.repositoryId, repo.id),
+              eq(lfsObjects.oid, pointer.oid)
+            )
+          )
+          .get()),
+      }
+    : null;
+  return c.json(
+    {
+      ...base,
+      kind: 'blob' as const,
+      file: {
+        path,
+        size: blob?.size ?? 0,
+        binary,
+        tooLarge,
+        text: binary || tooLarge ? null : decoder.decode(bytes),
+        lfs,
+      },
+    },
+    200
+  );
+});
+
+const treeCommitsRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/tree-commits',
+  tags: ['Contents'],
+  request: {
+    params: ownerRepoParams,
+    query: z.object({ ref: z.string(), path: z.string().default('') }),
+  },
+  responses: {
+    ...json200Response(
+      z.record(z.string(), commitSchema),
+      'Last commit per entry'
+    ),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(treeCommitsRoute, async (c) => {
+  const { ref, path } = c.req.valid('query');
+  const sha = await c.get('git').resolve(ref);
+  if (!sha) return c.json({ error: 'Ref not found' }, 404);
+  const byName = await c.get('git').lastCommitsForTree(sha, path);
+  // Many entries share a commit: attribute each distinct commit once.
+  const distinct = [
+    ...new Map(Object.values(byName).map((x) => [x.hash, x])).values(),
+  ];
+  const attributed = new Map(
+    (await attributeCommits(c.get('db'), distinct)).map((x) => [x.hash, x])
+  );
+  return c.json(
+    Object.fromEntries(
+      Object.entries(byName).map(([name, x]) => [name, attributed.get(x.hash)!])
+    ),
+    200
+  );
+});
+
+const SVG_TYPE = 'image/svg+xml';
+const isSvg = (path: string) => /\.svg$/i.test(path);
+
+/**
+ * Raw file Content-Type. SVG is an image so Markdown `<img>` shows it (`<img>` never runs its
+ * scripts); HTML is never served as a document from our origin.
+ */
+function rawContentType(path: string, blobType: string): string {
+  if (isSvg(path) || /^image\/svg/.test(blobType)) return SVG_TYPE;
+  if (/^(text\/html|application\/xhtml)/.test(blobType)) return 'text/plain';
+  return blobType || 'application/octet-stream';
+}
+
+/** Sandboxed CSP for raw files (SVGs can carry script); allows only inline styles. */
+const RAW_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy':
+    "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+};
+
+const rawRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/raw',
+  tags: ['Contents'],
+  request: {
+    params: ownerRepoParams,
+    query: z.object({ ref: z.string(), path: z.string() }),
+  },
+  responses: {
+    200: { description: 'Raw file bytes' },
+    302: {
+      description: 'Redirect to the Git LFS object behind a pointer file',
+    },
+    ...json404Response,
+  },
+});
+reposRouter.openapi(rawRoute, async (c) => {
+  const { ref, path } = c.req.valid('query');
+  const blob = await (await c.get('git').client.repo()).readFile({ ref, path });
+  if (!blob) return c.json({ error: 'Not Found' }, 404);
+  // LFS pointer: redirect to the R2 bytes; a pointer whose object isn't uploaded is served as text.
+  const pointer =
+    blob.size <= 1024 && lfsConfigured(c.env)
+      ? parseLfsPointer(await blob.text())
+      : null;
+  if (pointer) {
+    const row = await c
+      .get('db')
+      .select({ r2Key: lfsObjects.r2Key })
+      .from(lfsObjects)
+      .where(
+        and(
+          eq(lfsObjects.repositoryId, c.get('repo').id),
+          eq(lfsObjects.oid, pointer.oid)
+        )
+      )
+      .get();
+    if (row)
+      return c.redirect(
+        await presign(c.env, row.r2Key, 'GET', {
+          contentType: isSvg(path) ? SVG_TYPE : undefined,
+        }),
+        302
+      );
+  }
+  return new Response(blob.stream(), {
+    headers: {
+      'Content-Type': rawContentType(path, blob.type),
+      ...RAW_HEADERS,
+    },
+  }) as never;
+});
+
+const lfsDownloadRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/lfs/{oid}',
+  tags: ['Contents'],
+  request: {
+    params: ownerRepoParams.extend({ oid: z.string().regex(OID_RE) }),
+    query: z.object({ filename: z.string().max(255).optional() }),
+  },
+  responses: {
+    302: { description: 'Redirect to a short-lived download URL' },
+    ...json404Response,
+    501: {
+      content: { 'application/json': { schema: errorSchema } },
+      description: 'LFS not configured',
+    },
+  },
+});
+reposRouter.openapi(lfsDownloadRoute, async (c) => {
+  if (!lfsConfigured(c.env)) return c.json({ error: LFS_NOT_CONFIGURED }, 501);
+  const { oid } = c.req.valid('param');
+  const row = await c
+    .get('db')
+    .select()
+    .from(lfsObjects)
+    .where(
+      and(
+        eq(lfsObjects.repositoryId, c.get('repo').id),
+        eq(lfsObjects.oid, oid)
+      )
+    )
+    .get();
+  if (!row) return c.json({ error: 'LFS object not found' }, 404);
+  // Minted after the permission check (loadRepo) and never stored.
+  const url = await presign(c.env, row.r2Key, 'GET', {
+    filename: c.req.valid('query').filename,
+  });
+  return c.redirect(url, 302);
+});
+
+// ── history ──────────────────────────────────────────────────────────────────
+
+const commitsRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/commits',
+  tags: ['Commits'],
+  request: {
+    params: ownerRepoParams,
+    query: z.object({
+      ref: z.string(),
+      page: z.coerce.number().int().min(1).default(1),
+    }),
+  },
+  responses: {
+    ...json200Response(
+      z.object({ commits: z.array(commitSchema), hasMore: z.boolean() }),
+      'Commits'
+    ),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(commitsRoute, async (c) => {
+  const { ref, page } = c.req.valid('query');
+  const sha = await c.get('git').resolve(ref);
+  if (!sha) return c.json({ error: 'Ref not found' }, 404);
+  const perPage = 35;
+  const commits = await c
+    .get('git')
+    .log(sha, perPage + 1, (page - 1) * perPage);
+  return c.json(
+    {
+      commits: await attributeCommits(c.get('db'), commits.slice(0, perPage)),
+      hasMore: commits.length > perPage,
+    },
+    200
+  );
+});
+
+const commitRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/commit/{sha}',
+  tags: ['Commits'],
+  request: {
+    params: ownerRepoParams.extend({ sha: z.string().regex(/^[0-9a-f]{40}$/) }),
+  },
+  responses: {
+    ...json200Response(
+      z.object({ commit: commitSchema, files: z.array(fileDiffSchema) }),
+      'Commit with diff'
+    ),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(commitRoute, async (c) => {
+  const git = c.get('git');
+  const commit = await git.commit(c.req.valid('param').sha);
+  if (!commit) return c.json({ error: 'Not Found' }, 404);
+  const parent = commit.parents[0] ? await git.commit(commit.parents[0]) : null;
+  const files = await git.fileDiffs(
+    await git.diffTrees(parent?.treeHash ?? null, commit.treeHash)
+  );
+  const [attributed] = await attributeCommits(c.get('db'), [commit]);
+  return c.json({ commit: attributed, files }, 200);
+});
+
+const compareRoute = createRoute({
+  method: 'get',
+  path: '/{owner}/{repo}/compare',
+  tags: ['Commits'],
+  request: {
+    params: ownerRepoParams,
+    query: z.object({ base: z.string(), head: z.string() }),
+  },
+  responses: {
+    ...json200Response(
+      z.object({
+        baseSha: z.string(),
+        headSha: z.string(),
+        status: z.enum(['identical', 'ahead', 'behind', 'diverged']),
+        mergeable: z.boolean(),
+        conflicts: z.array(z.string()),
+        commits: z.array(commitSchema),
+        files: z.array(fileDiffSchema),
+      }),
+      'Comparison'
+    ),
+    ...json404Response,
+  },
+});
+reposRouter.openapi(compareRoute, async (c) => {
+  const git = c.get('git');
+  const { base, head } = c.req.valid('query');
+  const [baseSha, headSha] = await Promise.all([
+    git.resolve(base),
+    git.resolve(head),
+  ]);
+  if (!baseSha || !headSha) return c.json({ error: 'Branch not found' }, 404);
+  // The dry-run rebase is for opening a pull request: visitors of a public repository can't, so they don't pay for it.
+  const result = await compareShas(git, baseSha, headSha, {
+    mergeability: !!c.get('user'),
+  });
+  return c.json(
+    { ...result, commits: await attributeCommits(c.get('db'), result.commits) },
+    200
+  );
+});
+
+export async function compareShas(
+  git: GitService,
+  baseSha: string,
+  headSha: string,
+  opts: { mergeability?: boolean } = {}
+) {
+  if (baseSha === headSha) {
+    return {
+      baseSha,
+      headSha,
+      status: 'identical' as const,
+      mergeable: false,
+      conflicts: [],
+      commits: [],
+      files: [],
+    };
+  }
+  const mb = await git.mergeBase(baseSha, headSha);
+  const commits = await git.commitsBetween(baseSha, headSha);
+  // Whether landing's rebase would replay it cleanly (a dry run: nothing is pushed).
+  const dry =
+    opts.mergeability === false || mb === headSha
+      ? null
+      : await rebase(git, {
+          head: headSha,
+          onto: baseSha,
+          committer: { ...REBASE_COMMITTER, timestamp: 0 },
+          ontoLabel: 'base',
+        });
+  const mbCommit = mb ? await git.commit(mb) : null;
+  const headCommit = await git.commit(headSha);
+  const files = await git.fileDiffs(
+    await git.diffTrees(
+      mbCommit?.treeHash ?? null,
+      headCommit?.treeHash ?? null
+    )
+  );
+  const status =
+    mb === headSha ? 'behind' : mb === baseSha ? 'ahead' : 'diverged';
+  return {
+    baseSha,
+    headSha,
+    status: status as 'behind' | 'ahead' | 'diverged',
+    mergeable:
+      dry?.kind === 'up_to_date' ||
+      (dry?.kind === 'done' && dry.commits.length > 0),
+    conflicts: dry?.kind === 'conflict' ? dry.conflicts : [],
+    commits,
+    files,
+  };
+}

@@ -2,10 +2,10 @@
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { prEdges, pullRequests, type PullRequest } from '../db/app.schema';
-import { landTargetOf } from '../lib/land-target';
+import { landTargetOf } from '../pulls/land-target';
 import { ensureRebase } from '../merge/rebase';
 import { resolutionConfigured } from '../merge/resolution';
-import { findRepoById, gitFor } from '../lib/repos';
+import { findRepoById, gitFor } from '../repositories/service';
 import { d1Of } from '../pulls/events';
 import { settleStates } from '../pulls/settle';
 

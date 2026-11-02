@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 /**
  * AI resolution of one pull request commit whose replay conflicted during a rebase (merge/rebase.ts). The
  * MergeResolver Durable Object (named by the row id, so a retried step rejoins its run) gets that commit's conflicted
@@ -15,7 +16,7 @@ import {
 } from '../db/app.schema';
 import { rebase, REBASE_COMMITTER, type RebaseResult } from '../git/rebase';
 import type { GitService } from '../git/service';
-import { findRepoById, gitFor } from '../lib/repos';
+import { findRepoById, gitFor } from '../repositories/service';
 import { recordAiUsage, usageFromTranscript } from '../usage/record';
 import {
   rebaseTips,

@@ -6,7 +6,7 @@ import {
 } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../db/schema';
-import { assertAccessRuntime } from '../lib/access-runtime';
+import { assertAccessRuntime } from '../access/runtime';
 import { executeSweep, type SweepParams } from './auto';
 import type { StepRunner } from './resolution';
 import { executeRebase, type RebaseParams } from './rebase';
@@ -14,7 +14,7 @@ import { executeHeadReview, executeReviewerRetry } from '../review/head';
 import { headReviewId } from '../review/keys';
 import { workersAiAgentModels } from '../review/models';
 import type { PiReviewerApi } from '../review/pi-contract';
-import { getSettings } from '../lib/settings';
+import { getSettings } from '../instance/settings';
 import { executeStacking, type StackParams } from '../stack/discover';
 import { workersAiStackModels } from '../stack/models';
 import { recordAgentRun } from '../agent-runs/record';

@@ -34,7 +34,7 @@ export function parseBump(value: string): VersionBump | null {
 
 /**
  * A plain `vX.Y.Z` (no pre-release or build metadata, no leading zeros, at most 8 digits a part), the only version a
- * release takes. The same spellings as the server's `parseVersion` (worker/src/lib/semver.ts).
+ * release takes. The same spellings as the server's `parseVersion` (worker/src/releases/version.ts).
  */
 export function isVersion(value: string): boolean {
   return /^v(0|[1-9]\d{0,7})\.(0|[1-9]\d{0,7})\.(0|[1-9]\d{0,7})$/.test(

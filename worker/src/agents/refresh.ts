@@ -3,7 +3,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { agents, repositories } from '../db/app.schema';
 import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
-import { gitFor } from '../lib/repos';
+import { gitFor } from '../repositories/service';
 import { avatarUrl } from './identity';
 import { AVATAR_PATH, readAgentConfig } from './config';
 import { guardedOf } from './presets';

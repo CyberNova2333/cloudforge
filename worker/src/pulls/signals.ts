@@ -15,7 +15,7 @@ import {
   statusVerdict,
   type CheckRun,
 } from '../review/checks';
-import { latestStatuses } from '../lib/commit-statuses';
+import { latestStatuses } from '../repositories/commit-statuses';
 import { reviewInputs, reviewVerdict, type GateInput } from '../review/gate';
 import { chunks, stackTreeView, type StackTreeView } from '../stack/view';
 import {
@@ -25,7 +25,7 @@ import {
   type Reason,
 } from './state';
 import { contains } from '../stack/contains';
-import { landTargetOf } from '../lib/land-target';
+import { landTargetOf } from './land-target';
 
 export type PullStateOptions = {
   /** Branch tips (`refs/heads/...`), when the caller already has them. */

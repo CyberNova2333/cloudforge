@@ -9,12 +9,12 @@ import {
 import type { GitService } from '../git/service';
 import type { DrizzleDB } from '../db/middleware';
 import type { RefUpdate } from '../actions/trigger';
-import { findRepoById, gitFor } from '../lib/repos';
+import { findRepoById, gitFor } from '../repositories/service';
 import { ensureHeadReview } from '../review/head';
 import { ensureStacking } from '../stack/discover';
 import { resolutionConfigured, SETTLE_MS, type StepRunner } from './resolution';
 import { ensureRebase } from './rebase';
-import { landTargetIs, landTargetOf } from '../lib/land-target';
+import { landTargetIs, landTargetOf } from '../pulls/land-target';
 import { startLandingWorkflow } from './followups';
 
 export type SweepParams = { repositoryId: string; branches: string[] };

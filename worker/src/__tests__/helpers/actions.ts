@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { expect } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
-import { handleGitRequest } from '../../git-http';
+import { handleGitRequest } from '../../git/http/handler';
 import { concat } from '../../git/bytes';
 import { FLUSH, pktLine } from '../../git/pktline';
 import { buildPack } from '../../git/pack';

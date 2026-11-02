@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { twoFactor } from 'better-auth/plugins';
 import { createOTP } from '@better-auth/utils/otp';
 import type { DrizzleDB } from '../db/middleware';
-import { recordAudit } from '../lib/audit';
+import { recordAudit } from '../audit/service';
 import {
   readSessionAuthentication,
   isCurrentSession,

@@ -31,9 +31,9 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `yarn dev`                                       | Vite dev server running the Worker in `env.dev`, under a memory watchdog (below)                                                                                                                                 |
 | `yarn seed:demo`                                 | Fills a running local instance with demo data (see below)                                                                                                                                                        |
-| `yarn test`                                      | Vitest inside workerd against a real local D1, with an in-memory Artifacts fake; test files spread over parallel workers (`TEST_WORKERS`, default half the cores, at most 8)                                     |
+| `yarn test`                                      | Node tests for the installer and scripts, then Vitest inside workerd with real local D1 and an in-memory Artifacts fake (`TEST_WORKERS`, default half the cores, at most 8)                                      |
 | `yarn test:workers [files/flags]`                | Worker/pure frontend tests only, through the same runtime-diagnostic exit-status guard used by `yarn test`; accepts Vitest file filters and `--shard=1/2`                                                        |
-| `yarn typecheck`                                 | Type-checks the SPA and the Worker                                                                                                                                                                               |
+| `yarn typecheck`                                 | Type-checks the SPA, Worker, and installer                                                                                                                                                                       |
 | `yarn format` / `yarn format:check`              | Prettier                                                                                                                                                                                                         |
 | `yarn db:generate`                               | Generate a migration after changing the Drizzle schema (never hand-write migrations)                                                                                                                             |
 | `yarn auth:update`                               | Regenerate `worker/src/db/auth.schema.ts` after changing the better-auth config                                                                                                                                  |
@@ -50,8 +50,8 @@ The app, API, and git endpoint share one origin: `git clone http://localhost:808
 OIDC uses its own protocol, D1 actions and explicit identity bindings. Linking never creates a session; the separate native sign-in plugin grants an SDK session only after final D1 authorization and required local MFA. It does not register a Better Auth social provider. Keep `OIDC_PROVIDER` empty unless deliberately configuring it; `loginEnabled` defaults false and needs higher-version administrator publication. Keep `OIDC_CLIENT_SECRET` in secrets rather than JSON vars. See [configuration](configuration.md#oidc-identity-linking) and [the flows](oidc.md).
 
 ```bash
-yarn test:workers worker/src/__tests__/oidc-linking.test.ts worker/src/__tests__/oidc-provider.test.ts worker/src/__tests__/oidc-sign-in.test.ts worker/src/__tests__/oidc-session-source.test.ts worker/src/__tests__/session-secret-cache.test.ts
-yarn test:workers src/lib/oidcApi.test.ts src/lib/oidcSignInApi.test.ts src/lib/signInLock.test.ts
+yarn test:workers worker/src/__tests__/oidc/oidc-linking.test.ts worker/src/__tests__/oidc/oidc-provider.test.ts worker/src/__tests__/oidc/oidc-sign-in.test.ts worker/src/__tests__/oidc/oidc-session-source.test.ts worker/src/__tests__/auth/session-secret-cache.test.ts
+yarn test:workers src/lib/auth/oidcApi.test.ts src/lib/auth/oidcSignInApi.test.ts src/lib/auth/signInLock.test.ts
 ```
 
 The backend suites use real workerd D1 and WebCrypto; external metadata/JWKS/token HTTP may use controlled fixtures, not a mock database or a replacement protocol module. Cover final SQL authorization, immutable identities, configuration generation, one-use callbacks, separate per-action cookies, candidate confirmation and cancellation. Also test published retirement (`enabled=false`) against old Workers and in-flight actions, including an invalid/missing deployed configuration or secret, safe status/read/revoke fallback, and higher-version reactivation, retired-digest invalidation and the independent confirmation-trigger fence. Clearing an environment variable is not a substitute for a D1 revocation generation. Protocol checks must also reject missing/invalid claims, malicious endpoints and keys, redirects, oversized bodies and timeouts. Cross-request cache validation needs separate real HTTP invocations; concurrent promises in one test do not establish Workers request isolation.
@@ -81,31 +81,58 @@ Shell 或其他工具写入文件不会触发这组 `apply_patch` 编辑检查�
 中审阅并信任后才会运行；仓库配置不会替用户修改全局信任设置。接入或升级后可执行下列回归检查：
 
 ```bash
-yarn vitest run --config scripts/cloudforge/vitest.config.ts scripts/__tests__ scripts/githooks/__tests__
+yarn vitest run --config scripts/cloudforge/vitest.config.ts scripts/agents/__tests__ scripts/githooks/__tests__
 yarn agents:sync --check
 ```
 
 ## Layout
 
-```
-DESIGN.md            Design system specification (Primer functional tokens, 14px anchor, 8px spacing)
-src/                 React SPA (Primer CSS + DESIGN.md tokens, react-router, TanStack Query)
-e2e/                 Playwright visual regression & axe-core accessibility baseline (Light & Dark)
-docs-site/           Isolated VitePress documentation site (self-hosted fonts, Shadow DOM theme toggle)
-repo-docs/           Living Chinese source code guide (single source of truth for docs-site)
+The Worker groups code by the feature it serves. Start in the owning domain, then follow its HTTP adapter to the service and database declarations. For example, repository creation enters `repositories/http/repos-router.ts` and calls `repositories/create.ts`. Existing modules can still contain both services and middleware; the directory layout does not imply that every dependency has been separated.
+
+```text
+DESIGN.md                   Design system specification
+src/                        React SPA, with pages/components/libraries grouped by feature
+e2e/                        Playwright visual and accessibility checks
+docs-site/                  Independent VitePress site
+repo-docs/                  Chinese source guide consumed by docs-site
 worker/src/
-  index.ts           Worker entry: Hono app + git endpoint
-  git-http.ts        git smart-HTTP proxy to Artifacts
-  git/               pkt-line, object encoding, packfiles, merge/diff service
-  routers/           API routes (Hono + Zod OpenAPI)
-  db/                Drizzle schema (auth.schema.ts is generated)
-  auth/              better-auth config and guards
-  oidc/              Explicit linking/sign-in protocol, D1 actions and native session bridge
-  __tests__/         Vitest suites and the Artifacts fake
-migrations/          Generated D1 migrations
+  index.ts                  Worker assembly, URL dispatch and binding class exports
+  cron.ts, variables.ts     Scheduled dispatch and request context types
+  repositories/             Repository identity, permissions, branches and reports
+  git/, lfs/                Git and LFS services; protocol handlers in http/handler.ts
+  pulls/, merge/, stack/    PR lifecycle, landing and dependency graph
+  review/, agents/, learn/, agent-runs/  Reviewer and learning workflows
+  actions/, usage/, ai/     CI execution, metering and Workers AI integration
+  auth/, oidc/, access/     Credentials, external identity and runtime/write admission
+  members/, instance/      Profiles/namespaces and instance settings/setup
+  issues/, releases/       Issue and release services
+  notifications/, webhooks/, audit/  Messaging, event delivery and audit reads
+  search/, live/, mcp/      Search, live updates and MCP transport
+  <domain>/http/            The domain's Hono/OpenAPI routes or protocol adapter
+  http/                     Shared OpenAPI schemas/helpers and request log redaction
+  shared/                   Generic SQL-set, text-match and Markdown-text helpers
+  db/                       Drizzle schemas and managed trigger/backfill declarations
+  __tests__/<area>/         Worker tests grouped by feature; shared helpers/ alongside
+migrations/                 Generated D1 migrations and metadata
+scripts/
+  development/, seed-demo/  Local server tools and demo fixture generation
+  testing/, githooks/       Test runner/reporting and Git hook checks
+  database/, cloudflare/   Schema/auth generation and binding type generation
+  agents/, licensing/, i18n/, release/  Repository maintenance and release tooling
+  cloudforge/              Installer CLI and package entrypoints
+    commands/, planning/   Command orchestration and deterministic plans
+    installation/          Installation state, configuration and ownership
+    platform/              Cloudflare, process, DNS and credential adapters
+    recovery/, access/     Offline recovery and access compatibility preflight
+    distribution/, ui/     Package/source handling and interactive input
+    __tests__/<area>/      Installer tests grouped by responsibility
 ```
 
-API docs are served at `/api/swagger-ui` while running, to signed-in members (better-auth's at `/api/auth/reference`).
+`worker/src/index.ts` remains the Wrangler entrypoint and exports the same Durable Object and Workflow classes. Runtime URLs, bindings and database declarations are independent of these directory names. Keep HTTP registration order and authentication checks when moving adapters. The shared layer holds utilities without application-entity dependencies; business read models such as member display identity, coding sessions and repository health stay with their domains.
+
+Run project commands from the repository root through Yarn. [package.json](../package.json) maps stable commands such as `yarn dev`, `yarn db:generate`, `yarn cf-typegen`, `yarn agents:sync`, and `yarn test:workers` to their grouped scripts. `yarn cloudforge` and `yarn pack:npm` still enter `scripts/cloudforge/cli.ts` and `scripts/cloudforge/pack.mjs`. New Node tests belong under the owning tool's `__tests__/`; the Node test configuration includes `scripts/**/*.test.ts`. Worker tests remain under `worker/src/__tests__/` and use the existing recursive Vitest include. Update explicit CI file lists when adding or moving tests.
+
+API docs are served at `/api/swagger-ui` while running, to signed-in members (better-auth's at `/api/auth/reference`). Use the [code map](../repo-docs/code-map.md) to locate feature entrypoints and checks; a listed check is not a recorded passing result.
 
 ## Documentation site
 
@@ -153,7 +180,7 @@ and the script waits for it to settle.
   good) and builds it again, but only a repository that this script built: its description and first commit (or the marker
   it writes last) must match, or it refuses. `--dry-run` builds the git history in a temporary folder and checks the SQL
   against the migrations, touching no server.
-- `cho` gets the password in `SEED_TEAMMATE_PASSWORD`, or the local demo default at the top of `scripts/seed-demo.mjs`.
+- `cho` gets the password in `SEED_TEAMMATE_PASSWORD`, or the local demo default at the top of `scripts/seed-demo/seed-demo.mjs`.
   Nothing else is printed or stored: the admin's password is only used to sign in (and is not passed to wrangler), and the
   git token it creates is deleted right after the last push (or on Ctrl-C). Only what the run itself creates is backdated;
   a teammate, agents or tokens that were already there keep their dates.
@@ -164,7 +191,7 @@ and the script waits for it to settle.
 
 Authentication schema generation uses the project-local `auth@1.7.7` through `yarn auth:update`.
 The CLI and its dependencies are recorded in `yarn.lock` and included in `yarn audit`; generation does not download a separate tool tree. The retired `@better-auth/cli@1.4.21` is no longer used.
-The generation-only profile in `scripts/auth-schema-config.ts` preserves seven existing nullable OAuth columns and the existing absence of a client-credentials JSON default. It does not change runtime plugin validation or export an HTTP handler. Unexpected upstream changes to these exact fields stop generation. The newer client/resource compound uniqueness and relation definitions are retained; the index is generated separately without rebuilding OAuth tables. Tightening populated columns needs a separate data and D1 foreign-key migration design.
+The generation-only profile in `scripts/database/auth-schema-config.ts` preserves seven existing nullable OAuth columns and the existing absence of a client-credentials JSON default. It does not change runtime plugin validation or export an HTTP handler. Unexpected upstream changes to these exact fields stop generation. The newer client/resource compound uniqueness and relation definitions are retained; the index is generated separately without rebuilding OAuth tables. Tightening populated columns needs a separate data and D1 foreign-key migration design.
 The tool reads the installed SDK's schema. Private evidence fields have both `input: false` and `returned: false`; the latter
 also removes fields from the native internal session result, so version guards read the raw fields from D1.
 Do not replace that check with a type assertion or treat session refresh timestamps as verification.
@@ -177,7 +204,7 @@ table migrations reapply the managed declarations so a SQLite table rebuild cann
 Never edit generated SQL or append a trigger to an old migration. The recovery CLI validates the installed
 trigger definition and refuses missing or altered definitions.
 
-Worker tests run through `scripts/test-workers.mjs`. The installed workerd/Vitest integration can emit an
+Worker tests run through `scripts/testing/test-workers.mjs`. The installed workerd/Vitest integration can emit an
 uncaught RPC teardown exception after a passing summary and still exit zero. The wrapper streams the raw output
 and makes those confirmed runtime diagnostics fail the command; it never converts a nonzero exit into success.
 Use `yarn test` or `yarn test:workers`, including for file filters and shards. A single worker can reduce file-boundary
@@ -188,11 +215,11 @@ On [CNB](https://cnb.cool/CyberNova2333/cloudforge), [`.cnb.yml`](../.cnb.yml) r
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) builds and typechecks once (`build`), then runs the tests in one job per module (`test-stacking`; `test-review`, which also covers merging and agent runs; `test-actions`, which also covers the git endpoint and LFS; `test-core`, which also covers MCP and the client-side libraries), in parallel, from the build's cache. Modules are few and balanced by runtime, because each job pays to restore the build and start vitest. On CloudForge, `build` and the test jobs run on `cloudforge-standard-4` (`runs-on` is an expression that picks `ubuntu-latest` on GitHub). GitHub's actions are pinned to commit SHAs (their version in a comment), and the runner image's base and CNB's build image to digests; Dependabot on GitHub proposes new ones. On CloudForge a `gate` job asks [`cloudforge/relevance@v1`](ci-relevance.md) which modules a change can affect and skips the rest; on GitHub the gate is skipped and every module runs.
 
-Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (CloudForge Actions, GitHub and CNB all set it) or more than one worker runs, 60 s when both (on CNB's six workers a few files run up to 14 times slower than alone), 5 s on a single local worker; on CI only failing tests print their console output, so CNB's 100 KB stage log keeps the failures and the summary. Tests are offline: `worker/test/setup.ts` refuses a fetch to any host but this machine at once (a real attempt can hang on a CI runner's TLS handshake and fail after its file, while the worker shuts down); a test that needs a response stubs `fetch` itself. A test also ends only when the work it handed to `ctx.waitUntil` ends: `worker/test/setup.ts` drains it after each test (up to 5 s), so it can neither write into the next test's emptied tables nor run into its worker's shutdown. That margin is about ten times a laptop's speed, so seed fixtures in bulk (one `db.batch`, as `releases.test.ts` does with `landedMany`): a loop of a hundred separate D1 writes takes minutes on CI and times the test out.
+Every test file belongs to exactly one module. When you add a test file, add it to the `yarn test` line of its module's job; `worker/src/__tests__/platform/ci-workflow.test.ts`, which `build` always runs, fails until you do. A new module needs a `test-<name>` job, a line in the gate's `modules`, and a `run-<name>` gate output. Tests get 30 s each when `CI` is set (CloudForge Actions, GitHub and CNB all set it) or more than one worker runs, 60 s when both (on CNB's six workers a few files run up to 14 times slower than alone), 5 s on a single local worker; on CI only failing tests print their console output, so CNB's 100 KB stage log keeps the failures and the summary. Tests are offline: `worker/test/setup.ts` refuses a fetch to any host but this machine at once (a real attempt can hang on a CI runner's TLS handshake and fail after its file, while the worker shuts down); a test that needs a response stubs `fetch` itself. A test also ends only when the work it handed to `ctx.waitUntil` ends: `worker/test/setup.ts` drains it after each test (up to 5 s), so it can neither write into the next test's emptied tables nor run into its worker's shutdown. That margin is about ten times a laptop's speed, so seed fixtures in bulk (one `db.batch`, as `releases.test.ts` does with `landedMany`): a loop of a hundred separate D1 writes takes minutes on CI and times the test out.
 
 ## Dev server memory watchdog
 
-`yarn dev` runs Vite through [`scripts/dev.mjs`](../scripts/dev.mjs), which adds up the memory of the whole dev
+`yarn dev` runs Vite through [`scripts/development/dev.mjs`](../scripts/development/dev.mjs), which adds up the memory of the whole dev
 process tree (Node, workerd, esbuild) every 5 seconds. It logs each time usage passes another gigabyte and stops
 the server, with a breakdown by process, once it passes **5 GB**, so a leak can't take the machine down. The
 server uses about 1.3 GB right after starting. Change the limit with `DEV_MEMORY_LIMIT_MB=8192 yarn dev`, or turn

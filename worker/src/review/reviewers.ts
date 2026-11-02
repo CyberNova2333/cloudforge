@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { and, desc, eq, exists, inArray, notExists } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import {
@@ -9,7 +10,7 @@ import {
   type PullRequest,
   type ReviewerStatus,
 } from '../db/app.schema';
-import { findReposByIds, visibleTo } from '../lib/repos';
+import { findReposByIds, visibleTo } from '../repositories/service';
 import type { SessionUser } from '../variables';
 import { settleStates } from '../pulls/settle';
 import { invitedAgentsAt } from './head';

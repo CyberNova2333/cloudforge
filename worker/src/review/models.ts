@@ -8,14 +8,14 @@ import {
   type AgentReview,
   type AgentReviewInput,
 } from './contract';
-import { aiGateway, type AiFeature } from '../lib/ai-gateway';
+import { aiGateway, type AiFeature } from '../ai/gateway';
 import {
   classificationTarget,
   recordAiUsage,
   usageFromResponse,
 } from '../usage/record';
 import type { ClassifierAnswer } from '../db/app.schema';
-import { withRateLimitRetry } from '../lib/ai-retry';
+import { withRateLimitRetry } from '../ai/retry';
 
 export const classifierModel = (name: 'clef' | 'clef-flash') =>
   `@cf/cloudflare/${name}`;

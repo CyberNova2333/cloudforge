@@ -7,8 +7,8 @@ import {
   type PrEdge,
   type Repository,
 } from '../db/app.schema';
-import { findRepoById, gitFor } from '../lib/repos';
-import { landTargetIs } from '../lib/land-target';
+import { findRepoById, gitFor } from '../repositories/service';
+import { landTargetIs } from '../pulls/land-target';
 import { pingingSteps } from '../live/publish';
 import { ensureRebase } from '../merge/rebase';
 import type { StepRunner } from '../merge/resolution';

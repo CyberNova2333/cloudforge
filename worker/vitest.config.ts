@@ -5,7 +5,7 @@ import {
 } from '@cloudflare/vitest-pool-workers';
 import { availableParallelism } from 'node:os';
 import { defineConfig } from 'vitest/config';
-import ChineseReporter from '../scripts/test-reporter';
+import ChineseReporter from '../scripts/testing/test-reporter';
 
 /** 路径相对于仓库根目录。 */
 const d1Migrations = await readD1Migrations('./migrations');
