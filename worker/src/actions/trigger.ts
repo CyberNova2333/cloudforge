@@ -4,6 +4,7 @@ import { deleteRepositoryArtifacts } from './artifacts';
 import { and, eq, sql } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type { schema } from '../db/schema';
+import { users } from '../db/auth.schema';
 import {
   pullRequests,
   workflowJobs,
@@ -29,6 +30,7 @@ import {
 import { landTargetOf } from '../pulls/land-target';
 import { getSetting } from '../instance/settings';
 import type { Value } from './expressions';
+import { boundedEventText } from './event-payload';
 
 type Db = DrizzleD1Database<typeof schema>;
 
@@ -44,6 +46,9 @@ export type ActionsEvent =
     }
   | {
       kind: 'pull_request';
+      action?: 'opened' | 'synchronize' | 'reopened';
+      /** An opening caller can supply the base SHA it already observed. */
+      baseSha?: string;
       number: number;
       title: string;
       baseRef: string;
@@ -109,6 +114,7 @@ export function githubContext(
     serverUrl?: string;
     number?: number;
     title?: string;
+    event?: Record<string, Value>;
   } = {}
 ) {
   const refName = run.ref.replace(/^refs\/(heads|tags)\//, '');
@@ -129,17 +135,18 @@ export function githubContext(
     head_ref: extra.headRef ?? '',
     server_url: extra.serverUrl ?? '',
     workspace: '/workspace',
-    event: (extra.number
-      ? {
-          number: extra.number,
-          pull_request: {
+    event: (extra.event ??
+      (extra.number
+        ? {
             number: extra.number,
-            title: extra.title ?? '',
-            base: { ref: extra.baseRef ?? '' },
-            head: { ref: extra.headRef ?? '', sha: run.headSha },
-          },
-        }
-      : {}) as Record<string, Value>,
+            pull_request: {
+              number: extra.number,
+              title: extra.title ?? '',
+              base: { ref: extra.baseRef ?? '' },
+              head: { ref: extra.headRef ?? '', sha: run.headSha },
+            },
+          }
+        : {})) as Record<string, Value>,
   };
 }
 
@@ -161,14 +168,24 @@ export async function queueRuns(
   const files = await readWorkflowFiles(git, headSha);
   if (!files.length) return [];
 
+  let base: Promise<string | null> | undefined;
+  const baseSha = () =>
+    (base ??=
+      event.kind === 'pull_request'
+        ? event.baseSha !== undefined
+          ? Promise.resolve(event.baseSha)
+          : git.resolveBranch(event.baseRef)
+        : Promise.resolve(null));
   let changed: string[] | null | undefined;
   const changes = async () => {
     if (changed !== undefined) return changed;
     if (event.kind === 'push')
       changed = await changedPaths(git, event.before, event.after);
     else {
-      const baseSha = await git.resolveBranch(event.baseRef);
-      const base = baseSha ? await git.mergeBase(baseSha, event.headSha) : null;
+      const observedBase = await baseSha();
+      const base = observedBase
+        ? await git.mergeBase(observedBase, event.headSha)
+        : null;
       changed = base ? await changedPaths(git, base, event.headSha) : null;
     }
     return changed;
@@ -190,6 +207,52 @@ export async function queueRuns(
   );
 
   const maxRunner = await getSetting(db, env, 'actions.max_runner_size');
+  let eventData: typeof workflowRuns.$inferSelect.eventData;
+  if (event.kind === 'push') eventData = { before: event.before };
+  else {
+    const pr = await db
+      .select()
+      .from(pullRequests)
+      .where(
+        and(
+          eq(pullRequests.repositoryId, repo.id),
+          eq(pullRequests.number, event.number)
+        )
+      )
+      .get();
+    const author = pr
+      ? await db
+          .select({
+            id: users.id,
+            username: users.username,
+            name: users.name,
+            image: users.image,
+          })
+          .from(users)
+          .where(eq(users.id, pr.authorId))
+          .get()
+      : null;
+    const observedBase = await baseSha();
+    eventData = {
+      baseRef: event.baseRef,
+      headRef: event.headRef,
+      number: event.number,
+      title: event.title,
+      ...(event.action && { action: event.action }),
+      ...(observedBase && { baseSha: observedBase }),
+      ...(pr && {
+        pull: {
+          id: pr.id,
+          body: boundedEventText(pr.body, 16 * 1024),
+          state: pr.state === 'open' ? ('open' as const) : ('closed' as const),
+          createdAt: pr.createdAt.getTime(),
+          author: author?.username
+            ? { ...author, username: author.username }
+            : null,
+        },
+      }),
+    };
+  }
   const created: string[] = [];
   for (const file of files) {
     let wf: WorkflowDef | null = null;
@@ -226,15 +289,7 @@ export async function queueRuns(
       path: file.path,
       name: wf?.name ?? file.path,
       event: event.kind,
-      eventData:
-        event.kind === 'pull_request'
-          ? {
-              baseRef: event.baseRef,
-              headRef: event.headRef,
-              number: event.number,
-              title: event.title,
-            }
-          : null,
+      eventData,
       triggerKey: eventId
         ? JSON.stringify([eventId, event.kind, ref, file.path])
         : null,
@@ -500,6 +555,7 @@ export async function onRefsUpdated(
           repoFullName,
           {
             kind: 'pull_request',
+            action: 'synchronize',
             number: pr.number,
             title: pr.title,
             baseRef: landTargetOf(pr),

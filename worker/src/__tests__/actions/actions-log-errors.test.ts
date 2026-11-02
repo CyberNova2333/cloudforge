@@ -174,6 +174,7 @@ jobs:
       } as StepRunner,
       restartDelayMs: 0,
       runner: () => ({
+        hashFiles: async () => '',
         boot: async () => {
           container.running = true;
           return { ms: 0 };
@@ -259,6 +260,7 @@ jobs:
         },
       } as StepRunner,
       runner: () => ({
+        hashFiles: async () => '',
         boot: async () => {
           boots++;
           return { ms: 0 };
@@ -469,6 +471,7 @@ jobs:
       step,
       restartDelayMs: 0,
       runner: () => ({
+        hashFiles: async () => '',
         boot: async () => {
           boots++;
           return { ms: 0 };

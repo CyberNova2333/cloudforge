@@ -1898,12 +1898,28 @@ export const workflowRuns = sqliteTable(
     workflowPath: text('workflow_path').notNull(),
     name: text('name').notNull(),
     event: text('event', { enum: ['push', 'pull_request'] }).notNull(),
-    // Trigger-time PR identity: execution and reruns must not read a later PR state.
+    // Trigger-time event facts: execution and reruns must not read a later PR or ref state.
     eventData: text('event_data', { mode: 'json' }).$type<{
       baseRef?: string;
       headRef?: string;
       number?: number;
       title?: string;
+      action?: 'opened' | 'synchronize' | 'reopened';
+      baseSha?: string;
+      before?: string;
+      // Optional for old rows; never reconstruct these facts from a later PR on execution.
+      pull?: {
+        id: string;
+        body: string;
+        state: 'open' | 'closed';
+        createdAt: number;
+        author: {
+          id: string;
+          username: string;
+          name: string;
+          image: string | null;
+        } | null;
+      };
     }>(),
     // Stable external delivery identity, for replaying a landed push exactly once.
     triggerKey: text('trigger_key'),
