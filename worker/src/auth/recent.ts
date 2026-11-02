@@ -113,6 +113,8 @@ const SENSITIVE_NATIVE_PATHS = new Set([
   '/admin/remove-user',
   '/admin/set-user-password',
   '/admin/impersonate-user',
+  '/admin/revoke-user-session',
+  '/admin/revoke-user-sessions',
   '/change-password',
   '/change-email',
   '/delete-user',

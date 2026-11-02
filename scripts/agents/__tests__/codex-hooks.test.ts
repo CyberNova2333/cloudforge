@@ -51,6 +51,10 @@ function fixture() {
     join(ROOT, 'scripts/githooks/run-yarn.mjs'),
     join(root, 'scripts/githooks/run-yarn.mjs')
   );
+  cpSync(
+    join(ROOT, 'scripts/githooks/yarn-command.mjs'),
+    join(root, 'scripts/githooks/yarn-command.mjs')
+  );
   // The shared test scanner uses the project's installed TypeScript parser.
   symlinkSync(
     join(ROOT, 'node_modules'),

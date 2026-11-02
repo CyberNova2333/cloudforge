@@ -308,3 +308,9 @@ describe('Windows 标准 Node 启动器解析', () => {
     ).toEqual({ command: executable, args: [] });
   });
 });
+
+it('invalid arguments preserve the explicit EINVAL diagnostic', () => {
+  const result = runYarn([42]);
+  expect(result.error?.code).toBe('EINVAL');
+  expect(result.error?.message).toContain('Yarn 参数必须是字符串数组');
+});

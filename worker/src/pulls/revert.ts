@@ -42,7 +42,8 @@ function freeBranch(refs: Map<string, string>, n: number): string | null {
  */
 async function landedRange(
   git: GitService,
-  pr: PullRequest
+  pr: PullRequest,
+  db: DrizzleDB
 ): Promise<{ head: string; parent: string; commits: number } | null> {
   if (!pr.mergeCommitSha) return null;
   if (pr.landedCommits === null) {
@@ -51,7 +52,7 @@ async function landedRange(
     return parent ? { head: pr.mergeCommitSha, parent, commits: 1 } : null;
   }
   if (pr.landedCommits === 0) return null;
-  const shas = await pullShas(git, pr);
+  const shas = await pullShas(git, pr, db);
   return shas
     ? { head: shas.head, parent: shas.base, commits: pr.landedCommits }
     : null;
@@ -77,7 +78,7 @@ export async function revertPull(opts: {
   const { env, db, git, repo, pr, user } = opts;
   if (pr.state !== 'merged')
     return refuse('Only a merged pull request can be reverted.');
-  const range = await landedRange(git, pr);
+  const range = await landedRange(git, pr, db);
   if (!range)
     return refuse(
       'CloudForge can’t find the commits this pull request landed, so it can’t revert it.'

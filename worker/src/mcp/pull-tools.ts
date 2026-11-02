@@ -382,7 +382,12 @@ const getPullRequest: ToolModule = {
     const pr = await pullFor(ctx, repo.id, fullName, prNumber(args));
     // Every git read below can fail while the branch is being rebased: answer with what could be read.
     const unread: string[] = [];
-    const shas = await readable(unread, 'head', () => pullShas(git, pr), null);
+    const shas = await readable(
+      unread,
+      'head',
+      () => pullShas(git, pr, ctx.db),
+      null
+    );
     // Merging is measured against the land target; base_ref may be a parent PR's branch while stacked.
     const target =
       pr.state === 'open'
@@ -930,7 +935,7 @@ const rerunChecksTool: ToolModule = {
     const pr = await pullFor(ctx, repo.id, fullName, prNumber(args));
     if (pr.state !== 'open')
       throw new McpToolError(`#${pr.number} is not open.`);
-    const shas = await pullShas(git, pr);
+    const shas = await pullShas(git, pr, ctx.db);
     if (!shas) throw new McpToolError(`#${pr.number} has no head to check.`);
     const runs = await ctx.db
       .select()

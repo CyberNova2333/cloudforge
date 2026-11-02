@@ -11,6 +11,7 @@ import {
 import { api, qk } from '@/lib/api/uiApi';
 import { apiFetch } from '@/lib/api/api';
 import { useCurrentUser } from '@/lib/auth/auth';
+import { recentAuthenticationFetch } from '@/lib/auth/recentAuthentication';
 import { Avatar } from '@/components/ui/Avatar';
 import { Notice } from '@/components/ui/Notice';
 import { PendingButton } from '@/components/ui/PendingButton';
@@ -73,7 +74,7 @@ export default function OAuthConsent() {
     setBusy(accept ? 'allow' : 'deny');
     setError(null);
     try {
-      const res = await fetch('/api/auth/oauth2/consent', {
+      const res = await recentAuthenticationFetch('/api/auth/oauth2/consent', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

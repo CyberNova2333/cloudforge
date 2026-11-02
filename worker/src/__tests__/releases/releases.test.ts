@@ -447,7 +447,7 @@ describe('创建发布版本', () => {
     expect(await releaseRows(s)).toEqual([]);
   });
 
-  it('并发创建不同版本不会遗留孤立标签', async () => {
+  it('并发创建不同版本保留已创建的不可变标签，只记录一个发布', async () => {
     const s = await crewRepo();
     await landed(s, 1, null);
     const results = await Promise.all([
@@ -463,7 +463,7 @@ describe('创建发布版本', () => {
     const lost = tag === 'v0.1.0' ? 'v0.2.0' : 'v0.1.0';
     expect(await releaseRows(s)).toEqual([tag]);
     expect(s.repo.refs.get(`refs/tags/${tag}`)).toBe(head(s));
-    expect(s.repo.refs.get(`refs/tags/${lost}`)).toBeUndefined();
+    expect(s.repo.refs.get(`refs/tags/${lost}`)).toBe(head(s));
   });
 
   it('版本标签触发推送工作流运行', async () => {

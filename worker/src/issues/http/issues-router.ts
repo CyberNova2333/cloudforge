@@ -880,14 +880,23 @@ issuesRouter.openapi(createLabelRoute, async (c) => {
     description: body.description,
     createdAt: new Date(),
   };
-  // The unique index has the last word on a name taken meanwhile.
-  const inserted = await db
-    .insert(labels)
-    .values(row)
-    .onConflictDoNothing()
-    .returning({ id: labels.id });
-  if (!inserted.length)
-    return c.json({ error: `A label named "${body.name}" exists` }, 409);
+  // Keep the count and insert atomic; the unique index still arbitrates concurrent names.
+  const inserted = await db.get<{ id: string }>(sql`
+    INSERT INTO labels (id, repository_id, name, color, description, created_at)
+    SELECT ${row.id}, ${repo.id}, ${row.name}, ${row.color}, ${row.description},
+      ${Math.floor(row.createdAt.getTime() / 1000)}
+    WHERE (SELECT COUNT(*) FROM labels WHERE repository_id = ${repo.id}) < ${MAX_REPO_LABELS}
+    ON CONFLICT DO NOTHING
+    RETURNING id
+  `);
+  if (!inserted) {
+    if (await nameTaken(c, body.name))
+      return c.json({ error: `A label named "${body.name}" exists` }, 409);
+    return c.json(
+      { error: `A repository can have at most ${MAX_REPO_LABELS} labels` },
+      422
+    );
+  }
   await recordAudit(db, {
     repositoryId: repo.id,
     actorId: c.get('user')!.id,
