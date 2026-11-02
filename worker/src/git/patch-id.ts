@@ -24,7 +24,8 @@ const isBinary = (b: Uint8Array) => b.subarray(0, 8000).includes(0);
  */
 export async function changesPatchId(
   git: GitService,
-  changes: FileChange[]
+  changes: FileChange[],
+  strict = false
 ): Promise<string> {
   const parts: string[] = [];
   for (const ch of [...changes].sort((a, b) =>
@@ -36,8 +37,8 @@ export async function changesPatchId(
       continue;
     }
     const [a, b] = await Promise.all([
-      ch.oldHash ? git.blob(ch.oldHash) : null,
-      ch.newHash ? git.blob(ch.newHash) : null,
+      ch.oldHash ? git.blob(ch.oldHash, strict) : null,
+      ch.newHash ? git.blob(ch.newHash, strict) : null,
     ]);
     const size = (a?.length ?? 0) + (b?.length ?? 0);
     if (size > MAX_PATCH_BYTES || (a && isBinary(a)) || (b && isBinary(b))) {

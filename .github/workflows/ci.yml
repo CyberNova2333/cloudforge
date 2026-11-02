@@ -192,6 +192,7 @@ jobs:
           worker/src/__tests__/review/self-approval.test.ts
           worker/src/__tests__/review/approvals.test.ts
           worker/src/__tests__/review/owner-questions.test.ts
+          worker/src/__tests__/review/undo-concurrency.test.ts
           worker/src/__tests__/review/delegate.test.ts
           worker/src/__tests__/review/delegation-d1-boundaries.test.ts
           worker/src/__tests__/review/delegation-revocation.test.ts
@@ -212,6 +213,7 @@ jobs:
           worker/src/__tests__/agents/agent-runs.test.ts
           worker/src/__tests__/merge/queue.test.ts
           worker/src/__tests__/merge/revert.test.ts
+          worker/src/__tests__/merge/security-landing.test.ts
           worker/src/__tests__/releases/release-bump.test.ts
 
   test-actions:
@@ -249,6 +251,7 @@ jobs:
           worker/src/__tests__/actions/actions-artifacts.test.ts
           worker/src/__tests__/actions/actions-secrets.test.ts
           worker/src/__tests__/actions/actions-security.test.ts
+          worker/src/__tests__/actions/actions-boundaries-security.test.ts
           worker/src/__tests__/actions/actions-log-errors.test.ts
           worker/src/__tests__/actions/actions-d1-limits.test.ts
           worker/src/__tests__/platform/cron.test.ts
@@ -314,9 +317,11 @@ jobs:
             src/lib/auth/oidcSignInApi.test.ts
             src/lib/auth/signInLock.test.ts
           worker/src/__tests__/auth/recent-authentication.test.ts
+          worker/src/__tests__/auth/identity-security-regression.test.ts
           worker/src/__tests__/auth/user-deletion.test.ts
           worker/src/__tests__/mcp/mcp-grant-revocation.test.ts
           src/lib/auth/recentAuthentication.test.ts
+          src/lib/auth/oauthConsent.test.ts
           worker/src/__tests__/platform/request-limits.test.ts
           worker/src/__tests__/auth/password-reset.test.ts
           worker/src/__tests__/auth/session-cookie.test.ts
@@ -383,6 +388,7 @@ jobs:
           worker/src/__tests__/repos/public-repos.test.ts
           worker/src/__tests__/auth/signup.test.ts
           worker/src/__tests__/issues/issues.test.ts
+          worker/src/__tests__/issues/label-quota.test.ts
           worker/src/__tests__/issues/issue-links.test.ts
           worker/src/__tests__/mcp/mcp-issues.test.ts
           worker/src/__tests__/issues/notifications.test.ts
@@ -392,6 +398,7 @@ jobs:
           worker/src/__tests__/webhooks/webhooks.test.ts
           worker/src/__tests__/auth/deploy-tokens.test.ts
           worker/src/__tests__/webhooks/webhooks-security.test.ts
+          worker/src/__tests__/webhooks/webhook-quota.test.ts
           src/lib/
 
   # The npm package (scripts/cloudforge/pack.mjs): pack it, prove the shipped build deploys from a

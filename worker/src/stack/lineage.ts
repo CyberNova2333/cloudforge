@@ -33,10 +33,27 @@ async function identity(c: Commit): Promise<string> {
 export async function lineageOf(
   git: GitService,
   base: string,
-  head: string
+  head: string,
+  strict = false
 ): Promise<Lineage> {
   if (base === head) return { shas: [], ids: [], truncated: false };
+  if (strict && (!(await git.commit(base)) || !(await git.commit(head))))
+    throw new Error('Could not read lineage endpoints');
   const commits = await git.commitsBetween(base, head);
+  if (strict && commits.length <= MAX_LINEAGE) {
+    const have = new Set(commits.map((c) => c.hash));
+    // commitsBetween is a bounded, permissive history reader. Verify every boundary of the supposedly complete
+    // range: an omitted parent must be proven in the base, never merely missing from an Artifacts response.
+    if (!have.has(head) && (await git.isAncestor(head, base, true)) !== true)
+      throw new Error('Incomplete lineage head');
+    for (const c of commits)
+      for (const parent of c.parents)
+        if (
+          !have.has(parent) &&
+          (await git.isAncestor(parent, base, true)) !== true
+        )
+          throw new Error('Incomplete lineage parent');
+  }
   const kept = commits.slice(-MAX_LINEAGE);
   return {
     shas: kept.map((c) => c.hash),
@@ -50,19 +67,39 @@ const patchMemo = new Map<string, Promise<string | null>>();
 const MAX_MEMO = 2000;
 
 /** The patch id of what commit `sha` changed over its first parent; null when git can't say. */
-function patchIdOf(git: GitService, sha: string): Promise<string | null> {
-  const hit = patchMemo.get(sha);
+function patchIdOf(
+  git: GitService,
+  sha: string,
+  strict = false
+): Promise<string | null> {
+  const key = `${strict ? 'strict:' : ''}${sha}`;
+  const hit = patchMemo.get(key);
   if (hit) return hit;
   const p = (async () => {
     const c = await git.commit(sha);
     if (!c) return null;
     const parent = c.parents[0] ? await git.commit(c.parents[0]) : null;
-    const changes = await git.diffTrees(parent?.treeHash ?? null, c.treeHash);
-    return changesPatchId(git, changes);
-  })().catch(() => null);
+    if (c.parents[0] && !parent) return null;
+    const changes = await git.diffTrees(
+      parent?.treeHash ?? null,
+      c.treeHash,
+      '',
+      strict
+    );
+    return changesPatchId(git, changes, strict);
+  })().then(
+    (id) => {
+      if (id === null) patchMemo.delete(key);
+      return id;
+    },
+    () => {
+      patchMemo.delete(key);
+      return null;
+    }
+  );
   if (patchMemo.size >= MAX_MEMO)
     patchMemo.delete(patchMemo.keys().next().value!);
-  patchMemo.set(sha, p);
+  patchMemo.set(key, p);
   return p;
 }
 
@@ -73,7 +110,9 @@ function patchIdOf(git: GitService, sha: string): Promise<string | null> {
 export async function sharedWith(
   git: GitService,
   x: Lineage,
-  y: Lineage
+  y: Lineage,
+  /** Landing must reject unreadable patch evidence instead of treating it as disjoint. */
+  strict = false
 ): Promise<Set<string>> {
   const theirs = new Map<string, string[]>();
   y.ids.forEach((id, i) =>
@@ -88,13 +127,19 @@ export async function sharedWith(
       out.add(id);
       continue;
     }
-    const mine = await patchIdOf(git, x.shas[i]);
+    const mine = await patchIdOf(git, x.shas[i], strict);
+    if (!mine && strict)
+      throw new Error('Could not read commit patch identity');
     if (!mine) continue;
-    for (const s of shas)
-      if ((await patchIdOf(git, s)) === mine) {
+    for (const s of shas) {
+      const theirs = await patchIdOf(git, s, strict);
+      if (!theirs && strict)
+        throw new Error('Could not read commit patch identity');
+      if (theirs === mine) {
         out.add(id);
         break;
       }
+    }
   }
   return out;
 }

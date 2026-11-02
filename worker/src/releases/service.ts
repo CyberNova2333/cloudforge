@@ -6,6 +6,7 @@ import {
   releasePulls,
   releases,
   workflowRuns,
+  landingIntents,
   type Release,
   type Repository,
 } from '../db/app.schema';
@@ -18,6 +19,7 @@ import { pullRef } from '../merge/land';
 import { gitFor } from '../repositories/service';
 import { emitPush, emitRelease } from '../webhooks/events';
 import { chunks } from '../stack/view';
+import { d1Of } from '../pulls/events';
 import {
   bumpVersion,
   compareVersions,
@@ -391,10 +393,20 @@ export async function cutRelease(opts: {
   notes?: string;
 }): Promise<CutResult> {
   const { env, db, repo } = opts;
-  // D1 before git. Landing pushes the default branch and `refs/pull/<n>/head` to the same commit in one push, then
-  // marks the pull request merged. So a merged pull request read here is in the head read next (or the head moved and
-  // the cut stops), and one still open here whose pull ref is that head has pushed but is not recorded yet: the cut
-  // waits for it rather than ship it unlisted.
+  // Read pending attempts before the merged rows. Recovery can record one between these reads; its original
+  // snapshot still prevents us from shipping its result without listing it. The final D1 batch fences new attempts
+  // and newly recorded rows too. Pins alone only detect the legacy case where the pending PR is the exact tip.
+  const pending = await db
+    .select({ id: landingIntents.id, head: landingIntents.landHeadSha })
+    .from(landingIntents)
+    .where(
+      and(
+        eq(landingIntents.repositoryId, repo.id),
+        eq(landingIntents.target, repo.defaultBranch),
+        isNull(landingIntents.recordedAt),
+        isNull(landingIntents.finishedAt)
+      )
+    );
   const [rows, latest, open] = await Promise.all([
     unreleasedRows(db, repo),
     latestRelease(db, repo),
@@ -412,6 +424,12 @@ export async function cutRelease(opts: {
     );
   if (open.some((n) => refs.get(pullRef(n)) === head))
     return refuse(409, 'A pull request is landing; try again in a moment');
+  for (const attempt of pending) {
+    // A later legitimate fast-forward still contains the unrecorded landing. Unknown ancestry is not permission
+    // to omit a pull request; recovery (with its receipt check) owns deciding whether the attempt actually landed.
+    if ((await git.isAncestor(attempt.head, head, true)) !== false)
+      return refuse(409, 'A pull request is landing; try again in a moment');
+  }
 
   const pulls = rows.map((r) => r.pull);
   let version: Version;
@@ -440,8 +458,6 @@ export async function cutRelease(opts: {
 
   const tag = formatVersion(version);
   const ref = `refs/tags/${tag}`;
-  // Whether this call made the tag (so it may take it back), rather than adopting one already there.
-  let created = true;
   try {
     await git.createRef(ref, head);
   } catch (err) {
@@ -454,7 +470,6 @@ export async function cutRelease(opts: {
       !(await hasRuns(db, repo, ref));
     if (!adoptable)
       return refuse(409, `Tag ${tag} already exists; type a version`);
-    created = false;
   }
 
   const id = crypto.randomUUID();
@@ -471,34 +486,62 @@ export async function cutRelease(opts: {
         })
       : FIRST_RELEASE_NOTES);
   try {
-    await db.batch([
-      db.insert(releases).values({
-        id,
-        repositoryId: repo.id,
-        tag,
-        ...version,
-        commitSha: head,
-        title: opts.title?.trim() || tag,
-        notes,
-        createdById: opts.actor.id,
-        previousReleaseId: latest?.id ?? null,
-        createdAt: new Date(),
-      }),
-      // One statement per chunk, all in the same batch, so the release and its pull requests land together.
+    const d1 = d1Of(db);
+    const [inserted] = await d1.batch([
+      d1
+        .prepare(
+          `INSERT INTO releases
+        (id, repository_id, tag, major, minor, patch, commit_sha, title, notes, created_by_id, previous_release_id, created_at)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE NOT EXISTS (
+          SELECT 1 FROM landing_intents WHERE repository_id = ? AND target = ?
+            AND recorded_at IS NULL AND finished_at IS NULL
+            AND id NOT IN (SELECT value FROM json_each(?))
+        ) AND NOT EXISTS (
+          SELECT 1 FROM pull_requests p LEFT JOIN release_pulls rp ON rp.pull_request_id = p.id
+          WHERE p.repository_id = ? AND p.state = 'merged' AND COALESCE(p.land_target, p.base_ref) = ?
+            AND rp.release_id IS NULL AND p.id NOT IN (SELECT value FROM json_each(?))
+        )`
+        )
+        .bind(
+          id,
+          repo.id,
+          tag,
+          version.major,
+          version.minor,
+          version.patch,
+          head,
+          opts.title?.trim() || tag,
+          notes,
+          opts.actor.id,
+          latest?.id ?? null,
+          Date.now(),
+          repo.id,
+          repo.defaultBranch,
+          JSON.stringify(pending.map((a) => a.id)),
+          repo.id,
+          repo.defaultBranch,
+          JSON.stringify(rows.map((r) => r.id))
+        ),
+      // Conditional links keep a rejected release empty; all links and the release commit atomically.
       ...chunks(rows, PULLS_PER_INSERT).map((part) =>
-        db
-          .insert(releasePulls)
-          .values(part.map((r) => ({ releaseId: id, pullRequestId: r.id })))
+        d1
+          .prepare(
+            `INSERT INTO release_pulls (release_id, pull_request_id)
+          SELECT ?, value FROM json_each(?) WHERE EXISTS (SELECT 1 FROM releases WHERE id = ?)`
+          )
+          .bind(id, JSON.stringify(part.map((r) => r.id)), id)
       ),
     ]);
+    if (!inserted.meta.changes) {
+      return refuse(
+        409,
+        `A pull request is landing; retry ${tag} at this same head once recovery completes, or choose a new version`
+      );
+    }
   } catch (err) {
     if (!/UNIQUE constraint failed/.test(String(err))) throw err;
-    // Another cut took the tag or these pull requests first. A tag this call made for a version no release took is
-    // an orphan: take it back while it still points at the head (a tag another cut adopted has that cut's row).
-    if (created && !(await releaseRow(db, repo, tag)))
-      await git.deleteRef(ref, head).catch((e: unknown) => {
-        if (!(e instanceof GitPushError)) throw e;
-      });
+    // Tags remain immutable even when D1 loses a race. A same-head retry may adopt the orphan once accounting settles.
     return refuse(
       409,
       'Another release was cut at the same time; reload and try again'

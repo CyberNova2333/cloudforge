@@ -329,7 +329,7 @@ export async function executeStacking(
     const addLanded = async (l: PullRequest) => {
       // Everything it landed: from the first parent of its oldest landed commit to the landed head (or, landed
       // before rebase merging, the squash commit's first parent to its pinned head).
-      const shas = await pullShas(git, l);
+      const shas = await pullShas(git, l, db);
       if (!shas) return;
       // Holding rebased copies of a landed PR's commits: it builds on it (a landed PR never builds on an open one).
       const holds =

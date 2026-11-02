@@ -205,3 +205,18 @@ SSO 的两个额外修改入口：
 生成物、依赖安装目录、临时日志及第三方供应商源码不作为本次第一方模块地图。修改范围外机制前应重新调查，不能从本页推断兼容性。
 
 证据状态：除特别标注外，本页基于当前源码已确认。
+
+## 安全边界的交接入口
+
+命令执行前被拒绝时，平台应保留已经完成的步骤；回退 PR 应只撤销原 PR 引入的内容。修改这些交接时，
+先查看以下证据归属，再检查旧数据和旧调用方是否仍满足相同约束。
+
+| 场景                     | 维护入口                                                                                                                                          | 验证入口                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 执行前准入与重启         | `worker/src/actions/job-runner.ts` 返回可序列化的拒绝结果，`worker/src/actions/executor.ts` 将其持久记为失败；未知容器中断仍按既有策略处理        | `actions-boundaries-security.test.ts`                                                                 |
+| 精确回退和发布恢复       | `worker/src/pulls/service.ts` 从 recorded landing intent 读取准确 base；`worker/src/releases/service.ts` 复核未记账落地及最终发布快照，不删除标签 | `security-landing.test.ts`                                                                            |
+| 撤销单条审查决定         | `worker/src/review/flags.ts` 在写点核对完整决定快照和仍开放的 PR，拒绝迟到请求清掉新决定                                                          | `undo-concurrency.test.ts`                                                                            |
+| 脚本和安装器的 Yarn 启动 | `scripts/githooks/yarn-command.mjs` 共享纯解析逻辑；`run-yarn.mjs` 保留钩子入口；`scripts/cloudforge/platform/runner.ts` 保留异步 stdin/stdout    | `scripts/cloudforge/__tests__/platform/runner.test.ts`、`scripts/githooks/__tests__/run-yarn.test.ts` |
+
+旧的多父落地若没有准确基点证据，会拒绝自动回退。读不到 Git 对象或历史范围不完整时，合并检查要求重试，
+不推断为“没有共享提交”。容器系统包与全局 npm 的依赖核验见[开发说明](../docs/development.md#process-and-runner-dependency-boundaries)。

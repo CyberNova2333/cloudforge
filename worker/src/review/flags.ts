@@ -87,6 +87,10 @@ async function loadFlag(db: DrizzleDB, pr: PullRequest, flagId: string) {
       approvedVia: prReviewFlags.approvedVia,
       changesRequestedAt: prReviewFlags.changesRequestedAt,
       changesRequestedById: prReviewFlags.changesRequestedById,
+      changesRequestedNote: prReviewFlags.changesRequestedNote,
+      decisionReason: prReviewFlags.decisionReason,
+      teachNote: prReviewFlags.teachNote,
+      teachById: prReviewFlags.teachById,
       agent: users.username,
       agentName: agents.name,
       guarded: agents.guarded,
@@ -542,9 +546,44 @@ export async function undoFlag(
     .where(
       and(
         eq(prReviewFlags.id, flag.id),
+        // Decision timestamps are stored in whole seconds. Match the entire decision,
+        // so another decider or a same-second note update cannot be cleared by a stale undo.
         approved
-          ? eq(prReviewFlags.approvedAt, flag.approvedAt!)
-          : eq(prReviewFlags.changesRequestedAt, flag.changesRequestedAt!)
+          ? and(
+              eq(prReviewFlags.approvedById, userId),
+              eq(prReviewFlags.approvedAt, flag.approvedAt!),
+              isNull(prReviewFlags.changesRequestedAt),
+              isNull(prReviewFlags.changesRequestedById)
+            )
+          : and(
+              eq(prReviewFlags.changesRequestedById, userId),
+              eq(prReviewFlags.changesRequestedAt, flag.changesRequestedAt!),
+              isNull(prReviewFlags.approvedAt),
+              isNull(prReviewFlags.approvedById)
+            ),
+        flag.approvedVia === null
+          ? isNull(prReviewFlags.approvedVia)
+          : eq(prReviewFlags.approvedVia, flag.approvedVia),
+        flag.changesRequestedNote === null
+          ? isNull(prReviewFlags.changesRequestedNote)
+          : eq(prReviewFlags.changesRequestedNote, flag.changesRequestedNote),
+        flag.decisionReason === null
+          ? isNull(prReviewFlags.decisionReason)
+          : eq(prReviewFlags.decisionReason, flag.decisionReason),
+        flag.teachNote === null
+          ? isNull(prReviewFlags.teachNote)
+          : eq(prReviewFlags.teachNote, flag.teachNote),
+        flag.teachById === null
+          ? isNull(prReviewFlags.teachById)
+          : eq(prReviewFlags.teachById, flag.teachById),
+        exists(
+          db
+            .select({ id: pullRequests.id })
+            .from(pullRequests)
+            .where(
+              and(eq(pullRequests.id, pr.id), eq(pullRequests.state, 'open'))
+            )
+        )
       )
     )
     .returning({ id: prReviewFlags.id });

@@ -184,6 +184,9 @@ function persistedMasks(masks: string[], state: unknown = {}) {
 /** Only runner failures can justify the existing interrupted-container restart policy. */
 class RunnerInterruptedError extends Error {}
 
+/** Local only: created from the RPC result, never transported as an Error. */
+class RunnerAdmissionError extends Error {}
+
 async function executionState(
   execute: () => Promise<SealedState>
 ): Promise<SealedState> {
@@ -239,6 +242,12 @@ function maskingRunner(
           ])
         );
       }
+      // Outside the RPC catch: a known refusal is preparation failure, not an
+      // unknown runner interruption. executionState persists its failure marker.
+      if (result.refused === 'runtime-admission')
+        throw new RunnerAdmissionError(
+          'CloudForge runtime admission refused; the command was not started.'
+        );
       rememberMasks(runId, masks, result.masks ?? []);
       return {
         ...result,
@@ -938,6 +947,7 @@ async function runJob(
             return { unavailable: true, preparation: true } as const;
           let log: string;
           let ran = true;
+          let admissionRefused = false;
           if (jobStatus !== 'success') {
             log = 'The job failed, so the cache is not saved.';
             ran = false;
@@ -965,7 +975,11 @@ async function runJob(
                   '\nWarning: the cache could not be saved; the job is unaffected.';
               else await enforceCacheLimit(env, ctx.repoId);
             } catch (e) {
-              log = `Warning: the cache could not be saved: ${e instanceof Error ? e.message : String(e)}`;
+              admissionRefused = e instanceof RunnerAdmissionError;
+              log =
+                e instanceof RunnerAdmissionError
+                  ? `Error: ${e.message}`
+                  : `Warning: the cache could not be saved: ${e instanceof Error ? e.message : String(e)}`;
             }
           }
           return persistState(async () => {
@@ -973,10 +987,16 @@ async function runJob(
             // Cache upload is best effort; inability to retain masks still fails closed.
             await setStep(db, job.id, number, {
               status: 'completed',
-              conclusion: ran ? 'success' : 'skipped',
+              conclusion: admissionRefused
+                ? 'failure'
+                : ran
+                  ? 'success'
+                  : 'skipped',
               completedAt: new Date(),
               logR2Key: logKey(ctx.repoId, ctx.runId, job.id, number),
             });
+            if (admissionRefused)
+              return { unavailable: true, preparation: true } as const;
             return sealState(
               env,
               ctx.repoId,
@@ -2457,6 +2477,7 @@ async function runActionPost(
         let log: string;
         let conclusion: Conclusion = 'skipped';
         let run = false;
+        let admissionRefused = false;
         if (!post) log = 'Nothing to run: this action has no post step.';
         else {
           try {
@@ -2469,23 +2490,33 @@ async function runActionPost(
           }
         }
         if (post && run) {
-          const r = await runner.runStep({
-            number,
-            argv: post.argv,
-            cwd: post.cwd,
-            env: {
-              ...post.env,
-              ...Object.fromEntries(
-                Object.entries(post.state).map(([k, v]) => [`STATE_${k}`, v])
-              ),
-            },
-            timeoutMs: POST_STEP_MINUTES * 60_000,
-            masks: [],
-          });
-          log = `Post job cleanup for ${post.label}\n${r.log}`;
-          conclusion = r.exitCode === 0 ? 'success' : 'failure';
-          if (r.exitCode !== 0)
-            log += `\nError: Process completed with exit code ${r.exitCode}.`;
+          let r: Awaited<ReturnType<JobRunnerApi['runStep']>> | undefined;
+          try {
+            r = await runner.runStep({
+              number,
+              argv: post.argv,
+              cwd: post.cwd,
+              env: {
+                ...post.env,
+                ...Object.fromEntries(
+                  Object.entries(post.state).map(([k, v]) => [`STATE_${k}`, v])
+                ),
+              },
+              timeoutMs: POST_STEP_MINUTES * 60_000,
+              masks: [],
+            });
+          } catch (error) {
+            if (!(error instanceof RunnerAdmissionError)) throw error;
+            admissionRefused = true;
+            log = `Error: ${error.message}`;
+            conclusion = 'failure';
+          }
+          if (r) {
+            log = `Post job cleanup for ${post.label}\n${r.log}`;
+            conclusion = r.exitCode === 0 ? 'success' : 'failure';
+            if (r.exitCode !== 0)
+              log += `\nError: Process completed with exit code ${r.exitCode}.`;
+          }
         }
         return persistState(async () => {
           await putLog(env, ctx, jobId, number, log);
@@ -2495,6 +2526,8 @@ async function runActionPost(
             completedAt: new Date(),
             logR2Key: logKey(ctx.repoId, ctx.runId, jobId, number),
           });
+          if (admissionRefused)
+            return { unavailable: true, preparation: true } as const;
           return sealState(
             env,
             ctx.repoId,

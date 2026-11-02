@@ -1,11 +1,12 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { settleStates } from './settle';
 import type { DrizzleDB } from '../db/middleware';
 import {
   pullRequestComments,
   pullRequests,
   repositories,
+  landingIntents,
   type PullRequest,
   type Repository,
 } from '../db/app.schema';
@@ -36,16 +37,47 @@ export const pullThread = (
  */
 export async function pullShas(
   git: GitService,
-  pr: PullRequest
+  pr: PullRequest,
+  db: DrizzleDB
 ): Promise<{ base: string; head: string } | null> {
   if (pr.state === 'merged' && pr.mergeCommitSha) {
     if (pr.landedCommits != null) {
-      // Landed by fast-forward: its commits are the first-parent run below the landed head.
+      // A recorded attempt owns the merge, including its exact pre-CAS target. A first-parent count cannot recover
+      // that target when it was merged into the feature as a second parent.
+      const recorded = await db
+        .select({
+          base: landingIntents.baseSha,
+          head: landingIntents.landHeadSha,
+        })
+        .from(landingIntents)
+        .where(
+          and(
+            eq(landingIntents.pullRequestId, pr.id),
+            eq(landingIntents.repositoryId, pr.repositoryId),
+            eq(landingIntents.target, landTargetOf(pr)),
+            eq(landingIntents.landHeadSha, pr.mergeCommitSha),
+            isNotNull(landingIntents.recordedAt)
+          )
+        )
+        .all();
+      if (recorded.length) return recorded.length === 1 ? recorded[0] : null;
+      // Before durable intents, only a linear landed range has an unambiguous counted base. A multi-parent commit
+      // could have taken the target from any parent; declining the diff also prevents an unsafe automatic revert.
       if (pr.landedCommits === 0)
         return { base: pr.mergeCommitSha, head: pr.mergeCommitSha };
       const landed = await git.log(pr.mergeCommitSha, pr.landedCommits);
       const oldest = landed.at(-1);
-      if (landed.length < pr.landedCommits || !oldest?.parents[0]) return null;
+      if (
+        landed.length !== pr.landedCommits ||
+        landed[0]?.hash !== pr.mergeCommitSha ||
+        landed.some(
+          (c, i) =>
+            c.parents.length !== 1 ||
+            (i + 1 < landed.length && c.parents[0] !== landed[i + 1].hash)
+        ) ||
+        !oldest?.parents[0]
+      )
+        return null;
       return { base: oldest.parents[0], head: pr.mergeCommitSha };
     }
     // Landed before rebase merging, as one squash commit: its first parent, and the pinned head.

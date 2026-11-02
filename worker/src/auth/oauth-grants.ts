@@ -1,9 +1,12 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import {
   getOAuthProviderState,
   type OAuthOptions,
   type Scope,
 } from '@better-auth/oauth-provider';
 import { APIError } from 'better-auth/api';
+import { stripAccessTokenAuthorizationScheme } from 'better-auth/oauth2';
+import { base64Url } from '@better-auth/utils/base64';
 import type { GenericEndpointContext } from '@better-auth/core';
 import { isCurrentSession, readSessionAuthentication } from './assurance';
 import { evaluatePolicyAccess, POLICY_VERSION_SQL } from './policy';
@@ -11,6 +14,16 @@ import { evaluatePolicyAccess, POLICY_VERSION_SQL } from './policy';
 export const OAUTH_GRANT_CLAIM = 'cf_grant';
 export const OAUTH_GRANT_PREFIX = 'cf-grant-v1:';
 const POLICY_GRANT_PREFIX = 'cf-grant-v2:';
+
+/** Shared with the provider's token storage; preserves its default SHA-256/base64url format. */
+async function oauthTokenHash(token: string) {
+  return base64Url.encode(
+    new Uint8Array(
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+    ),
+    { padding: false }
+  );
+}
 
 function parseGrantReference(value: unknown) {
   if (typeof value !== 'string') return null;
@@ -144,16 +157,45 @@ export async function guardOAuthIntrospection(
 ) {
   if (ctx.path !== '/oauth2/introspect') return;
   const result = ctx.context.returned as Record<string, unknown> | null;
-  if (!result || result.active !== true || typeof result.azp !== 'string')
-    return; // Refresh introspection has no azp; its live D1 row is already checked by the provider.
+  if (!result || result.active !== true) return;
   try {
-    const reference = result[OAUTH_GRANT_CLAIM];
-    if (
-      typeof result.sub !== 'string' ||
-      (reference !== undefined && !validGrantReference(reference))
-    )
-      invalidGrant();
-    await assertGrant(env, result.sub, result.azp, reference);
+    if (typeof result.azp === 'string') {
+      const reference = result[OAUTH_GRANT_CLAIM];
+      if (
+        typeof result.sub !== 'string' ||
+        (reference !== undefined && !validGrantReference(reference))
+      )
+        invalidGrant();
+      await assertGrant(env, result.sub, result.azp, reference);
+    } else {
+      // The provider has authenticated the client and validated this refresh token,
+      // but its response omits the original reference (and may present a pairwise sub).
+      // Resolve the immutable grant from the exact stored token, never from client_id/sub alone.
+      if (
+        typeof ctx.body?.token !== 'string' ||
+        typeof result.client_id !== 'string'
+      )
+        invalidGrant();
+      const token = stripAccessTokenAuthorizationScheme(ctx.body.token);
+      const row = await env.DB.prepare(
+        `SELECT user_id AS userId, client_id AS clientId, reference_id AS referenceId
+         FROM oauth_refresh_tokens WHERE token = ? AND client_id = ?
+           AND expires_at > ? AND revoked IS NULL`
+      )
+        .bind(await oauthTokenHash(token), result.client_id, Date.now())
+        .first<{
+          userId: string;
+          clientId: string;
+          referenceId: string | null;
+        }>();
+      if (!row) invalidGrant();
+      await assertGrant(
+        env,
+        row.userId,
+        row.clientId,
+        row.referenceId ?? undefined
+      );
+    }
   } catch (error) {
     if (!(error instanceof APIError)) throw error;
     return ctx.json({ active: false });
@@ -163,9 +205,10 @@ export async function guardOAuthIntrospection(
 /** Provider extension points keep consent, code, refresh and JWT on one immutable authorization generation. */
 export function oauthGrantOptions(
   env?: CloudflareBindings
-): Pick<OAuthOptions<Scope[]>, 'postLogin' | 'extensions'> {
+): Pick<OAuthOptions<Scope[]>, 'postLogin' | 'extensions' | 'storeTokens'> {
   if (!env) return {};
   return {
+    storeTokens: { hash: oauthTokenHash },
     postLogin: {
       page: '/settings/security',
       shouldRedirect: () => false,

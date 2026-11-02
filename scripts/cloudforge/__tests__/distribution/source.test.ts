@@ -84,7 +84,7 @@ describe.each(['nested', 'hoisted'] as const)(
           'DB',
           '--remote',
           '--config',
-          '/home/x/wrangler.jsonc',
+          join('/home/x', 'wrangler.jsonc'),
         ],
       });
       expect(s.wranglerCommand('tail')).toBe('npx wrangler@4.127.0 tail');
@@ -101,13 +101,13 @@ describe.each(['nested', 'hoisted'] as const)(
       const bin = realpathSync(binOf(root));
       expect(s.deploy('/home/x', null)).toEqual({
         cmd: process.execPath,
-        args: [bin, 'deploy', '--config', '/home/x/wrangler.jsonc'],
+        args: [bin, 'deploy', '--config', join('/home/x', 'wrangler.jsonc')],
       });
       expect(s.deploy('/home/x', '/tmp/s.json').args).toEqual([
         bin,
         'deploy',
         '--config',
-        '/home/x/wrangler.jsonc',
+        join('/home/x', 'wrangler.jsonc'),
         '--secrets-file',
         '/tmp/s.json',
       ]);

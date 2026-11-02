@@ -843,7 +843,7 @@ pullsRouter.openapi(getPullRoute, async (c) => {
     .all();
   const events = await eventsFor(db, pr.id);
   const [shas, headLive] = await Promise.all([
-    pullShas(git, pr),
+    pullShas(git, pr, db),
     git.resolveBranch(pr.headRef),
   ]);
   const approvals = shas ? await approvalsAt(db, pr.id, shas.head) : [];
@@ -1105,7 +1105,7 @@ const pullCommitsRoute = createRoute({
 pullsRouter.openapi(pullCommitsRoute, async (c) => {
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
-  const shas = await pullShas(c.get('git'), pr);
+  const shas = await pullShas(c.get('git'), pr, c.get('db'));
   if (!shas) return c.json([], 200);
   return c.json(
     await attributeCommits(
@@ -1129,7 +1129,7 @@ const pullFilesRoute = createRoute({
 pullsRouter.openapi(pullFilesRoute, async (c) => {
   const pr = await getPull(c, c.req.valid('param').number);
   if (!pr) return c.json({ error: 'Not Found' }, 404);
-  const shas = await pullShas(c.get('git'), pr);
+  const shas = await pullShas(c.get('git'), pr, c.get('db'));
   if (!shas) return c.json([], 200);
   return c.json(
     (

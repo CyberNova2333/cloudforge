@@ -159,7 +159,10 @@ describe('后台运行时准入围栏', () => {
     await fence(DB);
     await rejected(runner.live(1));
     await rejected(runner.boot('standard-1', 60_000));
-    await rejected(runner.runStep({} as StepRequest));
+    expect(await runner.runStep({} as StepRequest)).toMatchObject({
+      refused: 'runtime-admission',
+      exitCode: 1,
+    });
     expect(start).not.toHaveBeenCalled();
     expect(exec).not.toHaveBeenCalled();
     expect(setAlarm).not.toHaveBeenCalled();
