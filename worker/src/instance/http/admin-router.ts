@@ -2,6 +2,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { asc, eq, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
+import type { Context } from 'hono';
 import type { AppEnv } from '../../variables';
 import { requireAdmin } from '../../auth/guards';
 import { instanceSettings, workflowRuns } from '../../db/app.schema';
@@ -14,11 +15,13 @@ import {
 import type { RetentionStatus } from '../../actions/retention';
 import { recordAudit } from '../../audit/service';
 import { createResetLink } from '../../auth/password-reset';
+import { captureAccessWrite } from '../../access/write';
 import {
   json200Response,
   json400Response,
   json403Response,
   json404Response,
+  json409Response,
   json422Response,
 } from '../../http/openapi-helpers';
 
@@ -109,6 +112,21 @@ adminRouter.openapi(listRoute, async (c) => {
 
 const keyParams = z.object({ key: z.string() });
 
+const settingsConflict = {
+  error: 'Settings authorization changed. Refresh and try again.',
+};
+
+async function settingsWriteAuthorization(c: Context<AppEnv>) {
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return null;
+  return captureAccessWrite(c.get('db'), recent, { kind: 'instance' });
+}
+
 const updateRoute = createRoute({
   method: 'put',
   path: '/settings/{key}',
@@ -126,14 +144,18 @@ const updateRoute = createRoute({
     ...json400Response,
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 adminRouter.openapi(updateRoute, async (c) => {
   const { key } = c.req.valid('param');
   if (!isSettingKey(key)) return c.json({ error: 'Unknown setting' }, 404);
+  const authorization = await settingsWriteAuthorization(c);
+  if (!authorization) return c.json(settingsConflict, 409);
   const value = c.req.valid('json').value ?? null;
   try {
-    await setSetting(c.get('db'), key, value, c.get('user')!.id);
+    if (!(await setSetting(c.get('db'), key, value, authorization)))
+      return c.json(settingsConflict, 409);
   } catch (e) {
     if (e instanceof ZodError)
       return c.json({ error: e.issues[0]?.message ?? 'Invalid value' }, 400);
@@ -159,12 +181,18 @@ const resetRoute = createRoute({
     ...json200Response(z.object({ ok: z.literal(true) }), 'Back to default'),
     ...json403Response,
     ...json404Response,
+    ...json409Response,
   },
 });
 adminRouter.openapi(resetRoute, async (c) => {
   const { key } = c.req.valid('param');
   if (!isSettingKey(key)) return c.json({ error: 'Unknown setting' }, 404);
-  await setSetting(c.get('db'), key, undefined, c.get('user')!.id);
+  const authorization = await settingsWriteAuthorization(c);
+  if (
+    !authorization ||
+    !(await setSetting(c.get('db'), key, undefined, authorization))
+  )
+    return c.json(settingsConflict, 409);
   await recordAudit(c.get('db'), {
     repositoryId: null,
     actorId: c.get('user')!.id,
