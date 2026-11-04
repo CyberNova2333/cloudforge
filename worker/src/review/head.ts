@@ -1054,7 +1054,8 @@ export async function retryHeadReview(
 /** Re-runs one agent's review after Retry (MERGE_RESOLUTION Workflow). */
 export async function executeReviewerRetry(
   deps: AgentReviewDeps,
-  reviewerId: string
+  reviewerId: string,
+  expectedGeneration?: number
 ) {
   const { env, db } = deps;
   let step = deps.step;
@@ -1064,7 +1065,13 @@ export async function executeReviewerRetry(
       .from(prReviewers)
       .where(eq(prReviewers.id, reviewerId))
       .get();
-    if (!row || row.status !== 'reviewing') return null;
+    if (
+      !row ||
+      row.status !== 'reviewing' ||
+      (expectedGeneration !== undefined &&
+        row.createdAt.getTime() !== expectedGeneration)
+    )
+      return null;
     const loaded = await loadHead(
       env,
       db,

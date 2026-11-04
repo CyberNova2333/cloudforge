@@ -6,8 +6,7 @@ import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { isAgentUser } from '../agents/identity';
 import { recordAudit } from '../audit/service';
-import { oidcSessionSourceSql } from './assurance';
-import { recentAuthorizationGuard } from './recent';
+import { nativeAdminWriteGuard } from './native-admin';
 
 /** Keep the SDK's session middleware and contract, but delete the account in one D1 statement. */
 export function repositorySafeAdmin(
@@ -71,9 +70,7 @@ export function repositorySafeAdmin(
                 eq(users.id, target.id),
                 sql`NOT EXISTS (SELECT 1 FROM repositories r WHERE r.owner_id=${target.id})`,
                 sql`NOT EXISTS (SELECT 1 FROM agents a WHERE a.user_id=${target.id})`,
-                sql`EXISTS (SELECT 1 FROM users actor WHERE actor.id=${active.user.id} AND actor.role='admin' AND coalesce(actor.banned,0)=0)`,
-                recentAuthorizationGuard(active.session.id, active.user.id),
-                sql`EXISTS (SELECT 1 FROM sessions s WHERE s.id=${active.session.id} AND ${sql.raw(oidcSessionSourceSql('s'))})`
+                nativeAdminWriteGuard(ctx)
               )
             )
             .returning({ id: users.id })

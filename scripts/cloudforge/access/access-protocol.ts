@@ -26,7 +26,7 @@ const EXPECTED: AccessProtocol = {
     sha256: 'b0f336dcef791573dc2c370d7c00db59b36715875e476aa0db3205283dca7897',
   },
   migrationSetSha256:
-    '97782c8cd0130e25b53c46eccc003e4b2a48d3aaf9d499b91b58fd5444e97a9d',
+    '808a2f1b013e007ac8f841fa7710f4e2ccde538e5d369eca4fcc379125c88650',
 };
 const keys = (
   value: unknown,
@@ -87,7 +87,7 @@ export function readAccessProtocol(
     const files = readdirSync(source.migrationsDir)
       .filter((name) => name.endsWith('.sql'))
       .sort();
-    if (files.length !== 66) throw new Error('Unexpected migration set');
+    if (files.length !== 67) throw new Error('Unexpected migration set');
     const entries = files.map((name) => [
       name,
       createHash('sha256')

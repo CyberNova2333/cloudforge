@@ -78,7 +78,7 @@ export type CacheMatch = {
 const LIST_PAGE = 1000;
 const MAX_LIST_PAGES = 20;
 
-/** Exact `key`, else the newest entry prefixed by a `restoreKeys` entry; each ref in order. */
+/** Within each ref: primary key, then ordered restore keys; exact before prefix matches. */
 export async function findCacheEntry(
   env: CloudflareBindings,
   repositoryId: string,
@@ -88,13 +88,17 @@ export async function findCacheEntry(
   opts: { pageSize?: number } = {}
 ): Promise<CacheMatch | null> {
   const scopes = [...new Set(refs)];
-  for (const ref of scopes) {
-    const objectKey = cacheObjectKey(repositoryId, ref, key);
-    const head = await env.ACTIONS_CACHE.head(objectKey);
-    if (head) return { objectKey, key, exact: true, size: head.size };
-  }
-  for (const prefix of restoreKeys)
-    for (const ref of scopes) {
+  for (const ref of scopes)
+    for (const prefix of new Set([key, ...restoreKeys])) {
+      const objectKey = cacheObjectKey(repositoryId, ref, prefix);
+      const head = await env.ACTIONS_CACHE.head(objectKey);
+      if (head)
+        return {
+          objectKey,
+          key: prefix,
+          exact: prefix === key,
+          size: head.size,
+        };
       const dir = refDir(repositoryId, ref);
       // R2 lists by key, not by age: every page counts, or a newer entry past the first one is never restored.
       let newest: R2Object | undefined;

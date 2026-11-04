@@ -1,9 +1,10 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import type { StepRequest } from '../../actions/job-runner';
-import { artifactNameError } from '../../actions/artifacts';
+import { artifactNameError, artifactObjectKey } from '../../actions/artifacts';
+import { cacheUrl } from '../../actions/cache';
 import { deleteRepositoryLogs } from '../../actions/trigger';
-import { call } from '../helpers/app';
+import { call, makeEnv } from '../helpers/app';
 import {
   harness,
   pushFiles,
@@ -51,6 +52,50 @@ const repoId = async (s: Setup) =>
   ).first<{ id: string }>())!.id;
 
 describe('构建产物', () => {
+  it.each(['.', '..'])('拒绝完整 dot segment 名称：%s', async (name) => {
+    const s = await setup();
+    const queued = await start(
+      s,
+      `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/upload-artifact@v4
+        with:
+          name: '${name}'
+          path: dist
+`
+    );
+    const h = harness(s.t, uploading(s));
+    expect(await h.run(queued.id)).toBe('failure');
+    expect(h.requests).toHaveLength(0);
+    expect(artifactNameError(name)).not.toBeNull();
+    expect(() => artifactObjectKey('repo', 'run', name, 'job', 2)).toThrow();
+    expect(
+      (await s.t.env.ACTIONS_CACHE.list({ prefix: 'actions-artifacts/' }))
+        .objects
+    ).toHaveLength(0);
+  });
+
+  it('合法点号、百分号与非 ASCII 名称的实际签名路径保留完整 run key', async () => {
+    const t = makeEnv({ actions: true });
+    for (const name of [
+      '.hidden',
+      '...',
+      'release..v1',
+      '%2e%2e',
+      '~2e~2e',
+      '报告 v1',
+    ]) {
+      expect(artifactNameError(name)).toBeNull();
+      const key = artifactObjectKey('repo', 'run', name, 'job', 2);
+      const url = await cacheUrl(t.env, key, 'PUT');
+      expect(keyOf(url)).toBe(key);
+      expect(new URL(url).pathname).toContain('/actions-artifacts/repo/run/');
+    }
+  });
+
   it('在一个作业中上传并在下一个作业中下载', async () => {
     const s = await setup();
     const queued = await start(

@@ -20,8 +20,7 @@ import { users } from '../db/auth.schema';
 import type { DrizzleDB } from '../db/middleware';
 import { d1Of } from '../pulls/events';
 import { emailConfigured, sendNotificationEmail } from './email';
-import { findReposByIds, permissionsFor } from '../repositories/service';
-import { inJsonArray } from '../shared/sql-set';
+import { findRepoById, permissionsFor } from '../repositories/service';
 
 const DAY_MS = 86_400_000;
 const BATCH = 50;
@@ -78,64 +77,69 @@ export async function deliverNotificationEmails(
     .prepare(
       `UPDATE notifications SET email_pending_at = NULL WHERE id IN (
          SELECT id FROM notifications WHERE email_pending_at IS NOT NULL ORDER BY email_pending_at LIMIT ?)
-       RETURNING id`
+       RETURNING id, actor_id AS actorId, event, reason, excerpt`
     )
     .bind(opts.limit ?? BATCH)
-    .all<{ id: string }>();
-  const ids = claimed.results.map((r) => r.id);
-  if (!ids.length) return 0;
+    .all<{
+      id: string;
+      actorId: string | null;
+      event: NotificationEvent;
+      reason: NotificationReason;
+      excerpt: string | null;
+    }>();
+  if (!claimed.results.length) return 0;
   const actor = alias(users, 'actor');
-  const rows = await db
-    .select({
-      n: notifications,
-      recipient: users,
-      agent: agents.userId,
-      emailChoice: userPreferences.value,
-      watch: repositoryWatches.level,
-      subscribed: notificationSubscriptions.subscribed,
-      actor: actor.username,
-      issueNumber: issues.number,
-      issueTitle: issues.title,
-      pullNumber: pullRequests.number,
-      pullTitle: pullRequests.title,
-    })
-    .from(notifications)
-    .innerJoin(users, eq(users.id, notifications.userId))
-    .leftJoin(agents, eq(agents.userId, users.id))
-    .leftJoin(
-      userPreferences,
-      and(
-        eq(userPreferences.userId, users.id),
-        eq(userPreferences.key, 'notificationEmail')
-      )
-    )
-    .leftJoin(
-      repositoryWatches,
-      and(
-        eq(repositoryWatches.userId, users.id),
-        eq(repositoryWatches.repositoryId, notifications.repositoryId)
-      )
-    )
-    .leftJoin(
-      notificationSubscriptions,
-      and(
-        eq(notificationSubscriptions.userId, users.id),
-        eq(notificationSubscriptions.thread, notifications.thread)
-      )
-    )
-    .leftJoin(actor, eq(actor.id, notifications.actorId))
-    .leftJoin(issues, eq(issues.id, notifications.issueId))
-    .leftJoin(pullRequests, eq(pullRequests.id, notifications.pullRequestId))
-    .where(inJsonArray(notifications.id, ids))
-    .all();
-  const repos = await findReposByIds(
-    db,
-    rows.map((r) => r.n.repositoryId)
-  );
   const base = (env.BASE_URL ?? '').replace(/\/+$/, '');
   let sent = 0;
-  for (const r of rows) {
-    const found = repos.get(r.n.repositoryId);
+  // A previous send can yield while eligibility changes. Reload each recipient
+  // and repository only when its own turn starts. Keep the claimed event payload:
+  // another sender may already have claimed and sent a newer event for this row.
+  for (const claim of claimed.results) {
+    const r = await db
+      .select({
+        n: notifications,
+        recipient: users,
+        agent: agents.userId,
+        emailChoice: userPreferences.value,
+        watch: repositoryWatches.level,
+        subscribed: notificationSubscriptions.subscribed,
+        actor: actor.username,
+        issueNumber: issues.number,
+        issueTitle: issues.title,
+        pullNumber: pullRequests.number,
+        pullTitle: pullRequests.title,
+      })
+      .from(notifications)
+      .innerJoin(users, eq(users.id, notifications.userId))
+      .leftJoin(agents, eq(agents.userId, users.id))
+      .leftJoin(
+        userPreferences,
+        and(
+          eq(userPreferences.userId, users.id),
+          eq(userPreferences.key, 'notificationEmail')
+        )
+      )
+      .leftJoin(
+        repositoryWatches,
+        and(
+          eq(repositoryWatches.userId, users.id),
+          eq(repositoryWatches.repositoryId, notifications.repositoryId)
+        )
+      )
+      .leftJoin(
+        notificationSubscriptions,
+        and(
+          eq(notificationSubscriptions.userId, users.id),
+          eq(notificationSubscriptions.thread, notifications.thread)
+        )
+      )
+      .leftJoin(actor, sql`${actor.id} = ${claim.actorId}`)
+      .leftJoin(issues, eq(issues.id, notifications.issueId))
+      .leftJoin(pullRequests, eq(pullRequests.id, notifications.pullRequestId))
+      .where(eq(notifications.id, claim.id))
+      .get();
+    if (!r) continue;
+    const found = await findRepoById(db, r.n.repositoryId);
     const kind = r.n.issueId ? 'issue' : 'pull';
     const number = kind === 'issue' ? r.issueNumber : r.pullNumber;
     const title = kind === 'issue' ? r.issueTitle : r.pullTitle;
@@ -154,20 +158,25 @@ export async function deliverNotificationEmails(
       r.recipient.banned ||
       !can(await permissionsFor(db, found.repo, r.recipient), 'read') ||
       r.emailChoice === 'off' ||
-      (r.emailChoice !== 'all' && r.n.reason === 'watching') ||
+      (r.emailChoice !== 'all' && claim.reason === 'watching') ||
       r.watch === 'ignoring' ||
       r.subscribed === false ||
-      (r.n.reason === 'watching' && r.watch !== 'watching')
+      (claim.reason === 'watching' && r.watch !== 'watching')
     )
       continue;
     const fullName = `${found.namespace.username}/${found.repo.name}`;
     const ok = await sendNotificationEmail(env, db, {
       to: r.recipient.email,
       subject: `[${fullName}] ${title} (#${number})`,
-      headline: headline(r.actor ?? 'CloudForge', r.n.event, kind, r.n.reason),
-      excerpt: r.n.excerpt,
+      headline: headline(
+        r.actor ?? 'CloudForge',
+        claim.event,
+        kind,
+        claim.reason
+      ),
+      excerpt: claim.excerpt,
       url: `${base}/${fullName}/${kind === 'issue' ? 'issues' : 'pull'}/${number}`,
-      why: WHY[r.n.reason],
+      why: WHY[claim.reason],
       settingsUrl: `${base}/settings/notifications`,
     });
     if (ok) sent++;

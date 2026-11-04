@@ -211,7 +211,7 @@ describe('用户删除的仓库生命周期保护', () => {
     ).toEqual({ id: repoId });
   });
 
-  it.each(['repository', 'actor', 'session'])(
+  it.each(['repository', 'actor', 'session', 'actor-aba'])(
     '最终写点在预读后%s变化时拒绝，成员账户和会话保持完整',
     async (change) => {
       const s = await setup(),
@@ -250,7 +250,18 @@ describe('用户删除的仓库生命周期保护', () => {
                             )
                               .bind(s.sessionId)
                               .run();
-                          else
+                          else if (change === 'actor-aba') {
+                            await original(
+                              "UPDATE users SET role='user' WHERE id=(SELECT user_id FROM sessions WHERE id=?)"
+                            )
+                              .bind(s.sessionId)
+                              .run();
+                            await original(
+                              "UPDATE users SET role='admin' WHERE id=(SELECT user_id FROM sessions WHERE id=?)"
+                            )
+                              .bind(s.sessionId)
+                              .run();
+                          } else
                             await original('DELETE FROM sessions WHERE id=?')
                               .bind(s.sessionId)
                               .run();

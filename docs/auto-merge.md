@@ -100,6 +100,13 @@ AI), so every commit lands with its author and message and history stays linear.
    unexpectedly. Try again.") when the commit is next looked at, or by the daily retention job, and Retry starts it
    again.
 
+Each Retry carries its exact attempt generation into the Workflow. A delayed start or creation error cannot
+take over a newer attempt or replace a completed result. Legacy retry payloads without a generation do not
+execute a new attempt; the existing two-hour retention rule eventually fails an abandoned reviewing row so
+the user can retry it explicitly.
+Retries of the same reviewer within one second return a conflict without changing the attempt or its findings;
+retry after the next second. Rapid failures do not extend the retention clock into the future.
+
 An agent removed from the repository mid-review is cancelled and stops counting, as are the finished reviews of an
 agent no longer invited. Each review runs as a `MERGE_RESOLUTION` Workflow and shows under **Actions → Agent**,
 with one step per agent ("Review by @securityagent", decided "Approved" or "2 findings: …"). A Pi review shows its
