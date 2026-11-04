@@ -199,12 +199,14 @@ SSO 的两个额外修改入口：
 
 工作流命令使用构建后的容器镜像。镜像构建上下文是 [runner 目录](../actions/runner/Dockerfile)，安装器发布包保留整个目录，因此依赖锁、构建脚本和来源记录随包分发。
 
-| 职责              | 维护入口                                                                                                     | 验证入口                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| 镜像与运行工具    | [镜像定义](../actions/runner/Dockerfile)                                                                     | 最终镜像构建、扫描与离线功能检查                                            |
-| Git LFS 定制构建  | [构建脚本](../actions/runner/git-lfs/build.sh) 与同目录的模块锁                                              | 上游 Go 测试、模块与许可校验                                                |
-| Python 包管理工具 | [离线重建脚本](../actions/runner/python/rebuild-pip.py) 与 [固定来源](../actions/runner/python/sources.json) | 确定性重建、包元数据与离线安装检查                                          |
-| 容器功能检查      | [离线检查脚本](../actions/runner/smoke.cjs)                                                                  | [开发说明](../docs/development.md#process-and-runner-dependency-boundaries) |
+系统库的临时源码重建归 [Expat 构建说明](../actions/runner/expat/README.md) 管理：在相同发行版构建 Debian 包，保留真实版本和许可，并检查上游测试、共享库接口与 Python 调用；构建依赖留在独立阶段。
+
+| 职责              | 维护入口                                                                                                   | 验证入口                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 镜像与运行工具    | [镜像定义](../actions/runner/Dockerfile)                                                                   | 最终镜像构建、扫描与离线功能检查                                            |
+| Git LFS 定制构建  | [构建脚本](../actions/runner/git-lfs/build.sh) 与同目录的模块锁                                            | 上游 Go 测试、模块与许可校验                                                |
+| Python 包管理工具 | [官方 wheel 说明](../actions/runner/python/README.md) 与 [固定来源](../actions/runner/python/sources.json) | 来源与哈希校验、原始包元数据和许可、离线安装检查                            |
+| 容器功能检查      | [离线检查脚本](../actions/runner/smoke.cjs)                                                                | [开发说明](../docs/development.md#process-and-runner-dependency-boundaries) |
 
 ## 前端页面与组件分层路由
 

@@ -57,8 +57,8 @@ while IFS='|' read -r module version dir; do
   printf '%s\t%s\t%s\n' "$module" "$version" "$count" >> "$license_dir/modules.tsv"
 done < /tmp/git-lfs-modules.txt
 
-test -f "$license_dir/modules/golang.org/x/crypto@v0.58.0/LICENSE"
-test -f "$license_dir/modules/golang.org/x/crypto@v0.58.0/PATENTS"
+test -f "$license_dir/modules/golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2/LICENSE"
+test -f "$license_dir/modules/golang.org/x/crypto@v0.58.1-0.20261009181718-2f1f834330b2/PATENTS"
 test -f "$license_dir/modules/golang.org/x/net@v0.62.0/LICENSE"
 test -f "$license_dir/modules/golang.org/x/net@v0.62.0/PATENTS"
 test -f "$license_dir/modules/golang.org/x/text@v0.43.0/LICENSE"

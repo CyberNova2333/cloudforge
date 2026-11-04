@@ -1,39 +1,16 @@
 {
-  "patches": [
-    {
-      "url": "https://raw.githubusercontent.com/pypa/pip/26.2.2/tools/vendoring/patches/urllib3-disable-brotli.patch",
-      "filename": "urllib3-disable-brotli.patch",
-      "sha256": "28c5c54c565b95c0c3583c91a00b62eeedf5d807e4aba32a2f5c2518afc9d9ef"
-    },
-    {
-      "url": "https://raw.githubusercontent.com/pypa/pip/26.2.2/tools/vendoring/patches/urllib3-fix-emscripten-import.patch",
-      "filename": "urllib3-fix-emscripten-import.patch",
-      "sha256": "6d6174dde794ab5f8754d6c8bc6b6d59e045d1b9b48685fc5a4aee06a01a9eeb"
-    },
-    {
-      "url": "https://raw.githubusercontent.com/pypa/pip/26.2.2/tools/vendoring/patches/urllib3.patch",
-      "filename": "urllib3.patch",
-      "sha256": "ac960bc57e4cdb4e8495e4ec442daba1eb4e50998ff6f125ed3c33afa729e197"
-    }
-  ],
-  "urllib3": {
-    "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
-    "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
-    "version": "2.8.0",
-    "filename": "urllib3-2.8.0-py3-none-any.whl",
-    "previous_version": "2.7.0"
-  },
-  "vendoring": {
-    "license": "MIT",
-    "url": "https://github.com/pradyunsg/vendoring/blob/1.4.0/src/vendoring/tasks/vendor.py",
-    "version": "1.4.0"
+  "pip": {
+    "url": "https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl",
+    "version": "26.3",
+    "filename": "pip-26.3-py3-none-any.whl",
+    "sha256": "f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13",
+    "metadata_url": "https://pypi.org/pypi/pip/26.3/json",
+    "changelog_url": "https://pip.pypa.io/en/stable/news/#v26-3"
   },
   "namespace": "pip._vendor",
-  "pip": {
-    "url": "https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl",
-    "custom_version": "26.2.2+cloudforge.1",
-    "version": "26.2.2",
-    "filename": "pip-26.2.2-py3-none-any.whl",
-    "sha256": "fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+  "bundled_components": {
+    "msgpack": "1.2.4",
+    "urllib3": "2.8.0",
+    "setuptools": "70.3.0"
   }
 }
