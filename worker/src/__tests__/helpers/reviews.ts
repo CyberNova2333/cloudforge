@@ -191,7 +191,10 @@ export function agentModels(
   };
 }
 
-type Payload = { headReview?: { id: string }; reviewer?: { id: string } };
+type Payload = {
+  headReview?: { id: string };
+  reviewer?: { id: string; generation?: number };
+};
 const ran = new WeakMap<TestEnv, Set<string>>();
 
 export type FakePiAnswer =
@@ -327,7 +330,8 @@ export async function runReviews(
       delegate: opts.delegate,
     };
     if (p.headReview) await executeHeadReview(deps, p.headReview.id);
-    else if (p.reviewer) await executeReviewerRetry(deps, p.reviewer.id);
+    else if (p.reviewer)
+      await executeReviewerRetry(deps, p.reviewer.id, p.reviewer.generation);
   }
 }
 

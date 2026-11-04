@@ -1,8 +1,9 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { repositories } from '../../db/app.schema';
 import { onRefsUpdated } from '../../actions/trigger';
+import { GitService } from '../../git/service';
 import { ZERO_SHA } from '../../git/remote';
 import { gitFor } from '../../repositories/service';
 import {
@@ -12,7 +13,8 @@ import {
   releasedIn,
   unreleased,
 } from '../../releases/service';
-import { call } from '../helpers/app';
+import { call, settle } from '../helpers/app';
+import { recordPush, runPushEvent } from '../../git/push-events';
 import { crewRepo, FILES, type CrewRepo } from '../helpers/crew';
 import { commitPaths } from '../helpers/seed';
 
@@ -382,11 +384,19 @@ describe('创建发布版本', () => {
       'Add the release workflow'
     );
     await landed(s, 1, null);
-    // The tag went out but the row did not (and no runs were queued for it).
-    await gitFor(s.t.env, await repoRow(s)).createRef(
-      'refs/tags/v0.1.0',
-      head(s)
+    // Fail the actual accounting batch after a successful tag creation and durable receipt.
+    await s.t.env.DB.exec(
+      "CREATE TRIGGER fail_release_accounting BEFORE INSERT ON releases BEGIN SELECT RAISE(ABORT, 'injected accounting failure'); END"
     );
+    try {
+      await expect(cut(s, { version: 'v0.1.0' })).rejects.toThrow(
+        'injected accounting failure'
+      );
+    } finally {
+      await s.t.env.DB.exec('DROP TRIGGER fail_release_accounting');
+    }
+    expect(s.repo.refs.get('refs/tags/v0.1.0')).toBe(head(s));
+    expect(await releaseRows(s)).toEqual([]);
     const r = await cut(s, { version: 'v0.1.0' });
     expect(r.ok && r.release.tag).toBe('v0.1.0');
     expect(await releaseRows(s)).toEqual(['v0.1.0']);
@@ -594,4 +604,82 @@ describe('创建发布版本', () => {
       { number: 1, title: 'Add search', bump: 'minor' },
     ]);
   });
+});
+
+it('a completed ordinary tag push is not adopted as a release retry', async () => {
+  const s = await crewRepo({ actions: true });
+  const head = await s.branch('feature');
+  await s.web('feature');
+  await s.merge(1);
+  const repo = (await s.db
+    .select()
+    .from(repositories)
+    .where(eq(repositories.id, s.repoId))
+    .get())!;
+  const actor = (await s.t.env.DB.prepare(
+    "SELECT id FROM users WHERE username = 'octocat'"
+  ).first<{ id: string }>())!;
+  const tag = 'refs/tags/v1.0.0';
+  // Ordinary successful Git push, including its durable follow-ups. No Actions workflows match tags in this repository.
+  s.repo.refs.set(tag, head);
+  const event = await recordPush(s.db, repo.id, actor.id, [
+    { ref: tag, old: ZERO_SHA, new: head },
+  ]);
+  expect(await runPushEvent(s.t.env, event)).toBe(true);
+  expect(
+    (await s.t.env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM workflow_runs WHERE repository_id = ? AND ref = ?'
+    )
+      .bind(repo.id, tag)
+      .first<{ n: number }>())!.n
+  ).toBe(0);
+  const result = await cutRelease({
+    env: s.t.env,
+    db: s.db,
+    repo,
+    repoFullName: 'octocat/app',
+    origin: 'https://git.test',
+    actor,
+    headSha: head,
+    version: 'v1.0.0',
+  });
+  await settle(s.t);
+  const count = (await s.t.env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM releases'
+  ).first<{ n: number }>())!.n;
+  expect({ accepted: result.ok, releaseRows: count }).toEqual({
+    accepted: false,
+    releaseRows: 0,
+  });
+  expect(s.repo.refs.get(tag)).toBe(head);
+});
+
+it('does not infer ownership after an unknown tag-create response', async () => {
+  const s = await crewRepo();
+  await landed(s, 1, null);
+  const original = GitService.prototype.createRef;
+  const spy = vi
+    .spyOn(GitService.prototype, 'createRef')
+    .mockImplementationOnce(async function (this: GitService, ref, sha) {
+      await original.call(this, ref, sha);
+      throw new Error('Injected lost tag response');
+    });
+  try {
+    await expect(cut(s, { version: 'v0.1.0' })).rejects.toThrow(
+      'Injected lost tag response'
+    );
+  } finally {
+    spy.mockRestore();
+  }
+  expect(s.repo.refs.get('refs/tags/v0.1.0')).toBe(head(s));
+  expect(
+    await s.t.env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM release_tag_receipts'
+    ).first('n')
+  ).toBe(0);
+  expect(await cut(s, { version: 'v0.1.0' })).toMatchObject({
+    ok: false,
+    status: 409,
+  });
+  expect(await releaseRows(s)).toEqual([]);
 });

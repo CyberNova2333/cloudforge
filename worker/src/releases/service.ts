@@ -5,7 +5,7 @@ import {
   pullRequests,
   releasePulls,
   releases,
-  workflowRuns,
+  releaseTagReceipts,
   landingIntents,
   type Release,
   type Repository,
@@ -353,18 +353,6 @@ async function openPullNumbers(
   return rows.map((r) => r.number);
 }
 
-/** Whether anything has queued workflow runs for `ref` in the repository (a push of it did). */
-async function hasRuns(db: DrizzleDB, repo: Repository, ref: string) {
-  return !!(await db
-    .select({ id: workflowRuns.id })
-    .from(workflowRuns)
-    .where(
-      and(eq(workflowRuns.repositoryId, repo.id), eq(workflowRuns.ref, ref))
-    )
-    .limit(1)
-    .get());
-}
-
 const refuse = (
   status: 400 | 409,
   message: string,
@@ -458,18 +446,56 @@ export async function cutRelease(opts: {
 
   const tag = formatVersion(version);
   const ref = `refs/tags/${tag}`;
+  const previousTag = await db
+    .select()
+    .from(releaseTagReceipts)
+    .where(
+      and(
+        eq(releaseTagReceipts.repositoryId, repo.id),
+        eq(releaseTagReceipts.tag, tag)
+      )
+    )
+    .get();
+  if (previousTag && (previousTag.commitSha !== head || refs.get(ref) !== head))
+    return refuse(409, `Tag ${tag} belongs to an earlier cut; type a version`);
+  let createdTag = false;
   try {
     await git.createRef(ref, head);
+    createdTag = true;
   } catch (err) {
     if (!(err instanceof GitPushError)) throw err;
-    // A cut whose tag went out but whose row and runs did not (the retry adopts its own tag). A tag pushed with git
-    // queued its runs on that push, so one with runs is someone's, as is any tag elsewhere or with a release.
+    // A hand-pushed tag may have no matching workflows. Only durable evidence of a successful absent-only
+    // create from this service permits recovery; a lost response before the checkpoint fails closed.
+    const receipt = await db
+      .select()
+      .from(releaseTagReceipts)
+      .where(
+        and(
+          eq(releaseTagReceipts.repositoryId, repo.id),
+          eq(releaseTagReceipts.tag, tag)
+        )
+      )
+      .get();
     const adoptable =
+      receipt?.commitSha === head &&
       (await git.refs()).get(ref) === head &&
-      !(await releaseRow(db, repo, tag)) &&
-      !(await hasRuns(db, repo, ref));
+      !(await releaseRow(db, repo, tag));
     if (!adoptable)
       return refuse(409, `Tag ${tag} already exists; type a version`);
+  }
+
+  if (createdTag) {
+    // Separate from the release/accounting batch: a rejected or interrupted cut can retry this exact tag/head.
+    // If this checkpoint itself is lost, retain the immutable tag and require a fresh version rather than infer.
+    await db
+      .insert(releaseTagReceipts)
+      .values({
+        repositoryId: repo.id,
+        tag,
+        commitSha: head,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
   }
 
   const id = crypto.randomUUID();

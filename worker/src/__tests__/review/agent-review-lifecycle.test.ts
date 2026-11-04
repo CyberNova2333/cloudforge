@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { schema } from '../../db/schema';
@@ -83,15 +83,29 @@ async function headReviewStatus(t: T) {
   ).first<{ status: string }>())!.status;
 }
 
-const retry = (
+afterEach(() => vi.useRealTimers());
+
+const retry = async (
   t: Awaited<ReturnType<typeof appRepo>>['t'],
   cookie: string,
   id: string
-) =>
-  call(t, `/api/repos/octocat/app/pulls/1/reviewers/${id}/retry`, {
+) => {
+  const createdAt = await t.env.DB.prepare(
+    'SELECT created_at FROM pr_reviewers WHERE id = ?'
+  )
+    .bind(id)
+    .first<number>('created_at');
+  if (createdAt !== null) {
+    // A successful retry needs a new real-clock second, without sleeping in tests.
+    const nextSecond = Math.max(Date.now(), (createdAt + 1) * 1000);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(nextSecond);
+  }
+  return call(t, `/api/repos/octocat/app/pulls/1/reviewers/${id}/retry`, {
     cookie,
     method: 'POST',
   });
+};
 
 describe('重试审查器', () => {
   it('使用智能体仓库当前的 AGENT.md 重新执行失败的审查', async () => {
@@ -217,7 +231,19 @@ describe('审查器 Workflow', () => {
     const [failed] = await reviewers(t);
     expect((await retry(t, admin, failed.id)).status).toBe(200);
     const started = t.actions.resolutions.at(-1)!;
-    expect(started.params).toEqual({ reviewer: { id: failed.id } });
+    expect(started.params).toEqual({
+      reviewer: {
+        id: failed.id,
+        generation:
+          Number(
+            await t.env.DB.prepare(
+              'SELECT created_at FROM pr_reviewers WHERE id = ?'
+            )
+              .bind(failed.id)
+              .first('created_at')
+          ) * 1000,
+      },
+    });
     const AI = {
       run: async () => ({
         choices: [

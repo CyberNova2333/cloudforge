@@ -193,6 +193,7 @@ jobs:
           worker/src/__tests__/review/approvals.test.ts
           worker/src/__tests__/review/owner-questions.test.ts
           worker/src/__tests__/review/undo-concurrency.test.ts
+          worker/src/__tests__/review/retry-admission.test.ts
           worker/src/__tests__/review/delegate.test.ts
           worker/src/__tests__/review/delegation-d1-boundaries.test.ts
           worker/src/__tests__/review/delegation-revocation.test.ts
@@ -209,6 +210,7 @@ jobs:
           worker/src/__tests__/merge/merge-generated.test.ts
           worker/src/__tests__/merge/rebase-landing.test.ts
           worker/src/__tests__/merge/landing-recovery.test.ts
+          worker/src/__tests__/merge/landing-admission.test.ts
           worker/src/__tests__/merge/sweep-pagination.test.ts
           worker/src/__tests__/agents/agent-runs.test.ts
           worker/src/__tests__/merge/queue.test.ts
@@ -321,6 +323,7 @@ jobs:
           worker/src/__tests__/auth/recent-authentication.test.ts
           worker/src/__tests__/auth/identity-security-regression.test.ts
           worker/src/__tests__/auth/user-deletion.test.ts
+          worker/src/__tests__/auth/native-admin-write.test.ts
           worker/src/__tests__/mcp/mcp-grant-revocation.test.ts
           src/lib/auth/recentAuthentication.test.ts
           src/lib/auth/oauthConsent.test.ts

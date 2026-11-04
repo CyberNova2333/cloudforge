@@ -221,7 +221,7 @@ describe('兼容schema的稳定团队与命名空间入口', () => {
     ).toBe('team');
   });
 
-  it('用户创建预读后被团队抢占时，最终SQL拒绝且原生API映射409', async () => {
+  it('用户创建预读后被团队抢占时，旧授权先拒绝且保留团队命名空间', async () => {
     const { t, admin, db } = await world();
     const hold = holdNamespace('claimed');
     const attempt = createNativeUser(t, admin, 'claimed');
@@ -230,18 +230,65 @@ describe('兼容schema的稳定团队与命名空间入口', () => {
       expect((await createTeam(t, admin, 'claimed')).status).toBe(200);
       hold.release();
       const response = await attempt;
-      expect(response.status).toBe(409);
-      expect(await response.text()).not.toMatch(
+      // Team creation advances the shared ACL generation: authorization fails before
+      // the user INSERT can reach its independent namespace constraint.
+      expect(response.status).toBe(403);
+      const body = await response.text();
+      expect(JSON.parse(body)).toMatchObject({
+        code: 'ADMIN_AUTHORIZATION_CHANGED',
+      });
+      expect(body).not.toMatch(
         /Private profile marker|password123|SQLITE|INSERT INTO/
       );
       expect(
         (await db.select().from(users).all()).map((person) => person.username)
       ).toEqual(['octocat']);
+      expect(
+        (
+          await db
+            .select()
+            .from(namespaceClaims)
+            .where(eq(namespaceClaims.slug, 'claimed'))
+            .get()
+        )?.kind
+      ).toBe('team');
     } finally {
       hold.release();
       hold.restore();
       await Promise.allSettled([attempt]);
     }
+  });
+
+  it('当前授权遇到过时的命名空间预读时，真实SQL仍拒绝并脱敏映射409', async () => {
+    const { t, admin, db } = await world();
+    expect((await createTeam(t, admin, 'claimed')).status).toBe(200);
+    expect(await namespaces.namespaceTaken(db, 'claimed')).toBe(true);
+    const original = namespaces.namespaceTaken;
+    // Isolate the namespace SQL defense from the separate ACL generation fence.
+    // Only the advisory pre-read is stale; the SDK executes against real D1.
+    const advisory = vi
+      .spyOn(namespaces, 'namespaceTaken')
+      .mockImplementation(async (...args) =>
+        args[1] === 'claimed' ? false : original(...args)
+      );
+    const response = await createNativeUser(t, admin, 'claimed');
+    expect(advisory).toHaveBeenCalled();
+    expect(response.status).toBe(409);
+    expect(await response.text()).not.toMatch(
+      /Private profile marker|password123|SQLITE|INSERT INTO/
+    );
+    expect(
+      (await db.select().from(users).all()).map((person) => person.username)
+    ).toEqual(['octocat']);
+    expect(
+      (
+        await db
+          .select()
+          .from(namespaceClaims)
+          .where(eq(namespaceClaims.slug, 'claimed'))
+          .get()
+      )?.kind
+    ).toBe('team');
   });
 
   it('用户改名预读后被团队抢占时，保留原用户名并返回409', async () => {

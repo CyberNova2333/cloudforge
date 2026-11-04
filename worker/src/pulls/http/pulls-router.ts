@@ -1706,6 +1706,7 @@ const retryReviewerRoute = createRoute({
     ...json400Response,
     ...json403Response,
     ...json404Response,
+    ...json409Response,
     503: {
       description: 'The review could not be started',
       content: { 'application/json': { schema: errorSchema } },

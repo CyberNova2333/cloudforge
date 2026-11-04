@@ -142,65 +142,8 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
       error:
         'The pull request has new commits since you looked. Review them, then merge again.',
     };
-  const gate = await stackGate(db, git, pr);
-  if (gate.error)
-    return {
-      ok: false,
-      status: 409,
-      reason: 'stack',
-      error:
-        'Couldn’t check how it relates to other open pull requests (the stack tree). Try again.',
-    };
-  if (gate.blocks.length)
-    return {
-      ok: false,
-      status: 409,
-      reason: 'stack',
-      error: `${gate.blocks.map((b) => b.message.replace(/[.\s]+$/, '')).join('. ')}. A maintainer can dismiss a dependency on the pull request page.`,
-    };
-  // Never move the target past another open pull request's unlanded commits, whatever the stack tree says.
-  const carried = await carriedPull(git, db, pr, target, headSha);
-  if (carried === 'unknown')
-    return {
-      ok: false,
-      status: 409,
-      reason: 'stack',
-      error:
-        'Couldn’t completely check for commits from other open pull requests. Retry, or shorten the branch history before merging.',
-    };
-  if (carried)
-    return {
-      ok: false,
-      status: 409,
-      reason: 'stack',
-      error: `It carries ${carried.count === 1 ? 'a commit' : `${carried.count} commits`} of #${carried.number}, which hasn't landed: landing it would land them too. Land #${carried.number} first, or rebase this branch without them.`,
-    };
-  // Checks, then review, for the commit that lands; a person's approval of it satisfies review.
-  const checks = await checksAt(db, pr.repositoryId, headSha);
-  if (checks)
-    return {
-      ok: false,
-      status: 409,
-      reason: 'checks',
-      error:
-        checks.kind === 'failed'
-          ? // Run 0: a status a CI server reported, not an Actions run.
-            `${checks.reason}${checks.runNumber ? ` (run #${checks.runNumber})` : ''}. Fix them, then merge.`
-          : `${checks.reason}. Merge once they pass.`,
-    };
-  const review = await reviewGateFor(
-    db,
-    resolutionConfigured(env),
-    pr,
-    headSha
-  );
-  if (!review.satisfied)
-    return {
-      ok: false,
-      status: 409,
-      reason: 'review',
-      error: `Review isn't satisfied: ${review.reasons.map(reviewReasonText).join('; ')}. Approve the pull request or its flags (an agent's change request needs a new commit or a Dismiss first).`,
-    };
+  const refusal = await landingGates(opts, pr, headSha, target);
+  if (refusal) return refusal;
   const refsBefore = await git.refs();
   const baseBefore = refsBefore.get(`refs/heads/${target}`);
   if (!baseBefore)
@@ -285,6 +228,7 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     if (
       !live ||
       live.state !== 'open' ||
+      live.stateRevision !== pr.stateRevision ||
       landTargetOf(live) !== target ||
       live.headRef !== pr.headRef ||
       freshRefs.get(`refs/heads/${pr.headRef}`) !== landHead ||
@@ -299,6 +243,17 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
         status: 409,
         error: 'The pull request or merge policy changed. Review it and retry.',
       };
+    }
+    // Receipt preparation can involve multiple remote calls. Its old authorization snapshot must not let
+    // a withdrawn review or newly failing check move the target. This is a final admission check, not a
+    // cross-service atomic fence: a change after these reads still requires a future serialization protocol.
+    const refusal = await landingGates(opts, live, landHead, target);
+    if (refusal) {
+      await db
+        .update(landingIntents)
+        .set({ finishedAt: new Date() })
+        .where(eq(landingIntents.id, intent.id));
+      return { ...refusal, ...rewrote };
     }
     await git.client.push(
       [{ ref: `refs/heads/${target}`, old: baseBefore, new: landHead }],
@@ -349,6 +304,78 @@ export async function landPull(opts: LandOpts): Promise<LandResult> {
     };
   opts.after(finishLanding(env, db, opts.repo, opts.repoFullName, pr, intent));
   return { ok: true, sha: landHead, headSha };
+}
+
+/** Re-read every mutable gate immediately before the target write. D1 and Artifacts are not one transaction. */
+async function landingGates(
+  opts: LandOpts,
+  pr: PullRequest,
+  headSha: string,
+  target: string
+): Promise<Refusal | null> {
+  const { db, git, env } = opts;
+  if (await mergingPause(db, pr.repositoryId))
+    return { ok: false, status: 409, reason: 'paused', error: MERGING_PAUSED };
+  const gate = await stackGate(db, git, pr);
+  if (gate.error)
+    return {
+      ok: false,
+      status: 409,
+      reason: 'stack',
+      error:
+        'Couldn’t check how it relates to other open pull requests (the stack tree). Try again.',
+    };
+  if (gate.blocks.length)
+    return {
+      ok: false,
+      status: 409,
+      reason: 'stack',
+      error: `${gate.blocks.map((b) => b.message.replace(/[.\s]+$/, '')).join('. ')}. A maintainer can dismiss a dependency on the pull request page.`,
+    };
+  // Never move the target past another open pull request's unlanded commits, whatever the stack tree says.
+  const carried = await carriedPull(git, db, pr, target, headSha);
+  if (carried === 'unknown')
+    return {
+      ok: false,
+      status: 409,
+      reason: 'stack',
+      error:
+        'Couldn’t completely check for commits from other open pull requests. Retry, or shorten the branch history before merging.',
+    };
+  if (carried)
+    return {
+      ok: false,
+      status: 409,
+      reason: 'stack',
+      error: `It carries ${carried.count === 1 ? 'a commit' : `${carried.count} commits`} of #${carried.number}, which hasn't landed: landing it would land them too. Land #${carried.number} first, or rebase this branch without them.`,
+    };
+  // Checks, then review, for the commit that lands; a person's approval of it satisfies review.
+  const checks = await checksAt(db, pr.repositoryId, headSha);
+  if (checks)
+    return {
+      ok: false,
+      status: 409,
+      reason: 'checks',
+      error:
+        checks.kind === 'failed'
+          ? // Run 0: a status a CI server reported, not an Actions run.
+            `${checks.reason}${checks.runNumber ? ` (run #${checks.runNumber})` : ''}. Fix them, then merge.`
+          : `${checks.reason}. Merge once they pass.`,
+    };
+  const review = await reviewGateFor(
+    db,
+    resolutionConfigured(env),
+    pr,
+    headSha
+  );
+  if (!review.satisfied)
+    return {
+      ok: false,
+      status: 409,
+      reason: 'review',
+      error: `Review isn't satisfied: ${review.reasons.map(reviewReasonText).join('; ')}. Approve the pull request or its flags (an agent's change request needs a new commit or a Dismiss first).`,
+    };
+  return null;
 }
 
 /**

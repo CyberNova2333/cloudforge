@@ -70,6 +70,55 @@ runs:
 `;
 
 describe('来自 GitHub 的 JavaScript 动作', () => {
+  it('不同 ref 使用独立下载目录，并为各自的 pre/main/post 保持同一身份', async () => {
+    const s = await setup();
+    for (const ref of ['release/one', 'release_one'])
+      github[`acme/tool/${ref}/action.yml`] =
+        'runs:\n  using: node24\n  pre: pre.js\n  main: index.js\n  post: post.js\n';
+    const { result, h } = await runWorkflow(
+      s,
+      `on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: acme/tool@release/one
+      - uses: acme/tool@release_one
+`
+    );
+    expect(result).toBe('success');
+    expect(h.requests).toHaveLength(4); // pre and main share one container command.
+    const paths = new Map<string, Set<string>>();
+    for (const request of h.requests) {
+      const ref = request.env.GITHUB_ACTION_REF;
+      const dir = request.env.GITHUB_ACTION_PATH;
+      const entries = paths.get(ref) ?? new Set<string>();
+      entries.add(dir);
+      paths.set(ref, entries);
+      expect(script(request)).toContain(`'${dir}/.cloudforge-ready'`);
+      expect(script(request)).toContain(`-C '${dir}'`);
+      expect(script(request)).toMatch(
+        new RegExp(`node '${dir}/(?:pre|index|post)\\.js'`)
+      );
+    }
+    expect(paths.get('release/one')?.size).toBe(1);
+    expect(paths.get('release_one')?.size).toBe(1);
+    expect([...paths.get('release/one')!]).not.toEqual([
+      ...paths.get('release_one')!,
+    ]);
+    expect([...paths.get('release_one')!]).toEqual([
+      '/opt/cloudforge/actions/acme/tool/release_one',
+    ]);
+    for (const request of h.requests.slice(0, 2)) {
+      expect(script(request)).toContain(
+        `node '${request.env.GITHUB_ACTION_PATH}/pre.js'`
+      );
+      expect(script(request)).toContain(
+        `node '${request.env.GITHUB_ACTION_PATH}/index.js'`
+      );
+    }
+  });
+
   it('下载并运行带输入、输出和状态的动作，随后运行其收尾步骤', async () => {
     const s = await setup();
     github['acme/setup-tool/v1/action.yml'] = SETUP_TOOL;

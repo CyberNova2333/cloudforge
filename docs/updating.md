@@ -99,7 +99,7 @@ If `npx` offers an older version right after a release, its registry cache is st
 
 ### Resuming a failed upgrade safely
 
-The upgrade plan now includes an access compatibility check. The source checkout and release package carry `access-protocol.json`, declaring the supported schemas, the fingerprint of access migration `0063_rare_skin.sql`, and a digest of the complete migration set. That digest covers the sorted filenames and normalized content hashes of all 65 SQL files. The CLI also pins these fingerprints; adding, removing or altering any migration, even with a changed adjacent JSON, stops before migration. Only CRLF-to-LF checkout conversion is normalized. A later release that changes migrations must review and update this contract with its supported-schema checks. Missing or inconsistent descriptors, unsupported database structure, invalid compatibility data and migration-receipt disagreements stop the upgrade. `--yes` and `--replace-custom-code` do not bypass these checks.
+The upgrade plan now includes an access compatibility check. The source checkout and release package carry `access-protocol.json`, declaring the supported schemas, the fingerprint of access migration `0065_silent_albert_cleary.sql`, and a digest of the complete migration set. That digest covers the sorted filenames and normalized content hashes of all 67 SQL files, including release creation receipts in `0066_minor_ultragirl.sql`. The CLI also pins these fingerprints; adding, removing or altering any migration, even with a changed adjacent JSON, stops before migration. Only CRLF-to-LF checkout conversion is normalized. A later release that changes migrations must review and update this contract with its supported-schema checks. Missing or inconsistent descriptors, unsupported database structure, invalid compatibility data and migration-receipt disagreements stop the upgrade. `--yes` and `--replace-custom-code` do not bypass these checks.
 
 The access check runs again after confirmation and optional credential prompts, before migration, and before deployment. Deployment requires the target compatible schema to be observed. The read-only diagnostic stays separate from applying an upgrade; neither its digest nor an unchanged ACL generation authorizes a later write. Databases above the bounded snapshot limit need a separately reviewed maintenance path; the installer does not silently sample them and proceed.
 
@@ -219,6 +219,14 @@ Changing `ACTIONS_SECRETS_KEY` (including setting it for the first time after us
 ## Adopt an existing installation
 
 `adopt` takes over an installation that was made some other way, so `upgrade` can manage it. It changes nothing on Cloudflare.
+
+Checkout adoption refuses a destination that already contains a configuration or installation state, including
+a dangling configuration symlink. Preserve or relocate that existing content before retrying. New files are
+published without replacing existing entries; interrupted adoption checks ownership and unchanged contents before rolling back its files
+and never recursively deletes the destination. Files retained after an interruption require inspection before retrying.
+Other writers must honor the installation lock: filesystem comparison and removal are not one atomic operation.
+Failure to remove a private `.adopt-*.tmp` link retains it for inspection without undoing a successful publication
+or replacing the original operation error.
 
 From a checkout that ran `yarn cloudforge install`, which moves its record under `~/.cloudforge`:
 

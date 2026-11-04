@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { MAX_CACHE_ENTRY_BYTES, fromKeySegment, keySegment } from './cache';
 
 /**
@@ -15,8 +16,11 @@ export const artifactsPrefix = (repositoryId: string) =>
 export const runArtifactsPrefix = (repositoryId: string, runId: string) =>
   `${artifactsPrefix(repositoryId)}${runId}/`;
 
-const namePrefix = (repositoryId: string, runId: string, name: string) =>
-  `${runArtifactsPrefix(repositoryId, runId)}${keySegment(name)}/`;
+const namePrefix = (repositoryId: string, runId: string, name: string) => {
+  const error = artifactNameError(name);
+  if (error) throw new Error(error);
+  return `${runArtifactsPrefix(repositoryId, runId)}${keySegment(name)}/`;
+};
 
 export const artifactObjectKey = (
   repositoryId: string,
@@ -29,6 +33,8 @@ export const artifactObjectKey = (
 /** GitHub's rule for artifact names; null when `name` is fine. */
 export function artifactNameError(name: string): string | null {
   if (!name) return 'The artifact name is empty.';
+  if (name === '.' || name === '..')
+    return 'The artifact name cannot be a dot path segment.';
   if (name.length > 255) return 'The artifact name is over 255 characters.';
   const bad = name.match(/["':<>|*?\\/\r\n]/);
   if (bad)

@@ -48,7 +48,7 @@ export type MergeResolutionParams =
   /** Review one head commit with the repository's agents. */
   | Only<'headReview', { id: string }>
   /** Retry one agent's failed review (pr_reviewers.id). */
-  | Only<'reviewer', { id: string }>
+  | Only<'reviewer', { id: string; generation?: number }>
   /** Learn from one lesson: an agent's dismissed change requests on a closed pull request (agent_lessons.id). */
   | Only<'learn', { lessonId: string }>;
 
@@ -113,7 +113,14 @@ export class MergeResolutionWorkflow extends WorkflowEntrypoint<
         instanceId: event.instanceId,
       };
       if (p.headReview) await executeHeadReview(deps, p.headReview.id);
-      else await executeReviewerRetry(deps, p.reviewer!.id);
+      // Legacy retries have no attempt identity: do not let a delayed workflow pick up a newer retry. Retention
+      // expires any abandoned reviewing row, after which a new explicit retry supplies its generation.
+      else if (p.reviewer!.generation !== undefined)
+        await executeReviewerRetry(
+          deps,
+          p.reviewer!.id,
+          p.reviewer!.generation
+        );
     } else if (p.stack) {
       const ids = await getSettings(db, this.env, ['ai.review_model']);
       const pr = p.stack.pullRequestId;

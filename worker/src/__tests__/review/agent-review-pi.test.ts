@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PI_FALLBACK_NOTE, PI_GONE } from '../../review/outcome';
 import { drizzle } from 'drizzle-orm/d1';
 import { schema } from '../../db/schema';
@@ -599,11 +599,22 @@ describe('engine: pi 审查引擎', () => {
   });
 });
 
-const retry = (t: T, cookie: string, id: string) =>
-  call(t, `/api/repos/octocat/app/pulls/1/reviewers/${id}/retry`, {
+afterEach(() => vi.useRealTimers());
+
+const retry = async (t: T, cookie: string, id: string) => {
+  const createdAt = await t.env.DB.prepare(
+    'SELECT created_at FROM pr_reviewers WHERE id = ?'
+  )
+    .bind(id)
+    .first<number>('created_at');
+  const nextSecond = Math.max(Date.now(), (createdAt! + 1) * 1000);
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(nextSecond);
+  return call(t, `/api/repos/octocat/app/pulls/1/reviewers/${id}/retry`, {
     cookie,
     method: 'POST',
   });
+};
 
 /** Like a Workflow replaying: a step that already completed returns its stored result without running again. */
 function replayingStep() {

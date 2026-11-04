@@ -235,6 +235,15 @@ Namespace guards include source-table `lower(...)` checks as a safety backstop. 
 
 ## Actions compatibility checks
 
+Remote action directories encode the complete ref as one path segment, so refs containing a slash cannot alias
+underscore refs. Download, main and Post use the same directory calculation. Existing completed step results and
+their saved commands are retained; this does not rewrite historical executions.
+
+Cache restore checks the current ref before the default ref. Within each ref it tries the primary key, then each
+ordered restore key; each candidate tries exact matching before its newest matching prefix. Only an exact primary
+key match reports a cache hit. Artifact names cannot be the complete path segments `.` or `..`; ordinary dotted
+names remain supported. Existing objects with ambiguous historical ownership are not automatically moved or deleted.
+
 Step-time expressions can use `hashFiles()` against the current checked-out workspace. For example, a step may
 set `key: deps-${{ hashFiles('**/yarn.lock') }}` in a cache action after checkout. An unmatched pattern returns an
 empty string. Matching supports exclusions and dotfiles; file reads stay inside the workspace. Results use sorted

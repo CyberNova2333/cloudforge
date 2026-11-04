@@ -60,7 +60,10 @@ async function request(
 }
 async function fixture() {
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(Math.floor(Date.now() / 30_000) * 30_000 + 15_000);
+  // D1's write-time clock stays real: keep the fixed TOTP midpoint in the past.
+  vi.setSystemTime(
+    Math.floor((Date.now() - 15_000) / 30_000) * 30_000 + 15_000
+  );
   const t = makeEnv();
   Object.assign(t.env, { BASE_URL: 'https://test.local' });
   expect(

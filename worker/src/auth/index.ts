@@ -40,6 +40,11 @@ import {
   readSessionAuthentication,
 } from './assurance';
 import { requireRecentNativeAuthentication } from './recent';
+import {
+  captureNativeAdminWrite,
+  nativeAdminDatabase,
+  isNativeAdminAuthorizationFailure,
+} from './native-admin';
 import { requireNativePolicy } from './policy';
 import {
   checkResend,
@@ -165,7 +170,8 @@ function createAuth(env?: CloudflareBindings) {
   // No env during CLI schema generation.
   const db = env ? drizzle(env.DB, { schema }) : ({} as any);
   const baseURL = env?.BASE_URL || 'http://localhost:8080';
-  const adapterFactory = drizzleAdapter(db, {
+  const adapterDb = env ? drizzle(nativeAdminDatabase(env.DB), { schema }) : db;
+  const adapterFactory = drizzleAdapter(adapterDb, {
     provider: 'sqlite',
     usePlural: true,
     // Explicit so the schema check passes for the CLI instance, which has no database.
@@ -177,7 +183,9 @@ function createAuth(env?: CloudflareBindings) {
       get(target, property, receiver) {
         const operation = Reflect.get(target, property, receiver);
         if (
-          !['create', 'update', 'updateMany'].includes(String(property)) ||
+          !['create', 'update', 'updateMany', 'delete', 'deleteMany'].includes(
+            String(property)
+          ) ||
           typeof operation !== 'function'
         )
           return operation;
@@ -185,6 +193,12 @@ function createAuth(env?: CloudflareBindings) {
           try {
             return await Reflect.apply(operation, target, args);
           } catch (error) {
+            if (isNativeAdminAuthorizationFailure(error))
+              throw new APIError('FORBIDDEN', {
+                code: 'ADMIN_AUTHORIZATION_CHANGED',
+                message:
+                  'Administrative authorization changed. Refresh and try again.',
+              });
             // A pre-read cannot fence a concurrent namespace claim. Translate only the
             // managed SQL guard, after the ordinary SDK identity/proof hooks have run.
             if (
@@ -304,6 +318,7 @@ function createAuth(env?: CloudflareBindings) {
         await installSessionVersionGuard(ctx, env);
         await requireNativePolicy(ctx, env);
         await requireRecentNativeAuthentication(ctx, db);
+        await captureNativeAdminWrite(ctx, db);
         if (ctx.path === '/sign-up/email') {
           await checkSignup(db, env, ctx.body);
           return;
