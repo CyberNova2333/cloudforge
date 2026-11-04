@@ -265,12 +265,17 @@ an existing but invalid Yarn installation fails explicitly instead of falling ba
 The runner's dependencies are independent of the application lockfile. Its Dockerfile pins the Node 24 and Go
 builder digests, verifies the Git LFS source archive and module locks, runs the upstream Go tests, and copies only
 the custom binary and license records into the runtime image. Global npm uses tested, pinned dependencies for all
-consumers, including nested packages. Python uses verified wheels and a reproducible pip vendoring update; the
-custom pip version is distinct from its upstream release. Build inputs and provenance live in `actions/runner/`.
+consumers, including nested packages. Python uses hash-verified official wheels with their original dependency
+metadata and licenses. Build inputs and provenance live in `actions/runner/`. Advance `DEBIAN_SECURITY_REFRESH`
+in the Dockerfile when checking distribution updates so cached deploy builds rerun the APT upgrade layer.
+Expat is temporarily rebuilt from pinned official sources with Debian packaging on the runtime distribution;
+its package metadata, licenses and test records remain in the image. See `actions/runner/expat/README.md` for
+the build contract and the condition for returning to the distribution package.
 
 Build the final image with `docker build --platform linux/amd64 -t cloudforge-runner-test actions/runner`.
 Run its offline functional checks by mounting `actions/runner/smoke.cjs` at `/smoke.cjs` read-only, with
-`--network none --read-only --tmpfs /tmp --entrypoint node`, and pass `/smoke.cjs` as the command. The checks cover
+`--network none --read-only --tmpfs /tmp:exec --entrypoint node`, and pass `/smoke.cjs` as the command. The executable
+temporary mount lets the checks run their locally compiled fixture; all writes remain under `/tmp`. The checks cover
 the actual npm dependency resolution, package installation, Python wheel builds, basic compilers, and local Git LFS
 transfers. The installed Git LFS license manifest is checked too. Cloudflare currently requires
 [Linux AMD64 container images](https://developers.cloudflare.com/containers/concepts/architecture/).

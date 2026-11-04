@@ -1,0 +1,26 @@
+{
+  "upstreamVersion": "2.10.0",
+  "debianSourceVersion": "2.10.0-1",
+  "packageVersion": "2.10.0-1+cloudforge1",
+  "distribution": "trixie",
+  "changelogDate": "Wed, 04 Nov 2026 00:00:00 +0000",
+  "upstream": "https://github.com/libexpat/libexpat/releases/tag/R_2_10_0",
+  "debianTracker": "https://security-tracker.debian.org/tracker/source-package/expat",
+  "sources": [
+    {
+      "file": "expat_2.10.0-1.dsc",
+      "url": "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0-1.dsc",
+      "sha256": "8c4623c101959b8709a3f0a10c06a40d413dc7a6f5ffad3bc9d0cd010d850956"
+    },
+    {
+      "file": "expat_2.10.0.orig.tar.gz",
+      "url": "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0.orig.tar.gz",
+      "sha256": "b3644a12f62d7762b62c444f69d169ba0234f13138d0240244bca64cbe35286f"
+    },
+    {
+      "file": "expat_2.10.0-1.debian.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0-1.debian.tar.xz",
+      "sha256": "9be65c3ff79ca0508590970422de0a55f117bb7134a0274dd1ed3261f85631dc"
+    }
+  ]
+}
