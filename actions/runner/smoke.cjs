@@ -2,7 +2,7 @@
 'use strict';
 
 // 离线容器检查：挂载本文件为只读，所有夹具、缓存和配置只写 /tmp。
-// docker run --rm --network none --read-only --tmpfs /tmp \
+// docker run --rm --network none --read-only --tmpfs /tmp:exec \
 //   --mount type=bind,source=<absolute smoke.cjs>,target=/smoke.cjs,readonly \
 //   --entrypoint node <image> /smoke.cjs
 const assert = require('node:assert/strict');
@@ -312,31 +312,43 @@ function npmFunctions() {
 }
 
 const pythonSmoke = String.raw`
-import base64, csv, hashlib, importlib.metadata, io, json, pathlib, shutil, sqlite3, subprocess, sys, zipfile
+import base64, csv, hashlib, importlib.metadata, io, json, os, pathlib, pyexpat, shutil, sqlite3, subprocess, sys, zipfile
+import xml.etree.ElementTree as ET
 import pip
-from pip._vendor import urllib3
+from pip._vendor import msgpack, urllib3
 
-assert pip.__version__ == '26.2.2+cloudforge.1'
+assert pip.__version__ == '26.3'
+assert pyexpat.EXPAT_VERSION == 'expat_2.10.0'
+assert ET.fromstring('<fixture><item>ok</item></fixture>')[0].text == 'ok'
 assert importlib.metadata.version('pip') == pip.__version__
 assert urllib3.__version__ == '2.8.0'
 assert urllib3.__name__ == 'pip._vendor.urllib3'
+assert msgpack.__version__ == '1.2.4'
+assert msgpack.unpackb(msgpack.packb({'cloudforge': [42, True]})) == {'cloudforge': [42, True]}
 vendor = pathlib.Path(pip.__file__).parent / '_vendor'
-assert '    urllib3==2.8.0' in (vendor / 'vendor.txt').read_text()
+vendor_pins = {line.strip() for line in (vendor / 'vendor.txt').read_text().splitlines()}
+assert {'urllib3==2.8.0', 'msgpack==1.2.4'} <= vendor_pins
 bom = json.loads((vendor / 'bom.cdx.json').read_text())
 component = next(item for item in bom['components'] if item['name'] == 'urllib3')
 assert component['version'] == '2.8.0' and component['purl'] == 'pkg:pypi/urllib3@2.8.0'
+component = next(item for item in bom['components'] if item['name'] == 'msgpack')
+assert component['version'] == '1.2.4' and component['purl'] == 'pkg:pypi/msgpack@1.2.4'
 assert 'pkg:pypi/urllib3@2.7.0' not in json.dumps(bom)
 license_file = pathlib.Path(importlib.metadata.distribution('pip').locate_file(
-    'pip-26.2.2+cloudforge.1.dist-info/licenses/src/pip/_vendor/urllib3/LICENSE.txt'))
+    'pip-26.3.dist-info/licenses/src/pip/_vendor/urllib3/LICENSE.txt'))
 assert (vendor / 'urllib3' / 'LICENSE.txt').read_bytes() == license_file.read_bytes()
-assert (vendor / 'vendoring-LICENSE').is_file()
+sources = json.loads(pathlib.Path('/usr/local/share/cloudforge/python-sources.json').read_text())
+assert sources['pip']['version'] == pip.__version__
+for name in ('msgpack', 'urllib3', 'setuptools'):
+    component = next(item for item in bom['components'] if item['name'] == name)
+    assert sources['bundled_components'][name] == component['version']
 
 root = pathlib.Path(sys.argv[1])
 root.mkdir()
-def run(args):
+def run(args, env=None):
     print('RUN ' + json.dumps([str(arg) for arg in args]), flush=True)
     result = subprocess.run([str(arg) for arg in args], check=True, text=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90, env=env)
     print(result.stdout.strip(), flush=True)
     return result.stdout
 
@@ -385,6 +397,14 @@ sys.path.insert(0, str(target))
 import cloudforge_smoke_pkg
 assert cloudforge_smoke_pkg.VALUE == 42, 'pip3 --target package import failed'
 assert importlib.metadata.version('cloudforge-smoke-pkg') == '1.0.0'
+for backend in ('0', '1'):
+    backend_env = dict(os.environ, _PIP_USE_IMPORTLIB_METADATA=backend)
+    expected_backend = 'pkg_resources' if backend == '0' else 'importlib'
+    run([sys.executable, '-c', 'from pip._internal.metadata import select_backend; '
+         + f'assert select_backend().NAME == {expected_backend!r}'], env=backend_env)
+    packages = json.loads(run([sys.executable, '-m', 'pip', 'list', '--path', target, '--format=json',
+                               '--disable-pip-version-check'], env=backend_env).splitlines()[-1])
+    assert {'name': 'cloudforge-smoke-pkg', 'version': '1.0.0'} in packages
 unpacked = root / 'unpacked'
 run([sys.executable, '-m', 'wheel', 'unpack', '--dest', unpacked, wheel])
 repacked = root / 'repacked'
@@ -421,7 +441,7 @@ function gitLfsFunctions() {
   );
   assert.match(buildInfo, /go1\.27\.3/);
   for (const [module, version] of [
-    ['crypto', 'v0.58.0'],
+    ['crypto', 'v0.58.1-0.20261009181718-2f1f834330b2'],
     ['net', 'v0.62.0'],
     ['text', 'v0.43.0'],
   ]) {
@@ -507,6 +527,17 @@ function gitLfsFunctions() {
 }
 
 function buildTools() {
+  for (const [name, minimum] of [
+    ['apt', '3.0.4'],
+    ['libapt-pkg7.0', '3.0.4'],
+    ['linux-libc-dev', '6.12.115-2'],
+    ['libexpat1', '2.10.0-1+cloudforge1'],
+    ['libexpat1-dev', '2.10.0-1+cloudforge1'],
+  ]) {
+    const installed = run('dpkg-query', ['-W', '-f=${Version}', name]).trim();
+    run('dpkg', ['--compare-versions', installed, 'ge', minimum]);
+    console.log(JSON.stringify({ package: name, installed, minimum }));
+  }
   const tools = [
     'sh',
     'bash',
@@ -545,6 +576,28 @@ function buildTools() {
     'smoke.o: smoke.c\n\t$(CC) -Wall -Wextra -Werror -c smoke.c -o smoke.o\n'
   );
   run('make', ['--no-print-directory'], { cwd: build });
+  assert.equal(
+    run('dpkg-query', ['-W', '-f=${Version}', 'libexpat1']).trim(),
+    run('dpkg-query', ['-W', '-f=${Version}', 'libexpat1-dev']).trim()
+  );
+  write(
+    path.join(build, 'xml.c'),
+    '#include <expat.h>\n#include <string.h>\n' +
+      'int main(void) {\n' +
+      '  if (strcmp(XML_ExpatVersion(), "expat_2.10.0")) return 1;\n' +
+      '  XML_Parser parser = XML_ParserCreate(NULL);\n' +
+      '  if (!parser) return 2;\n' +
+      '  int ok = XML_Parse(parser, "<fixture/>", 10, XML_TRUE) == XML_STATUS_OK;\n' +
+      '  XML_ParserFree(parser);\n  return ok ? 0 : 3;\n}\n'
+  );
+  run(
+    'cc',
+    ['-Wall', '-Wextra', '-Werror', 'xml.c', '-lexpat', '-o', 'xml-smoke'],
+    {
+      cwd: build,
+    }
+  );
+  run(path.join(build, 'xml-smoke'), [], { cwd: build });
   assert.deepEqual(
     fs.readFileSync(path.join(build, 'smoke.o')).subarray(0, 4),
     Buffer.from([0x7f, 0x45, 0x4c, 0x46]),

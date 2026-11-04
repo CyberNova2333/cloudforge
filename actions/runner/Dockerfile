@@ -20,13 +20,35 @@ RUN cp go.sum /tmp/git-lfs-go.sum.locked \
 COPY git-lfs/build.sh /usr/local/libexec/cloudforge-git-lfs-build
 RUN sh /usr/local/libexec/cloudforge-git-lfs-build "$TARGETARCH"
 
-FROM node:24-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446
-RUN apt-get update \
-  && apt-get upgrade -y \
-  && apt-get install -y --no-install-recommends \
+FROM node:24-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446 AS runner-base
+# Advance this after checking Debian security updates, so deploys also refresh a cached APT layer.
+ARG DEBIAN_SECURITY_REFRESH=2026-11-04
+RUN test -n "$DEBIAN_SECURITY_REFRESH" \
+  && apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 update \
+  && apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 install -y --no-install-recommends ca-certificates \
+  && sed -i 's|http://deb.debian.org/|https://deb.debian.org/|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get -o Acquire::Retries=3 update \
+  && apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 upgrade -y \
+  && apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 install -y --no-install-recommends \
     git ca-certificates curl wget jq unzip zip xz-utils zstd \
     python3 build-essential openssh-client procps \
   && rm -rf /var/lib/apt/lists/*
+
+# Rebuild the fixed Expat source on the runtime distribution; no foreign binary packages.
+FROM runner-base AS expat-build
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 update \
+  && apt-get -o Acquire::Retries=3 -o Acquire::http::Pipeline-Depth=0 install -y --no-install-recommends \
+    debhelper-compat docbook-to-man docbook2x \
+  && rm -rf /var/lib/apt/lists/*
+COPY expat/ /usr/local/libexec/cloudforge-expat/
+RUN sh /usr/local/libexec/cloudforge-expat/build.sh
+
+FROM runner-base AS runner
+COPY --from=expat-build /out/libexpat1.deb /tmp/cloudforge-libexpat1.deb
+COPY --from=expat-build /out/libexpat1-dev.deb /tmp/cloudforge-libexpat1-dev.deb
+COPY --from=expat-build /out/provenance/ /usr/local/share/cloudforge/expat/
+RUN dpkg -i /tmp/cloudforge-libexpat1.deb /tmp/cloudforge-libexpat1-dev.deb \
+  && rm /tmp/cloudforge-libexpat1.deb /tmp/cloudforge-libexpat1-dev.deb
 WORKDIR /workspace
 
 # Custom Git LFS 3.8.1 with pinned modules; the Go toolchain stays in the builder stage.
@@ -47,28 +69,23 @@ RUN node -e 'const fs = require("node:fs"); const dir = "/usr/local/share/.confi
 
 # Bootstrap verified, platform-independent wheels without keeping the older APT pip/wheel copies.
 # Versions and hashes are pinned from each release's official PyPI JSON metadata.
-COPY python/ /tmp/cloudforge-python/
+COPY python/sources.json /usr/local/share/cloudforge/python-sources.json
 RUN mkdir -p /tmp/python-wheels \
   && curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
-    "https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl" \
-    --output /tmp/python-wheels/pip-26.2.2-py3-none-any.whl \
+    "https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl" \
+    --output /tmp/python-wheels/pip-26.3-py3-none-any.whl \
   && curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
     "https://files.pythonhosted.org/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl" \
     --output /tmp/python-wheels/wheel-0.48.0-py3-none-any.whl \
   && curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
     "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl" \
     --output /tmp/python-wheels/packaging-25.0-py3-none-any.whl \
-  && curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
-    "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl" \
-    --output /tmp/python-wheels/urllib3-2.8.0-py3-none-any.whl \
   && printf '%s\n' \
-    "fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70  /tmp/python-wheels/pip-26.2.2-py3-none-any.whl" \
+    "f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13  /tmp/python-wheels/pip-26.3-py3-none-any.whl" \
     "3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab  /tmp/python-wheels/wheel-0.48.0-py3-none-any.whl" \
     "29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484  /tmp/python-wheels/packaging-25.0-py3-none-any.whl" \
-    "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3  /tmp/python-wheels/urllib3-2.8.0-py3-none-any.whl" \
     | sha256sum --check - \
-  && python3 /tmp/cloudforge-python/rebuild-pip.py --inputs /tmp/python-wheels --output /tmp/python-wheels \
-  && PYTHONPATH=/tmp/python-wheels/pip-26.2.2-py3-none-any.whl python3 -m pip --isolated install \
+  && PYTHONPATH=/tmp/python-wheels/pip-26.3-py3-none-any.whl python3 -m pip --isolated install \
     --no-index --find-links=/tmp/python-wheels --no-deps --ignore-installed --break-system-packages \
-    'pip==26.2.2+cloudforge.1' wheel==0.48.0 packaging==25.0 \
-  && rm -rf /tmp/python-wheels /tmp/cloudforge-python
+    pip==26.3 wheel==0.48.0 packaging==25.0 \
+  && rm -rf /tmp/python-wheels
