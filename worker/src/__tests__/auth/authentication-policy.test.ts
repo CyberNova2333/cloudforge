@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { base32 } from '@better-auth/utils/base32';
 import { createOTP } from '@better-auth/utils/otp';
@@ -22,7 +23,10 @@ import { handleGitRequest } from '../../git/http/handler';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(Math.floor(Date.now() / 30_000) * 30_000 + 15_000);
+  // D1's write-time clock stays real: keep the fixed TOTP midpoint in the past.
+  vi.setSystemTime(
+    Math.floor((Date.now() - 15_000) / 30_000) * 30_000 + 15_000
+  );
 });
 afterEach(() => vi.useRealTimers());
 const base = '/api/admin/authentication-policy';

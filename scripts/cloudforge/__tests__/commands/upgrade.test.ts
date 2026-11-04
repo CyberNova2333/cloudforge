@@ -1498,25 +1498,33 @@ describe('权限兼容升级门禁', () => {
       'runtime-bridge-v1'
     );
   });
-  it('compat-v1 计划只补桥接迁移，部署前要求实际桥接结构', async () => {
+  it('compat-v1 计划补齐桥接与后续业务迁移，部署前要求实际桥接结构', async () => {
     const h = withDatabase('compat');
     const planned = await planUpgrade(h.ctx, h.state);
     expect(planned.access.schema).toBe('compat-v1');
-    expect(planned.migrations).toEqual(['0065_silent_albert_cleary.sql']);
+    expect(planned.migrations).toEqual([
+      '0065_silent_albert_cleary.sql',
+      '0066_minor_ultragirl.sql',
+    ]);
     const original = h.runner.run.bind(h.runner);
     h.runner.run = async (...args) => {
       const result = await original(...args);
       if (args[1].includes('migrations'))
-        h.db.exec(
-          readFileSync(
-            join(h.ctx.source.migrationsDir, '0065_silent_albert_cleary.sql'),
-            'utf8'
-          )
-        );
+        for (const migration of planned.migrations)
+          h.db.exec(
+            readFileSync(join(h.ctx.source.migrationsDir, migration), 'utf8')
+          );
       return result;
     };
     expect((await run(h)).status).toBe('installed');
     expect(h.deploys.length).toBeGreaterThan(0);
+    expect(
+      h.db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name='release_tag_receipts'"
+        )
+        .get()
+    ).toBeTruthy();
   });
   for (const mode of ['plan', 'apply', 'replace'] as const) {
     it(`${mode} 拒绝额外权限表且不发生云写入`, async () => {

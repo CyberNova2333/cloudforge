@@ -141,7 +141,7 @@ The repository UI uses the Artifacts binding directly: `readTree`, `readCommit`,
 Merging is rebase + fast-forward. Artifacts has no merge API and the binding cannot write objects, so CloudForge writes git itself:
 
 1. Rebase the PR's commits onto the target when needed, using three-way tree merges (`git/rebase.ts`). Conflicts stop the rebase or go through the configured resolver. Review, checks, stack dependencies (including cycles), and the repository's merge pause gate landing.
-2. Compute the landed commit list before changing the target, and save a `landing_intents` row in D1. First push a receipt at `refs/pull/<n>/landings/<intent id>` and pin the PR head; then recheck the PR and fast-forward only the target ref with compare-and-swap. A concurrent target push cannot be overwritten. This does not depend on atomic updates across multiple Git refs.
+2. Compute the landed commit list before changing the target, and save a `landing_intents` row in D1. First push a receipt at `refs/pull/<n>/landings/<intent id>` and pin the PR head; then recheck the PR revision and identity, repository pause, stack, checks, and review gates before fast-forwarding only the target ref with compare-and-swap. A refused final gate closes the intent while preserving its receipt. A concurrent target push cannot be overwritten. D1 gate reads and the Artifacts compare-and-swap are separate operations: changes after the final reads are not serialized by this check.
 3. Record the merged PR, event, audit entry, and landing checkpoint in one D1 batch. Follow-up work (stack reconciliation, branch cleanup, Actions, agent config, and lessons) has separate completion checkpoints and stable Workflow identifiers.
 4. A retry or daily retention cron resumes an interrupted landing (`merge/landing-recovery.ts`). Recovery requires both its saved receipt and the landed head to be reachable from the target, so an unrelated already-contained PR is not automatically marked merged. An attempt whose target has moved off its base without its result (`landingStatus` `stale`) can never take its compare-and-swap: the refused push, a later merge or recovery closes it, so neither later merges nor recovery re-check it.
 
@@ -151,8 +151,11 @@ Revert read the exact pre-CAS base from a recorded landing intent. Older linear 
 fallback; an older multi-parent landing without that evidence cannot be automatically reverted.
 
 Release creation checks unrecorded landings anywhere in the chosen head's ancestry, then fences newly recorded PRs
-and new landing attempts in the final D1 batch. A refused cut can leave its immutable tag for a same-head retry;
-it never deletes or moves the tag to clean up a database race.
+and new landing attempts in the final D1 batch. After a successful absent-only tag creation response, it saves a
+`release_tag_receipts` row identifying the repository, tag and head. Only that exact receipt allows a same-head
+retry after a failed accounting batch; an existing manually pushed or historical unreceipted tag cannot be adopted.
+A lost creation response or failed receipt write can leave an immutable tag without a receipt: use a fresh version.
+Release creation never deletes or moves the tag to clean up a database race.
 
 Git and D1 do not share a transaction. A force-push that removes the landed commit before recovery removes the evidence needed for automatic recovery; an identical manual push after a prepared receipt is indistinguishable from the intended landing. Preserve the target history while resolving an interrupted landing.
 

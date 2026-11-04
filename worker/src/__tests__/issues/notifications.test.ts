@@ -428,6 +428,99 @@ const notes = (t: TestEnv, to: string) =>
 
 describe('通知：邮件', () => {
   it.each([
+    'unchanged',
+    'ban',
+    'make-private',
+    'email-off',
+    'ignore',
+    'unsubscribe',
+    'unverify-email',
+    'remove-collaborator',
+    'change-email',
+  ] as const)('批内逐封发送前重读收件资格：%s', async (change) => {
+    const { t, admin } = await world(
+      change === 'remove-collaborator' ? 'private' : 'internal'
+    );
+    if (change === 'remove-collaborator') {
+      for (const name of ['bob', 'carol'])
+        expect(
+          (
+            await call(t, `${base}/collaborators/${name}`, {
+              cookie: admin,
+              method: 'PUT',
+            })
+          ).status
+        ).toBe(200);
+    }
+    await openIssue(t, admin, { title: 'Batch fixture', body: '@bob @carol' });
+    await settle(t);
+    await t.env.DB.prepare(
+      "UPDATE notifications SET email_pending_at = ? WHERE user_id IN (SELECT id FROM users WHERE username IN ('bob', 'carol'))"
+    )
+      .bind(Date.now())
+      .run();
+    t.sent.length = 0;
+    const send = t.env.EMAIL.send.bind(t.env.EMAIL);
+    let transitioned = false;
+    t.env.EMAIL.send = (async (message: Parameters<typeof send>[0]) => {
+      if (!transitioned) {
+        // This boundary is outside D1: a preceding external send is in flight.
+        if (change === 'ban')
+          await t.env.DB.prepare(
+            "UPDATE users SET banned = 1 WHERE username IN ('bob', 'carol')"
+          ).run();
+        else if (change === 'make-private')
+          await t.env.DB.prepare(
+            "UPDATE repositories SET visibility = 'private' WHERE name = 'app'"
+          ).run();
+        else if (change === 'email-off')
+          await t.env.DB.prepare(
+            "INSERT INTO user_preferences (user_id, key, value, updated_at) SELECT id, 'notificationEmail', ?, ? FROM users WHERE username IN ('bob', 'carol') ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+          )
+            .bind(JSON.stringify('off'), Math.floor(Date.now() / 1000))
+            .run();
+        else if (change === 'ignore')
+          await t.env.DB.prepare(
+            "INSERT INTO repository_watches (user_id, repository_id, level, created_at) SELECT users.id, repositories.id, 'ignoring', ? FROM users, repositories WHERE users.username IN ('bob', 'carol') AND repositories.name = 'app' ON CONFLICT(user_id, repository_id) DO UPDATE SET level = excluded.level"
+          )
+            .bind(Date.now())
+            .run();
+        else if (change === 'unsubscribe')
+          await t.env.DB.prepare(
+            "UPDATE notification_subscriptions SET subscribed = 0 WHERE user_id IN (SELECT id FROM users WHERE username IN ('bob', 'carol'))"
+          ).run();
+        else if (change === 'unverify-email')
+          await t.env.DB.prepare(
+            "UPDATE users SET email_verified = 0 WHERE username IN ('bob', 'carol')"
+          ).run();
+        else if (change === 'remove-collaborator')
+          await t.env.DB.prepare(
+            "DELETE FROM repository_collaborators WHERE user_id IN (SELECT id FROM users WHERE username IN ('bob', 'carol'))"
+          ).run();
+        else if (change === 'change-email')
+          await t.env.DB.prepare(
+            "UPDATE users SET email = username || '@updated.example' WHERE username IN ('bob', 'carol')"
+          ).run();
+        transitioned = true;
+      }
+      return send(message);
+    }) as typeof t.env.EMAIL.send;
+    const expected =
+      change === 'unchanged' || change === 'change-email' ? 2 : 1;
+    expect(
+      await deliverNotificationEmails(t.env, drizzle(t.env.DB, { schema }))
+    ).toBe(expected);
+    expect(transitioned).toBe(true);
+    expect(t.sent).toHaveLength(expected);
+    if (change === 'change-email')
+      expect(t.sent[1]!.to).toMatch(/@updated\.example$/);
+    expect(
+      await deliverNotificationEmails(t.env, drizzle(t.env.DB, { schema }))
+    ).toBe(0);
+    expect(t.sent).toHaveLength(expected);
+  });
+
+  it.each([
     'remove-collaborator',
     'ban',
     'make-private',
@@ -578,4 +671,50 @@ describe('通知：邮件', () => {
     ).first<{ n: number }>();
     expect(pending?.n).toBe(0);
   });
+});
+
+it('does not consume a newer notification payload again after another sender has sent it', async () => {
+  const t = makeEnv();
+  const admin = await bootstrapAdmin(t);
+  await call(t, '/api/repos', {
+    cookie: admin,
+    json: { name: 'app', addReadme: true, visibility: 'internal' },
+  });
+  await addMember(t, admin, 'bob');
+  await addMember(t, admin, 'carol');
+  await t.env.DB.prepare('UPDATE users SET email_verified = 1').run();
+  await call(t, '/api/repos/octocat/app/issues', {
+    cookie: admin,
+    json: { title: 'Overlap fixture', body: '@bob @carol' },
+  });
+  await settle(t);
+  await t.env.DB.prepare(
+    "UPDATE notifications SET excerpt = 'old-event-fixture', email_pending_at = ? WHERE user_id IN (SELECT id FROM users WHERE username IN ('bob','carol'))"
+  )
+    .bind(Date.now())
+    .run();
+  t.sent.length = 0;
+  const send = t.env.EMAIL.send.bind(t.env.EMAIL);
+  let changed = false;
+  t.env.EMAIL.send = (async (message: Parameters<typeof send>[0]) => {
+    if (!changed) {
+      changed = true;
+      const updated = await t.env.DB.prepare(
+        "UPDATE notifications SET excerpt = 'new-event-fixture', email_pending_at = ?, updated_at = ? WHERE user_id IN (SELECT id FROM users WHERE username IN ('bob','carol') AND email != ?) RETURNING id"
+      )
+        .bind(Date.now(), Date.now() + 1, message.to as string)
+        .all();
+      expect(updated.results).toHaveLength(1);
+      // Another legitimate sender claims the newly pending generation while the old batch is waiting.
+      expect(
+        await deliverNotificationEmails(t.env, drizzle(t.env.DB, { schema }))
+      ).toBe(1);
+    }
+    return send(message);
+  }) as typeof t.env.EMAIL.send;
+  await deliverNotificationEmails(t.env, drizzle(t.env.DB, { schema }));
+  expect(changed).toBe(true);
+  expect(
+    t.sent.filter((m) => m.text?.includes('new-event-fixture'))
+  ).toHaveLength(1);
 });

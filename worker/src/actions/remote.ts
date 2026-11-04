@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { parse as parseYaml } from 'yaml';
 import { parseStep, type StepDef } from './workflow-file';
 
@@ -206,10 +207,16 @@ export const TOOL_CACHE = '/opt/hostedtoolcache';
 
 const quoteSh = (t: string) => `'${t.replace(/'/g, `'\\''`)}'`;
 
+/** Keep ordinary refs stable; encode separators without aliasing literal underscores. */
+function githubActionRoot(r: Extract<ActionRef, { kind: 'github' }>): string {
+  const revision = encodeURIComponent(r.ref).replace(/^\.$/, '%2E');
+  return `${ACTIONS_DIR}/${r.owner}/${r.repo}/${revision}`;
+}
+
 /** The directory the action's code is in on the runner (GITHUB_ACTION_PATH). */
 export function actionDir(r: ActionRef, workspace: string): string {
   if (r.kind === 'local') return `${workspace}/${r.path}`;
-  const root = `${ACTIONS_DIR}/${r.owner}/${r.repo}/${r.ref.replace(/\//g, '_')}`;
+  const root = githubActionRoot(r);
   return r.path ? `${root}/${r.path}` : root;
 }
 
@@ -220,7 +227,7 @@ export function actionDir(r: ActionRef, workspace: string): string {
 export function fetchScript(r: ActionRef, workspace: string): string {
   if (r.kind === 'local')
     return `[ -d ${quoteSh(actionDir(r, workspace))} ] || { echo ${quoteSh(`./${r.path} is not in the workspace: check out the repository (actions/checkout) before using a local action.`)}; exit 1; }`;
-  const root = `${ACTIONS_DIR}/${r.owner}/${r.repo}/${r.ref.replace(/\//g, '_')}`;
+  const root = githubActionRoot(r);
   const url = `https://codeload.github.com/${r.owner}/${r.repo}/tar.gz/${r.ref}`;
   return [
     `if [ ! -f ${quoteSh(`${root}/.cloudforge-ready`)} ]; then`,
