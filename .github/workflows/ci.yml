@@ -356,6 +356,7 @@ jobs:
           worker/src/__tests__/access/access-migration.test.ts
           worker/src/__tests__/platform/admin-setup.test.ts
           worker/src/__tests__/platform/settings.test.ts
+          worker/src/__tests__/platform/settings-write.test.ts
           worker/src/__tests__/auth/commit-emails.test.ts
           worker/src/__tests__/auth/email-concurrency.test.ts
           worker/src/__tests__/platform/smoke.test.ts

@@ -1,10 +1,14 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { DrizzleDB } from '../db/middleware';
 import { instanceSettings } from '../db/app.schema';
 import { DEFAULT_APP_NAME } from './name';
 import { SIZES, type InstanceType } from '../actions/runner-sizes';
+import {
+  accessWriteGuard,
+  type AccessWriteAuthorization,
+} from '../access/write';
 
 /**
  * Instance settings a site admin changes in Site admin, without a deploy. Each has a default:
@@ -263,7 +267,8 @@ export type SettingValue<K extends SettingKey> = ReturnType<
   (typeof SETTINGS)[K]['default']
 >;
 
-export const isSettingKey = (k: string): k is SettingKey => k in SETTINGS;
+export const isSettingKey = (k: string): k is SettingKey =>
+  Object.hasOwn(SETTINGS, k);
 
 /** A setting's value from the stored rows: its saved value, else what it follows, else its default. */
 function resolve(
@@ -320,32 +325,39 @@ export async function getSetting<K extends SettingKey>(
 
 /**
  * Saves a setting, or with `value === undefined` resets it to its default. Throws a ZodError
- * when the value doesn't validate.
+ * when the value doesn't validate. False means the original authorization no longer holds;
+ * a reset with no override succeeds only while that same authorization is still valid.
  */
 export async function setSetting(
   db: DrizzleDB,
   key: SettingKey,
   value: unknown,
-  userId: string
-) {
+  authorization: AccessWriteAuthorization
+): Promise<boolean> {
+  if (authorization.target.kind !== 'instance') return false;
+  const guard = accessWriteGuard(authorization);
   if (value === undefined) {
-    await db.delete(instanceSettings).where(eq(instanceSettings.key, key));
-    return;
+    const [removed, authority] = await db.batch([
+      db
+        .delete(instanceSettings)
+        .where(and(eq(instanceSettings.key, key), guard))
+        .returning({ key: instanceSettings.key }),
+      db.select({ allowed: sql<number>`${guard}` }).from(sql`(SELECT 1)`),
+    ]);
+    // The delete receipt proves authorization at the write. Only an empty reset
+    // needs the subsequent check in the same transaction to distinguish a stale proof.
+    return removed.length > 0 || authority[0]?.allowed === 1;
   }
   const parsed = (SETTINGS[key].schema as z.ZodType).parse(value);
-  const row = {
-    key,
-    value: parsed,
-    updatedById: userId,
-    updatedAt: new Date(),
-  };
-  await db
-    .insert(instanceSettings)
-    .values(row)
-    .onConflictDoUpdate({
-      target: instanceSettings.key,
-      set: { value: parsed, updatedById: userId, updatedAt: row.updatedAt },
-    });
+  const written = await db.all<{ key: string }>(sql`
+    INSERT INTO instance_settings (key, value, updated_by_id, updated_at)
+    SELECT ${key}, ${parsed === null ? null : JSON.stringify(parsed)}, ${authorization.userId}, ${Math.floor(Date.now() / 1000)}
+    WHERE ${guard}
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value,
+      updated_by_id = excluded.updated_by_id, updated_at = excluded.updated_at
+    RETURNING key
+  `);
+  return written.length > 0;
 }
 
 /** Every setting with its current value, default, and whether it was changed, for Site admin. */
