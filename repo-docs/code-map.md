@@ -86,6 +86,8 @@ Worker 按业务归属组织。各域的 `http/` 保存 HTTP 路由或协议适�
 
 表中路径均相对于 `worker/src/`。编码会话在 `worker/src/pulls/sessions.ts`，浏览器会话在 `worker/src/auth/session.ts`；合并队列在 `worker/src/merge/queue.ts`，Actions 调度队列在 `worker/src/actions/queue.ts`。修改时应先确认所指对象，避免仅凭相似文件名选错模块。
 
+站点设置的保存和恢复默认从[管理入口](../worker/src/instance/http/admin-router.ts)进入[设置服务](../worker/src/instance/settings.ts)。入口只捕获一次管理员浏览器证明，服务在实际写入时检查；恢复默认即使没有覆盖行也要确认该证明仍有效。这个入口负责实例配置，团队和协作者授权仍在各自领域，完整范围见[权限现状](../docs/permissions.md#当前授权管理写入)。
+
 原生管理员写入的最终授权在 [`worker/src/auth/native-admin.ts`](../worker/src/auth/native-admin.ts)：它只包装 SDK 适配器的 D1 写入，复用 `worker/src/access/write.ts` 的会话与权限证明；自有删除入口单独带同一证明。发行版标签的创建收据声明在 [`worker/src/db/release.schema.ts`](../worker/src/db/release.schema.ts)，由 `worker/src/releases/service.ts` 在成功创建标签后写入；未带收据的历史标签不能推断为可恢复的发布。前者没有认证 schema 变更，后者由生成器新增迁移 `0066`。
 
 ## 开发与安装脚本导航

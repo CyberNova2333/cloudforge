@@ -38,6 +38,12 @@ Keep `assets.run_worker_first` as shipped (it includes `/mcp` and `/.well-known/
 
 Variables marked **Default only** are defaults: **Site admin → Settings** overrides them, stored in D1 (`instance_settings`), and takes effect without a deploy. They're read only where they're used (invitations, reviews, the MCP handshake, page loads), never on every request. Deploy-time facts (`BASE_URL`, the R2 account, and bucket names, which must match the bindings) stay here only.
 
+Saving a setting or restoring its default requires the existing recent local authentication and current site-admin
+authority at the actual D1 write. If that authority changes while the request waits, the response is `409` and no
+successful settings audit is recorded; refresh and retry explicitly. Resetting a setting that already uses its
+default still succeeds while the original authorization remains valid. A later audit storage failure does not
+undo a completed setting change or ask the browser to repeat it. Unregistered setting keys return `404`.
+
 | Variable                    | Example                     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | --------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `APP_NAME`                  | `CloudForge`                | The instance's name: page titles, sign-in and setup pages, invitation emails, the git auth realm, AI agent prompts, and the MCP server (whose id is the lowercased name, e.g. `XY Space Git` → `xy-space-git`) **Default only:** a site admin can change it in **Site admin → Settings** without a deploy.                                                                                                                                                      |
