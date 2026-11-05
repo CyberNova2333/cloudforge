@@ -53,13 +53,14 @@ export async function recentAuthorization(
   return row ? { sessionId, userId, authVersion: row.authVersion } : null;
 }
 
-/** Browser credential issuance, access management and site administration. */
+/** Browser credential issuance, access management, repository settings and site administration. */
 export function needsRecentRestAuthentication(method: string, path: string) {
   const p = path.replace(/\/$/, '');
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS')
     return false;
   return (
     (method === 'POST' && p === '/api/tokens') ||
+    (method === 'PATCH' && /^\/api\/repos\/[^/]+\/[^/]+$/.test(p)) ||
     (method === 'POST' &&
       /^\/api\/repos\/[^/]+\/[^/]+\/deploy-tokens$/.test(p)) ||
     ((method === 'PUT' || method === 'DELETE') &&
