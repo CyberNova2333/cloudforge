@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // A push's follow-ups, made durable. The git endpoint records the ref updates a push made (`push_events`) before it
 // answers, then runs these follow-ups in the background: Cloudflare stops that 30 s after the response, so an event
 // left unfinished runs again, from the next push to its repository or from the daily retention. Every follow-up may
@@ -121,18 +122,30 @@ async function followUps(
 ) {
   const found = await findRepoById(db, event.repositoryId);
   if (!found) return; // Deleted since: nothing to follow up.
-  const { repo } = found;
-  const fullName = `${found.namespace.username}/${repo.name}`;
-  const patch: { updatedAt: Date; defaultBranch?: string } = {
-    updatedAt: new Date(),
-  };
-  const git = gitFor(env, repo);
+  const before = found.repo;
+  const git = gitFor(env, before);
   const refsAfter = await git.refs();
   const branches = await git.branches();
-  if (branches.length && !branches.some((b) => b.name === repo.defaultBranch))
-    patch.defaultBranch =
-      branches.find((b) => b.name === 'main')?.name ?? branches[0].name;
-  await db.update(repositories).set(patch).where(eq(repositories.id, repo.id));
+  const candidate =
+    branches.length && !branches.some((b) => b.name === before.defaultBranch)
+      ? (branches.find((b) => b.name === 'main')?.name ?? branches[0].name)
+      : undefined;
+  const repo = await db
+    .update(repositories)
+    .set({
+      updatedAt: new Date(),
+      ...(candidate !== undefined && {
+        // A settings save during the Artifacts reads owns its newer default.
+        // Still record this push's activity when automatic adoption loses the race.
+        defaultBranch: sql`CASE WHEN ${repositories.defaultBranch} = ${before.defaultBranch}
+          THEN ${candidate} ELSE ${repositories.defaultBranch} END`,
+      }),
+    })
+    .where(eq(repositories.id, before.id))
+    .returning()
+    .get();
+  if (!repo) return; // Deleted during the remote reads.
+  const fullName = `${found.namespace.username}/${repo.name}`;
   // The commands that still stand: their refs are where the push put them. A ref moved again since is that push's to
   // report.
   const updates: RefUpdate[] = event.commands.filter((c) =>

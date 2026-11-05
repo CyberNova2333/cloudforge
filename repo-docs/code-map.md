@@ -88,6 +88,8 @@ Worker 按业务归属组织。各域的 `http/` 保存 HTTP 路由或协议适�
 
 站点设置的保存和恢复默认从[管理入口](../worker/src/instance/http/admin-router.ts)进入[设置服务](../worker/src/instance/settings.ts)。入口只捕获一次管理员浏览器证明，服务在实际写入时检查；恢复默认即使没有覆盖行也要确认该证明仍有效。这个入口负责实例配置，团队和协作者授权仍在各自领域，完整范围见[权限现状](../docs/permissions.md#当前授权管理写入)。
 
+仓库设置由[仓库 HTTP 入口](../worker/src/repositories/http/repos-router.ts)捕获原浏览器证明，再交给[仓库设置服务](../worker/src/repositories/settings.ts)做输入规范化、实际写入的授权与设置快照比较、成功回执及审计。更新冲突需要刷新后重新提交；近期身份验证的界面仍复用共用 API 流程。这个服务只负责现有设置字段，创建、删除和协作者管理保留各自入口。
+
 原生管理员写入的最终授权在 [`worker/src/auth/native-admin.ts`](../worker/src/auth/native-admin.ts)：它只包装 SDK 适配器的 D1 写入，复用 `worker/src/access/write.ts` 的会话与权限证明；自有删除入口单独带同一证明。发行版标签的创建收据声明在 [`worker/src/db/release.schema.ts`](../worker/src/db/release.schema.ts)，由 `worker/src/releases/service.ts` 在成功创建标签后写入；未带收据的历史标签不能推断为可恢复的发布。前者没有认证 schema 变更，后者由生成器新增迁移 `0066`。
 
 ## 开发与安装脚本导航

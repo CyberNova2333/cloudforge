@@ -21,11 +21,9 @@ import { decoder } from '../../git/bytes';
 import { GitPushError } from '../../git/remote';
 import type { GitService } from '../../git/service';
 import {
-  isValidRepoName,
   getTeam,
   gitFor,
   loadRepo,
-  normalizeRepoName,
   teamNamespace,
   userNamespace,
   visibleTo,
@@ -34,13 +32,15 @@ import {
 } from '../service';
 import { deleteRepository } from '../deletion';
 import { recordAudit } from '../../audit/service';
-import { createRepository, nameTaken } from '../create';
+import { createRepository } from '../create';
+import {
+  repositorySettingsConflict,
+  updateRepositorySettings,
+} from '../settings';
 import { repoStats } from '../stats';
 import {
-  invalidProtectedPatterns,
   MAX_PROTECTED_PATTERN_LENGTH,
   MAX_PROTECTED_PATTERNS,
-  normalizeProtectedPatterns,
   protectedBy,
 } from '../protected-branches';
 import {
@@ -327,97 +327,36 @@ const updateRepoRoute = createRoute({
   },
 });
 reposRouter.openapi(updateRepoRoute, async (c) => {
+  c.header('Cache-Control', 'no-store');
   if (!can(c.get('perms'), 'editSettings'))
     return c.json({ error: 'You must be an admin of this repository' }, 403);
+  const recent = c.get('recentAuthorization');
+  if (
+    !recent ||
+    c.get('browserSession')?.id !== recent.sessionId ||
+    c.get('user')?.id !== recent.userId
+  )
+    return c.json({ error: 'A verified browser session is required' }, 403);
   const db = c.get('db');
   const repo = c.get('repo');
-  const body = c.req.valid('json');
-  const patch: Partial<Repository> = { updatedAt: new Date() };
-  if (body.name !== undefined && body.name !== repo.name) {
-    const name = normalizeRepoName(body.name);
-    if (!isValidRepoName(name))
-      return c.json({ error: 'Repository name is invalid' }, 400);
-    if (await nameTaken(db, repo, name))
-      return c.json({ error: 'Name already exists in this namespace' }, 409);
-    patch.name = name;
-  }
-  if (body.description !== undefined)
-    patch.description = body.description?.trim() || null;
-  if (body.visibility !== undefined && body.visibility !== repo.visibility) {
-    if (repo.teamId && body.visibility === 'private')
-      return c.json(
-        { error: 'Team repositories are always visible to every member' },
-        400
-      );
-    patch.visibility = body.visibility;
-  }
-  if (body.defaultBranch !== undefined) {
-    if (!(await c.get('git').refs()).has(`refs/heads/${body.defaultBranch}`))
-      return c.json({ error: 'Branch not found' }, 400);
-    patch.defaultBranch = body.defaultBranch;
-  }
-  if (body.protectedBranches !== undefined) {
-    const patterns = (body.protectedBranches ?? []).map((p) => p.trim());
-    const invalid = invalidProtectedPatterns(patterns);
-    if (invalid) return c.json({ error: invalid }, 400);
-    patch.protectedBranches = normalizeProtectedPatterns(patterns);
-  }
-  if (body.deleteMergedBranches !== undefined)
-    patch.deleteMergedBranches = body.deleteMergedBranches;
-  if (body.hasIssues !== undefined) patch.hasIssues = body.hasIssues;
-  await db.update(repositories).set(patch).where(eq(repositories.id, repo.id));
-  await auditRepoChanges(
+  const authorization = await captureAccessWrite(db, recent, {
+    kind: 'repository',
+    repositoryId: repo.id,
+  });
+  if (!authorization)
+    return c.json({ error: repositorySettingsConflict.error }, 409);
+  const result = await updateRepositorySettings(
     db,
-    c.get('user')!.id,
+    c.get('git'),
     repo,
-    patch,
-    c.get('namespace')
+    c.get('namespace'),
+    c.req.valid('param'),
+    c.req.valid('json'),
+    authorization
   );
-  return c.json(serializeRepo({ ...repo, ...patch }, c.get('namespace')), 200);
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+  return c.json(serializeRepo(result.repo, c.get('namespace')), 200);
 });
-
-/** What the settings route changed, for the audit log: visibility on its own, the rest as one `settings.changed`. */
-async function auditRepoChanges(
-  db: DrizzleDB,
-  actorId: string,
-  before: Repository,
-  patch: Partial<Repository>,
-  ns: Namespace
-) {
-  const target = `${ns.username}/${patch.name ?? before.name}`;
-  const changes: Record<string, { from: unknown; to: unknown }> = {};
-  for (const key of [
-    'name',
-    'description',
-    'defaultBranch',
-    'protectedBranches',
-    'deleteMergedBranches',
-    'hasIssues',
-  ] as const) {
-    if (!(key in patch)) continue;
-    const list = key === 'protectedBranches';
-    const from = list ? (before[key] ?? []) : before[key];
-    const to = list ? (patch[key] ?? []) : patch[key];
-    if (JSON.stringify(from) !== JSON.stringify(to))
-      changes[key] = { from, to };
-  }
-  if (Object.keys(changes).length)
-    await recordAudit(db, {
-      repositoryId: before.id,
-      actorId,
-      action: 'settings.changed',
-      target,
-      data: { changes },
-    });
-  if (patch.visibility !== undefined && patch.visibility !== before.visibility)
-    await recordAudit(db, {
-      repositoryId: before.id,
-      actorId,
-      action: 'visibility.changed',
-      target,
-      data: { from: before.visibility, to: patch.visibility },
-    });
-}
 
 const deleteRepoRoute = createRoute({
   method: 'delete',

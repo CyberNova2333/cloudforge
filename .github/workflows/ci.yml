@@ -266,6 +266,7 @@ jobs:
           worker/src/__tests__/git/artifacts-cache.test.ts
           worker/src/__tests__/actions/actions-cache.test.ts
           worker/src/__tests__/git/push-events.test.ts
+          worker/src/__tests__/git/push-settings.test.ts
           worker/src/__tests__/git/pull-refs.test.ts
           worker/src/__tests__/git/git-objects.test.ts
           worker/src/__tests__/git/git-blob-limits.test.ts
@@ -300,6 +301,7 @@ jobs:
         run: >-
           yarn test
           worker/src/__tests__/repos/repos-pulls.test.ts
+          worker/src/__tests__/repos/settings-write.test.ts
           worker/src/__tests__/auth/auth-boundaries.test.ts
           worker/src/__tests__/auth/two-factor.test.ts
           worker/src/__tests__/auth/mfa-reset.test.ts
