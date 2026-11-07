@@ -130,6 +130,15 @@ describe('CI 工作流（.github/workflows/ci.yml）', () => {
     expect(stale).toEqual([]);
   });
 
+  it('测试步骤将路径保留在同一 shell 命令中', () => {
+    for (const j of [job('build'), ...testJobs]) {
+      const steps = j.steps.filter((s) =>
+        s.run?.trim().startsWith('yarn test')
+      );
+      for (const s of steps) expect(s.run, j.key).not.toContain('\n');
+    }
+  });
+
   it('构建作业自身检查模块划分，确保门控无法跳过此检查', () => {
     expect(filters(job('build'))).toEqual([
       'worker/src/__tests__/platform/ci-workflow.test.ts',
