@@ -314,13 +314,13 @@ jobs:
           worker/src/__tests__/auth/oauth-account-linking.test.ts
           worker/src/__tests__/oidc/oidc-provider.test.ts
           worker/src/__tests__/oidc/oidc-linking.test.ts
-            worker/src/__tests__/oidc/oidc-session-source.test.ts
-            worker/src/__tests__/auth/session-secret-cache.test.ts
-            worker/src/__tests__/oidc/oidc-sign-in.test.ts
+          worker/src/__tests__/oidc/oidc-session-source.test.ts
+          worker/src/__tests__/auth/session-secret-cache.test.ts
+          worker/src/__tests__/oidc/oidc-sign-in.test.ts
           src/lib/auth/authenticationPolicy.test.ts
           src/lib/auth/oidcApi.test.ts
-            src/lib/auth/oidcSignInApi.test.ts
-            src/lib/auth/signInLock.test.ts
+          src/lib/auth/oidcSignInApi.test.ts
+          src/lib/auth/signInLock.test.ts
           worker/src/__tests__/auth/recent-authentication.test.ts
           worker/src/__tests__/auth/identity-security-regression.test.ts
           worker/src/__tests__/auth/user-deletion.test.ts
