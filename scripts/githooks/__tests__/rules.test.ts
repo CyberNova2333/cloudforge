@@ -86,7 +86,25 @@ describe('提交信息规则（与 legacy-client 同一标准）', () => {
 describe('pre-push 钩子', () => {
   const hook = resolve(__dirname, '../pre-push.mjs');
   let dir = '';
-  afterEach(() => dir && rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => {
+    if (!dir) return;
+    try {
+      rmSync(dir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
+    } catch (error) {
+      // Windows 的 Git 子进程可能延迟释放临时目录；不掩盖实际钩子断言。
+      if (
+        process.platform !== 'win32' ||
+        (error as NodeJS.ErrnoException).code !== 'EPERM'
+      ) {
+        throw error;
+      }
+    }
+  });
 
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
@@ -104,8 +122,8 @@ describe('pre-push 钩子', () => {
     );
     return git('rev-parse', 'HEAD');
   };
-  const push = (localSha: string, remoteSha: string) =>
-    spawnSync('node', [hook, 'origin'], {
+  const push = (localSha: string, remoteSha: string, remote = 'origin') =>
+    spawnSync(process.execPath, [hook, remote], {
       cwd: dir,
       input: `refs/heads/main ${localSha} refs/heads/main ${remoteSha}\n`,
       encoding: 'utf8',
@@ -126,5 +144,17 @@ describe('pre-push 钩子', () => {
     expect(r.stderr).not.toContain('an old English commit');
     // A deletion pushes no commits.
     expect(push('0'.repeat(40), bad).status).toBe(0);
+  });
+
+  it('首次推送 GitHub 镜像时保留并排除上游原作历史', () => {
+    dir = mkdtempSync(join(tmpdir(), 'cf-prepush-mirror-'));
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 'T');
+    const upstream = commit('Crew redesign: original upstream history');
+    git('update-ref', 'refs/remotes/upstream/main', upstream);
+    const fork = commit(OK);
+    expect(push(fork, '0'.repeat(40), 'github').status).toBe(0);
+    expect(push(fork, '0'.repeat(40), 'origin').status).toBe(1);
   });
 });

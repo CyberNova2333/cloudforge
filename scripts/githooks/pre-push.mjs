@@ -21,10 +21,16 @@ function hasObject(sha) {
 
 /** The commits `localSha` brings that the remote doesn't have, oldest first. */
 function newCommits(remote, localSha, remoteSha) {
+  const firstMirror =
+    ZERO.test(remoteSha) &&
+    remote === 'github' &&
+    hasObject('refs/remotes/upstream/main');
   const range =
     !ZERO.test(remoteSha) && hasObject(remoteSha)
       ? [`${remoteSha}..${localSha}`]
-      : [localSha, '--not', `--remotes=${remote}`];
+      : firstMirror
+        ? [localSha, '^refs/remotes/upstream/main']
+        : [localSha, '--not', `--remotes=${remote}`];
   const out = git('rev-list', '--reverse', ...range).trim();
   return out ? out.split('\n') : [];
 }

@@ -192,7 +192,7 @@ def staged(exceptions: dict) -> list[str]:
     return errors
 
 
-def pushed(lines: bytes, exceptions: dict) -> list[str]:
+def pushed(lines: bytes, exceptions: dict, remote_name: str = '') -> list[str]:
     commits = set()
     for line in lines.splitlines():
         fields = line.split()
@@ -213,6 +213,10 @@ def pushed(lines: bytes, exceptions: dict) -> list[str]:
             if exists.returncode:
                 raise ValueError('本机缺少远端顶点对象，无法确定待推送范围；先 fetch 对应远端再推送')
             args += ['^' + remote.decode() + '^{commit}']
+        elif remote_name == 'github':
+            upstream = git('rev-parse', '--verify', 'refs/remotes/upstream/main^{commit}', check=False).strip()
+            if upstream:
+                args += ['^' + upstream.decode()]
         commits.update(git(*args).decode().splitlines())
     errors, checked = [], {}
     reader = ObjectBatch()
@@ -339,7 +343,7 @@ def main() -> int:
             raise ValueError('commit-msg 缺少提交信息文件')
         errors = message_problems(Path(args.arguments[0]).read_text(encoding='utf-8-sig'))
     else:
-        errors = pushed(sys.stdin.buffer.read(), exceptions)
+        errors = pushed(sys.stdin.buffer.read(), exceptions, args.arguments[0] if args.arguments else '')
     if errors:
         print('安全检查未通过（仅显示规则与位置，不输出凭证值）：', file=sys.stderr)
         for error in errors[:50]:
