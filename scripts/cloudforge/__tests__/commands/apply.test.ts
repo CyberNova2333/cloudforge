@@ -401,11 +401,11 @@ describe('install：安装', () => {
     ).toBe(false);
     expect(existsSync(config)).toBe(true);
     expect(readFileSync(config, 'utf8').split('\n')[0]).toContain(
-      'Edit inputs with npx @cybernova2333/cloudforge@1.0.0 install, not by hand.'
+      'Edit inputs with pnpm dlx @cybernova2333/cloudforge@1.0.0 install, not by hand.'
     );
     expect(existsSync(join(cwd, 'wrangler.jsonc'))).toBe(false);
     expect(h.printed.join('\n')).toContain(
-      'npx @cybernova2333/cloudforge@1.0.0 install --resume --name acme'
+      'pnpm dlx @cybernova2333/cloudforge@1.0.0 install --resume --name acme'
     );
   });
 
@@ -1060,7 +1060,7 @@ describe('resumeInstalled：恢复已完成的安装', () => {
     const out = h.printed.join('\n');
     expect(out).toContain('Nothing to do.');
     expect(out).toContain(
-      `Upgrades: run npx @cybernova2333/cloudforge adopt --from ${cwd}, then npx @cybernova2333/cloudforge upgrade.`
+      `Upgrades: run pnpm dlx @cybernova2333/cloudforge adopt --from ${cwd}, then pnpm dlx @cybernova2333/cloudforge upgrade.`
     );
   });
 

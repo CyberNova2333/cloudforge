@@ -269,7 +269,10 @@ describe('软件包构建路径', () => {
     expect(hash(gen('/p'), '/p')).toBe(hash(gen('/q'), '/q'));
     expect(hash(gen('/p', '1.2.4'), '/p')).not.toBe(hash(gen('/p'), '/p'));
     expect(
-      hash(gen('/p', '1.2.3', 'npx @cybernova2333/cloudforge@2 install'), '/p')
+      hash(
+        gen('/p', '1.2.3', 'pnpm dlx @cybernova2333/cloudforge@2 install'),
+        '/p'
+      )
     ).toBe(hash(gen('/p'), '/p'));
   });
 

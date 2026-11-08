@@ -87,7 +87,7 @@ describe.each(['nested', 'hoisted'] as const)(
           join('/home/x', 'wrangler.jsonc'),
         ],
       });
-      expect(s.wranglerCommand('tail')).toBe('npx wrangler@4.127.0 tail');
+      expect(s.wranglerCommand('tail')).toBe('pnpm dlx wrangler@4.127.0 tail');
     });
     it('wranglerBare 运行自带可执行文件且不传 --config', () => {
       const { root, s } = setup();
@@ -152,7 +152,7 @@ describe.each(['nested', 'hoisted'] as const)(
     });
     it('命令', () => {
       expect(setup().s.command('install --resume --name acme')).toBe(
-        'npx @cybernova2333/cloudforge@1.2.0 install --resume --name acme'
+        'pnpm dlx @cybernova2333/cloudforge@1.2.0 install --resume --name acme'
       );
     });
   }

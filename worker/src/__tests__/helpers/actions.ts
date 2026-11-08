@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - id: build
         run: echo building
-      - run: npm test
+      - run: pnpm test
 `;
 
 export type Run = {

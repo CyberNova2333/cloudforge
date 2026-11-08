@@ -21,7 +21,7 @@ describe('@ 提及', () => {
           '```',
           '@carol',
           '```',
-          'npm i @scope/pkg x@dave /@erin @-bad @frank_',
+          'pnpm i @scope/pkg x@dave /@erin @-bad @frank_',
         ].join('\n')
       )
     ).toEqual([]);

@@ -262,7 +262,7 @@ export function fakeCloudflare(seed: FakeCloudflareSeed = {}): FakeCloudflare {
 
 /**
  * A temp cloudforge package under `dir` (package.json, worker/build.json, a wrangler package with a bin).
- * "nested": wrangler under <root>/node_modules; "hoisted": beside the package, as npx installs it.
+ * "nested": wrangler under <root>/node_modules; "hoisted": beside the package, as pnpm dlx installs it.
  * Returns the package root.
  */
 export function fakePackage(

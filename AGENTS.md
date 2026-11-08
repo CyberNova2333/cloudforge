@@ -8,7 +8,7 @@
 
 ## 常用命令
 
-只用 Yarn 执行项目命令；不以 npm/npx 替换。运行环境与配置步骤见 [开发说明](docs/development.md)。
+只用 Yarn 执行项目命令；不以 npm/pnpm dlx 替换。运行环境与配置步骤见 [开发说明](docs/development.md)。
 
 | 任务 | 命令 |
 | --- | --- |
