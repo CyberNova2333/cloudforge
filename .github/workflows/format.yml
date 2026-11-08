@@ -21,11 +21,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
-      # Only Prettier, not the whole dependency tree: the exact version yarn.lock pins, so the
+      # Only Prettier, not the whole dependency tree: the exact version pnpm-lock.yaml pins, so the
       # check matches `yarn format` locally.
       - name: Install Prettier
         run: |
-          version=$(awk '/^prettier@/ { getline; gsub(/"/, "", $2); print $2; exit }' yarn.lock)
+          version=$(awk '/^prettier@/ { getline; gsub(/"/, "", $2); print $2; exit }' pnpm-lock.yaml)
           yarn global add "prettier@$version" --silent
           yarn global bin >> "$GITHUB_PATH"
       - run: prettier --check .
