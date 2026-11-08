@@ -73,7 +73,7 @@ export function describeState(
 }
 
 /**
- * The command that moves this install to `latest`: always npx at that version (this package's own
+ * The command that moves this install to `latest`: always pnpm dlx at that version (this package's own
  * version would redeploy the same release). An install still in a checkout is adopted first, since
  * upgrade runs only on installs under ~/.cloudforge.
  */
@@ -82,11 +82,11 @@ export function upgradeHint(
   latest: string | null,
   where: { slug?: string; checkout?: string }
 ): string {
-  const npx = `npx @cybernova2333/cloudforge@${latest ?? 'latest'}`;
+  const runner = `pnpm dlx @cybernova2333/cloudforge@${latest ?? 'latest'}`;
   const slug = where.slug ?? s.inputs.name;
-  const upgrade = `${npx} upgrade --name ${slug}`;
+  const upgrade = `${runner} upgrade --name ${slug}`;
   if (where.checkout === undefined || s.movedTo !== undefined) return upgrade;
-  return `${npx} adopt --from ${where.checkout} --name ${s.inputs.name}, then ${upgrade}`;
+  return `${runner} adopt --from ${where.checkout} --name ${s.inputs.name}, then ${upgrade}`;
 }
 
 export async function status(

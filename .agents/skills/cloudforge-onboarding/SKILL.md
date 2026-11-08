@@ -11,7 +11,7 @@ Deploy a production CloudForge instance to **the user's own Cloudflare account**
 
 ## Before you start
 
-The deployment itself is `npx @cybernova2333/cloudforge install` (`scripts/cloudforge/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `yarn cloudforge install` instead, and everywhere below read `npx @cybernova2333/cloudforge` as `yarn cloudforge`. If npx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
+The deployment itself is `pnpm dlx @cybernova2333/cloudforge install` (`scripts/cloudforge/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `yarn cloudforge install` instead, and everywhere below read `pnpm dlx @cybernova2333/cloudforge` as `yarn cloudforge`. If pnpm dlx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
 
 ## What the user is signing up for
 
@@ -35,12 +35,12 @@ docker info --format '{{.ServerVersion}}'   # Docker must be running: the deploy
 
 In a clone, run `yarn install` too. If Docker isn't running, ask the user to start it and wait. Ask "Is this account on the **Workers Paid** plan?"; if not, send them to https://dash.cloudflare.com/?to=/:account/workers/plans and wait.
 
-Cloudflare credentials: `npx wrangler whoami`. If not logged in, the user runs it themselves (it opens a browser): ask them to type `! npx wrangler login`. A `CLOUDFLARE_API_TOKEN` also works (permissions in `docs/setup.md`); never ask them to paste one into the chat.
+Cloudflare credentials: `pnpm dlx wrangler whoami`. If not logged in, the user runs it themselves (it opens a browser): ask them to type `! pnpm dlx wrangler login`. A `CLOUDFLARE_API_TOKEN` also works (permissions in `docs/setup.md`); never ask them to paste one into the chat.
 
 Then ask the inputs, one at a time:
 
 1. **Name** (default `cloudforge`; it names the worker and every resource).
-2. **Account**, if `npx wrangler whoami` lists several (`--account <id|name>`).
+2. **Account**, if `pnpm dlx wrangler whoami` lists several (`--account <id|name>`).
 3. **Hostname**: a custom domain whose zone is on this Cloudflare account (`--hostname git.example.com`) or the free workers.dev address (`--workers-dev`).
 4. **Invitation sender**: an address on a domain set up for Email Sending (`--from-email noreply@example.com`), or none (`--no-email`; invite links still work).
 
@@ -51,7 +51,7 @@ Then ask the inputs, one at a time:
 Run (flags from the answers; this is read-only, so it is safe from your shell):
 
 ```bash
-npx @cybernova2333/cloudforge install --plan --name <name> --hostname <host> --from-email <address>
+pnpm dlx @cybernova2333/cloudforge install --plan --name <name> --hostname <host> --from-email <address>
 ```
 
 Never pass `--yes` yourself: your shell is not a terminal, so the apply must be run by the user. If preflight reports problems, nothing was changed: each failure comes with its fix. Help the user resolve them and run the plan again. Common ones: Artifacts or Workers Paid missing, R2 not enabled, no workers.dev subdomain yet (open Workers & Pages once), the zone not active, the sender domain not enabled for Email Sending, Docker not running, an API token lacking a permission.
@@ -72,18 +72,18 @@ Never ask them to paste any of these into the chat.
 Ask for an explicit yes, then give the user the apply command the plan printed (it ends with `--expect-plan <digest> --yes`, so it applies exactly the plan they reviewed). Ask them to run it **in their own terminal window, not with `!` here**: the setup code it prints must stay out of this conversation, and the masked credential prompts need a real terminal, which `!` may not provide.
 
 ```
-npx @cybernova2333/cloudforge install --name <name> ... --expect-plan <digest> --yes
+pnpm dlx @cybernova2333/cloudforge install --name <name> ... --expect-plan <digest> --yes
 ```
 
-It runs for several minutes (the first deploy builds the runner image). At the end it prints a **setup code** once and `<BASE_URL>/setup`. Tell the user to keep it and enter it there to create the admin account; only someone with the code can. Ask them to come back and say whether it succeeded, **without pasting the setup code** (or any output line that contains it). Then run `npx @cybernova2333/cloudforge status --name <name>` yourself: it shows the recorded installation and asks the deployed worker whether it matches.
+It runs for several minutes (the first deploy builds the runner image). At the end it prints a **setup code** once and `<BASE_URL>/setup`. Tell the user to keep it and enter it there to create the admin account; only someone with the code can. Ask them to come back and say whether it succeeded, **without pasting the setup code** (or any output line that contains it). Then run `pnpm dlx @cybernova2333/cloudforge status --name <name>` yourself: it shows the recorded installation and asks the deployed worker whether it matches.
 
-If the run fails, the message names the failed step and prints `npx @cybernova2333/cloudforge install --resume --name <name>`. Ask the user for the error lines (never the `Setup code:` line: a failure after the secrets went live prints the code too, so they keep it), help fix the cause, and have them run that command in their terminal (it skips what is done and creates nothing twice). "The plan changed since it was reviewed" means something moved: run `--plan` again yourself and review the new one. A lost code before the admin exists: they run `npx @cybernova2333/cloudforge install --resume --name <name> --new-setup-code` in their terminal (the old code stops working; plain `--resume` in a terminal asks first).
+If the run fails, the message names the failed step and prints `pnpm dlx @cybernova2333/cloudforge install --resume --name <name>`. Ask the user for the error lines (never the `Setup code:` line: a failure after the secrets went live prints the code too, so they keep it), help fix the cause, and have them run that command in their terminal (it skips what is done and creates nothing twice). "The plan changed since it was reviewed" means something moved: run `--plan` again yourself and review the new one. A lost code before the admin exists: they run `pnpm dlx @cybernova2333/cloudforge install --resume --name <name> --new-setup-code` in their terminal (the old code stops working; plain `--resume` in a terminal asks first).
 
 ### Step 4: Verify end to end
 
 1. Open `<BASE_URL>/setup`. It asks for the setup code, then creates the account, which **becomes the site admin; setup closes forever after**. Do it before sharing the URL.
    Then have them open avatar → **Site admin**: Site admin → Setup shows what's misconfigured (missing secrets, bindings, or variables, `BASE_URL` mismatches, unapplied migrations, rejected R2 credentials, AI Gateway settings), errors first, each with the steps to fix it. Work through any errors before continuing.
-2. Have them create a repository with **Add a README file** checked. If creation fails with an Artifacts error, run `npx @cybernova2333/cloudforge status` and recheck Artifacts access (Workers Paid).
+2. Have them create a repository with **Add a README file** checked. If creation fails with an Artifacts error, run `pnpm dlx @cybernova2333/cloudforge status` and recheck Artifacts access (Workers Paid).
 3. Have them create a token (avatar → **Personal access tokens**) and run `git clone <BASE_URL>/<username>/<repo>.git`, using the token as the password.
 4. If the R2 secrets are set and they have [git-lfs](https://git-lfs.com) installed: in the clone, `git lfs install && git lfs track "*.bin"`, add a file, commit, and `git push`. The file's page in the UI should say **Stored with Git LFS** and offer a download.
 5. Have them invite themselves at a second address (**+ → Invite member**) and confirm the email arrives. If it doesn't, the `FROM_EMAIL` domain isn't verified for Email Sending — the invite link on the admin page still works meanwhile.
@@ -141,11 +141,11 @@ Report, with real values substituted (the installer's own summary lists most of 
 - Worker `<name>` live at `<BASE_URL>`, installation recorded in `~/.cloudforge/<name>/` (`.cloudforge/` in a clone)
 - D1 database and R2 buckets (LFS, Actions logs, Actions cache), migrations applied
 - Invitations sent from `<FROM_EMAIL>` or none
-- R2 upload keys and the analytics token: `<set | skipped: add with npx @cybernova2333/cloudforge install --resume>`
+- R2 upload keys and the analytics token: `<set | skipped: add with pnpm dlx @cybernova2333/cloudforge install --resume>`
 - Admin account `<username>` created with the setup code
 - Reviewer agents: `<the recommended crew | from github.com/gitorangeapp: <handles>, whole or AGENT.md only | none yet>`, invited in `<repositories>`
 - Instance name, invitation sender, and AI models can later be changed in Site admin → Settings without a deploy; the wrangler vars are only defaults
-- To update later: `npx @cybernova2333/cloudforge@latest upgrade` (in a clone: `git pull && yarn install && yarn db:migrate:prod && yarn deploy`). It prints a plan first; the user runs the apply in their own terminal, as for the install. A deploy restarts running Actions jobs (each restarts from the beginning, up to 3 attempts), so prefer deploying when no CI is running.
+- To update later: `pnpm dlx @cybernova2333/cloudforge@latest upgrade` (in a clone: `git pull && yarn install && yarn db:migrate:prod && yarn deploy`). It prints a plan first; the user runs the apply in their own terminal, as for the install. A deploy restarts running Actions jobs (each restarts from the beginning, up to 3 attempts), so prefer deploying when no CI is running.
 
 ## Common issues
 

@@ -487,7 +487,7 @@ describe('upgrade：升级', () => {
   it('拒绝降级', async () => {
     const h = harness({ running: '1.4.0' });
     await expect(run(h)).rejects.toThrow(
-      'Run that version instead: npx @cybernova2333/cloudforge@1.4.0 upgrade --name acme'
+      'Run that version instead: pnpm dlx @cybernova2333/cloudforge@1.4.0 upgrade --name acme'
     );
     expect(h.nonDocker()).toHaveLength(0);
     expect(h.saved().status).toBe('installed');
@@ -568,7 +568,7 @@ describe('upgrade：升级', () => {
     expect(m).toContain('stock CloudForge');
     expect(m).toContain('own checkout');
     expect(m).toContain(
-      'npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --replace-custom-code'
+      'pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --replace-custom-code'
     );
     expect(h.nonDocker()).toHaveLength(0);
   });
@@ -691,7 +691,7 @@ describe('upgrade：升级', () => {
     h.failDeploys();
     const e = await run(h).catch((x: Error) => x);
     expect((e as Error).message).toContain(
-      'Run: npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
+      'Run: pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
     );
     const failed = h.saved();
     expect(failed.status).toBe('failed');
@@ -775,7 +775,7 @@ describe('upgrade：升级', () => {
     const m = (e as Error).message;
     expect(m).toContain('anyone could claim this instance');
     expect(m).toContain(
-      'npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
+      'pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
     );
     expect(m).not.toContain('install --resume');
   });
@@ -785,7 +785,7 @@ describe('upgrade：升级', () => {
       state: { ...installedAt120(), status: 'failed', upgradeTarget: '1.2.5' },
     });
     await expect(run(h, { resume: true })).rejects.toThrow(
-      'An upgrade to 1.2.5 is unfinished; run npx @cybernova2333/cloudforge@1.2.5 upgrade --resume'
+      'An upgrade to 1.2.5 is unfinished; run pnpm dlx @cybernova2333/cloudforge@1.2.5 upgrade --resume'
     );
     expect(h.deploys).toHaveLength(0);
   });
@@ -945,7 +945,7 @@ describe('upgrade：升级', () => {
     expect(h.deploys).toHaveLength(0);
     const p = await planUpgrade(h.ctx, h.state);
     expect(h.printed.join('\n')).toContain(
-      `npx @cybernova2333/cloudforge@${TO} upgrade --name acme --expect-plan ${p.digest} --yes`
+      `pnpm dlx @cybernova2333/cloudforge@${TO} upgrade --name acme --expect-plan ${p.digest} --yes`
     );
   });
 });

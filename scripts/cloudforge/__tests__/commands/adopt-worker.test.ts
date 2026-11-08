@@ -286,7 +286,7 @@ describe('adoptWorker：接管 Worker', () => {
       ].join('\n')
     );
     expect(h.text()).toContain(
-      `Adopted acme into ${dest()}.\nCheck it: npx @cybernova2333/cloudforge@1.3.0 status --name acme\nUpgrade it: npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme`
+      `Adopted acme into ${dest()}.\nCheck it: pnpm dlx @cybernova2333/cloudforge@1.3.0 status --name acme\nUpgrade it: pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --name acme`
     );
   });
 
@@ -741,7 +741,7 @@ describe('adoptWorker：报告及停止条件', () => {
       ),
     });
     await expect(plan(h)).rejects.toThrow(
-      'Worker acme already carries a cloudforge installation (CLOUDFORGE_INSTALLATION): adopt it from its checkout with npx @cybernova2333/cloudforge@1.3.0 adopt --from <checkout>. Nothing was changed.'
+      'Worker acme already carries a cloudforge installation (CLOUDFORGE_INSTALLATION): adopt it from its checkout with pnpm dlx @cybernova2333/cloudforge@1.3.0 adopt --from <checkout>. Nothing was changed.'
     );
   });
 

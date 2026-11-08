@@ -54,7 +54,7 @@ yarn cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部
 yarn cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部恢复码遗失"
 ```
 
-手动部署的实例必须同时明确账户和数据库；不能自动选中唯一账户或唯一安装。包安装方式将 `yarn cloudforge` 替换为已安装版本的 `npx @cybernova2333/cloudforge`。
+手动部署的实例必须同时明确账户和数据库；不能自动选中唯一账户或唯一安装。包安装方式将 `yarn cloudforge` 替换为已安装版本的 `pnpm dlx @cybernova2333/cloudforge`。
 
 ```bash
 yarn cloudforge reset-mfa octocat --account ACCOUNT_ID --database DATABASE_ID --reason "验证器与全部恢复码遗失" --plan

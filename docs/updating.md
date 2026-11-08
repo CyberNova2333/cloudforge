@@ -9,7 +9,7 @@ Docker is checked first, before anything is planned or written. Without it you g
 ## Install
 
 ```bash
-npx @cybernova2333/cloudforge install
+pnpm dlx @cybernova2333/cloudforge install
 ```
 
 See [Setup](setup.md) for the questions, the flags, and what it creates. State lives in `~/.cloudforge/<name>/` (override the directory with `CLOUDFORGE_HOME`).
@@ -99,10 +99,10 @@ SHA-shaped branch name cannot cause an empty review or incorrectly skip path-fil
 ref values continue to accept commit SHAs; the contents browser resolves the configured default name as a branch.
 
 ```bash
-npx @cybernova2333/cloudforge@latest upgrade
+pnpm dlx @cybernova2333/cloudforge@latest upgrade
 ```
 
-If `npx` offers an older version right after a release, its registry cache is stale: add `--prefer-online` (`npx --prefer-online @cybernova2333/cloudforge@latest upgrade`).
+If `npx` offers an older version right after a release, its registry cache is stale: add `--prefer-online` (`pnpm dlx --prefer-online @cybernova2333/cloudforge@latest upgrade`).
 
 `upgrade` moves an installation to the package's version. It reads the running version from the worker's `/.well-known/cloudforge`, prints a plan (migrations to apply, resources and secrets to add, the deploy), and asks before applying.
 
@@ -249,13 +249,13 @@ or replacing the original operation error.
 From a checkout that ran `yarn cloudforge install`, which moves its record under `~/.cloudforge`:
 
 ```bash
-npx @cybernova2333/cloudforge adopt --from path/to/checkout
+pnpm dlx @cybernova2333/cloudforge adopt --from path/to/checkout
 ```
 
 (`--name <name>` picks one when the checkout holds several.) Or a worker deployed by hand, read from Cloudflare:
 
 ```bash
-npx @cybernova2333/cloudforge adopt --worker <worker name> --account <id|name>
+pnpm dlx @cybernova2333/cloudforge adopt --worker <worker name> --account <id|name>
 ```
 
 `--plan` shows what would be recorded; apply with `--expect-plan <digest> --yes`. APP_NAME, AI_GATEWAY and the model variables are kept as found.
@@ -263,7 +263,7 @@ npx @cybernova2333/cloudforge adopt --worker <worker name> --account <id|name>
 ## Status
 
 ```bash
-npx @cybernova2333/cloudforge status
+pnpm dlx @cybernova2333/cloudforge status
 ```
 
 Shows a recorded installation and asks the deployed worker whether it matches. `--from <checkout>` reads one that is still in a checkout.
@@ -271,7 +271,7 @@ Shows a recorded installation and asks the deployed worker whether it matches. `
 ## Reset a password
 
 ```bash
-npx @cybernova2333/cloudforge reset-password <username or email>
+pnpm dlx @cybernova2333/cloudforge reset-password <username or email>
 ```
 
 For when nobody can sign in to make a reset link (the only site admin forgot their password, or the instance cannot
@@ -287,7 +287,7 @@ password and are refused.
 `reset-mfa` command with Cloudflare D1 write access. First review the exact account, database, member and effects:
 
 ```bash
-npx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and all recovery codes" --plan
+pnpm dlx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and all recovery codes" --plan
 ```
 
 Then repeat without `--plan` for a confirmation that defaults to no. For a manually deployed installation pass both
@@ -320,7 +320,7 @@ Releases come from the CloudForge instance that hosts the repository, and are pu
 3. Upgrade the instance that runs this repository from the published package:
 
    ```bash
-   npx --prefer-online @cybernova2333/cloudforge@X.Y.Z upgrade --name cloudforge
+   pnpm dlx --prefer-online @cybernova2333/cloudforge@X.Y.Z upgrade --name cloudforge
    ```
 
 Cut, publish and upgrade only when a person says so.

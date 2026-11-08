@@ -145,9 +145,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: \${{ matrix.node }}
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
       - name: Test
-        run: npm test
+        run: pnpm test
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
@@ -182,7 +182,7 @@ jobs:
       'Set up job',
       'Run actions/checkout@v4',
       'Run actions/setup-node@v4',
-      'Run npm ci',
+      'Run pnpm install --frozen-lockfile',
       'Test',
       'Complete job',
     ]);
@@ -455,7 +455,7 @@ describe('日志中的工作流命令', () => {
       [
         '::add-mask::hunter22',
         '::group::Install',
-        'npm ci',
+        'pnpm install --frozen-lockfile',
         '::endgroup::',
         '::debug::noise',
         '::warning file=a.ts,line=1::Deprecated%0Asecond line',
@@ -467,7 +467,7 @@ describe('日志中的工作流命令', () => {
     expect(mask(out.text, out.masks)).toBe(
       [
         '▸ Install',
-        'npm ci',
+        'pnpm install --frozen-lockfile',
         'Warning: Deprecated\nsecond line',
         'password is ***',
         '::set-output name=x::y',

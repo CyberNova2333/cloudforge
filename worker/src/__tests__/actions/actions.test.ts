@@ -89,7 +89,7 @@ jobs:
       'Set up job',
       'Run actions/checkout@v4',
       'Run echo building',
-      'Run npm test',
+      'Run pnpm test',
       'Complete job',
     ]);
   });
@@ -252,7 +252,7 @@ describe('Actions 执行', () => {
     expect(checkout.masks).toEqual([checkout.env.CLOUDFORGE_TOKEN]);
     expect(h.requests.slice(1).map(script)).toEqual([
       'echo building',
-      'npm test',
+      'pnpm test',
     ]);
     expect(h.requests[1]).toMatchObject({ cwd: '/workspace' });
     expect(h.requests[1].env).toMatchObject({
@@ -461,7 +461,7 @@ describe('Actions 中断后的重启', () => {
     const [queued] = (await runs(s.t, s.admin)).runs;
     let interrupted = false;
     const h = harness(s.t, (r) => {
-      if (script(r) === 'npm test' && !interrupted) {
+      if (script(r) === 'pnpm test' && !interrupted) {
         interrupted = true;
         // What the Workflow sees when a deploy resets the JobRunner mid-call.
         throw new Error('Durable Object reset because its code was updated.');
@@ -471,9 +471,9 @@ describe('Actions 中断后的重启', () => {
     expect(await h.run(queued.id)).toBe('success');
     expect(ranScripts(h).filter((x) => !x.startsWith('mkdir'))).toEqual([
       'echo building',
-      'npm test',
+      'pnpm test',
       'echo building',
-      'npm test',
+      'pnpm test',
     ]);
     expect(h.requests).toHaveLength(6);
     expect(new Set(h.stepNames).size).toBe(h.stepNames.length);
@@ -488,9 +488,9 @@ describe('Actions 中断后的重启', () => {
       'Restarted after the runner was interrupted (attempt 2 of 3).'
     );
     expect(setupLog).toContain(
-      'Step 4 (Run npm test) was interrupted: Durable Object reset because its code was updated.'
+      'Step 4 (Run pnpm test) was interrupted: Durable Object reset because its code was updated.'
     );
-    expect(await stepLog(s, jobs[0].id, 4)).toBe('ran npm test');
+    expect(await stepLog(s, jobs[0].id, 4)).toBe('ran pnpm test');
     // Usage & cost: one runner session per attempt, both stopped, at the job's size.
     const sessions = await s.t.env.DB.prepare(
       'SELECT id, job_id, repository_id, instance_type, stopped_at FROM runner_sessions ORDER BY id'
@@ -528,11 +528,11 @@ describe('Actions 中断后的重启', () => {
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
     const h = harness(s.t, (r) =>
-      script(r) === 'npm test' ? { exitCode: 1, log: 'tests failed' } : {}
+      script(r) === 'pnpm test' ? { exitCode: 1, log: 'tests failed' } : {}
     );
     expect(await h.run(queued.id)).toBe('failure');
     expect(h.boots).toHaveLength(1);
-    expect(ranScripts(h).filter((x) => x === 'npm test')).toHaveLength(1);
+    expect(ranScripts(h).filter((x) => x === 'pnpm test')).toHaveLength(1);
     const { jobs } = await runDetail(s.t, s.admin, 1);
     expect(await stepLog(s, jobs[0].id, 1)).not.toContain('Restarted');
   });
@@ -550,7 +550,7 @@ describe('Actions 中断后的重启', () => {
     expect(h.boots).toHaveLength(3);
     expect(ranScripts(h).filter((x) => x === 'echo building')).toHaveLength(3);
     // The last attempt does not go on to run steps on a runner that is gone.
-    expect(ranScripts(h)).not.toContain('npm test');
+    expect(ranScripts(h)).not.toContain('pnpm test');
     const { run, jobs } = await runDetail(s.t, s.admin, 1);
     expect(run).toMatchObject({ status: 'completed', conclusion: 'failure' });
     expect(jobs[0].steps.map((x) => x.conclusion)).toEqual([
@@ -609,7 +609,7 @@ describe('Actions 中断后的重启', () => {
     await pushFiles(s, 'main', { '.github/workflows/ci.yml': CI });
     const [queued] = (await runs(s.t, s.admin)).runs;
     const h = harness(s.t, async (r) => {
-      if (script(r) === 'npm test') {
+      if (script(r) === 'pnpm test') {
         const res = await call(
           s.t,
           '/api/repos/octocat/app/actions/runs/1/cancel',
@@ -623,7 +623,7 @@ describe('Actions 中断后的重启', () => {
     });
     expect(await h.run(queued.id)).toBe('cancelled');
     expect(h.boots).toHaveLength(1);
-    expect(ranScripts(h).filter((x) => x === 'npm test')).toHaveLength(1);
+    expect(ranScripts(h).filter((x) => x === 'pnpm test')).toHaveLength(1);
     const { run, jobs } = await runDetail(s.t, s.admin, 1);
     expect(run).toMatchObject({ status: 'completed', conclusion: 'cancelled' });
     expect(jobs[0].conclusion).toBe('cancelled');
@@ -1015,7 +1015,7 @@ jobs:
     ]);
     // setup-node uses the preinstalled Node.js.
     const setupNode = script(h.requests[1]);
-    expect(setupNode).not.toMatch(/\bn -q\b|npm install -g/);
+    expect(setupNode).not.toMatch(/\bn -q\b|pnpm install -g/);
     expect(setupNode).toContain('node-version 22 was requested');
     expect(setupNode).toMatch(
       /Cache not found for node-modules-yarn-linux-x64-node24-[0-9a-f]{32}/

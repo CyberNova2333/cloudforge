@@ -576,7 +576,7 @@ describe('Actions 作业等待空位', () => {
     const [queued] = (await runs(s.t, s.admin)).runs;
     let interrupted = false;
     const h = harness(s.t, (r) => {
-      if (r.argv[r.argv.length - 1] === 'npm test' && !interrupted) {
+      if (r.argv[r.argv.length - 1] === 'pnpm test' && !interrupted) {
         interrupted = true;
         throw new Error('Durable Object reset because its code was updated.');
       }

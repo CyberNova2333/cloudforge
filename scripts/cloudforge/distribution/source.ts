@@ -37,9 +37,9 @@ export type Source = {
     configDir: string,
     secretsFile: string | null
   ): { cmd: string; args: string[] };
-  /** A printed command line: `yarn cloudforge <args>` or `npx @cybernova2333/cloudforge@<version> <args>`. */
+  /** A printed command line: `yarn cloudforge <args>` or `pnpm dlx @cybernova2333/cloudforge@<version> <args>`. */
   command(args: string): string;
-  /** A printed wrangler command line: `yarn wrangler <args>` or `npx wrangler@<version> <args>`. */
+  /** A printed wrangler command line: `yarn wrangler <args>` or `pnpm dlx wrangler@<version> <args>`. */
   wranglerCommand(args: string): string;
 };
 
@@ -116,7 +116,7 @@ export function packageSource(root: string): Source {
   for (const k of MODULE_KEYS)
     if (k in buildJson) moduleConfig[k] = buildJson[k];
 
-  // Resolved from the package, so a hoisted install (wrangler beside it, as npx does) works too.
+  // Resolved from the package, so a hoisted install (wrangler beside it, as pnpm dlx does) works too.
   const wranglerPkgPath = createRequire(join(root, 'package.json')).resolve(
     'wrangler/package.json'
   );
@@ -167,7 +167,9 @@ export function packageSource(root: string): Source {
         ...(secretsFile ? ['--secrets-file', secretsFile] : []),
       ],
     }),
-    command: (args) => `npx @cybernova2333/cloudforge@${pkg.version} ${args}`,
-    wranglerCommand: (args) => `npx wrangler@${wranglerPkg.version} ${args}`,
+    command: (args) =>
+      `pnpm dlx @cybernova2333/cloudforge@${pkg.version} ${args}`,
+    wranglerCommand: (args) =>
+      `pnpm dlx wrangler@${wranglerPkg.version} ${args}`,
   };
 }

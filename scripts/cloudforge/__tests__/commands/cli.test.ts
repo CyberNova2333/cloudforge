@@ -777,7 +777,7 @@ describe('resolveToken：解析令牌', () => {
       [process.execPath]: () => ({ code: 1, stdout: '', stderr: 'x' }),
     });
     await expect(resolveToken({}, r, pkgSource)).rejects.toThrow(
-      'Run npx wrangler@4.127.0 login first.'
+      'Run pnpm dlx wrangler@4.127.0 login first.'
     );
   });
   it('没有符合令牌格式的行时提示运行 wrangler login', async () => {
@@ -886,7 +886,7 @@ describe('软件包模式', () => {
     expect(h.text()).toContain(`\`mv ${c} ${c}.hand\``);
   });
 
-  it('status 打印最新版本，运行版本较旧时显示 npx 升级命令', async () => {
+  it('status 打印最新版本，运行版本较旧时显示 pnpm dlx 升级命令', async () => {
     const pkgOpts = pkg();
     writeState(join(pkgOpts.home, 'acme'), {
       ...installedState(),
@@ -900,7 +900,7 @@ describe('软件包模式', () => {
     expect(await main(['status'], h.deps)).toBe(0);
     expect(h.text()).toMatch(/Latest\s+9\.9\.9/);
     expect(h.text()).toContain(
-      '(npx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)'
+      '(pnpm dlx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)'
     );
   });
 
@@ -917,7 +917,7 @@ describe('软件包模式', () => {
     expect(await main(['status', '--from', checkout], h.deps)).toBe(0);
     expect(h.text()).toContain('acme-db');
     expect(h.text()).toContain(
-      `(npx @cybernova2333/cloudforge@9.9.9 adopt --from ${checkout} --name acme, then npx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)`
+      `(pnpm dlx @cybernova2333/cloudforge@9.9.9 adopt --from ${checkout} --name acme, then pnpm dlx @cybernova2333/cloudforge@9.9.9 upgrade --name acme)`
     );
     expect(listStates(cdir)).toHaveLength(1);
     expect(existsSync(join(pkgOpts.home, 'acme'))).toBe(false);
@@ -1115,7 +1115,7 @@ describe('upgrade：升级', () => {
     const digest = /Plan ([0-9a-f]{12})/.exec(text)?.[1];
     expect(digest).toBeDefined();
     expect(text).toContain(
-      `npx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --expect-plan ${digest} --yes`
+      `pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --name acme --expect-plan ${digest} --yes`
     );
     expect(h.deploys).toHaveLength(0);
     expect(readFileSync(join(idir(), `${ID}.json`), 'utf8')).toBe(before);
@@ -1151,11 +1151,12 @@ describe('upgrade：升级', () => {
     expect(await main(['upgrade', '--yes', '--name', 'acme'], first.deps)).toBe(
       1
     );
-    const printed = /Run: (npx @cybernova2333\/cloudforge@1\.3\.0 (.+))$/m.exec(
-      first.text()
-    );
+    const printed =
+      /Run: (pnpm dlx @cybernova2333\/cloudforge@1\.3\.0 (.+))$/m.exec(
+        first.text()
+      );
     expect(printed?.[1]).toBe(
-      'npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
+      'pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme'
     );
     const failed = readState(idir(), ID)!;
     expect(failed.status).toBe('failed');
@@ -1187,7 +1188,7 @@ describe('upgrade：升级', () => {
       'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY\n'
     );
     expect(text).toContain(
-      'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY. Add them with: npx @cybernova2333/cloudforge@1.3.0 install --resume --name acme'
+      'Missing (you add them): R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY. Add them with: pnpm dlx @cybernova2333/cloudforge@1.3.0 install --resume --name acme'
     );
     expect(readState(idir(), ID)!.skipped).toEqual(['r2-keys']);
   });
@@ -1253,7 +1254,7 @@ describe('upgrade：升级', () => {
     const h = harness();
     expect(await main(['upgrade', '--yes'], h.deps)).toBe(2);
     expect(h.text()).toContain(
-      `Upgrades run from npm: npx @cybernova2333/cloudforge adopt --from ${cwd}, then npx @cybernova2333/cloudforge upgrade.`
+      `Upgrades run from npm: pnpm dlx @cybernova2333/cloudforge adopt --from ${cwd}, then pnpm dlx @cybernova2333/cloudforge upgrade.`
     );
     expect(h.tokenCalls()).toBe(0);
   });
@@ -1270,7 +1271,7 @@ describe('upgrade：升级', () => {
         await main(['install', '--resume', '--yes', '--name', 'acme'], h.deps)
       ).toBe(1);
       expect(h.text()).toContain(
-        'An upgrade to 1.3.0 is unfinished; run npx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme.'
+        'An upgrade to 1.3.0 is unfinished; run pnpm dlx @cybernova2333/cloudforge@1.3.0 upgrade --resume --name acme.'
       );
       expect(h.deploys).toHaveLength(0);
     }
@@ -1287,7 +1288,7 @@ describe('adopt：接管', () => {
     return s;
   };
   const MOVED_LINE = () =>
-    `This install moved to ${MOVED()}. Run npx @cybernova2333/cloudforge upgrade --name ${resourceNames('acme').worker}.`;
+    `This install moved to ${MOVED()}. Run pnpm dlx @cybernova2333/cloudforge upgrade --name ${resourceNames('acme').worker}.`;
   const pkgHarness = (o: { tty?: boolean; confirm?: boolean } = {}) =>
     harness({
       ...o,
@@ -1363,7 +1364,7 @@ describe('adopt：接管', () => {
     const h = harness({});
     expect(await main(['adopt', '--from', cwd, '--yes'], h.deps)).toBe(2);
     expect(h.text()).toContain(
-      `npx @cybernova2333/cloudforge adopt --from ${cwd}`
+      `pnpm dlx @cybernova2333/cloudforge adopt --from ${cwd}`
     );
     expect(readState(dir, ID)!.movedTo).toBeUndefined();
   });
@@ -1414,7 +1415,7 @@ describe('adopt --worker：接管 Worker', () => {
     const text = h.text();
     expect(text).toContain('Adopt worker acme');
     const digest = /Plan ([0-9a-f]{12})/.exec(text)![1]!;
-    const command = `npx @cybernova2333/cloudforge@1.2.0 adopt --worker acme --account ${ACCOUNT} --expect-plan ${digest} --yes`;
+    const command = `pnpm dlx @cybernova2333/cloudforge@1.2.0 adopt --worker acme --account ${ACCOUNT} --expect-plan ${digest} --yes`;
     expect(text).toContain(command);
     expect(existsSync(home())).toBe(false);
 
@@ -1442,7 +1443,7 @@ describe('adopt --worker：接管 Worker', () => {
     const c = harness({ seed });
     expect(await main(['adopt', '--worker', 'acme', '--yes'], c.deps)).toBe(2);
     expect(c.text()).toContain(
-      'npx @cybernova2333/cloudforge adopt --worker acme'
+      'pnpm dlx @cybernova2333/cloudforge adopt --worker acme'
     );
     expect(c.tokenCalls()).toBe(0);
   });

@@ -13,20 +13,20 @@ image.
 ## Install
 
 ```bash
-npx @cybernova2333/cloudforge install
+pnpm dlx @cybernova2333/cloudforge install
 ```
 
 It asks for what it needs, shows the plan, and applies it when you confirm. Sign in first with
-`npx wrangler login`, or set `CLOUDFLARE_API_TOKEN`. To review the plan without changing anything:
+`pnpm dlx wrangler login`, or set `CLOUDFLARE_API_TOKEN`. To review the plan without changing anything:
 
 ```bash
-npx @cybernova2333/cloudforge install --plan
+pnpm dlx @cybernova2333/cloudforge install --plan
 ```
 
 ## Upgrade
 
 ```bash
-npx @cybernova2333/cloudforge@latest upgrade
+pnpm dlx @cybernova2333/cloudforge@latest upgrade
 ```
 
 Moves an installation to the package's version: applies new migrations, adds new resources and secrets, and
@@ -37,37 +37,37 @@ deploys. It never downgrades.
 From a checkout that ran `yarn cloudforge install`:
 
 ```bash
-npx @cybernova2333/cloudforge adopt --from path/to/checkout
+pnpm dlx @cybernova2333/cloudforge adopt --from path/to/checkout
 ```
 
 Or a worker deployed by hand:
 
 ```bash
-npx @cybernova2333/cloudforge adopt --worker <worker name>
+pnpm dlx @cybernova2333/cloudforge adopt --worker <worker name>
 ```
 
 ## Status
 
 ```bash
-npx @cybernova2333/cloudforge status
+pnpm dlx @cybernova2333/cloudforge status
 ```
 
 ## Reset a password
 
 ```bash
-npx @cybernova2333/cloudforge reset-password <username or email>
+pnpm dlx @cybernova2333/cloudforge reset-password <username or email>
 ```
 
 Sets a new password straight in the database, for when nobody can sign in to make a reset link. Asks for it in the
 terminal; `--database <D1 database name>` for an installation made without this CLI.
 
-State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `npx @cybernova2333/cloudforge --help` for every option.
+State lives in `~/.cloudforge` (override with `CLOUDFORGE_HOME`). Run `pnpm dlx @cybernova2333/cloudforge --help` for every option.
 
 If the authenticator and every recovery code were lost, use the independent recovery command with Cloudflare
 management access and an explicitly selected installation:
 
 ```bash
-npx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and recovery codes" --plan
+pnpm dlx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason "Lost authenticator and recovery codes" --plan
 ```
 
 Review the preview, then repeat without `--plan` to confirm. Manual deployments require both `--account` and
