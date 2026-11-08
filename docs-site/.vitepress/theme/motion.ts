@@ -116,7 +116,7 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
           ],
           opacity: [0.82, 1],
           duration: (_element: HTMLElement, index: number) =>
-            6200 + index * 1400,
+            7500 + index * 1800,
           ease: 'inOutSine',
           loop: true,
           alternate: true,
@@ -133,92 +133,44 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
 
       const nav = query('.VPNavBar');
       const band = query('.adv-docs-deco__band');
-      const hero = query('.VPHero .main > *').slice(0, 8);
-      const isHome = hero.length > 0;
 
-      // 仅在官网首页或明确入场目标存在时执行入场时间线
-      // 关键修复：入场元素在时间线启动时立即设为初始透明状态，避免“字在开始前已到位再抽搐”的闪烁
-      const entranceTargets = isHome
-        ? [...nav, ...band, ...hero]
-        : [...nav, ...band];
-      for (const el of entranceTargets) {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(10px)';
-      }
-
+      // 背景装饰与顶栏入场平滑渐显（放慢动画速度，时长统一舒缓放慢至 1100ms）
+      const entranceTargets = [...nav, ...band];
       entrance = createTimeline({
-        defaults: { ease: 'outCubic', duration: 750 },
+        defaults: { ease: 'outCubic', duration: 1100 },
         onComplete: () => {
           for (const element of entranceTargets) clearInline(element);
         },
       });
 
       if (nav.length)
-        entrance.add(nav, { opacity: [0, 1], y: [-8, 0], duration: 650 }, 0);
+        entrance.add(nav, { opacity: [0.85, 1], duration: 900 }, 0);
       if (band.length)
         entrance.add(
           band,
-          { scaleX: [0, 1], duration: 900, ease: 'outCubic' },
+          { scaleX: [0, 1], duration: 1100, ease: 'outCubic' },
           50
         );
-      if (hero.length) {
-        entrance.add(
-          hero,
-          { opacity: [0, 1], y: [12, 0], delay: stagger(90), duration: 750 },
-          100
-        );
-      }
 
-      // 文档正文部分：仅对首屏视口下方（未入屏）的区块在滚动进入时平滑淡入，绝不二次重复触发已渲染元素
-      const selector = [
-        '.vp-doc h2',
-        '.vp-doc h3',
-        '.vp-doc .custom-block',
-        '.vp-doc table',
-        '.vp-doc div[class*="language-"]',
-        '.vp-doc blockquote',
-        '.VPFeature',
-      ].join(', ');
-
-      const viewHeight = window.innerHeight || 800;
-      const elements = query(selector).filter((element) => {
-        if (element.closest('.VPSidebar') !== null) return false;
-        // 如果元素已经在视口首屏内，直接保持静止可见，绝不后置触发动画导致抽搐
-        const { top } = element.getBoundingClientRect();
-        return top >= viewHeight * 0.9;
-      });
-
-      if (elements.length) {
+      // 标题底线装饰指示器：滚动进入视口时平滑展开装饰横条，绝不破坏正文阅读透明度
+      const headings = query('.vp-doc h2');
+      if (headings.length) {
         observer = new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
               if (!entry.isIntersecting) continue;
               const element = entry.target as HTMLElement;
               observer?.unobserve(element);
-              if (element.matches('.vp-doc h2'))
-                element.classList.add('adv-docs-bar-in');
-              // 初始设为 0 并平滑升起，时长放缓至 700ms
-              element.style.opacity = '0';
-              element.style.transform = 'translateY(12px)';
-              const animation = animate(element, {
-                opacity: [0, 1],
-                y: [12, 0],
-                duration: 700,
-                ease: 'outCubic',
-                onComplete: () => {
-                  clearInline(element);
-                  reveals.delete(animation);
-                },
-              });
-              reveals.add(animation);
+              element.classList.add('adv-docs-bar-in');
             }
           },
           { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
         );
-        for (const element of elements) observer.observe(element);
+        for (const heading of headings) observer.observe(heading);
       }
 
-      for (const heading of query('.vp-doc h2')) {
+      const viewHeight = window.innerHeight || 800;
+      for (const heading of headings) {
         const { top: headingTop } = heading.getBoundingClientRect();
         if (headingTop < viewHeight) heading.classList.add('adv-docs-bar-in');
       }
