@@ -197,6 +197,8 @@ SSO 的两个额外修改入口：
 
 准备升级团队模型时，先用[维护命令](../scripts/cloudforge/access/access-preflight.ts)选择明确账号/数据库并输出一次诊断；[快照与分析](../scripts/cloudforge/access/access-preflight-data.ts)负责有界结构探测、最终单SELECT复核和异常分类，[结构契约](../scripts/cloudforge/access/access-preflight-definition.ts)校验表约束，[源码协议](../scripts/cloudforge/access/access-protocol.ts)核对目标声明及迁移指纹。[升级入口](../scripts/cloudforge/commands/upgrade.ts)在计划、确认后、迁移前和部署前重查支持范围。[操作说明](../docs/updating.md#legacy-access-preflight)区分退出码、观察摘要与真正迁移授权。节点脚本测试验证目标选择、无写入和升级阻断，`access-preflight.test.ts`的Worker测试用真实D1验证查询及新旧数据边界；CI归属仍由`ci-workflow.test.ts`检查。
 
+排空准备使用[任务观察命令](../scripts/cloudforge/access/access-drain.ts)，复用[只读目标选择](../scripts/cloudforge/access/read-target.ts)，由[任务快照](../scripts/cloudforge/access/access-drain-data.ts)在完整权限预检旁读取六类独立任务记录。计数和样本有界，完成父任务不会隐藏残留容量或未关闭会话；退出 0 只表示观察有效，空结果也不证明全局排空。真实 D1 用例在[任务观察测试](../worker/src/__tests__/access/access-drain.test.ts)，CLI 的无写入、显式选库和错误脱敏由[脚本测试](../scripts/cloudforge/__tests__/access/access-drain-cli.test.ts)验证。暂停入口、停止云端任务和发布/回滚屏障尚未实现，见[维护边界](../docs/updating.md#drain-observation)。
+
 这个诊断入口不属于Git请求主链，不更改推送输入输出，也不读取认证秘密或执行迁移。真正升级时，[归属写入约束](../scripts/cloudforge/installation/install-marker.ts)在最终D1写语句中再次核对安装id和nonce，并要求收据；它不把前置观察当作后续覆盖归属的授权。旧Worker回滚屏障和新角色发布仍按[设计专题](../docs/team-access-design.md)继续实施，预检成功不表示它们已上线。
 
 [失败升级恢复](../scripts/cloudforge/commands/upgrade.ts)在读取本地进度后重新核验Cloudflare设置里的安装归属和版本，并与可达站点交叉检查；本地旧状态不能授权覆盖较新部署。`scripts/cloudforge/__tests__/commands/upgrade.test.ts`以本地模拟云接口/执行器覆盖停止和故障恢复路径，具体操作及尚未覆盖的跨机器并发边界见[升级恢复说明](../docs/updating.md#resuming-a-failed-upgrade-safely)。该修补不等于新角色发布屏障已完成。

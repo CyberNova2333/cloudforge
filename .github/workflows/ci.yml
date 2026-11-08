@@ -343,6 +343,7 @@ jobs:
           worker/src/__tests__/access/teams-visibility.test.ts
           worker/src/__tests__/access/repo-permissions.test.ts
           worker/src/__tests__/access/access-preflight.test.ts
+          worker/src/__tests__/access/access-drain.test.ts
           worker/src/__tests__/access/access-preflight-definition.test.ts
           worker/src/__tests__/platform/install-marker.test.ts
           worker/src/__tests__/access/access-schema.test.ts

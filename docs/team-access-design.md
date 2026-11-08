@@ -184,6 +184,14 @@ Cloudflare 的部署模型必须逐面核验：当前部署中 0% 流量的版�
 
 Worker 版本不包含 D1 数据状态，代码回滚不会还原数据库。Workflows 可等待很长时间；本轮未从官方文档确认既有实例会在部署后切换到新代码，因此将该行为保留为待实测边界，不能推断重新部署会终止旧任务。[版本内容](https://developers.cloudflare.com/workers/versions-and-deployments/)、[Workflows 限制](https://developers.cloudflare.com/workflows/reference/limits/)
 
+### 排空前的只读观察
+
+当前安装器提供 `access-drain-status`，先显式选择安装或账号/数据库，再在同一条最终 SELECT 中复核权限兼容结构、运行时状态、安装归属及六类 D1 任务记录。观察范围是未完成的 Actions run/job、未关闭的 runner session、运行中的 Agent run/step 和未完成的 push event。各类独立读取，已结束父记录、过期 deadline 或重试耗尽不代表子任务已停止。每类超过 1000 条拒绝输出结论，只返回最多 20 条样本，时间统一为毫秒。
+
+状态与完成收据矛盾，或 Agent 仅因过时而标记结束、仍允许恢复覆盖的记录，会使观察拒绝，避免把它们当作已完成。Agent step 重试会保留前次完成时间；这一已知状态仍按 running 观察，时间仅是历史尝试元数据。其他历史终态记录不在候选验证范围。
+
+这一步完成的是排空准备中的记录观察。退出 0 表示观察有效，有任务时仍可为 0；四个完成/授权字段始终为 false。它不暂停入口、不停止任务、不修改最低协议，也不读取云端 Workflow/容器或 Durable Object 的队列、存储及 alarm。当前未覆盖的其他 outbox、在途写点和旧版本范围仍需后续实施与独立核验；空结果不能作为发布或回滚依据。操作与准确输出边界见[升级维护](updating.md#drain-observation)。
+
 ## 实施验收矩阵
 
 所有数据权限用例用workerd真实D1，Artifacts用已有内存fake；不mock env.DB。测试文件进入CI归属清单。下列为整个新模型的验收要求。阶段 A 的单项/批量/列表差分与scope兼容已有测试入口；其余新增角色、迁移与管理接口仍待实施。实际通过范围以各阶段最终日志为准，不能把本表当作全部已通过清单。
