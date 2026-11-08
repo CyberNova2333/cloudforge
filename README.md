@@ -20,6 +20,8 @@ CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Gi
 >
 > 原始部分 © 2026 GitOrange contributors，采用 [Apache-2.0](LICENSES/Apache-2.0.txt)；修改部分 © 2026 CyberNova，组合后的作品采用 [GPL-3.0-or-later](LICENSE)。“GitOrange”及其标志属于上游项目，不作为本项目的产品标识。
 
+> 📐 **交互式架构图表**：支持动态探查、缩放平移与主题切换的高保真架构图：[云函数编排与边缘部署架构图](https://cybernova2333.github.io/cloudforge/diagrams/cloudforge-architecture.html)。
+
 ## 主要功能
 
 - **代码托管**：Git HTTPS、个人访问令牌、Git LFS、分支和标签、文件浏览、差异比较、PR 评论与版本发布。个人仓库支持私有、内部和公开可见性；团队仓库对实例成员可见，公开仓库允许匿名读取。

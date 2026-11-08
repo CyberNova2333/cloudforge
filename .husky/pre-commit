@@ -17,4 +17,4 @@ if [ "$repo_guard_found" != 1 ]; then
 fi
 # repo-maintenance-guard: end
 # Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-node scripts/githooks/run-yarn.mjs lint-staged
+pnpm exec lint-staged

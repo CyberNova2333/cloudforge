@@ -23,11 +23,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-          cache-dependency-path: docs-site/yarn.lock
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
       - name: 安装文档依赖
         run: yarn --cwd docs-site install --frozen-lockfile
       - name: 构建文档站
