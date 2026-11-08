@@ -1,10 +1,5 @@
-/* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
-/* ============================================================
-   CyberNova2333 · Enterprise — VitePress docs theme（富化版）
-   云平台质感：蓝图网格底纹 + 蓝色环境光晕 + 蓝青顶带、玻璃导航、
-   渐变按钮、h2 渐变装饰条、滚动显现动效（见 motion.ts）。
-   颜色只取色板及同色相透明度/明度变体；圆角 4/8px；无 JS 时内容全部可见。
-   ============================================================ */
+/* Weftale 文档站主题：蓝色网格、环境光晕、玻璃导航与滚动显现。
+   无 JavaScript 或减少动态效果时，正文保持完整可见。 */
 @font-face {
   font-family: 'IBM Plex Sans';
   src: url('./fonts/ibm-plex-sans-latin-400.woff2') format('woff2');
@@ -42,99 +37,103 @@
 }
 
 :root {
-  --cn-primary: #0c5cab;
-  --cn-secondary: #0a4a8a;
-  --cn-primary-bright: #589fe4;
-  --cn-accent-cyan: #38bdf8;
-  --cn-success: #10b981;
-  --cn-warning: #f59e0b;
-  --cn-danger: #ef4444;
-  --cn-canvas: #fafafa;
-  --cn-surface: #ffffff;
-  --cn-elevated: #f4f4f5;
-  --cn-text: #09090b;
-  --cn-text-2: #3f3f46;
-  --cn-muted: #71717a;
-  --cn-line: rgba(9, 9, 11, 0.1);
-  --cn-grid: rgba(12, 92, 171, 0.055);
-  --cn-tint-primary: rgba(12, 92, 171, 0.1);
-  --cn-tint-success: rgba(16, 185, 129, 0.12);
-  --cn-tint-warning: rgba(245, 158, 11, 0.14);
-  --cn-tint-danger: rgba(239, 68, 68, 0.1);
-  --cn-font-sans:
+  --adv-docs-primary: #0c5cab;
+  --adv-docs-secondary: #0a4a8a;
+  --adv-docs-primary-bright: #589fe4;
+  --adv-docs-accent-cyan: #38bdf8;
+  --adv-docs-success: #10b981;
+  --adv-docs-warning: #f59e0b;
+  --adv-docs-danger: #ef4444;
+  --adv-docs-canvas: #fafafa;
+  --adv-docs-surface: #ffffff;
+  --adv-docs-elevated: #f4f4f5;
+  --adv-docs-text: #09090b;
+  --adv-docs-text-2: #3f3f46;
+  --adv-docs-muted: #71717a;
+  --adv-docs-line: rgba(9, 9, 11, 0.1);
+  --adv-docs-grid: rgba(12, 92, 171, 0.055);
+  --adv-docs-tint-primary: rgba(12, 92, 171, 0.1);
+  --adv-docs-tint-success: rgba(16, 185, 129, 0.12);
+  --adv-docs-tint-warning: rgba(245, 158, 11, 0.14);
+  --adv-docs-tint-danger: rgba(239, 68, 68, 0.1);
+  --adv-docs-font-sans:
     'IBM Plex Sans', 'Microsoft YaHei UI', -apple-system, 'Segoe UI', Roboto,
     sans-serif;
-  --cn-font-mono:
+  --adv-docs-font-mono:
     'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  --cn-r-sm: 4px;
-  --cn-r-md: 8px;
-  --cn-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --cn-shadow-sm:
+  --adv-docs-r-sm: 4px;
+  --adv-docs-r-md: 8px;
+  --adv-docs-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --adv-docs-shadow-sm:
     0 1px 2px rgba(9, 9, 11, 0.06), 0 4px 12px -6px rgba(9, 9, 11, 0.16);
-  --cn-shadow:
+  --adv-docs-shadow:
     0 2px 4px rgba(9, 9, 11, 0.06), 0 12px 28px -14px rgba(9, 9, 11, 0.28);
-  --cn-shadow-lg:
+  --adv-docs-shadow-lg:
     0 4px 8px rgba(9, 9, 11, 0.08), 0 24px 48px -20px rgba(12, 92, 171, 0.35);
-  --cn-inner-light: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  --vp-c-bg: var(--cn-canvas);
-  --vp-c-bg-alt: var(--cn-elevated);
-  --vp-c-bg-elv: var(--cn-surface);
-  --vp-c-bg-soft: var(--cn-tint-primary);
-  --vp-c-text-1: var(--cn-text);
-  --vp-c-text-2: var(--cn-text-2);
-  --vp-c-text-3: var(--cn-muted);
-  --vp-c-brand-1: var(--cn-primary);
-  --vp-c-brand-2: var(--cn-secondary);
-  --vp-c-brand-3: var(--cn-primary-bright);
-  --vp-c-brand-soft: var(--cn-tint-primary);
-  --vp-c-tip-1: var(--cn-primary);
-  --vp-c-tip-soft: var(--cn-tint-primary);
-  --vp-c-warning-1: var(--cn-warning);
-  --vp-c-warning-soft: var(--cn-tint-warning);
-  --vp-c-danger-1: var(--cn-danger);
-  --vp-c-danger-soft: var(--cn-tint-danger);
-  --vp-c-success-1: var(--cn-success);
-  --vp-c-success-soft: var(--cn-tint-success);
-  --vp-c-default-1: var(--cn-secondary);
-  --vp-c-default-soft: var(--cn-tint-primary);
-  --vp-c-divider: var(--cn-line);
-  --vp-c-gutter: var(--cn-elevated);
-  --vp-font-family-base: var(--cn-font-sans);
-  --vp-font-family-mono: var(--cn-font-mono);
-  --vp-border-radius: var(--cn-r-md);
-  --vp-code-block-bg: #0d1117;
-  --vp-code-line-highlight-color: rgba(88, 159, 228, 0.16);
-  --vp-shadow-1: var(--cn-shadow-sm);
-  --vp-shadow-2: var(--cn-shadow);
-  --vp-shadow-3: var(--cn-shadow-lg);
+  --adv-docs-inner-light: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --vp-c-bg: var(--adv-docs-canvas);
+  --vp-c-bg-alt: var(--adv-docs-elevated);
+  --vp-c-bg-elv: var(--adv-docs-surface);
+  --vp-c-bg-soft: var(--adv-docs-tint-primary);
+  --vp-c-text-1: var(--adv-docs-text);
+  --vp-c-text-2: var(--adv-docs-text-2);
+  --vp-c-text-3: var(--adv-docs-muted);
+  --vp-c-brand-1: var(--adv-docs-primary);
+  --vp-c-brand-2: var(--adv-docs-secondary);
+  --vp-c-brand-3: var(--adv-docs-primary-bright);
+  --vp-c-brand-soft: var(--adv-docs-tint-primary);
+  --vp-c-tip-1: var(--adv-docs-primary);
+  --vp-c-tip-soft: var(--adv-docs-tint-primary);
+  --vp-c-warning-1: var(--adv-docs-warning);
+  --vp-c-warning-soft: var(--adv-docs-tint-warning);
+  --vp-c-danger-1: var(--adv-docs-danger);
+  --vp-c-danger-soft: var(--adv-docs-tint-danger);
+  --vp-c-success-1: var(--adv-docs-success);
+  --vp-c-success-soft: var(--adv-docs-tint-success);
+  --vp-c-default-1: var(--adv-docs-secondary);
+  --vp-c-default-soft: var(--adv-docs-tint-primary);
+  --vp-c-divider: var(--adv-docs-line);
+  --vp-c-gutter: var(--adv-docs-elevated);
+  --vp-font-family-base: var(--adv-docs-font-sans);
+  --vp-font-family-mono: var(--adv-docs-font-mono);
+  --vp-border-radius: var(--adv-docs-r-md);
+  --vp-code-block-bg: #f6f8fa;
+  --vp-code-block-color: #24292e;
+  --vp-code-line-highlight-color: rgba(12, 92, 171, 0.08);
+  --vp-code-line-number-color: #8c959f;
+  --vp-shadow-1: var(--adv-docs-shadow-sm);
+  --vp-shadow-2: var(--adv-docs-shadow);
+  --vp-shadow-3: var(--adv-docs-shadow-lg);
   color-scheme: light;
 }
 :root.dark {
-  --cn-canvas: #09090b;
-  --cn-surface: #111114;
-  --cn-elevated: #18181b;
-  --cn-text: #fafafa;
-  --cn-text-2: #d4d4d8;
-  --cn-muted: #a1a1aa;
-  --cn-line: rgba(250, 250, 250, 0.1);
-  --cn-grid: rgba(88, 159, 228, 0.05);
-  --cn-primary: #589fe4;
-  --cn-secondary: #0a4a8a;
-  --cn-primary-bright: #7fbcf0;
-  --cn-tint-primary: rgba(88, 159, 228, 0.14);
-  --cn-shadow-sm:
+  --adv-docs-canvas: #09090b;
+  --adv-docs-surface: #111114;
+  --adv-docs-elevated: #18181b;
+  --adv-docs-text: #fafafa;
+  --adv-docs-text-2: #d4d4d8;
+  --adv-docs-muted: #a1a1aa;
+  --adv-docs-line: rgba(250, 250, 250, 0.1);
+  --adv-docs-grid: rgba(88, 159, 228, 0.05);
+  --adv-docs-primary: #589fe4;
+  --adv-docs-secondary: #0a4a8a;
+  --adv-docs-primary-bright: #7fbcf0;
+  --adv-docs-tint-primary: rgba(88, 159, 228, 0.14);
+  --adv-docs-shadow-sm:
     0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 12px -6px rgba(0, 0, 0, 0.6);
-  --cn-shadow:
+  --adv-docs-shadow:
     0 2px 4px rgba(0, 0, 0, 0.5), 0 14px 30px -16px rgba(0, 0, 0, 0.7);
-  --cn-shadow-lg:
+  --adv-docs-shadow-lg:
     0 4px 8px rgba(0, 0, 0, 0.5), 0 26px 52px -22px rgba(0, 0, 0, 0.8);
-  --cn-inner-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --vp-code-block-bg: #0b0f16;
+  --adv-docs-inner-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --vp-code-block-bg: #0d1117;
+  --vp-code-block-color: #e6edf3;
   --vp-code-line-highlight-color: rgba(88, 159, 228, 0.18);
+  --vp-code-line-number-color: #6e7681;
   color-scheme: dark;
 }
 body {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-size: 16px;
   line-height: 1.75;
   background-image:
@@ -150,15 +149,15 @@ body {
     ),
     linear-gradient(
       transparent 31px,
-      var(--cn-grid) 31px,
-      var(--cn-grid) 32px,
+      var(--adv-docs-grid) 31px,
+      var(--adv-docs-grid) 32px,
       transparent 32px
     ),
     linear-gradient(
       90deg,
       transparent 31px,
-      var(--cn-grid) 31px,
-      var(--cn-grid) 32px,
+      var(--adv-docs-grid) 31px,
+      var(--adv-docs-grid) 32px,
       transparent 32px
     );
   background-size:
@@ -182,25 +181,25 @@ body {
     ),
     linear-gradient(
       transparent 31px,
-      var(--cn-grid) 31px,
-      var(--cn-grid) 32px,
+      var(--adv-docs-grid) 31px,
+      var(--adv-docs-grid) 32px,
       transparent 32px
     ),
     linear-gradient(
       90deg,
       transparent 31px,
-      var(--cn-grid) 31px,
-      var(--cn-grid) 32px,
+      var(--adv-docs-grid) 31px,
+      var(--adv-docs-grid) 32px,
       transparent 32px
     );
 }
-.cn-deco {
+.adv-docs-deco {
   position: fixed;
   inset: 0;
   z-index: 1001;
   pointer-events: none;
 }
-.cn-deco__band {
+.adv-docs-deco__band {
   position: fixed;
   top: 0;
   left: 0;
@@ -208,63 +207,63 @@ body {
   height: 2px;
   background: linear-gradient(
     90deg,
-    var(--cn-primary),
-    var(--cn-accent-cyan) 55%,
-    var(--cn-secondary)
+    var(--adv-docs-primary),
+    var(--adv-docs-accent-cyan) 55%,
+    var(--adv-docs-secondary)
   );
   transform-origin: 0 50%;
   opacity: 0.95;
 }
-.cn-deco__orb {
+.adv-docs-deco__orb {
   position: fixed;
   border-radius: 50%;
   filter: blur(60px);
   opacity: 0.8;
 }
-.cn-deco__orb--a {
+.adv-docs-deco__orb--a {
   width: 380px;
   height: 380px;
   top: -110px;
   right: -60px;
   background: radial-gradient(circle, rgba(12, 92, 171, 0.2), transparent 68%);
 }
-.cn-deco__orb--b {
+.adv-docs-deco__orb--b {
   width: 480px;
   height: 480px;
   top: 26%;
   left: -170px;
   background: radial-gradient(circle, rgba(10, 74, 138, 0.14), transparent 68%);
 }
-.cn-deco__orb--c {
+.adv-docs-deco__orb--c {
   width: 420px;
   height: 420px;
   bottom: -150px;
   left: 42%;
   background: radial-gradient(circle, rgba(56, 189, 248, 0.1), transparent 68%);
 }
-:root.dark .cn-deco__orb--a {
+:root.dark .adv-docs-deco__orb--a {
   background: radial-gradient(
     circle,
     rgba(88, 159, 228, 0.18),
     transparent 68%
   );
 }
-:root.dark .cn-deco__orb--b {
+:root.dark .adv-docs-deco__orb--b {
   background: radial-gradient(circle, rgba(10, 74, 138, 0.16), transparent 68%);
 }
-:root.dark .cn-deco__orb--c {
+:root.dark .adv-docs-deco__orb--c {
   background: radial-gradient(circle, rgba(56, 189, 248, 0.1), transparent 68%);
 }
 .VPContent .vp-doc h1 {
   font-size: 32px;
   font-weight: 700;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   letter-spacing: -0.01em;
 }
 .VPContent .vp-doc h2 {
   font-size: 24px;
   font-weight: 600;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   border-top: none;
   padding-top: 0;
   margin-top: 40px;
@@ -276,12 +275,16 @@ body {
   height: 3px;
   margin-top: 10px;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--cn-primary), var(--cn-accent-cyan));
+  background: linear-gradient(
+    90deg,
+    var(--adv-docs-primary),
+    var(--adv-docs-accent-cyan)
+  );
   transform: scaleX(0);
   transform-origin: 0 50%;
-  transition: transform 0.45s var(--cn-ease) 0.06s;
+  transition: transform 0.45s var(--adv-docs-ease) 0.06s;
 }
-.VPContent .vp-doc h2.cn-bar-in::after {
+.VPContent .vp-doc h2.adv-docs-bar-in::after {
   transform: scaleX(1);
 }
 html:not(.motion-on) .vp-doc h2::after {
@@ -290,38 +293,38 @@ html:not(.motion-on) .vp-doc h2::after {
 .VPContent .vp-doc h3 {
   font-size: 20px;
   font-weight: 600;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   margin-top: 32px;
 }
 .VPContent .vp-doc h4 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--cn-text-2);
+  color: var(--adv-docs-text-2);
 }
 .VPContent .vp-doc p,
 .VPContent .vp-doc li {
   font-size: 16px;
-  color: var(--cn-text-2);
+  color: var(--adv-docs-text-2);
 }
 .VPContent .vp-doc strong {
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   font-weight: 600;
 }
 .VPContent .vp-doc a {
-  color: var(--cn-primary);
+  color: var(--adv-docs-primary);
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition:
-    color 0.2s var(--cn-ease),
-    border-color 0.2s var(--cn-ease);
+    color 0.2s var(--adv-docs-ease),
+    border-color 0.2s var(--adv-docs-ease);
 }
 .VPContent .vp-doc a:hover {
-  color: var(--cn-primary-bright);
-  border-bottom-color: var(--cn-primary);
+  color: var(--adv-docs-primary-bright);
+  border-bottom-color: var(--adv-docs-primary);
 }
 ::selection {
-  background: var(--cn-tint-primary);
-  color: var(--cn-text);
+  background: var(--adv-docs-tint-primary);
+  color: var(--adv-docs-text);
 }
 .VPDoc .content-container {
   max-width: 780px;
@@ -334,24 +337,24 @@ html:not(.motion-on) .vp-doc h2::after {
   background: rgba(250, 250, 250, 0.78) !important;
   backdrop-filter: blur(14px) saturate(1.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border-bottom: 1px solid var(--cn-line);
-  transition: box-shadow 0.3s var(--cn-ease);
+  border-bottom: 1px solid var(--adv-docs-line);
+  transition: box-shadow 0.3s var(--adv-docs-ease);
 }
 .VPNavBar.filled {
-  box-shadow: var(--cn-shadow);
+  box-shadow: var(--adv-docs-shadow);
 }
 :root.dark .VPNavBar {
   background: rgba(9, 9, 11, 0.72) !important;
 }
 .VPNav .title {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-weight: 700;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   letter-spacing: -0.01em;
 }
 .VPNavBarMenuLink.active,
 .VPNavBarMenuLink:hover {
-  color: var(--cn-primary);
+  color: var(--adv-docs-primary);
 }
 .VPNavBarMenuLink::after {
   content: '';
@@ -361,17 +364,32 @@ html:not(.motion-on) .vp-doc h2::after {
   bottom: 4px;
   height: 2px;
   border-radius: 1px;
-  background: linear-gradient(90deg, var(--cn-primary), var(--cn-accent-cyan));
+  background: linear-gradient(
+    90deg,
+    var(--adv-docs-primary),
+    var(--adv-docs-accent-cyan)
+  );
   transform: scaleX(0);
   transform-origin: 0 50%;
-  transition: transform 0.28s var(--cn-ease);
+  transition: transform 0.28s var(--adv-docs-ease);
 }
 .VPNavBarMenuLink.active::after,
 .VPNavBarMenuLink:hover::after {
   transform: scaleX(1);
 }
 .VPNavScreen {
-  background: var(--cn-canvas);
+  background: var(--adv-docs-canvas);
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .VPNavBarMenu {
+    display: none !important;
+  }
+  .VPNavBarHamburger {
+    display: flex !important;
+  }
+  .VPNavScreen {
+    display: block !important;
+  }
 }
 .VPSidebar {
   background: rgba(244, 244, 245, 0.86) !important;
@@ -383,28 +401,28 @@ html:not(.motion-on) .vp-doc h2::after {
   background: rgba(24, 24, 27, 0.82) !important;
 }
 .VPSidebar .group .title {
-  font-family: var(--cn-font-mono);
+  font-family: var(--adv-docs-font-mono);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--cn-muted);
+  color: var(--adv-docs-muted);
 }
 .VPSidebar .VPSidebarItem .link {
-  font-family: var(--cn-font-sans);
-  border-radius: var(--cn-r-sm);
+  font-family: var(--adv-docs-font-sans);
+  border-radius: var(--adv-docs-r-sm);
   position: relative;
   transition:
-    background 0.2s var(--cn-ease),
-    box-shadow 0.2s var(--cn-ease),
-    color 0.2s var(--cn-ease);
+    background 0.2s var(--adv-docs-ease),
+    box-shadow 0.2s var(--adv-docs-ease),
+    color 0.2s var(--adv-docs-ease);
 }
 .VPSidebar .VPSidebarItem .link:hover {
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
 }
 .VPSidebar .VPSidebarItem.is-active .link,
 .VPSidebar .VPSidebarItem .link.active {
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
   box-shadow:
     0 0 0 1px rgba(12, 92, 171, 0.14),
     0 6px 18px -10px rgba(12, 92, 171, 0.5);
@@ -417,35 +435,43 @@ html:not(.motion-on) .vp-doc h2::after {
   bottom: 20%;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--cn-primary), var(--cn-accent-cyan));
+  background: linear-gradient(
+    180deg,
+    var(--adv-docs-primary),
+    var(--adv-docs-accent-cyan)
+  );
 }
 .VPSidebar .group .VPSidebarItem.level-0 > .item > .text {
   font-weight: 600;
 }
 .VPDocAsideOutline .outline-title {
-  font-family: var(--cn-font-mono);
+  font-family: var(--adv-docs-font-mono);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--cn-muted);
+  color: var(--adv-docs-muted);
 }
 .VPDocAsideOutline .outline-link:hover,
 .VPDocAsideOutline .outline-link.active {
-  color: var(--cn-primary);
+  color: var(--adv-docs-primary);
 }
 .VPButton {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-weight: 600;
-  border-radius: var(--cn-r-sm) !important;
+  border-radius: var(--adv-docs-r-sm) !important;
   transition:
-    transform 0.2s var(--cn-ease),
-    box-shadow 0.2s var(--cn-ease),
-    background 0.2s var(--cn-ease),
-    color 0.2s var(--cn-ease);
+    transform 0.2s var(--adv-docs-ease),
+    box-shadow 0.2s var(--adv-docs-ease),
+    background 0.2s var(--adv-docs-ease),
+    color 0.2s var(--adv-docs-ease);
 }
 .VPButton.brand {
-  background: linear-gradient(135deg, var(--cn-primary), var(--cn-accent-cyan));
+  background: linear-gradient(
+    135deg,
+    var(--adv-docs-primary),
+    var(--adv-docs-accent-cyan)
+  );
   color: #fff;
   border-color: transparent;
   box-shadow: 0 8px 20px -8px rgba(12, 92, 171, 0.55);
@@ -455,23 +481,23 @@ html:not(.motion-on) .vp-doc h2::after {
   box-shadow: 0 14px 28px -10px rgba(12, 92, 171, 0.5);
 }
 .VPButton.alt {
-  background: var(--cn-tint-primary);
-  color: var(--cn-primary);
+  background: var(--adv-docs-tint-primary);
+  color: var(--adv-docs-primary);
   border-color: transparent;
 }
 .VPButton.alt:hover {
   transform: translateY(-2px);
-  background: var(--cn-primary);
+  background: var(--adv-docs-primary);
   color: #fff;
 }
 .vp-doc .custom-block {
   position: relative;
-  border-radius: var(--cn-r-md);
+  border-radius: var(--adv-docs-r-md);
   border: none;
   padding: 14px 18px 14px 22px;
   margin: 20px 0;
-  background: var(--cn-surface);
-  box-shadow: var(--cn-shadow-sm), var(--cn-inner-light);
+  background: var(--adv-docs-surface);
+  box-shadow: var(--adv-docs-shadow-sm), var(--adv-docs-inner-light);
   overflow: hidden;
 }
 .vp-doc .custom-block::before {
@@ -481,108 +507,123 @@ html:not(.motion-on) .vp-doc h2::after {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--cn-primary);
+  background: var(--adv-docs-primary);
 }
 .vp-doc .custom-block .custom-block-title {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-weight: 600;
   font-size: 14px;
 }
 .vp-doc .custom-block.tip {
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
 }
 .vp-doc .custom-block.tip .custom-block-title {
-  color: var(--cn-primary);
+  color: var(--adv-docs-primary);
 }
 .vp-doc .custom-block.warning {
-  background: var(--cn-tint-warning);
+  background: var(--adv-docs-tint-warning);
 }
 .vp-doc .custom-block.warning::before {
-  background: var(--cn-warning);
+  background: var(--adv-docs-warning);
 }
 .vp-doc .custom-block.warning .custom-block-title {
-  color: var(--cn-warning);
+  color: var(--adv-docs-warning);
 }
 .vp-doc .custom-block.danger {
-  background: var(--cn-tint-danger);
+  background: var(--adv-docs-tint-danger);
 }
 .vp-doc .custom-block.danger::before {
-  background: var(--cn-danger);
+  background: var(--adv-docs-danger);
 }
 .vp-doc .custom-block.danger .custom-block-title {
-  color: var(--cn-danger);
+  color: var(--adv-docs-danger);
 }
 .vp-doc .custom-block.info {
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
 }
 .vp-doc .custom-block.details {
-  background: var(--cn-elevated);
+  background: var(--adv-docs-elevated);
 }
 .vp-doc .custom-block.details::before {
-  background: var(--cn-accent-cyan);
+  background: var(--adv-docs-accent-cyan);
 }
 .vp-doc blockquote {
-  border-left: 3px solid var(--cn-primary);
-  background: var(--cn-tint-primary);
-  border-radius: 0 var(--cn-r-md) var(--cn-r-md) 0;
+  border-left: 3px solid var(--adv-docs-primary);
+  background: var(--adv-docs-tint-primary);
+  border-radius: 0 var(--adv-docs-r-md) var(--adv-docs-r-md) 0;
   padding: 10px 18px;
-  color: var(--cn-text-2);
+  color: var(--adv-docs-text-2);
 }
 .vp-doc :not(pre) > code {
-  font-family: var(--cn-font-mono);
+  font-family: var(--adv-docs-font-mono);
   font-size: 0.88em;
-  background: var(--cn-tint-primary);
-  color: var(--cn-primary);
+  background: var(--adv-docs-tint-primary);
+  color: var(--adv-docs-primary);
   border: 1px solid rgba(12, 92, 171, 0.16);
-  border-radius: var(--cn-r-sm);
+  border-radius: var(--adv-docs-r-sm);
   padding: 2px 6px;
 }
 :root.dark .vp-doc :not(pre) > code {
   border-color: rgba(88, 159, 228, 0.22);
 }
 .vp-doc div[class*='language-'] {
-  border-radius: var(--cn-r-md);
-  box-shadow: var(--cn-shadow), var(--cn-inner-light);
-  border: 1px solid var(--cn-line);
+  border-radius: var(--adv-docs-r-md);
+  box-shadow: var(--adv-docs-shadow-sm);
+  border: 1px solid var(--adv-docs-line);
   overflow: hidden;
 }
+:root.dark .vp-doc div[class*='language-'] {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--adv-docs-shadow), var(--adv-docs-inner-light);
+}
 .vp-doc div[class*='language-'] pre {
-  font-family: var(--cn-font-mono);
+  font-family: var(--adv-docs-font-mono);
 }
 .vp-doc div[class*='language-'] .lang {
-  font-family: var(--cn-font-mono);
+  font-family: var(--adv-docs-font-mono);
   font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #93c5fd;
+  color: var(--adv-docs-muted);
   top: 6px;
   right: 10px;
   padding: 2px 8px;
+  background: rgba(9, 9, 11, 0.05);
+  border: 1px solid rgba(9, 9, 11, 0.06);
+  border-radius: var(--adv-docs-r-sm);
+}
+:root.dark .vp-doc div[class*='language-'] .lang {
+  color: #93c5fd;
   background: rgba(13, 17, 23, 0.6);
-  border-radius: var(--cn-r-sm);
+  border-color: rgba(147, 197, 253, 0.18);
 }
 .vp-doc table {
-  border-radius: var(--cn-r-md);
+  border-radius: var(--adv-docs-r-md);
   overflow: hidden;
-  box-shadow: var(--cn-shadow-sm);
+  box-shadow: var(--adv-docs-shadow-sm);
 }
 .vp-doc table thead {
-  background: linear-gradient(180deg, var(--cn-elevated), var(--cn-surface));
+  background: linear-gradient(
+    180deg,
+    var(--adv-docs-elevated),
+    var(--adv-docs-surface)
+  );
 }
 .vp-doc table th {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-weight: 600;
   font-size: 14px;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
   border: none;
-  border-bottom: 1px solid var(--cn-line);
+  border-bottom: 1px solid var(--adv-docs-line);
 }
 .vp-doc table td {
   border: none;
-  border-top: 1px solid var(--cn-line);
-  color: var(--cn-text-2);
+  border-top: 1px solid var(--adv-docs-line);
+  color: var(--adv-docs-text-2);
   font-size: 14px;
-  transition: background 0.18s var(--cn-ease);
+  transition: background 0.18s var(--adv-docs-ease);
 }
 .vp-doc table tr:nth-child(2n) {
   background: rgba(244, 244, 245, 0.55);
@@ -591,73 +632,68 @@ html:not(.motion-on) .vp-doc h2::after {
   background: rgba(24, 24, 27, 0.55);
 }
 .vp-doc table tbody tr:hover td {
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
 }
 .VPHero .name .clip {
   background: linear-gradient(
     120deg,
-    var(--cn-primary) 25%,
-    var(--cn-accent-cyan) 70%
+    var(--adv-docs-primary) 25%,
+    var(--adv-docs-accent-cyan) 70%
   );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .VPHero .text {
-  color: var(--cn-text-2);
+  color: var(--adv-docs-text-2);
 }
 .VPFeatures .VPFeature {
-  background: var(--cn-surface);
-  border: 1px solid var(--cn-line);
-  border-radius: var(--cn-r-md);
-  box-shadow: var(--cn-shadow-sm), var(--cn-inner-light);
+  background: var(--adv-docs-surface);
+  border: 1px solid var(--adv-docs-line);
+  border-radius: var(--adv-docs-r-md);
+  box-shadow: var(--adv-docs-shadow-sm), var(--adv-docs-inner-light);
   transition:
-    transform 0.24s var(--cn-ease),
-    box-shadow 0.24s var(--cn-ease);
+    transform 0.24s var(--adv-docs-ease),
+    box-shadow 0.24s var(--adv-docs-ease);
 }
 .VPFeatures .VPFeature:hover {
   transform: translateY(-3px);
-  box-shadow: var(--cn-shadow-lg), var(--cn-inner-light);
+  box-shadow: var(--adv-docs-shadow-lg), var(--adv-docs-inner-light);
 }
 .VPFeatures .VPFeature .title {
-  font-family: var(--cn-font-sans);
+  font-family: var(--adv-docs-font-sans);
   font-weight: 600;
-  color: var(--cn-text);
+  color: var(--adv-docs-text);
 }
 .VPDocFooter .prev-next .pager-link {
-  background: var(--cn-surface);
-  border: 1px solid var(--cn-line);
-  border-radius: var(--cn-r-md);
-  box-shadow: var(--cn-shadow-sm);
+  background: var(--adv-docs-surface);
+  border: 1px solid var(--adv-docs-line);
+  border-radius: var(--adv-docs-r-md);
+  box-shadow: var(--adv-docs-shadow-sm);
   transition:
-    transform 0.22s var(--cn-ease),
-    background 0.22s var(--cn-ease);
+    transform 0.22s var(--adv-docs-ease),
+    background 0.22s var(--adv-docs-ease);
 }
 .VPDocFooter .pager-link .title {
-  color: var(--cn-primary);
+  color: var(--adv-docs-primary);
   font-weight: 600;
 }
 .VPDocFooter .pager-link:hover {
   transform: translateY(-2px);
-  background: var(--cn-tint-primary);
+  background: var(--adv-docs-tint-primary);
   border-color: transparent;
 }
 .VPFooter {
   background: transparent;
-  border-top: 1px solid var(--cn-line);
-  color: var(--cn-muted);
+  border-top: 1px solid var(--adv-docs-line);
+  color: var(--adv-docs-muted);
 }
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--cn-primary);
+  outline: 2px solid var(--adv-docs-primary);
   outline-offset: 3px;
-  border-radius: var(--cn-r-sm);
-}
-.motion-on .vp-doc .content-container > *,
-.motion-on .VPFeature,
-.motion-on .cn-deco__orb {
-  will-change: transform, opacity;
+  border-radius: var(--adv-docs-r-sm);
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -668,10 +704,7 @@ summary:focus-visible {
   }
 }
 
-/* ============================================================
-   细节打磨（2026-10-31）：侧栏层级错层 / 选中框留白 / 搜索框与面板 / 开关
-   只用 --vp-c-* 令牌，三套主题通用。
-   ============================================================ */
+/* 侧栏层级、搜索面板与昼夜开关沿用 VitePress 的语义变量，深浅主题共用。 */
 
 /* ---------- 1. 侧栏：分组标题（不可点）与子页面（可点）的错层 ---------- */
 .VPSidebar .group {
@@ -718,16 +751,18 @@ summary:focus-visible {
   opacity: 0.45;
 }
 
-/* ---------- 3. 顶部搜索框：与左侧导航等宽 ---------- */
+/* ---------- 3. 顶部搜索框：桌面端与左侧导航等宽 ---------- */
 .VPNavBarSearch {
   flex: 0 1 auto;
 }
-.VPNavBarSearch .DocSearch-Button,
-.VPNavBarSearch .DocSearch-Button:hover {
-  width: var(--vp-sidebar-width, 272px);
-  max-width: 100%;
-  justify-content: flex-start;
-  border-radius: 4px;
+@media (min-width: 768px) {
+  .VPNavBarSearch .DocSearch-Button,
+  .VPNavBarSearch .DocSearch-Button:hover {
+    width: var(--vp-sidebar-width, 272px);
+    max-width: 100%;
+    justify-content: flex-start;
+    border-radius: 4px;
+  }
 }
 
 /* ---------- 4. 搜索面板：与全站质感统一 ---------- */
@@ -809,10 +844,8 @@ summary:focus-visible {
   }
 }
 
-/* ---------- 5. 昼夜开关（内嵌参考实现，样式随 shadow DOM 注入） ----------
-   例外：这是插画型控件，使用参考实现 Day-night-toggle-button 4.0 的固定场景色板，
-   不参与本文件语义色，详见 DESIGN.md 增补章节。 */
-button.VPSwitch.dn-mounted {
+/* ---------- 5. 昼夜开关：保留原生按钮，插画场景在 shadow DOM 内 ---------- */
+button.VPSwitch.adv-appearance-mounted {
   position: relative;
   width: 90px !important;
   height: 35px !important;
@@ -821,13 +854,12 @@ button.VPSwitch.dn-mounted {
   background: transparent !important;
   box-shadow: none !important;
 }
-button.VPSwitch.dn-mounted .check {
+button.VPSwitch.adv-appearance-mounted .check {
   display: none !important;
 }
 
-/* 明暗切换：颜色无极过渡（不再用覆盖层，避免切换尾声出现顿挫） */
-html.dn-color-shift body,
-html.dn-color-shift * {
+html.adv-appearance-shift body,
+html.adv-appearance-shift * {
   transition:
     background-color 0.7s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.7s cubic-bezier(0.4, 0, 0.2, 1),
@@ -837,8 +869,8 @@ html.dn-color-shift * {
     outline-color 0.7s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  html.dn-color-shift body,
-  html.dn-color-shift * {
+  html.adv-appearance-shift body,
+  html.adv-appearance-shift * {
     transition: none !important;
   }
 }
