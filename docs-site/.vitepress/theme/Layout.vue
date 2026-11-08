@@ -11,7 +11,10 @@ const STORAGE_KEY_MANUAL = 'cbnv_serious_manual';
 
 const isSeriousMode = ref(false);
 const showToast = ref(false);
+const toastMessage = ref('');
+const hasUndoAction = ref(false);
 let toastTimer = null;
+let previousPathWasHome = true;
 
 const isHome = computed(() => {
   return (
@@ -32,12 +35,14 @@ function applyMode(serious) {
   }
 }
 
-function triggerToast() {
+function triggerToast(message, showUndo = false, duration = 6500) {
+  toastMessage.value = message;
+  hasUndoAction.value = showUndo;
   showToast.value = true;
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     showToast.value = false;
-  }, 7000);
+  }, duration);
 }
 
 function evaluateRouteMode(isUserNavigation = false) {
@@ -48,28 +53,38 @@ function evaluateRouteMode(isUserNavigation = false) {
 
   if (manual === 'on') {
     applyMode(true);
+    previousPathWasHome = isHome.value;
     return;
   }
   if (manual === 'off') {
     applyMode(false);
+    previousPathWasHome = isHome.value;
     return;
   }
 
-  // 自动路由联动模式
+  // 自动路由联动模式：支持双向过渡
   if (isHome.value) {
-    // 官网部分：默认启用华丽织叙质感主题与动效
+    // 官网部分：默认启用质感主题与动效
+    const wasSerious = isSeriousMode.value;
     applyMode(false);
+    // 从文档部分返回官网首页时，触发向质感模式过渡的反馈
+    if (isUserNavigation && !previousPathWasHome && wasSerious) {
+      triggerToast('已回到官网首页，为您恢复全效质感呈现。', false, 4500);
+    }
+    previousPathWasHome = true;
   } else {
     // 文档部分：自动进入极简克制的简约模式（若未撤销）
+    const previousWasHome = previousPathWasHome;
+    previousPathWasHome = false;
     if (!autoDisabled) {
       applyMode(true);
-      // 若当前进入了文档部分，且用户未关闭过提示，弹出 Toast
+      // 若当前从官网进入文档部分，或首次进入文档，弹出 Toast
       if (
         isUserNavigation ||
         !sessionStorage.getItem('cbnv_serious_toast_shown')
       ) {
         sessionStorage.setItem('cbnv_serious_toast_shown', 'true');
-        triggerToast();
+        triggerToast('检测到您正在读文档，已为您减少界面干扰。', true, 7000);
       }
     } else {
       applyMode(false);
@@ -82,17 +97,22 @@ function undoSerious() {
   localStorage.setItem(STORAGE_KEY_AUTO_DISABLED, 'true');
   localStorage.removeItem(STORAGE_KEY_MANUAL);
   applyMode(false);
-  showToast.value = false;
+  triggerToast('已撤销简约模式，后续阅读文档将默认保持质感呈现。', false, 4500);
 }
 
 function toggleManual() {
   const next = !isSeriousMode.value;
   applyMode(next);
   localStorage.setItem(STORAGE_KEY_MANUAL, next ? 'on' : 'off');
-  showToast.value = false;
+  if (next) {
+    triggerToast('已切换为简约模式，界面已精简为克制阅读风格。', false, 4500);
+  } else {
+    triggerToast('已切换为质感模式，全站视觉特效已恢复。', false, 4500);
+  }
 }
 
 onMounted(() => {
+  previousPathWasHome = isHome.value;
   evaluateRouteMode(false);
 });
 
@@ -107,25 +127,27 @@ watch(
 <template>
   <DefaultTheme.Layout>
     <template #layout-top>
-      <!-- 动效光晕装饰仅在非简约模式（质感模式）下启用 -->
-      <div
-        v-if="!isSeriousMode && isHome"
-        class="adv-docs-deco"
-        aria-hidden="true"
-      >
-        <i class="adv-docs-deco__band"></i>
-        <i class="adv-docs-deco__orb adv-docs-deco__orb--a"></i>
-        <i class="adv-docs-deco__orb adv-docs-deco__orb--b"></i>
-        <i class="adv-docs-deco__orb adv-docs-deco__orb--c"></i>
-      </div>
-      <div
-        v-else-if="!isSeriousMode"
-        class="adv-docs-deco adv-docs-deco--subtle"
-        aria-hidden="true"
-      >
-        <i class="adv-docs-deco__band"></i>
-        <i class="adv-docs-deco__orb adv-docs-deco__orb--a"></i>
-      </div>
+      <!-- 动效光晕装饰带有平滑淡入淡出过渡，在质感模式下启用 -->
+      <Transition name="cbnv-deco-fade">
+        <div
+          v-if="!isSeriousMode && isHome"
+          class="adv-docs-deco"
+          aria-hidden="true"
+        >
+          <i class="adv-docs-deco__band"></i>
+          <i class="adv-docs-deco__orb adv-docs-deco__orb--a"></i>
+          <i class="adv-docs-deco__orb adv-docs-deco__orb--b"></i>
+          <i class="adv-docs-deco__orb adv-docs-deco__orb--c"></i>
+        </div>
+        <div
+          v-else-if="!isSeriousMode"
+          class="adv-docs-deco adv-docs-deco--subtle"
+          aria-hidden="true"
+        >
+          <i class="adv-docs-deco__band"></i>
+          <i class="adv-docs-deco__orb adv-docs-deco__orb--a"></i>
+        </div>
+      </Transition>
     </template>
 
     <template #nav-bar-content-after>
@@ -235,7 +257,25 @@ watch(
         >
           <div class="cbnv-serious-toast__body">
             <span class="cbnv-serious-toast__icon" aria-hidden="true">
+              <!-- 质感模式图标：星芒 -->
               <svg
+                v-if="!isSeriousMode"
+                viewBox="0 0 16 16"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.1 2.1M10.5 10.5l2.1 2.1M3.4 12.6l2.1-2.1M10.5 5.5l2.1-2.1"
+                />
+              </svg>
+              <!-- 简约模式图标：文档 -->
+              <svg
+                v-else
                 viewBox="0 0 16 16"
                 width="15"
                 height="15"
@@ -250,7 +290,9 @@ watch(
               </svg>
             </span>
             <span class="cbnv-serious-toast__message">
-              检测到您正在读文档，已为您减少界面干扰。<a
+              {{ toastMessage }}
+              <a
+                v-if="hasUndoAction"
                 href="javascript:void(0)"
                 class="cbnv-serious-toast__undo"
                 @click.prevent="undoSerious"
