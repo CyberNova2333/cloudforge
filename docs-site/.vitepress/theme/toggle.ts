@@ -1,247 +1,207 @@
-// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-/* 昼夜开关：内嵌参考实现（Day-night-toggle-button 4.0）的原始 DOM 与 CSS（closed shadow DOM 隔离），
-   追加「小飞机（白天掠过）」与「宇航员熊（夜间漂浮）」（来自参考视频）。
-   适配：容器缩放 180x70 -> 112x44、点击同步 VitePress 主题、云朵抖动与悬停视差。 */
-const REF_CSS =
-  '* { margin: 0; padding: 0; transition: 0.7s; -webkit-tap-highlight-color:rgba(0,0,0,0); } .container { position: absolute;top: 50%;left: 50%;margin-top: -35em;margin-left: -90em;width: 180em; height: 70em; display: inline-block; vertical-align: bottom; transform: translate3d(0, 0, 0); } .components{ position:fixed; width: 180em; height: 70em; background-color: rgba(70, 133, 192,1); border-radius: 100em; box-shadow: inset 0 0 5em 3em rgba(0, 0, 0, 0.5); overflow: hidden; transition: 0.7s; transition-timing-function: cubic-bezier( 0,0.5, 1,1); cursor: pointer; } .main-button{ margin: 7.5em 0 0 7.5em; width: 55em; height:55em; background-color: rgba(255, 195, 35,1); border-radius: 50%; box-shadow:3em 3em 5em rgba(0, 0, 0, 0.5), inset -3em -5em 3em -3em rgba(0, 0, 0, 0.5), inset 4em 5em 2em -2em rgba(255, 230, 80,1); transition: 1.0s; transition-timing-function: cubic-bezier(0.56, 1.35, 0.52, 1.00); } .moon{ position: absolute; background-color: rgba(150, 160, 180, 1); box-shadow:inset 0em 0em 1em 1em rgba(0, 0, 0, 0.3) ; border-radius: 50%; transition: 0.5s; opacity: 0; } .moon:nth-child(1){ top: 7.5em; left: 25em; width: 12.5em; height: 12.5em; } .moon:nth-child(2){ top: 20em; left: 7.5em; width: 20em; height: 20em; } .moon:nth-child(3){ top: 32.5em; left: 32.5em; width: 12.5em; height: 12.5em; } .daytime-background { position: absolute; border-radius: 50%; transition: 1.0s; transition-timing-function: cubic-bezier(0.56, 1.35, 0.52, 1.00); } .daytime-background:nth-child(2){ top: -20em; left: -20em; width: 110em; height:110em; background-color: rgba(255, 255, 255,0.2); z-index: -2; } .daytime-background:nth-child(3){ top: -32.5em; left: -17.5em; width: 135em; height:135em; background-color: rgba(255, 255, 255,0.1); z-index: -3; } .daytime-background:nth-child(4){ top: -45em; left: -15em; width: 160em; height:160em; background-color: rgba(255, 255, 255,0.05); z-index: -4; } .cloud,.cloud-light{ transform: translateY(10em); transition: 1.0s; transition-timing-function: cubic-bezier(0.56, 1.35, 0.52, 1.00); } .cloud-son{ position: absolute; background-color: #fff; border-radius: 50%; z-index: -1; transition: transform 6s,right 1s,bottom 1s; } .cloud-son:nth-child(6n+1){ right: -20em; bottom: 10em; width: 50em; height: 50em; } .cloud-son:nth-child(6n+2) { right: -10em; bottom: -25em; width: 60em; height: 60em; } .cloud-son:nth-child(6n+3) { right: 20em; bottom: -40em; width: 60em; height: 60em; } .cloud-son:nth-child(6n+4) { right: 50em; bottom: -35em; width: 60em; height: 60em; } .cloud-son:nth-child(6n+5) { right: 75em; bottom: -60em; width: 75em; height: 75em; } .cloud-son:nth-child(6n+6) { right: 110em; bottom: -50em; width: 60em; height: 60em; } .cloud{ z-index: -2; } .cloud-light{ position: absolute; right: 0em; bottom: 25em; opacity: 0.5; z-index: -3; /*transform: rotate(-5deg);*/ } .stars{ transform: translateY(-125em); z-index: -2; transition: 1.0s; transition-timing-function: cubic-bezier(0.56, 1.35, 0.52, 1.00); } .big { --size: 7.5em; } .medium { --size: 5em; } .small { --size: 3em; } .star { position: absolute; width: calc(2*var(--size)); height: calc(2*var(--size)); } .star:nth-child(1){ top: 11em; left: 39em; animation-name: star; animation-duration: 3.5s; } .star:nth-child(2){ top: 39em; left: 91em; animation-name: star; animation-duration: 4.1s; } .star:nth-child(3){ top: 26em; left: 19em; animation-name: star; animation-duration: 4.9s; } .star:nth-child(4){ top: 37em; left: 66em; animation-name: star; animation-duration: 5.3s; } .star:nth-child(5){ top: 21em; left: 75em; animation-name: star; animation-duration: 3s; } .star:nth-child(6){ top: 51em; left: 38em; animation-name: star; animation-duration: 2.2s; } @keyframes star { 0%,20%{ transform: scale(0); } 20%,100% { transform: scale(1); } } .star-son{ float: left; } .star-son:nth-child(1) { --pos: left 0; } .star-son:nth-child(2) { --pos: right 0; } .star-son:nth-child(3) { --pos: 0 bottom; } .star-son:nth-child(4) { --pos: right bottom; } .star-son { width: var(--size); height: var(--size); background-image: radial-gradient(circle var(--size) at var(--pos), transparent var(--size), #fff); } .star{ transform: scale(1); transition-timing-function: cubic-bezier(0.56, 1.35, 0.52, 1.00); transition: 1s; animation-iteration-count:infinite; animation-direction: alternate; animation-timing-function: linear; } .twinkle { transform: scale(0); }';
-const REF_HTML =
-  '<div class="components"><div class="main-button"><div class="moon"></div><div class="moon"></div><div class="moon"></div></div><div class="daytime-background"></div><div class="daytime-background"></div><div class="daytime-background"></div><div class="cloud"><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div></div><div class="cloud-light"><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div><div class="cloud-son"></div></div><div class="stars"><div class="star big"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div><div class="star big"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div><div class="star medium"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div><div class="star medium"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div><div class="star small"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div><div class="star small"><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div><div class="star-son"></div></div></div></div>';
-
-const EXTRA_CSS = `
-.dn-plane, .dn-bear { position: absolute; left: 0; top: 0; z-index: -1; opacity: 0;
-  pointer-events: none; transition: opacity 0.8s ease; }
-.dn-plane svg, .dn-bear svg { display: block; overflow: visible; }
-.dn-plane svg { width: 24em; height: 14.5em; }
-.dn-bear svg { width: 30em; height: 30em; }
-.is-day .dn-plane { opacity: 0.95; }
-.is-night .dn-bear { opacity: 0.95; }
-.dn-plane { animation: dn-plane-fly 9.5s linear infinite; }
-.dn-bear { animation: dn-bear-float 17s linear infinite; }
-@keyframes dn-plane-fly {
-  0% { transform: translate(-28em, 14em) rotate(-4deg); }
-  35% { transform: translate(70em, 9em) rotate(2deg); }
-  70% { transform: translate(150em, 15em) rotate(-2deg); }
-  100% { transform: translate(196em, 10em) rotate(4deg); }
+const TOGGLE_CSS = `
+:host { position: absolute; inset: 0; pointer-events: none; }
+* { box-sizing: border-box; }
+.scene {
+  --knob-x: 0px;
+  --knob-nudge: 0px;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #4685c0;
+  box-shadow: inset 0 0 4px 2px rgba(9, 9, 11, 0.35);
+  transition: background-color 0.7s ease;
 }
-@keyframes dn-bear-float {
-  0% { transform: translate(-30em, 34em) rotate(-10deg); }
-  30% { transform: translate(50em, 27em) rotate(6deg); }
-  55% { transform: translate(112em, 33em) rotate(-6deg); }
-  80% { transform: translate(160em, 26em) rotate(8deg); }
-  100% { transform: translate(200em, 32em) rotate(-10deg); }
+.scene.is-night { --knob-x: 55px; background: #191e32; }
+.scene.is-hovered { --knob-nudge: 2px; }
+.knob {
+  position: absolute;
+  z-index: 4;
+  top: 4px;
+  left: 4px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #ffc323;
+  box-shadow: 2px 2px 4px rgba(9, 9, 11, 0.35), inset -3px -3px 4px rgba(156, 89, 0, 0.28), inset 3px 3px 4px rgba(255, 255, 210, 0.7);
+  transform: translateX(calc(var(--knob-x) + var(--knob-nudge)));
+  transition: transform 0.7s cubic-bezier(0.56, 1.35, 0.52, 1), background-color 0.7s ease;
 }
+.is-night .knob { background: #c3c8d2; }
+.crater { position: absolute; border-radius: 50%; background: #96a0b4; box-shadow: inset 1px 1px 2px rgba(9, 9, 11, 0.25); opacity: 0; transition: opacity 0.4s ease; }
+.crater:nth-child(1) { width: 6px; height: 6px; top: 5px; left: 8px; }
+.crater:nth-child(2) { width: 8px; height: 8px; top: 13px; left: 4px; }
+.crater:nth-child(3) { width: 5px; height: 5px; top: 16px; left: 16px; }
+.is-night .crater { opacity: 1; }
+.stars { position: absolute; inset: 0; opacity: 0; transform: translateY(8px); transition: opacity 0.5s ease, transform 0.8s ease; }
+.is-night .stars { opacity: 1; transform: translateY(0); }
+.star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; animation: star-twinkle 3s ease-in-out infinite alternate; }
+.star:nth-child(1) { top: 7px; left: 13px; }
+.star:nth-child(2) { top: 23px; left: 24px; animation-delay: -1s; }
+.star:nth-child(3) { top: 9px; left: 37px; width: 2px; height: 2px; animation-delay: -2s; }
+.star:nth-child(4) { top: 25px; left: 46px; width: 2px; height: 2px; }
+.star:nth-child(5) { top: 6px; left: 58px; animation-delay: -1.5s; }
+.cloud { position: absolute; z-index: 2; width: 29px; height: 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.9); transition: transform 0.8s ease, opacity 0.6s ease; }
+.cloud::before, .cloud::after { content: ""; position: absolute; bottom: 2px; border-radius: 50%; background: inherit; }
+.cloud::before { left: 5px; width: 12px; height: 12px; }
+.cloud::after { right: 4px; width: 9px; height: 9px; }
+.cloud-one { left: 7px; bottom: 5px; }
+.cloud-two { right: 5px; bottom: 9px; transform: scale(0.75); opacity: 0.65; }
+.is-night .cloud-one { transform: translateY(22px); opacity: 0; }
+.is-night .cloud-two { transform: translate(8px, 22px) scale(0.75); opacity: 0; }
+.is-hovered .cloud-one { transform: translateX(3px); }
+.is-hovered .cloud-two { transform: translate(3px, -1px) scale(0.75); }
+.plane, .bear { position: absolute; z-index: 3; pointer-events: none; }
+.plane { left: 0; top: 8px; width: 18px; height: 11px; animation: plane-fly 9.5s linear infinite; }
+.bear { left: 0; top: 8px; width: 19px; height: 19px; opacity: 0; animation: bear-float 17s linear infinite; }
+.is-day .plane { opacity: 0.95; }
+.is-night .plane { opacity: 0; }
+.is-night .bear { opacity: 0.95; }
+@keyframes plane-fly {
+  from { transform: translate(-20px, 4px) rotate(-5deg); }
+  50% { transform: translate(42px, 0) rotate(3deg); }
+  to { transform: translate(98px, 4px) rotate(-4deg); }
+}
+@keyframes bear-float {
+  from { transform: translate(-22px, 6px) rotate(-8deg); }
+  50% { transform: translate(43px, 0) rotate(6deg); }
+  to { transform: translate(99px, 5px) rotate(-6deg); }
+}
+@keyframes star-twinkle { from { transform: scale(0.45); opacity: 0.45; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .dn-plane, .dn-bear { animation: none !important; opacity: 0 !important; }
+  .scene, .knob, .crater, .stars, .cloud { transition: none; }
+  .star, .plane, .bear { animation: none; }
+  .plane, .bear { display: none; }
 }
 `;
 
-const EXTRA_HTML = `
-<div class="dn-plane" aria-hidden="true">
-  <svg viewBox="0 0 30 18">
-    <path d="M30 9 L1 0.5 L11 9 Z" fill="#fff"/>
-    <path d="M30 9 L11 9 L1 17.5 Z" fill="rgba(0,0,0,0.16)"/>
-    <path d="M30 9 L6 9" stroke="rgba(0,0,0,0.10)" stroke-width="1" fill="none"/>
-  </svg>
+const TOGGLE_HTML = `
+<div class="scene is-day">
+  <span class="stars" aria-hidden="true"><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i></span>
+  <span class="cloud cloud-one"></span>
+  <span class="cloud cloud-two"></span>
+  <span class="plane" aria-hidden="true">
+    <svg viewBox="0 0 30 18"><path d="M30 9 L1 0.5 L11 9 Z" fill="#fff"/><path d="M30 9 L11 9 L1 17.5 Z" fill="rgba(0,0,0,0.16)"/><path d="M30 9 L6 9" stroke="rgba(0,0,0,0.10)" stroke-width="1" fill="none"/></svg>
+  </span>
+  <span class="bear" aria-hidden="true">
+    <svg viewBox="-20 -20 40 40"><rect x="-9" y="2" width="18" height="14" rx="5" fill="#b9c4d4"/><ellipse cx="0" cy="9" rx="7.5" ry="8" fill="#e6ecf5"/><ellipse cx="-7.6" cy="7" rx="2.8" ry="2.2" fill="#cfd9e6"/><ellipse cx="7.6" cy="7" rx="2.8" ry="2.2" fill="#cfd9e6"/><circle cx="-6.2" cy="-8" r="3.4" fill="#a8845c"/><circle cx="6.2" cy="-8" r="3.4" fill="#a8845c"/><circle cx="-6.2" cy="-8" r="1.7" fill="#c9a583"/><circle cx="6.2" cy="-8" r="1.7" fill="#c9a583"/><circle cx="0" cy="-1.5" r="8" fill="#a8845c"/><ellipse cx="0" cy="2.2" rx="3.6" ry="2.7" fill="#d8b894"/><circle cx="0" cy="1.3" r="1.1" fill="#4a3628"/><circle cx="-3" cy="-3" r="1.15" fill="#2b2b3a"/><circle cx="3" cy="-3" r="1.15" fill="#2b2b3a"/><circle cx="0" cy="-1" r="13.5" fill="rgba(0,0,0,0.16)" stroke="#fff" stroke-width="1.6"/><path d="M-9.5 -8.5 a10.5 10.5 0 0 1 6.5 -7" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </span>
+  <span class="knob"><i class="crater"></i><i class="crater"></i><i class="crater"></i></span>
 </div>
-<div class="dn-bear" aria-hidden="true">
-  <svg viewBox="-20 -20 40 40">
-    <rect x="-9" y="2" width="18" height="14" rx="5" fill="#b9c4d4"/>
-    <ellipse cx="0" cy="9" rx="7.5" ry="8" fill="#e6ecf5"/>
-    <ellipse cx="-7.6" cy="7" rx="2.8" ry="2.2" fill="#cfd9e6"/>
-    <ellipse cx="7.6" cy="7" rx="2.8" ry="2.2" fill="#cfd9e6"/>
-    <circle cx="-6.2" cy="-8" r="3.4" fill="#a8845c"/>
-    <circle cx="6.2" cy="-8" r="3.4" fill="#a8845c"/>
-    <circle cx="-6.2" cy="-8" r="1.7" fill="#c9a583"/>
-    <circle cx="6.2" cy="-8" r="1.7" fill="#c9a583"/>
-    <circle cx="0" cy="-1.5" r="8" fill="#a8845c"/>
-    <ellipse cx="0" cy="2.2" rx="3.6" ry="2.7" fill="#d8b894"/>
-    <circle cx="0" cy="1.3" r="1.1" fill="#4a3628"/>
-    <circle cx="-3" cy="-3" r="1.15" fill="#2b2b3a"/>
-    <circle cx="3" cy="-3" r="1.15" fill="#2b2b3a"/>
-    <circle cx="0" cy="-1" r="13.5" fill="rgba(255,255,255,0.16)" stroke="#fff" stroke-width="1.6"/>
-    <path d="M-9.5 -8.5 a10.5 10.5 0 0 1 6.5 -7" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>
-</div>`;
+`;
 
-function colorShift() {
-  const r = document.documentElement;
-  r.classList.add('dn-color-shift');
-  window.setTimeout(() => {
-    r.classList.remove('dn-color-shift');
-  }, 760);
-}
+type AppearanceWindow = Window & { __advDocsAppearance?: boolean };
 
 export function setupAppearanceToggle() {
-  const w = window as any;
-  if (typeof document === 'undefined') return;
-  const g = w as any;
-  if (g.__dnSwitch) return;
-  g.__dnSwitch = true;
+  if (typeof window === 'undefined') return;
+  const global = window as AppearanceWindow;
+  if (global.__advDocsAppearance) return;
+  global.__advDocsAppearance = true;
 
+  const bindings = new WeakMap<HTMLButtonElement, ShadowRoot>();
+  const buttons = () =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>('button.VPSwitch'));
+  const isDark = () => document.documentElement.classList.contains('dark');
   const reduced = () =>
-    window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const pickAll = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('button.VPSwitch'));
-  const pick = () => pickAll()[0] || null;
+  let shiftTimer: number | undefined;
 
-  function build(btn: HTMLElement) {
-    if (btn.querySelector('.dn-host')) return null;
+  function colorShift() {
+    if (reduced()) return;
+    const root = document.documentElement;
+    root.classList.add('adv-appearance-shift');
+    if (shiftTimer !== undefined) window.clearTimeout(shiftTimer);
+    shiftTimer = window.setTimeout(
+      () => root.classList.remove('adv-appearance-shift'),
+      760
+    );
+  }
+
+  function build(button: HTMLButtonElement) {
     const host = document.createElement('div');
-    host.className = 'dn-host';
-    host.style.position = 'absolute';
-    host.style.left = '0';
-    host.style.top = '0';
-    host.style.width = '90px';
-    host.style.height = '35px';
-    host.style.pointerEvents = 'none';
-    const shadow = (host as any).attachShadow({ mode: 'closed' });
-    const container = document.createElement('div');
-    container.className = 'container';
-    container.style.fontSize = '1px';
-    container.style.transform = 'scale(0.5)';
-    container.style.transformOrigin = 'center';
-    container.innerHTML = REF_HTML;
-    // 角色必须注入到 .components 内部：它是 overflow:hidden 且不透明，
-    // 放在外面会被轨道整体遮住
-    const comp = container.querySelector('.components');
-    if (comp) comp.insertAdjacentHTML('beforeend', EXTRA_HTML);
+    host.className = 'adv-appearance-host';
+    host.setAttribute('aria-hidden', 'true');
+    const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
-    style.textContent = REF_CSS + EXTRA_CSS;
-    shadow.appendChild(style);
-    shadow.appendChild(container);
-    btn.classList.add('dn-mounted');
-    btn.appendChild(host);
+    style.textContent = TOGGLE_CSS;
+    const container = document.createElement('div');
+    container.innerHTML = TOGGLE_HTML;
+    shadow.append(style, container);
+    button.classList.add('adv-appearance-mounted');
+    button.appendChild(host);
     return shadow;
   }
 
-  function applyState(shadow: any, dark: boolean) {
-    const container = shadow.querySelector('.container') as HTMLElement;
-    container.classList.remove('is-day', 'is-night');
-    container.classList.add(dark ? 'is-night' : 'is-day');
-    const $ = (s: string) => shadow.querySelectorAll(s);
-    const knob = shadow.querySelector('.main-button') as HTMLElement;
-    const bgs = Array.from($('.daytime-background')) as HTMLElement[];
-    const cloud = shadow.querySelector('.cloud') as HTMLElement;
-    const cloudLight = shadow.querySelector('.cloud-light') as HTMLElement;
-    const track = shadow.querySelector('.components') as HTMLElement;
-    const moons = Array.from($('.moon')) as HTMLElement[];
-    const stars = shadow.querySelector('.stars') as HTMLElement;
-    if (dark) {
-      knob.style.transform = 'translateX(110em)';
-      knob.style.backgroundColor = 'rgba(195, 200, 210, 1)';
-      knob.style.boxShadow =
-        '3em 3em 5em rgba(0, 0, 0, 0.5), inset -3em -5em 3em -3em rgba(0, 0, 0, 0.5), inset 4em 5em 2em -2em rgba(255, 255, 210, 1)';
-      if (bgs[0]) bgs[0].style.transform = 'translateX(110em)';
-      if (bgs[1]) bgs[1].style.transform = 'translateX(80em)';
-      if (bgs[2]) bgs[2].style.transform = 'translateX(50em)';
-      cloud.style.transform = 'translateY(80em)';
-      cloudLight.style.transform = 'translateY(80em)';
-      track.style.backgroundColor = 'rgba(25, 30, 50, 1)';
-      moons.forEach((m) => {
-        m.style.opacity = '1';
-      });
-      stars.style.transform = 'translateY(-62.5em)';
-      stars.style.opacity = '1';
-    } else {
-      knob.style.transform = 'translateX(0)';
-      knob.style.backgroundColor = 'rgba(255, 195, 35, 1)';
-      knob.style.boxShadow =
-        '3em 3em 5em rgba(0, 0, 0, 0.5), inset -3em -5em 3em -3em rgba(0, 0, 0, 0.5), inset 4em 5em 2em -2em rgba(255, 230, 80, 1)';
-      bgs.forEach((b) => {
-        b.style.transform = 'translateX(0)';
-      });
-      cloud.style.transform = 'translateY(10em)';
-      cloudLight.style.transform = 'translateY(10em)';
-      track.style.backgroundColor = 'rgba(70, 133, 192, 1)';
-      moons.forEach((m) => {
-        m.style.opacity = '0';
-      });
-      stars.style.transform = 'translateY(-125em)';
-      stars.style.opacity = '0';
-    }
-  }
-
-  function bind(btn: HTMLElement) {
-    if ((btn as any).__dnBound) return;
-    (btn as any).__dnBound = true;
-    const shadow = build(btn);
-    if (!shadow) return;
-    const isDark = () => document.documentElement.classList.contains('dark');
-    shadow.querySelector('.components').style.transition = 'none';
-    applyState(shadow, isDark());
-    window.setTimeout(() => {
-      shadow.querySelector('.components').style.removeProperty('transition');
-    }, 50);
+  function bind(button: HTMLButtonElement) {
+    if (bindings.has(button)) return;
+    const shadow = build(button);
+    bindings.set(button, shadow);
+    const scene = shadow.querySelector<HTMLElement>('.scene')!;
+    const sync = () => {
+      scene.classList.toggle('is-night', isDark());
+      scene.classList.toggle('is-day', !isDark());
+    };
+    sync();
 
     let bypass = false;
     let busy = false;
-    btn.addEventListener(
+    button.addEventListener(
       'click',
-      (e: any) => {
+      (event) => {
         if (bypass) {
           bypass = false;
           return;
         }
-        if (busy) return;
-        applyState(shadow, !isDark());
-        colorShift();
-        if (e.detail === 0) {
-          window.setTimeout(() => applyState(shadow, isDark()), 30);
+        if (busy) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
           return;
         }
-        e.preventDefault();
-        e.stopImmediatePropagation();
+        colorShift();
+        if (event.detail === 0) {
+          window.setTimeout(sync, 0);
+          return;
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
         busy = true;
         bypass = true;
-        btn.click();
+        button.click();
+        sync();
         window.setTimeout(() => {
           busy = false;
         }, 700);
       },
       true
     );
-
-    if (reduced()) return;
-    const knob = shadow.querySelector('.main-button') as HTMLElement;
-    const cloud = shadow.querySelector('.cloud') as HTMLElement;
-    btn.addEventListener('mouseenter', () => {
-      knob.style.transform = isDark()
-        ? 'translateX(100em)'
-        : 'translateX(10em)';
-      cloud.style.transform = 'translateY(14em)';
+    button.addEventListener('mouseenter', () => {
+      if (!reduced()) scene.classList.add('is-hovered');
     });
-    btn.addEventListener('mouseleave', () => {
-      knob.style.transform = isDark() ? 'translateX(110em)' : 'translateX(0)';
-      cloud.style.transform = isDark()
-        ? 'translateY(80em)'
-        : 'translateY(10em)';
-    });
-    const sons = Array.from(
-      shadow.querySelectorAll('.cloud-son')
-    ) as HTMLElement[];
-    const dirs = ['2em', '-2em'];
-    window.setInterval(() => {
-      if (document.hidden) return;
-      sons.forEach((s) => {
-        s.style.transform =
-          'translate(' +
-          dirs[Math.floor(Math.random() * 2)] +
-          ', ' +
-          dirs[Math.floor(Math.random() * 2)] +
-          ')';
-      });
-    }, 1000);
+    button.addEventListener('mouseleave', () =>
+      scene.classList.remove('is-hovered')
+    );
   }
 
-  let tries = 0;
-  const attempt = () => {
-    const btns = pickAll();
-    if (btns.length) {
-      btns.forEach((b) => bind(b));
+  function bindAll() {
+    for (const button of buttons()) bind(button);
+  }
+
+  bindAll();
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', bindAll, { once: true });
+  new MutationObserver(bindAll).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+  new MutationObserver(() => {
+    for (const button of buttons()) {
+      const shadow = bindings.get(button);
+      const scene = shadow?.querySelector<HTMLElement>('.scene');
+      scene?.classList.toggle('is-night', isDark());
+      scene?.classList.toggle('is-day', !isDark());
     }
-    if (tries++ < 40) window.setTimeout(attempt, 400); // 继续轮询：菜单里的开关可能后渲染
-  };
-  attempt();
-  document.addEventListener('DOMContentLoaded', attempt);
+  }).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 }
