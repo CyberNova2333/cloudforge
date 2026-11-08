@@ -13,18 +13,15 @@
       (function () {
         var root = document.documentElement;
         var theme = null;
-        var mode = null;
         try {
           theme = localStorage.getItem('go-theme-id');
-          mode = localStorage.getItem('go-mode');
+          localStorage.removeItem('go-mode');
         } catch (e) {}
-        if (mode !== 'light' && mode !== 'dark') mode = 'system';
         root.setAttribute('data-skin', theme === 'github' ? 'dev' : 'hq');
-        root.setAttribute('data-color-mode', mode === 'system' ? 'auto' : mode);
+        root.setAttribute('data-color-mode', 'auto');
         root.setAttribute('data-light-theme', 'light');
         root.setAttribute('data-dark-theme', 'dark');
-        if (mode === 'system') root.removeAttribute('data-theme');
-        else root.setAttribute('data-theme', mode);
+        root.removeAttribute('data-theme');
       })();
     </script>
   </head>

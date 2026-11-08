@@ -18,6 +18,7 @@ import { useSetupChecks } from '@/lib/auth/setupChecks';
 import { AccountMenu } from './AccountMenu';
 import type { ShellMenu, ShellRepo } from './AppShell';
 import { CreateMenu } from './CreateMenu';
+import { DayNightSwitch } from './DayNightSwitch';
 import { GlobalSearch } from './GlobalSearch';
 import { PageIcon } from './icons';
 
@@ -68,6 +69,7 @@ function SignInTool() {
   const other = LANGUAGES.find((l) => l.value !== lang)!;
   return (
     <>
+      <DayNightSwitch />
       <button
         type="button"
         className="btn small"
@@ -161,6 +163,7 @@ export function TopBand({
               <CreateMenu open={menu === 'create'} setMenu={setMenu} />
               <NotificationsTool />
               <ApprovalsTool />
+              <DayNightSwitch />
               <AccountMenu open={menu === 'acct'} setMenu={setMenu} />
             </div>
           </>
