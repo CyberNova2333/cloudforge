@@ -67,6 +67,27 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     onVisibilityChange = undefined;
     document.documentElement.classList.remove('motion-on');
+
+    // 清除可能残留的内联动画样式，确保不论何时切换模式，正文所有元素（标题、代码块、表格等）均保持 100% 不透明度正常呈现
+    const animatedElements = query(
+      [
+        '.VPNavBar',
+        '.adv-docs-deco__band',
+        '.vp-doc h1',
+        '.vp-doc h2',
+        '.vp-doc h3',
+        '.vp-doc .custom-block',
+        '.vp-doc table',
+        '.vp-doc div[class*="language-"]',
+        '.vp-doc blockquote',
+        '.VPFeature',
+        '.vp-doc .content-container > *',
+        '.VPHero .main > *',
+      ].join(', ')
+    );
+    for (const el of animatedElements) {
+      clearInline(el);
+    }
   }
 
   function run() {
@@ -212,12 +233,17 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
   else schedule();
   router.onAfterRouteChanged = schedule;
 
-  // 监听严肃模式切换
-  new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      if (m.type === 'attributes' && m.attributeName === 'class') {
-        schedule();
-      }
+  // 监听简约模式切换：只在 serious-mode 类名实际变化时重新调度，避免 classList.add('motion-on') 引起无限循环重绘
+  let lastSerious =
+    typeof document !== 'undefined'
+      ? document.documentElement.classList.contains('serious-mode')
+      : false;
+  new MutationObserver(() => {
+    const currentSerious =
+      document.documentElement.classList.contains('serious-mode');
+    if (currentSerious !== lastSerious) {
+      lastSerious = currentSerious;
+      schedule();
     }
   }).observe(document.documentElement, {
     attributes: true,
