@@ -25,7 +25,7 @@ No clone is needed: the package carries a built release and its own pinned wrang
 Running a fork, or prefer a clone? The same installer runs from a checkout, and every command below works as `yarn cloudforge <command>` (progress is then recorded in `.cloudforge/<id>.json` in the checkout):
 
 ```bash
-git clone https://cnb.cool/CyberNova2333/cloudforge.git
+git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
 yarn install
 yarn wrangler login
@@ -82,7 +82,7 @@ The optional analytics token the installer asks for is separate: **Account → A
 ### 1. Clone and install
 
 ```bash
-git clone https://cnb.cool/CyberNova2333/cloudforge.git
+git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
 yarn install
 ```

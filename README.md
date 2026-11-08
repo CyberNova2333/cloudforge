@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://cnb.cool/CyberNova2333/cloudforge/-/build/logs"><img alt="CNB 持续集成" src="https://img.shields.io/badge/CI-CNB-2563eb" /></a>
+  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
   <a href="LICENSE"><img alt="许可证：GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="运行于 Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
@@ -49,7 +49,7 @@ CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Gi
 源码运行需要 **Node.js 22.18 或更新版本**和 **Yarn**。部署还需要可用的 Cloudflare 账户、项目所用服务的权限，以及用于构建 Actions 运行器镜像的 Docker。安装器会检查所需服务和配置；发送邀请邮件需要配置 Email Sending，也可选择只使用邀请链接。
 
 ```bash
-git clone https://cnb.cool/CyberNova2333/cloudforge.git
+git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
 yarn install --frozen-lockfile
 yarn wrangler login
@@ -95,7 +95,7 @@ yarn test
 
 `yarn test` 先运行 Node.js 环境中的安装器测试，再运行 workerd 环境中的 Worker 和前端纯逻辑测试；后者使用真实本地 D1 与内存 Artifacts 测试实现。测试分组、用例名称和默认结果摘要使用中文，原始断言、第三方诊断与堆栈保留原文。
 
-CNB 使用 [.cnb.yml](.cnb.yml)，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。GitHub 与 CloudForge 实例使用 [.github/workflows/](.github/workflows/) 中的配置。
+持续集成使用 [.github/workflows/](.github/workflows/) 中的配置，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。
 
 ## Actions 兼容范围
 

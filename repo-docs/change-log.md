@@ -24,7 +24,7 @@
 | 2026-11-01 Asia/Shanghai       | Primer 设计系统规范与 UI 改造                                | foreground patch：新增 DESIGN.md 规范，改造导航壳层、仓库页、Diff 视图及 Docker Playwright 视觉/无障碍基线 | 12 项视觉基线、axe-core 0 违规、类型与全量单元测试通过                                           | Synced through 57e26d8e8311883e4aec2f6f7bf4904e829bce95                                                          |
 | 2026-11-01 Asia/Shanghai       | 移除账户下拉菜单预设主题选择网格                             | 用户请求：删除登录后头像菜单中的主题选择网格，收敛至系统/显式入口                                          | 单元测试、类型检查与生产构建通过                                                                 | Synced through fad3c9722f3b1a382a6d75de266c8d8ef84b6c85                                                          |
 | 2026-11-01 Asia/Shanghai       | 前端目录分层结构重构                                         | 用户请求：消除平铺散落，按领域划分子目录整理 pages/、components/ 和 lib/                                   | 类型检查 0 错误、59 文件 815 项测试通过、生产构建通过                                            | Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da                                                          |
-| 2026-11-01 Asia/Shanghai       | CI 模块测试路径同步                                          | 修复 CNB 流水线：对齐 .github/workflows/ci.yml 中的认证测试子目录路径                                      | worker/src/**tests**/ci-workflow.test.ts 11 项通过                                               | Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1                                                          |
+| 2026-11-01 Asia/Shanghai       | CI 模块测试路径同步                                          | 修复 CI 流水线：对齐 .github/workflows/ci.yml 中的认证测试子目录路径                                       | worker/src/**tests**/ci-workflow.test.ts 11 项通过                                               | Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1                                                          |
 | 2026-11-01 Asia/Shanghai       | 补全独立文档站说明与指南变更记录                             | 用户请求：完善文档站使用说明（本地离线字体、渐进动效、主题切换）及 changelog 记录                          | 文档验证（0 错误）、docs-site 生产构建通过、Prettier 检查通过                                    | Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1                                                          |
 
 ## 验证范围
@@ -196,11 +196,11 @@ Synced through 469137cf0e3343e56a2d04b15c4b06a8d10770da；前端目录分层已�
 
 ## CI 模块测试路径同步（2026-11-01）
 
-选择 foreground patch：前端重构后，`.github/workflows/ci.yml` 中显式指定的 5 个认证测试路径（`authenticationPolicy.test.ts`、`oidcApi.test.ts`、`oidcSignInApi.test.ts`、`signInLock.test.ts`、`recentAuthentication.test.ts`）仍指向旧的根目录路径，导致 `ci-workflow.test.ts` 在 CNB 流水线中检查失败。将该 5 项测试路径同步为 `src/lib/auth/` 子目录路径。
+选择 foreground patch：前端重构后，`.github/workflows/ci.yml` 中显式指定的 5 个认证测试路径（`authenticationPolicy.test.ts`、`oidcApi.test.ts`、`oidcSignInApi.test.ts`、`signInLock.test.ts`、`recentAuthentication.test.ts`）仍指向旧的根目录路径，导致 `ci-workflow.test.ts` 在 CI 流水线中检查失败。将该 5 项测试路径同步为 `src/lib/auth/` 子目录路径。
 
 验证：`yarn typecheck` 通过；`worker/src/__tests__/platform/ci-workflow.test.ts`（11 项）全部通过；`yarn format:check` 通过。
 
-Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；流水线配置已对齐新目录结构，CNB CI 验证通过。
+Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；流水线配置已对齐新目录结构，CI 验证通过。
 
 ## 补全独立文档站说明与指南变更记录（2026-11-01）
 
@@ -320,10 +320,18 @@ foreground patch：仓库设置 PATCH 接入既有近期本地验证，输入规
 
 Synced through 07d69eeabd154959161d2eb7f8d7f1180684b24e（本轮开发基线；包含随后单独提交的本地改动，未推送、生产迁移或部署）。
 
+## 2026-11-05：排空准备的只读任务观察
+
+foreground patch：新增安装器 `access-drain-status`，复用显式目标选择，在最终单次 D1 查询内验证权限/运行时/归属并观察六类独立任务记录。每类计数最多 1000、样本最多 20，状态与完成收据矛盾、恢复开放标记、异常字段及超限均拒绝。文档明确退出 0 包含存在任务的有效观察，四个完成/授权字段始终为 false；未提供暂停入口、远端任务停止和发布/回滚屏障。代码地图与 Git 主流程补充维护入口，新增真实 D1 测试进入 CI 归属。
+
+验证：正在进行本轮完整验收，最终记录以实际日志为准；没有据此声称已推送、迁移或部署。
+
+Synced through c82f2eb2ed737c5cea1cc9b3a85c91c65c0a3076（本轮开发基线；包含本地任务观察改动，远端与生产状态独立核验）。
+
 ## GitHub Actions 全分支触发对齐（2026-11-07）
 
-将现有 GitHub `CI` 与 `Format` 的推送触发从仅 main 扩展到所有分支，与 CNB 的分支覆盖保持一致；GitHub 仍运行全部模块，不增加部署入口。开发说明同步触发范围。本补丁不包含工作区中的权限排空功能及其测试登记。
+将现有 GitHub `CI` 与 `Format` 的推送触发从仅 main 扩展到所有分支；GitHub 仍运行全部模块，不增加部署入口。开发说明同步触发范围。本补丁不包含工作区中的权限排空功能及其测试登记。
 
 验证：全部工作流 actionlint、类型检查、Prettier 格式检查及 CI 归属测试 11/11 通过。此前完整测试在 Windows 环境存在文件权限断言等失败，未记为全绿；未执行云端 CI 或部署。
 
-Synced through c82f2eb2ed737c5cea1cc9b3a85c91c65c0a3076；本节记录该提交之后的双平台触发对齐。
+Synced through c82f2eb2ed737c5cea1cc9b3a85c91c65c0a3076；本节记录该提交之后的触发对齐。

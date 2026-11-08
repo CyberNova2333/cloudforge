@@ -71,6 +71,11 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
 
   function run() {
     cleanup();
+    // 严肃模式下停用华丽悬浮动效，保持克制、纯净与高响应速度
+    if (document.documentElement.classList.contains('serious-mode')) {
+      return;
+    }
+
     scope = createScope({
       mediaQueries: { reduced: '(prefers-reduced-motion: reduce)' },
     }).add((self) => {
@@ -206,4 +211,16 @@ export function setupDocsMotion(router: Router, anime: AnimeModule) {
     document.addEventListener('DOMContentLoaded', schedule, { once: true });
   else schedule();
   router.onAfterRouteChanged = schedule;
+
+  // 监听严肃模式切换
+  new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === 'attributes' && m.attributeName === 'class') {
+        schedule();
+      }
+    }
+  }).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 }

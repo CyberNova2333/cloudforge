@@ -2,7 +2,7 @@
 
 # cloudforge
 
-The installer for [CloudForge](https://cnb.cool/CyberNova2333/cloudforge), the code host where AI agents ship the code
+The installer for [CloudForge](https://github.com/CyberNova2333/cloudforge), the code host where AI agents ship the code
 and people approve the risk, on Cloudflare Workers. This package carries a built CloudForge release (worker, web app,
 database migrations and the Actions runner image's Dockerfile) and deploys it to your Cloudflare account with its own
 pinned wrangler. You do not need a clone of the repository.
@@ -75,5 +75,5 @@ Review the preview, then repeat without `--plan` to confirm. Manual deployments 
 This clears the factor, browser sessions and challenges, records the reason, and preserves the password and
 machine credentials. Never include secrets in the reason. `reset-password` continues to preserve the second factor.
 
-Docs: [setup](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/setup.md) ·
-[updating](https://cnb.cool/CyberNova2333/cloudforge/-/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`LICENSE`), over Apache-2.0 upstream work (`LICENSES/Apache-2.0.txt`).
+Docs: [setup](https://github.com/CyberNova2333/cloudforge/blob/main/docs/setup.md) ·
+[updating](https://github.com/CyberNova2333/cloudforge/blob/main/docs/updating.md). Licensed under GPL-3.0-or-later (`LICENSE`), over Apache-2.0 upstream work (`LICENSES/Apache-2.0.txt`).

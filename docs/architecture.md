@@ -38,7 +38,7 @@ flowchart LR
   containers -- step logs --> r2
 ```
 
-The diagram is Mermaid: CNB, GitHub and CloudForge render it, and it is edited as text in this file, README.md and README.en.md.
+The diagram is Mermaid: GitHub and CloudForge render it, and it is edited as text in this file, README.md and README.en.md.
 
 | Concern                                                                                   | Where it lives                                                                                                                                                                                                                                                                  |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

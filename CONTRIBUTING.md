@@ -33,7 +33,7 @@ and that you have the right to license it. Please sign off every commit (`git co
 2. **正文**用中文写清楚为什么改、怎么改、怎么验证的。一个逻辑改动一个提交。
 3. **「文档:」**：正文里必须有一行交代文档，写明改了哪些，或明确写不影响，例如
    `文档: 已更新 docs/configuration.md 的 Secrets 表`、`文档: 纯内部重构，不影响任何文档描述`。
-4. **署名**：作者固定为维护者身份（全局 git config 的 CNB noreply 邮箱），提交用 SSH 密钥签名，
+4. **署名**：作者固定为维护者身份（GitHub noreply 邮箱），提交用 SSH 密钥签名，
    并用 `git commit -s` 加 `Signed-off-by`。实际执笔的 Agent 必须在末尾加完整的
    `Co-authored-by: Name <email>`，例如 `Co-authored-by: Claude <noreply@anthropic.com>`、
    `Co-authored-by: Codex <noreply@openai.com>`（钩子硬拦，「Co-authored-by: x」这种半截写法不算）。

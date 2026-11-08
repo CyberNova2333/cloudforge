@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://cnb.cool/CyberNova2333/cloudforge/-/build/logs"><img alt="CI on CNB" src="https://img.shields.io/badge/CI-CNB-2563eb" /></a>
+  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
   <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="Runs on Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
@@ -49,7 +49,7 @@ See [reviewer agents, PR states, and automatic merging](docs/auto-merge.md) and 
 Running from source requires **Node.js 22.18 or later** and **Yarn**. Deployment also requires a Cloudflare account with access to the services used by the project, and Docker to build the Actions runner image. The installer checks required services and configuration. Email invitations require Email Sending; invitation links can also be used without email.
 
 ```bash
-git clone https://cnb.cool/CyberNova2333/cloudforge.git
+git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
 yarn install --frozen-lockfile
 yarn wrangler login
@@ -95,7 +95,7 @@ yarn test
 
 `yarn test` runs the installer tests in Node.js, followed by Worker and pure frontend logic tests in workerd. The latter use a real local D1 database and an in-memory Artifacts test implementation. Test suite names, case names, and the default result summary are in Chinese; original assertions, third-party diagnostics, and stack traces are preserved.
 
-CNB uses [.cnb.yml](.cnb.yml) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests. GitHub and CloudForge instances use the configuration in [.github/workflows/](.github/workflows/).
+CI uses [.github/workflows/](.github/workflows/) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests.
 
 ## Actions compatibility
 

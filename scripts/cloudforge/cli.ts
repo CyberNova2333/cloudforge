@@ -5,7 +5,13 @@ import { realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { accessDrainStatus } from './access/access-drain.ts';
 import { accessPreflight } from './access/access-preflight.ts';
+import {
+  resolveAccessReadTarget,
+  validAccessReadFlags,
+  type AccessReadFlags,
+} from './access/read-target.ts';
 import { adoptFromCheckout, pickCheckoutState } from './commands/adopt.ts';
 import { adoptWorker, planAdoptWorker } from './commands/adopt-worker.ts';
 import {
@@ -24,7 +30,6 @@ import { ConfigConflict } from './installation/config.ts';
 import {
   cloudforgeHome,
   installDir,
-  listInstalls,
   pickInstall,
   pickResumable,
 } from './installation/home.ts';
@@ -76,6 +81,8 @@ Commands:
              Remove a lost second factor using Cloudflare database access
   access-preflight
              Inspect legacy access data without migrating or publishing roles
+  access-drain-status
+             Observe recorded D1 work; never pauses admission or proves a complete drain
 
 install options:
   --name <name>          Installation name (default: cloudforge)
@@ -136,6 +143,12 @@ access-preflight options (always read-only):
   --name <name>          Explicitly select a recorded installation
   --database <name|id>   Or: explicitly select a D1 database with --account
   --account <id|name>    Required with --database; never inferred
+
+access-drain-status options (always read-only):
+  --name <name>          Explicitly select a recorded installation
+  --database <name|id>   Or: explicitly select a D1 database with --account
+  --account <id|name>    Required with --database; never inferred
+  Exit 0 means a valid observation, even when work remains; it is not permission to deploy.
 `;
 
 const DEFAULT_NAME = 'cloudforge';
@@ -242,13 +255,7 @@ const RESET_MFA_OPTIONS = {
   'expect-plan': { type: 'string' },
 } as const;
 
-type AccessPreflightFlags = {
-  name?: string;
-  database?: string;
-  account?: string;
-};
-
-const ACCESS_PREFLIGHT_OPTIONS = {
+const ACCESS_READ_OPTIONS = {
   name: { type: 'string' },
   database: { type: 'string' },
   account: { type: 'string' },
@@ -396,20 +403,20 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
       });
       return await runResetMfa(values, positionals, deps);
     }
-    if (command === 'access-preflight') {
+    if (command === 'access-preflight' || command === 'access-drain-status') {
       const { values } = parseArgs({
         args: rest,
-        options: ACCESS_PREFLIGHT_OPTIONS,
+        options: ACCESS_READ_OPTIONS,
         strict: true,
         allowPositionals: false,
       });
-      return await runAccessPreflight(values, deps);
+      return await runAccessRead(command, values, deps);
     }
   } catch (e) {
     if (e instanceof UsageError || isParseArgsError(e)) {
-      if (command === 'access-preflight') {
+      if (command === 'access-preflight' || command === 'access-drain-status') {
         io.print(
-          'access-preflight requires an explicit --name, or --database with --account. It accepts no positionals or apply flags.\n\n' +
+          `${command} requires an explicit --name, or --database with --account. It accepts no positionals or apply flags.\n\n` +
             usage(deps.source)
         );
         return 2;
@@ -1264,102 +1271,37 @@ async function runResetMfa(
   }
 }
 
-async function runAccessPreflight(
-  f: AccessPreflightFlags,
+async function runAccessRead(
+  command: 'access-preflight' | 'access-drain-status',
+  f: AccessReadFlags,
   deps: Deps
 ): Promise<number> {
-  const valid = (value: string | undefined) =>
-    value !== undefined &&
-    value.trim().length > 0 &&
-    value.length <= 256 &&
-    !/[\p{Cc}\p{Cf}]/u.test(value);
-  if (
-    (f.name === undefined) === (f.database === undefined) ||
-    (f.name !== undefined &&
-      (f.account !== undefined || !valid(f.name) || validateName(f.name))) ||
-    (f.database !== undefined && (!valid(f.database) || !valid(f.account)))
-  )
+  if (!validAccessReadFlags(f))
     throw new UsageError('An explicit target is required.');
-
+  const label =
+    command === 'access-preflight' ? 'Access preflight' : 'Access drain status';
+  const invalidTarget = `${label} could not verify the selected installation, account or database. Nothing was changed.`;
   try {
-    const records =
-      f.name === undefined
-        ? []
-        : deps.home !== null
-          ? listInstalls(deps.home)
-              .filter((record) => record.slug === f.name)
-              .map((record) => record.state)
-          : listStates(deps.dir).filter(
-              (state) => state.inputs.name === f.name
-            );
-    if (f.name !== undefined && records.length !== 1) {
+    const target = await resolveAccessReadTarget(f, {
+      home: deps.home,
+      dir: deps.dir,
+      cloudflare: async () => deps.cloudflare(await deps.token()),
+    });
+    if (!target.ok) {
       deps.io.print(
-        'Access preflight requires exactly one matching recorded installation. Nothing was changed.'
+        target.reason === 'missing-record'
+          ? `${label} requires exactly one matching recorded installation. Nothing was changed.`
+          : target.reason === 'moved-record'
+            ? 'The recorded installation was moved. Select its current installation explicitly. Nothing was changed.'
+            : invalidTarget
       );
       return 1;
     }
-    const recorded = records[0];
-    if (recorded?.movedTo !== undefined) {
-      deps.io.print(
-        'The recorded installation was moved. Select its current installation explicitly. Nothing was changed.'
-      );
-      return 1;
-    }
-    const resources = recorded?.resources.filter((r) => r.kind === 'd1');
-    if (
-      recorded &&
-      (!valid(recorded.accountId) ||
-        !valid(recorded.installationId) ||
-        !valid(recorded.ownershipNonce) ||
-        resources?.length !== 1 ||
-        !valid(resources[0]?.id))
-    )
-      throw new Error('Invalid recorded target');
-
-    const cf = deps.cloudflare(await deps.token());
-    // Match a single real account and database; never infer the first visible target.
-    const accountSelector = recorded?.accountId ?? f.account!;
-    const accounts = await cf.listAccounts();
-    const matches = accounts.filter(
-      (account) =>
-        account.id === accountSelector ||
-        (!recorded &&
-          account.name.toLowerCase() === accountSelector.toLowerCase())
-    );
-    if (matches.length !== 1) throw new Error('Account not uniquely verified');
-    const accountId = matches[0].id;
-    if (!valid(accountId)) throw new Error('Invalid account');
-    const databaseSelector = resources?.[0]?.id ?? f.database!;
-    const databases = (await cf.listD1(accountId)).filter(
-      (database) =>
-        database.uuid === databaseSelector ||
-        (!recorded && database.name === databaseSelector)
-    );
-    if (
-      databases.length !== 1 ||
-      !valid(databases[0].uuid) ||
-      !valid(databases[0].name)
-    )
-      throw new Error('Database not uniquely verified');
-    return await accessPreflight(
-      { cf, io: deps.io },
-      {
-        accountId,
-        database: databases[0],
-        ...(recorded
-          ? {
-              installation: {
-                id: recorded.installationId,
-                ownershipNonce: recorded.ownershipNonce,
-              },
-            }
-          : {}),
-      }
-    );
+    const read =
+      command === 'access-preflight' ? accessPreflight : accessDrainStatus;
+    return await read({ cf: target.cf, io: deps.io }, target.options);
   } catch {
-    deps.io.print(
-      'Access preflight could not verify the selected installation, account or database. Nothing was changed.'
-    );
+    deps.io.print(invalidTarget);
     return 1;
   }
 }
