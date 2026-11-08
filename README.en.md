@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI on GitHub" src="https://img.shields.io/badge/CI-GitHub-2563eb" /></a>
+  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="Runs on Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
@@ -95,7 +95,7 @@ yarn test
 
 `yarn test` runs the installer tests in Node.js, followed by Worker and pure frontend logic tests in workerd. The latter use a real local D1 database and an in-memory Artifacts test implementation. Test suite names, case names, and the default result summary are in Chinese; original assertions, third-party diagnostics, and stack traces are preserved.
 
-GitHub uses [.github/workflows/ci.yml](.github/workflows/ci.yml) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests. GitHub and CloudForge instances use the configuration in [.github/workflows/](.github/workflows/).
+CI uses [.github/workflows/](.github/workflows/) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests.
 
 ## Actions compatibility
 

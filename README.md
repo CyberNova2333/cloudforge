@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="GitHub 持续集成" src="https://img.shields.io/badge/CI-GitHub-2563eb" /></a>
+  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
   <a href="LICENSE"><img alt="许可证：AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
   <a href="https://workers.cloudflare.com/"><img alt="运行于 Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
 </p>
@@ -95,7 +95,7 @@ yarn test
 
 `yarn test` 先运行 Node.js 环境中的安装器测试，再运行 workerd 环境中的 Worker 和前端纯逻辑测试；后者使用真实本地 D1 与内存 Artifacts 测试实现。测试分组、用例名称和默认结果摘要使用中文，原始断言、第三方诊断与堆栈保留原文。
 
-GitHub 使用 [.github/workflows/ci.yml](.github/workflows/ci.yml)，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。GitHub 与 CloudForge 实例使用 [.github/workflows/](.github/workflows/) 中的配置。
+持续集成使用 [.github/workflows/](.github/workflows/) 中的配置，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。
 
 ## Actions 兼容范围
 
