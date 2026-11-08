@@ -11,7 +11,6 @@ import {
 import {
   MODE_KEY,
   THEME_KEY,
-  parseMode,
   parseThemeId,
   resolveTheme,
   rootAttributes,
@@ -61,15 +60,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(() =>
     parseThemeId(stored(THEME_KEY))
   );
-  const [mode, setModeState] = useState<Mode>(() =>
-    parseMode(stored(MODE_KEY))
-  );
+  // Fixed to follow browser/system setting on load; animated toggle switches active mode in session
+  const [mode, setModeState] = useState<Mode>('system');
   const [systemDark, setSystemDark] = useState(systemPrefersDark);
 
   useEffect(() => {
     const query = window.matchMedia?.(DARK_QUERY);
     if (!query) return;
-    const onChange = () => setSystemDark(query.matches);
+    const onChange = () => {
+      setSystemDark(query.matches);
+      setModeState('system');
+    };
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
   }, []);

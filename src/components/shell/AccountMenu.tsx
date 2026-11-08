@@ -2,19 +2,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDownIcon } from '@primer/octicons-react';
 import { Avatar } from '@/components/ui/Avatar';
-import { useTheme } from '@/components/shell/ThemeProvider';
+import { DayNightSwitch } from '@/components/shell/DayNightSwitch';
 import { Seg } from '@/components/ui/Seg';
 import { signOut, useCurrentUser } from '@/lib/auth/auth';
 import { lang, setLang, t, type Lang } from '@/lib/i18n/i18n';
-import type { Mode } from '@/lib/theme/theme';
 import { api } from '@/lib/api/uiApi';
 import type { ShellMenu } from './AppShell';
-
-const MODES: readonly { value: Mode; label: string }[] = [
-  { value: 'system', label: t('System') },
-  { value: 'light', label: t('Light') },
-  { value: 'dark', label: t('Dark') },
-];
 
 /** Each language in its own name, so it can be found whichever is showing. */
 export const LANGUAGES: readonly { value: Lang; label: string }[] = [
@@ -35,7 +28,6 @@ export function AccountMenu({
 }) {
   const user = useCurrentUser();
   const navigate = useNavigate();
-  const { mode, setMode } = useTheme();
   if (!user) return null;
   const login = user.username ?? user.name;
   const close = () => setMenu(null);
@@ -63,13 +55,10 @@ export function AccountMenu({
             </span>
           </div>
           <div className="dd-sep" />
-          <div className="dd-label">{t('Appearance')}</div>
-          <Seg
-            label={t('Appearance')}
-            options={MODES}
-            value={mode}
-            onChange={setMode}
-          />
+          <div className="dd-row">
+            <div className="dd-label">{t('Appearance')}</div>
+            <DayNightSwitch />
+          </div>
           <div className="dd-label">Language · 语言</div>
           <Seg
             label="Language · 语言"

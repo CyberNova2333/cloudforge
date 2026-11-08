@@ -1,16 +1,40 @@
 /* Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). */
-/* DESIGN.md Primer layout, typography & surface rules — preserves 14px body anchor, 1px solid Box borders & 6px radii. */
+/* DESIGN.md Primer layout, typography, GitHub rounded corners & tactile button elevation rules. */
 
 body {
   font-size: var(--font-size-body);
   line-height: 1.5;
 }
-.content {
-  border: 0;
-  border-radius: 0;
+
+/* Smooth theme transition when toggling DayNightSwitch */
+html.dn-color-shift,
+html.dn-color-shift *,
+html.dn-color-shift *::before,
+html.dn-color-shift *::after {
+  transition:
+    background-color 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.42s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* GitHub-style rounded inset work canvas + clear 4-layer surface hierarchy */
+.topnav {
+  border-bottom: 0;
+}
+.snav {
+  border-right: 0;
+}
+.content,
+:root[data-skin='dev'] .content {
+  border-top: 1px solid var(--border-default);
+  border-left: 1px solid var(--border-default);
+  border-top-left-radius: var(--radius-lg);
   padding: var(--space-5) var(--space-6) var(--space-6);
   background: var(--canvas-default);
+  box-shadow: -1px -1px 0 rgba(31, 35, 40, 0.02);
 }
+
 .view {
   gap: var(--space-4);
 }
@@ -39,12 +63,100 @@ body {
   font-weight: 600;
   line-height: 1.25;
 }
-.panel {
+
+/* GitHub-style rounded containers (8px radius for cards/panels/boxes, 12px for floating overlays) */
+.panel,
+.Box,
+.stat,
+.list,
+.table-wrap:not(.flush),
+.callout,
+.home-strip,
+.home-glance,
+.home-proj,
+.ft-box,
+.fb-box,
+.readme-box {
   background: var(--canvas-default);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-resting);
+  border-radius: 8px;
+  box-shadow:
+    0 1px 3px rgba(31, 35, 40, 0.05),
+    0 1px 0 rgba(31, 35, 40, 0.03);
 }
+:root[data-theme='dark'] .panel,
+:root[data-theme='dark'] .Box,
+:root[data-theme='dark'] .stat,
+:root[data-theme='dark'] .list,
+:root[data-theme='dark'] .table-wrap:not(.flush),
+:root[data-theme='dark'] .home-proj {
+  box-shadow:
+    0 1px 3px rgba(1, 4, 9, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .panel,
+  :root:not([data-theme='light']) .Box,
+  :root:not([data-theme='light']) .stat,
+  :root:not([data-theme='light']) .list,
+  :root:not([data-theme='light']) .table-wrap:not(.flush),
+  :root:not([data-theme='light']) .home-proj {
+    box-shadow:
+      0 1px 3px rgba(1, 4, 9, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+}
+
+.panel-head,
+.panel-header,
+.Box-header,
+.ft-head,
+.fb-bar,
+.readme-head {
+  background: var(--canvas-subtle);
+  border-bottom: 1px solid var(--border-default);
+  border-top-left-radius: 7px;
+  border-top-right-radius: 7px;
+}
+
+.list > li:first-child {
+  border-top-left-radius: 7px;
+  border-top-right-radius: 7px;
+}
+.list > li:last-child {
+  border-bottom-left-radius: 7px;
+  border-bottom-right-radius: 7px;
+}
+.list > li {
+  transition: background-color 0.12s ease-out;
+}
+.list > li:hover {
+  background-color: color-mix(in srgb, var(--canvas-subtle) 65%, transparent);
+}
+
+.ws-menu,
+.select-panel,
+.auth-card,
+:root[data-skin='dev'] .auth-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-floating);
+}
+
+.dd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px 4px;
+}
+.dd-row .dd-label {
+  padding: 0;
+}
+.ph-tools .dn-host {
+  margin-inline: 2px;
+}
+
 .pad {
   padding: var(--space-4);
   gap: var(--space-3);
@@ -55,11 +167,6 @@ body {
 .form-select {
   border-radius: var(--radius-md);
 }
-.panel-head,
-.panel-header {
-  background: var(--canvas-subtle);
-  border-bottom: 1px solid var(--border-default);
-}
 .ph-title .count,
 .badge,
 .tag,
@@ -67,34 +174,238 @@ body {
 .State {
   border-radius: var(--radius-pill);
 }
+
+/* ---------- Tactile GitHub Primer v2 Buttons & Interactive Controls ---------- */
+.btn:where(:not([class*='btn-'], .BtnGroup-item)),
+:where(:root[data-skin='dev'])
+  .btn:where(:not([class*='btn-'], .BtnGroup-item)),
+.Button {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--canvas-default) 70%, var(--canvas-subtle)) 0%,
+    var(--canvas-subtle) 100%
+  );
+  border: 1px solid var(--border-default);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--border-default) 82%,
+    var(--fg-muted)
+  );
+  color: var(--fg-default);
+  font-weight: 500;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(31, 35, 40, 0.06);
+  transition:
+    background 0.12s cubic-bezier(0.2, 0, 0.13, 1.5),
+    border-color 0.12s ease-out,
+    box-shadow 0.12s ease-out,
+    transform 0.08s ease-out;
+}
+:root[data-theme='dark'] .btn:where(:not([class*='btn-'], .BtnGroup-item)),
+:root[data-theme='dark'] .Button {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--canvas-subtle) 88%, #ffffff 12%) 0%,
+    var(--canvas-subtle) 100%
+  );
+  border-color: var(--border-default);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(1, 4, 9, 0.4);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])
+    .btn:where(:not([class*='btn-'], .BtnGroup-item)),
+  :root:not([data-theme='light']) .Button {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--canvas-subtle) 88%, #ffffff 12%) 0%,
+      var(--canvas-subtle) 100%
+    );
+    border-color: var(--border-default);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 1px 2px rgba(1, 4, 9, 0.4);
+  }
+}
+
+.btn:where(:not([class*='btn-'], .BtnGroup-item)):hover:not(:disabled),
+:where(:root[data-skin='dev'])
+  .btn:where(:not([class*='btn-'], .BtnGroup-item)):hover:not(:disabled),
+.Button:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    var(--canvas-subtle) 0%,
+    color-mix(in srgb, var(--canvas-subtle) 78%, var(--fg-muted) 22%) 100%
+  );
+  border-color: color-mix(in srgb, var(--border-default) 60%, var(--fg-muted));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 2px 5px rgba(31, 35, 40, 0.1);
+  transform: translateY(-0.5px);
+}
+:root[data-theme='dark']
+  .btn:where(:not([class*='btn-'], .BtnGroup-item)):hover:not(:disabled),
+:root[data-theme='dark'] .Button:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--canvas-subtle) 80%, #ffffff 20%) 0%,
+    color-mix(in srgb, var(--canvas-subtle) 92%, #ffffff 8%) 100%
+  );
+  border-color: var(--fg-muted);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 2px 6px rgba(1, 4, 9, 0.55);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])
+    .btn:where(:not([class*='btn-'], .BtnGroup-item)):hover:not(:disabled),
+  :root:not([data-theme='light']) .Button:hover:not(:disabled) {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--canvas-subtle) 80%, #ffffff 20%) 0%,
+      color-mix(in srgb, var(--canvas-subtle) 92%, #ffffff 8%) 100%
+    );
+    border-color: var(--fg-muted);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 2px 6px rgba(1, 4, 9, 0.55);
+  }
+}
+
+.btn:where(:not([class*='btn-'], .BtnGroup-item)):active:not(:disabled),
+:where(:root[data-skin='dev'])
+  .btn:where(:not([class*='btn-'], .BtnGroup-item)):active:not(:disabled),
+.Button:active:not(:disabled) {
+  background: var(--border-muted);
+  box-shadow: inset 0 2px 4px rgba(31, 35, 40, 0.15);
+  transform: translateY(0.5px) scale(0.99);
+}
+
 .btn-primary,
 .btn.primary,
 :root[data-skin='dev'] .btn-primary,
 :root[data-skin='dev'] .btn.primary {
-  background: var(--accent-emphasis);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-emphasis) 88%, #ffffff 12%) 0%,
+    var(--accent-emphasis) 100%
+  );
   color: var(--fg-on-emphasis);
-  border-color: var(--accent-emphasis);
+  border: 1px solid color-mix(in srgb, var(--accent-emphasis) 82%, #000000 18%);
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 1px 3px rgba(9, 105, 218, 0.24);
 }
-.btn-primary:hover,
-.btn.primary:hover,
-:root[data-skin='dev'] .btn-primary:hover,
-:root[data-skin='dev'] .btn.primary:hover {
+.btn-primary:hover:not(:disabled),
+.btn.primary:hover:not(:disabled),
+:root[data-skin='dev'] .btn-primary:hover:not(:disabled),
+:root[data-skin='dev'] .btn.primary:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    var(--accent-emphasis) 0%,
+    var(--accent-hover) 100%
+  );
+  color: var(--fg-on-emphasis);
+  border-color: color-mix(in srgb, var(--accent-hover) 80%, #000000 20%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 3px 8px rgba(9, 105, 218, 0.32);
+  transform: translateY(-0.5px);
+}
+.btn-primary:active:not(:disabled),
+.btn.primary:active:not(:disabled),
+:root[data-skin='dev'] .btn-primary:active:not(:disabled),
+:root[data-skin='dev'] .btn.primary:active:not(:disabled) {
   background: var(--accent-hover);
-  color: var(--fg-on-emphasis);
-  border-color: var(--accent-hover);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.28);
+  transform: translateY(0.5px) scale(0.99);
 }
-.mark {
-  background: var(--accent-emphasis);
-  border-radius: var(--radius-md);
+
+.btn.danger:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--danger-emphasis) 90%, #ffffff 10%) 0%,
+    var(--danger-emphasis) 100%
+  );
+  color: var(--fg-on-emphasis);
+  border-color: color-mix(in srgb, var(--danger-emphasis) 80%, #000000 20%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 3px 8px rgba(207, 34, 46, 0.28);
+  transform: translateY(-0.5px);
+}
+
+.btn.quiet,
+:root[data-skin='dev'] .btn.quiet {
+  background: transparent;
+  border-color: transparent;
   box-shadow: none;
+}
+.btn.quiet:hover:not(:disabled),
+:root[data-skin='dev'] .btn.quiet:hover:not(:disabled) {
+  background: var(--neutral-muted);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Tactile topbar & rail controls */
+.tool,
+.acct-btn,
+.snav-org-btn,
+.pill {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition:
+    background-color 0.12s ease-out,
+    border-color 0.12s ease-out,
+    box-shadow 0.12s ease-out,
+    transform 0.08s ease-out;
+}
+.tool:hover,
+.acct-btn:hover,
+.snav-org-btn:hover,
+.pill:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--chrome-line-2) 60%,
+    var(--chrome-fg-2)
+  );
+  transform: translateY(-0.5px);
+}
+.tool:active,
+.acct-btn:active,
+.snav-org-btn:active,
+.pill:active {
+  transform: translateY(0.5px) scale(0.99);
+}
+
+.mark {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-emphasis) 88%, #ffffff 12%) 0%,
+    var(--accent-emphasis) 100%
+  );
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 1px 3px rgba(9, 105, 218, 0.24);
 }
 .enter {
   animation: none;
 }
 
 @media (max-width: 900px) {
-  .content {
+  .content,
+  :root[data-skin='dev'] .content {
     padding: var(--space-4);
+    border-left: 0;
+    border-top-left-radius: 0;
   }
   .phead .ph-title,
   .content .ph-title {
@@ -117,12 +428,6 @@ body {
   font-size: var(--font-size-h1);
   font-weight: 600;
 }
-.auth-card,
-:root[data-skin='dev'] .auth-card {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-resting);
-}
 .auth-lede {
   font-size: var(--font-size-body);
 }
@@ -144,20 +449,26 @@ body {
   font-size: var(--font-size-body);
   border-top: 1px solid var(--border-muted);
 }
-.stat,
-.list,
-.home-strip,
-.home-glance,
-.home-proj {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-}
 .org-dot {
   background: var(--accent-emphasis);
   border-radius: var(--radius-sm);
 }
 .home-ask {
   border-width: 0 0 0 3px;
+  border-radius: 0 8px 8px 0;
+}
+.home-proj {
+  transition:
+    border-color 0.14s ease-out,
+    box-shadow 0.14s ease-out,
+    transform 0.14s ease-out;
+}
+.home-proj:hover {
+  border-color: color-mix(in srgb, var(--border-default) 55%, var(--accent-fg));
+  box-shadow:
+    0 4px 12px rgba(31, 35, 40, 0.08),
+    0 1px 2px rgba(31, 35, 40, 0.04);
+  transform: translateY(-1px);
 }
 
 /* ---------- Checkpoint 4: Interactive States & WCAG Focus Ring ---------- */
