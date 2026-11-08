@@ -464,7 +464,7 @@ function checkRunning(
   const running = r.version ?? 'unknown';
   if (r.comparison.kind === 'downgrade') {
     throw new Error(
-      `${s.baseUrl} runs ${running}, newer than this package (${to}); upgrade never downgrades. Run that version instead: npx @cybernova2333/cloudforge@${running} upgrade --name ${s.inputs.name}. Nothing was changed.`
+      `${s.baseUrl} runs ${running}, newer than this package (${to}); upgrade never downgrades. Run that version instead: pnpm dlx @cybernova2333/cloudforge@${running} upgrade --name ${s.inputs.name}. Nothing was changed.`
     );
   }
   if (r.comparison.kind === 'custom' && !replaceCustomCode) {
@@ -662,7 +662,7 @@ export async function upgrade(
     if (unfinished) {
       if (s.upgradeTarget !== to) {
         throw new Error(
-          `An upgrade to ${s.upgradeTarget} is unfinished; run npx @cybernova2333/cloudforge@${s.upgradeTarget} upgrade --resume --name ${slug}.`
+          `An upgrade to ${s.upgradeTarget} is unfinished; run pnpm dlx @cybernova2333/cloudforge@${s.upgradeTarget} upgrade --resume --name ${slug}.`
         );
       }
       if (!opts.resume && !opts.plan) {

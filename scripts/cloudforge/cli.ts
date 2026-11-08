@@ -72,8 +72,8 @@ export const usage = (
 Commands:
   install    Create or update a CloudForge installation on Cloudflare
   status     Show a recorded installation and check that it answers
-  upgrade    Move an installation to this package's version (npx only)
-  adopt      Take over an installation made from a checkout or by hand (npx only)
+  upgrade    Move an installation to this package's version (pnpm dlx only)
+  adopt      Take over an installation made from a checkout or by hand (pnpm dlx only)
   reset-password <username|email>
              Set a new password for a member, straight in the database (when nobody can
              sign in to create a reset link)
@@ -265,7 +265,7 @@ const ACCESS_READ_OPTIONS = {
 const WORKER_ONLY = ['account', 'plan', 'expect-plan'] as const;
 
 const movedMessage = (movedTo: string) =>
-  `This install moved to ${movedTo}. Run npx @cybernova2333/cloudforge upgrade --name ${basename(movedTo)}.`;
+  `This install moved to ${movedTo}. Run pnpm dlx @cybernova2333/cloudforge upgrade --name ${basename(movedTo)}.`;
 
 const NOT_A_TERMINAL =
   'Not running in a terminal: pass --yes to apply (or --plan to only review).';
@@ -929,8 +929,8 @@ async function runAdopt(f: AdoptFlags, deps: Deps): Promise<number> {
   if (home === null) {
     io.print(
       f.worker !== undefined
-        ? `Adopting runs from npm: npx @cybernova2333/cloudforge adopt --worker ${f.worker}.`
-        : `Adopting runs from npm: npx @cybernova2333/cloudforge adopt --from ${deps.configDir}.`
+        ? `Adopting runs from npm: pnpm dlx @cybernova2333/cloudforge adopt --worker ${f.worker}.`
+        : `Adopting runs from npm: pnpm dlx @cybernova2333/cloudforge adopt --from ${deps.configDir}.`
     );
     return 2;
   }
@@ -975,7 +975,7 @@ async function runAdopt(f: AdoptFlags, deps: Deps): Promise<number> {
       now: deps.now,
     });
     io.print(
-      `Moved ${picked.inputs.name} to ${r.dir}.\nCheck it: npx @cybernova2333/cloudforge status --name ${r.slug}\nUpgrade it: npx @cybernova2333/cloudforge upgrade --name ${r.slug}`
+      `Moved ${picked.inputs.name} to ${r.dir}.\nCheck it: pnpm dlx @cybernova2333/cloudforge status --name ${r.slug}\nUpgrade it: pnpm dlx @cybernova2333/cloudforge upgrade --name ${r.slug}`
     );
     return 0;
   } catch (e) {
@@ -1067,7 +1067,7 @@ async function runUpgrade(f: UpgradeFlags, deps: Deps): Promise<number> {
   const { io, home } = deps;
   if (home === null) {
     io.print(
-      `Upgrades run from npm: npx @cybernova2333/cloudforge adopt --from ${deps.configDir}, then npx @cybernova2333/cloudforge upgrade.`
+      `Upgrades run from npm: pnpm dlx @cybernova2333/cloudforge adopt --from ${deps.configDir}, then pnpm dlx @cybernova2333/cloudforge upgrade.`
     );
     return 2;
   }

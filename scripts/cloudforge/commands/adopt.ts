@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // `cloudforge adopt --from <checkout>` (spec §7): moves an install made from a git checkout into the
-// package's home (<home>/<slug>/) so `npx @cybernova2333/cloudforge upgrade` can manage it. Files only: no
+// package's home (<home>/<slug>/) so `pnpm dlx @cybernova2333/cloudforge upgrade` can manage it. Files only: no
 // Cloudflare call, no deploy.
 import { randomUUID } from 'node:crypto';
 import {
