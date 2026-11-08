@@ -281,7 +281,7 @@ CloudForge 引用 GitHub Primer 的四条核心设计哲学作为不可协商的
 
 1. **Productive Complexity（高产出的复杂性）**：专为高密度工程信息（代码树、提交时间线、Unified/Split Diff、评审线程）设计，但绝不让用户感到视觉压迫。高密度通过克制的 `14px` 正文锚点、紧凑的 `32px` 控件高度与清晰的 `1px solid` 结构边框实现，而非依赖夸张留白或装饰性外壳。
 2. **Accessibility-First（无障碍优先）**：前景/背景对比度与键盘焦点状态严格满足 WCAG 2.1 AA 标准（正文文本最低 `4.5:1`，UI 控件与大号文本最低 `3:1`）。所有可交互元素在 Light 与 Dark 模式下均必须呈现清晰可见的 `2px` 蓝色焦点环（focus ring）。
-3. **Pragmatic Visuals（务实视觉）**：坚持操作系统原生 UI 字体栈、零装饰性插画、零渐变背景与性能优先的 CSS 原语，契合 Cloudflare Workers 边缘静态资源约束。等宽代码字体作为一等公民对待。
+3. **Tactile Pragmatic Visuals（机架工业质感与务实视觉）**：坚持操作系统原生 UI 字体栈与等宽代码排版，融合边缘计算控制台与机架式服务器的实体物理质感。通过微拟物顶边斜角高光（`inset 0 1px 0 rgba(255, 255, 255, 0.25)`）、物理分层光影（`--shadow-resting` / `--shadow-floating`）以及轻微的物理按压位移（`:hover` `translateY(-0.5px)` / `:active` `translateY(0.5px) scale(0.99)` + `inset 0 2px 4px`），让工业级代码操作具备清晰的微动按键触感。
 4. **Consistency through Primitives（原语驱动的一致性）**：所有视觉决策——颜色、画布层级、边框灰阶、间距、圆角与字阶——均必须源自功能原语（`canvas.*`、`fg.*`、`border.*`、`accent.*`、`success.*`、`danger.*`、`attention.*`），严禁在组件或页面样式中临时发明 hex 色值或局部魔数。
 
 ---
@@ -490,28 +490,28 @@ CloudForge 的排版系统致力于在密集信息（深层文件路径、7 位�
   - ✅ **Do**：新增与删除背景色严格绑定 `success.subtle`（`--bgColor-success-muted`）与 `danger.subtle`（`--bgColor-danger-muted`），代码前景文字统一使用高对比度的 `fg.default`。
   - ❌ **Don't**：不要把整行新增或删除代码的字体直接染成高饱和纯绿/纯红，不要让行号栏随横向滚动条滚出视野或与代码行错位。
 
-### 5. Buttons（按钮：`Default` / `Primary` / `Danger`）
+### 5. Buttons（质感物理按钮：`Default` / `Primary` / `Danger`）
 
-提供三种标准变体，默认高度 `32px`（小号 `.btn-sm` 为 `28px`），圆角 `6px`，边框 `1px solid`，字号 `14px`（字重 `500`–`600`）。
+提供三种标准物理质感变体，默认高度 `32px`（小号 `.btn-sm` 为 `28px`），圆角 `6px`，边框 `1px solid`，字号 `14px`（字重 `500`–`600`）。所有变体均配备顶边缘斜角高光与三段式物理触觉力学反馈。
 
 - **三种变体与状态**：
   1. **Default（默认次要按钮 `.btn`）**：
-     - `default`：背景 `canvas.subtle`（Light `#f6f8fa` / Dark `#21262d`），文字 `fg.default`（`#1f2328` / `#f0f6fc`），边框 `1px solid border.default`（`#d0d7de` / `#30363d`），仅允许极轻底边阴影 `0 1px 0 rgba(27,31,35,0.04)`。
-     - `hover`：背景微移至 `#eef1f4`（Light）/ `#30363d`（Dark），边框变为 `#c5cdd5`（Light）/ `#8b949e`（Dark）。
+     - `default`：背景 `canvas.subtle`（Light `#f6f8fa` / Dark `#21262d`），文字 `fg.default`（`#1f2328` / `#f0f6fc`），边框 `1px solid border.default`（`#d0d7de` / `#30363d`），带有物理顶边缘斜角高光 `inset 0 1px 0 rgba(255, 255, 255, 0.25)` 与静止态轻投影 `var(--shadow-resting)`。
+     - `hover`：背景微移至 `#eef1f4`（Light）/ `#30363d`（Dark），边框变为 `#c5cdd5`（Light）/ `#8b949e`（Dark），向光源微升 `transform: translateY(-0.5px)`，阴影扩散为 `var(--shadow-floating)`。
      - `focus`：`2px solid accent.fg`（`#0969da` / `#2f81f7`）焦点环。
-     - `active`：背景变为 `#e6eaef`（Light）/ `#282e36`（Dark），阴影移除。
-     - `disabled`：`opacity: 0.5`，`cursor: not-allowed`。
+     - `active`：物理微动下陷 `transform: translateY(0.5px) scale(0.99)`，阴影转化为内嵌按压槽 `box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25)`。
+     - `disabled`：`opacity: 0.5`，`cursor: not-allowed`，禁用任何位移与阴影变化。
   2. **Primary（主操作按钮 `.btn-primary` —— GitHub Blue）**：
-     - `default`：背景使用 GitHub Blue `accent.emphasis`（Light `#0969da` / Dark `#1f6feb`），文字 `fg.onEmphasis`（`#ffffff`），边框 `1px solid rgba(27,31,35,0.15)`。
-     - `hover`：背景变为 `#0860ca`（Light）/ `#388bfd`（Dark）。
-     - `focus`：`2px solid accent.fg` 焦点环，带 `2px` 双层间隙（`box-shadow: 0 0 0 2px var(--bgColor-default), 0 0 0 4px var(--fgColor-accent)`），确保蓝底按钮上的蓝色焦点环依然清晰可见。
-     - `active`：背景变为 `#0757ba`（Light）/ `#1f6feb`（Dark）。
+     - `default`：背景使用 GitHub Blue `accent.emphasis`（Light `#0969da` / Dark `#1f6feb`），文字 `fg.onEmphasis`（`#ffffff`），边框 `1px solid rgba(27,31,35,0.15)`，顶边缘微光 `inset 0 1px 0 rgba(255, 255, 255, 0.25)`。
+     - `hover`：背景变为 `#0860ca`（Light）/ `#388bfd`（Dark），上浮 `translateY(-0.5px)`。
+     - `focus`：`2px solid accent.fg` 焦点环，带 `2px` 双层间隙。
+     - `active`：下陷 `transform: translateY(0.5px) scale(0.99)`，伴随内嵌暗影 `box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3)`。
      - `disabled`：`opacity: 0.5`，`cursor: not-allowed`。
   3. **Danger（危险操作按钮 `.btn-danger` —— 仅用于破坏性操作）**：
-     - `default`：背景 `canvas.subtle`（`#f6f8fa` / `#21262d`），文字 `danger.fg`（`#cf222e` / `#f85149`），边框 `1px solid border.default`（或在最终确认弹窗中使用实心 `danger.emphasis` `#cf222e` 底 + `#ffffff` 字）。
-     - `hover`：背景切换为实心 `danger.emphasis`（`#cf222e` Light / `#da3633` Dark），文字切换为 `#ffffff`，边框 `danger.emphasis`。
-     - `focus`：`2px solid accent.fg`（`#0969da` / `#2f81f7`）焦点环，带 `2px` 间隙。
-     - `active`：背景变为 `#a40e26`（Light）/ `#b62324`（Dark），文字 `#ffffff`。
+     - `default`：背景 `canvas.subtle`（`#f6f8fa` / `#21262d`），文字 `danger.fg`（`#cf222e` / `#f85149`），边框 `1px solid border.default`。
+     - `hover`：背景切换为实心 `danger.emphasis`（`#cf222e` Light / `#da3633` Dark），文字切换为 `#ffffff`，边框 `danger.emphasis`，上浮 `translateY(-0.5px)`。
+     - `focus`：`2px solid accent.fg` 焦点环，带 `2px` 间隙。
+     - `active`：下陷 `transform: translateY(0.5px) scale(0.99)`，`box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3)`。
      - `disabled`：`opacity: 0.5`，`cursor: not-allowed`。
 - **可访问性要求**：
   - 仅含图标的按钮必须提供 `aria-label` 与 `title`；所有按钮支持 `Enter` 与 `Space` 键盘触发。
