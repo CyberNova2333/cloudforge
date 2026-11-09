@@ -20,7 +20,7 @@ RUN cp go.sum /tmp/git-lfs-go.sum.locked \
 COPY git-lfs/build.sh /usr/local/libexec/cloudforge-git-lfs-build
 RUN sh /usr/local/libexec/cloudforge-git-lfs-build "$TARGETARCH"
 
-FROM node:24-trixie-slim@sha256:54f84b4cf8432b21aaffd5d3ce8d41e12cea0d10d33c09d2f3c9879d49d6b446 AS runner-base
+FROM node:24-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d AS runner-base
 # Advance this after checking Debian security updates, so deploys also refresh a cached APT layer.
 ARG DEBIAN_SECURITY_REFRESH=2026-11-04
 RUN test -n "$DEBIAN_SECURITY_REFRESH" \
