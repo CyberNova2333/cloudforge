@@ -2,9 +2,14 @@
 import DefaultTheme from 'vitepress/theme';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useData } from 'vitepress';
+import {
+  checkAndApplyLanguageRedirect,
+  setupLanguageSwitcherListener,
+  syncLanguageOnRoute,
+} from './i18n';
 
 const route = useRoute();
-const { frontmatter } = useData();
+const { frontmatter, site } = useData();
 
 const STORAGE_KEY_AUTO_DISABLED = 'cbnv_serious_auto_disabled';
 const STORAGE_KEY_MANUAL = 'cbnv_serious_manual';
@@ -114,12 +119,15 @@ function toggleManual() {
 onMounted(() => {
   previousPathWasHome = isHome.value;
   evaluateRouteMode(false);
+  setupLanguageSwitcherListener();
+  checkAndApplyLanguageRedirect(site.value?.base || '/');
 });
 
 watch(
   () => route.path,
-  () => {
+  (newPath) => {
     evaluateRouteMode(true);
+    syncLanguageOnRoute(newPath);
   }
 );
 </script>
