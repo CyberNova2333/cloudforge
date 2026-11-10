@@ -3,7 +3,7 @@
 import { readFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { runYarn } from "../../scripts/githooks/run-yarn.mjs";
+import { runPnpm } from "../../scripts/githooks/run-yarn.mjs";
 
 /** Read stdin JSON. Strict adapters reject empty/malformed input; legacy callers get {}. */
 export async function readHookInput({ strict = false } = {}) {
@@ -134,8 +134,8 @@ export function runConfigured(command, extraArgs = [], options = {}) {
     throw new Error("钩子命令必须是非空字符串参数数组。");
   const [cmd, ...args] = parts;
   const opts = { cwd: projectDir(), encoding: "utf8", stdio: "pipe", ...options };
-  return cmd === "yarn"
-    ? runYarn([...args, ...extraArgs], opts)
+  return cmd === "pnpm"
+    ? runPnpm([...args, ...extraArgs], opts)
     : spawnSync(cmd, [...args, ...extraArgs], opts);
 }
 

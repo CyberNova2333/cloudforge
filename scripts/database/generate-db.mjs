@@ -3,16 +3,10 @@
 // Only append to a migration created during this invocation, never to existing history.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { basename, extname, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveYarnCommand } from '../githooks/run-yarn.mjs';
+import { resolvePnpmLifecycleCommand } from '../githooks/run-yarn.mjs';
 import {
   RECOVERY_TRIGGER_NAME,
   RECOVERY_TRIGGER_SQL,
@@ -47,21 +41,11 @@ const validName = (name) =>
   typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 
 function runDrizzle(args, cwd) {
-  let invocation;
   const env = process.env;
-  if (/^yarn\//.test(env.npm_config_user_agent ?? '') && env.npm_execpath) {
-    const entry = env.npm_execpath;
-    if (
-      !isAbsolute(entry) ||
-      !['.js', '.mjs', '.cjs'].includes(extname(entry)) ||
-      !statSync(entry).isFile()
-    )
-      throw new Error('Yarn 生命周期没有提供可用的 JavaScript 入口。');
-    invocation = { command: process.execPath, args: [entry] };
-  } else invocation = resolveYarnCommand({ cwd, env });
+  const invocation = resolvePnpmLifecycleCommand({ cwd, env });
   const result = spawnSync(
     invocation.command,
-    [...invocation.args, 'drizzle-kit', 'generate', ...args],
+    [...invocation.args, 'exec', 'drizzle-kit', 'generate', ...args],
     {
       cwd,
       env,

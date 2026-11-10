@@ -20,6 +20,8 @@ import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { runPnpm } from '../githooks/run-yarn.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** The package.json written into the package. */
@@ -107,10 +109,10 @@ async function writeBuildConfig(path) {
   writeFileSync(path, text);
 }
 
-/** Runs `yarn -s build` into `outDir`, restoring the deploy redirect the plugin leaves behind. */
+/** Runs `pnpm run build` into `outDir`, restoring the deploy redirect the plugin leaves behind. */
 function viteBuild(configPath, outDir) {
   // The plugin points .wrangler/deploy/config.json at its output; left pointing at the placeholder
-  // build, a maintainer's next `yarn wrangler ...` without --config would read it.
+  // build, a maintainer's next `pnpm exec wrangler ...` without --config would read it.
   const redirect = join(ROOT, '.wrangler', 'deploy', 'config.json');
   let before = null;
   try {
@@ -119,11 +121,15 @@ function viteBuild(configPath, outDir) {
     if (err.code !== 'ENOENT') throw err;
   }
   try {
-    execFileSync('yarn', ['-s', 'build', '--outDir', outDir], {
+    const result = runPnpm(['run', 'build', '--outDir', outDir], {
+      lifecycle: true,
       cwd: ROOT,
       stdio: 'inherit',
       env: { ...process.env, CLOUDFORGE_BUILD_CONFIG: configPath },
     });
+    if (result.error) throw result.error;
+    if (result.status !== 0 || result.signal)
+      throw new Error('Package build failed.');
   } finally {
     if (before) writeFileSync(redirect, before);
     else rmSync(redirect, { force: true });

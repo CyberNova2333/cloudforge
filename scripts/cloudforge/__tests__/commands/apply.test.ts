@@ -274,7 +274,7 @@ function harness(
     configDir = join(root, 'home', 'acme');
     mkdirSync(configDir, { recursive: true });
   }
-  // Both sources reach wrangler through one handler: yarn as `-s [wrangler] …`, a package as `<bin> …`.
+  // Both sources reach wrangler through one handler: pnpm as `exec wrangler …` or `run deploy …`, a package as `<bin> …`.
   const wrangler = (args: string[]) => {
     const a = args.slice(1);
     if (a[0] === 'wrangler') a.shift();
@@ -305,7 +305,7 @@ function harness(
   const runner = fakeRunner({
     'git rev-parse': () => ok(`${opts.version ?? VERSION}\n`),
     'git status': () => ok(''),
-    yarn: handle,
+    pnpm: handle,
     [process.execPath]: handle,
   });
   const printed: string[] = [];
@@ -397,7 +397,7 @@ describe('install：安装', () => {
     expect(wranglerCalls.some((c) => c.args.includes('deploy'))).toBe(true);
     expect(wranglerCalls.some((c) => c.args.includes('migrations'))).toBe(true);
     expect(
-      h.runner.calls.some((c) => c.cmd === 'yarn' || c.cmd === 'git')
+      h.runner.calls.some((c) => c.cmd === 'pnpm' || c.cmd === 'git')
     ).toBe(false);
     expect(existsSync(config)).toBe(true);
     expect(readFileSync(config, 'utf8').split('\n')[0]).toContain(
@@ -437,8 +437,8 @@ describe('install：安装', () => {
     // Migrations, then the D1 marker row.
     const migrate = h.runner.calls.findIndex(
       (c) =>
-        c.cmd === 'yarn' &&
-        c.args.join(' ') === '-s wrangler d1 migrations apply DB --remote'
+        c.cmd === 'pnpm' &&
+        c.args.join(' ') === 'exec wrangler d1 migrations apply DB --remote'
     );
     expect(migrate).toBeGreaterThanOrEqual(0);
     const insert = h.cf.calls.find(
@@ -488,7 +488,7 @@ describe('install：安装', () => {
     expect(code).toBeTruthy();
     expect(setupCodeHash(code!)).toBe(h.deploys[0].secrets!.SETUP_CODE_HASH);
     expect(summary).toContain(`${BASE}/setup`);
-    expect(summary).toContain('yarn cloudforge install --resume --name acme');
+    expect(summary).toContain('pnpm cloudforge install --resume --name acme');
     // No secret ever lands in the state file.
     const stateText = readFileSync(join(dir, `${ID}.json`), 'utf8');
     expect(stateText).not.toContain(code!);
@@ -499,9 +499,9 @@ describe('install：安装', () => {
   it('所有 wrangler 和部署子进程均使用所选账户', async () => {
     const h = harness();
     await install(h.ctx, { state: freshState(), ...noOptional });
-    const yarn = h.runner.calls.filter((c) => c.cmd === 'yarn');
-    expect(yarn.length).toBeGreaterThanOrEqual(4);
-    for (const c of yarn) {
+    const pnpm = h.runner.calls.filter((c) => c.cmd === 'pnpm');
+    expect(pnpm.length).toBeGreaterThanOrEqual(4);
+    for (const c of pnpm) {
       expect(c.opts?.env).toMatchObject({ CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
     }
   });
@@ -626,7 +626,7 @@ describe('install：安装', () => {
     ]);
     const list = h.runner.calls.find((c) => c.args.includes('secret'));
     expect(list?.args).toEqual([
-      '-s',
+      'exec',
       'wrangler',
       'secret',
       'list',
@@ -683,7 +683,7 @@ describe('install：安装', () => {
       '`acme-lfs` already exists and was not created by this installation. Nothing was changed.'
     );
     expect(err.message).toContain(
-      'Run: yarn cloudforge install --resume --name acme'
+      'Run: pnpm cloudforge install --resume --name acme'
     );
     expect(h.count('createD1') + h.count('createR2')).toBe(0);
   });
@@ -759,7 +759,7 @@ describe('install：安装', () => {
     }).catch((e: Error) => e)) as Error;
     expect(err.message).toContain('upload failed');
     expect(err.message).toContain(
-      'Step deploy:1 failed. Nothing after it ran. Run: yarn cloudforge install --resume --name acme'
+      'Step deploy:1 failed. Nothing after it ran. Run: pnpm cloudforge install --resume --name acme'
     );
     const saved = readState(dir, ID)!;
     expect(saved.status).toBe('failed');
@@ -846,7 +846,7 @@ describe('verify：验证', () => {
     };
     const err = (await verify(h.ctx, custom).catch((e: Error) => e)) as Error;
     expect(err.message).toContain(
-      "A custom domain's certificate can take several minutes to issue; wait, then run: yarn cloudforge install --resume --name acme"
+      "A custom domain's certificate can take several minutes to issue; wait, then run: pnpm cloudforge install --resume --name acme"
     );
     const plain = (await verify(h.ctx, s).catch((e: Error) => e)) as Error;
     expect(plain.message).not.toContain('certificate');
@@ -966,7 +966,7 @@ describe('resumeInstalled：恢复已完成的安装', () => {
     const printed = h.printed.join('\n');
     expect(printed).not.toContain('Setup code:');
     expect(printed).toContain(
-      'yarn cloudforge install --resume --name acme --new-setup-code'
+      'pnpm cloudforge install --resume --name acme --new-setup-code'
     );
     expect(out.steps.map((x) => x.key)).not.toContain('setup-code:2');
   });
@@ -1109,7 +1109,7 @@ describe('验证失败后恢复安装', () => {
     const printed = again.printed.join('\n');
     expect(printed).not.toContain('Setup code:');
     expect(printed).toContain(
-      'The first admin still needs a setup code. If you no longer have it, run: yarn cloudforge install --resume --name acme --new-setup-code'
+      'The first admin still needs a setup code. If you no longer have it, run: pnpm cloudforge install --resume --name acme --new-setup-code'
     );
   });
 

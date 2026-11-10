@@ -75,9 +75,9 @@ Git HTTP 与 LFS 对成员 PAT 使用实时成员权限和令牌 scope 的交集
 准备改造团队和角色前，先选择一个明确实例检查旧数据。在源码 checkout 中运行：
 
 ```sh
-yarn cloudforge access-preflight --name cloudforge
+pnpm cloudforge access-preflight --name cloudforge
 # 手工部署、没有本地安装记录时，账号和数据库都必须明确：
-yarn cloudforge access-preflight --database <数据库名或UUID> --account <账号ID或名称>
+pnpm cloudforge access-preflight --database <数据库名或UUID> --account <账号ID或名称>
 ```
 
 命令核对实际账号、数据库及已有安装归属，先读取有界结构元数据，再选择对应的单条 SQL 快照；最终快照再次校验结构和归属，避免把探测之后的结构变化当作旧模型读取。它不会写本地安装状态或应用数据，不需要 Docker，不接受 `--yes`、`--expect-plan` 或 apply 参数。示意输出中的状态字段如下，其余字段包含目标、摘要、计数和异常对象标识：

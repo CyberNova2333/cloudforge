@@ -11,7 +11,7 @@ Deploy a production CloudForge instance to **the user's own Cloudflare account**
 
 ## Before you start
 
-The deployment itself is `pnpm dlx @cybernova2333/cloudforge install` (`scripts/cloudforge/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `yarn cloudforge install` instead, and everywhere below read `pnpm dlx @cybernova2333/cloudforge` as `yarn cloudforge`. If pnpm dlx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
+The deployment itself is `pnpm dlx @cybernova2333/cloudforge install` (`scripts/cloudforge/`, described in `docs/setup.md`); no clone is needed. In a clone of a fork, use `pnpm cloudforge install` instead, and everywhere below read `pnpm dlx @cybernova2333/cloudforge` as `pnpm cloudforge`. If pnpm dlx serves a stale version right after a release, add `--prefer-online`. The installer creates the resources, generates `wrangler.jsonc` from `wrangler.jsonc.example`, deploys, and verifies, the same way every time. You choose the inputs, show the user the plan, and interpret failures; the user runs the apply.
 
 ## What the user is signing up for
 
@@ -29,11 +29,11 @@ Tell the user this before touching anything, so they can back out cheaply:
 Check these with the user; the installer checks Artifacts, R2, the hostname, and the sender domain itself.
 
 ```bash
-node --version    # v22+ (v22.18+ and yarn in a clone)
+node --version    # v22+ (v22.18+ and pnpm in a clone)
 docker info --format '{{.ServerVersion}}'   # Docker must be running: the deploy builds the Actions runner image
 ```
 
-In a clone, run `yarn install` too. If Docker isn't running, ask the user to start it and wait. Ask "Is this account on the **Workers Paid** plan?"; if not, send them to https://dash.cloudflare.com/?to=/:account/workers/plans and wait.
+In a clone, run `pnpm install` too. If Docker isn't running, ask the user to start it and wait. Ask "Is this account on the **Workers Paid** plan?"; if not, send them to https://dash.cloudflare.com/?to=/:account/workers/plans and wait.
 
 Cloudflare credentials: `pnpm dlx wrangler whoami`. If not logged in, the user runs it themselves (it opens a browser): ask them to type `! pnpm dlx wrangler login`. A `CLOUDFLARE_API_TOKEN` also works (permissions in `docs/setup.md`); never ask them to paste one into the chat.
 
@@ -145,7 +145,7 @@ Report, with real values substituted (the installer's own summary lists most of 
 - Admin account `<username>` created with the setup code
 - Reviewer agents: `<the recommended crew | from github.com/gitorangeapp: <handles>, whole or AGENT.md only | none yet>`, invited in `<repositories>`
 - Instance name, invitation sender, and AI models can later be changed in Site admin → Settings without a deploy; the wrangler vars are only defaults
-- To update later: `pnpm dlx @cybernova2333/cloudforge@latest upgrade` (in a clone: `git pull && yarn install && yarn db:migrate:prod && yarn deploy`). It prints a plan first; the user runs the apply in their own terminal, as for the install. A deploy restarts running Actions jobs (each restarts from the beginning, up to 3 attempts), so prefer deploying when no CI is running.
+- To update later: `pnpm dlx @cybernova2333/cloudforge@latest upgrade` (in a clone: `git pull && pnpm install && pnpm db:migrate:prod && pnpm run deploy`). It prints a plan first; the user runs the apply in their own terminal, as for the install. A deploy restarts running Actions jobs (each restarts from the beginning, up to 3 attempts), so prefer deploying when no CI is running.
 
 ## Common issues
 
@@ -153,18 +153,18 @@ Site admin → Setup shows what's misconfigured on the deployed worker, with the
 
 - **"Docker is not installed." / "Docker is installed but not running."** — `install` and `upgrade` check Docker first and change nothing; the user installs or starts Docker Desktop and runs the same command again.
 - **`upgrade` stops on "runs code that is not a release"** — the worker runs a fork or local changes; `--replace-custom-code` replaces it with stock CloudForge, so ask first. It also never downgrades.
-- **`Access denied [code: 10004]`** — wrong account, account not on Workers Paid, or a wrangler login without Artifacts scopes (`! yarn wrangler login` again).
+- **`Access denied [code: 10004]`** — wrong account, account not on Workers Paid, or a wrangler login without Artifacts scopes (`! pnpm exec wrangler login` again).
 - **"The API token cannot read: …"** — the token lacks a permission listed in `docs/setup.md`.
 - **"Not running in a terminal: pass --yes"** — the apply runs in the user's own terminal window; Claude's shell (and `!`) is not a terminal.
 - **The installer refuses to overwrite `wrangler.jsonc`** — it was written by hand (`--plan` warns about it); move it aside and rerun.
 - **"`<host>` already has DNS records" / "is routed to `<worker>`"** — the deploy would replace them without asking, so the installer stops first: delete those records or routes, or choose another hostname.
 - **Auth errors / "invalid origin" after deploy** — `BASE_URL` doesn't match the URL in the browser. The installer sets it from the hostname or workers.dev address it verified; if you moved the instance, rerun the plan.
 - **Custom domain shows a Cloudflare error page** — the zone isn't on this Cloudflare account or isn't active; the plan's preflight reports it.
-- **Invitation email never arrives** — `FROM_EMAIL`'s domain isn't verified in Email Sending; check `yarn wrangler email sending list` (the installer's preflight checks it).
+- **Invitation email never arrives** — `FROM_EMAIL`'s domain isn't verified in Email Sending; check `pnpm exec wrangler email sending list` (the installer's preflight checks it).
 - **`git push` 403** — the user isn't owner, site admin, or collaborator on that repository.
 - **`git lfs push` says LFS isn't configured** — `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` aren't set.
 - **LFS upload fails with `SignatureDoesNotMatch` / `AccessDenied`** — the R2 token lacks Object Read & Write on the bucket, or `R2_ACCOUNT_ID` / `LFS_BUCKET_NAME` don't match it.
-- **`wrangler deploy` says it "could not finish applying its Durable Object-managed Container application settings"** — the Worker itself deployed; run `yarn deploy` again to finish.
+- **`wrangler deploy` says it "could not finish applying its Durable Object-managed Container application settings"** — the Worker itself deployed; run `pnpm run deploy` again to finish.
 - **Actions jobs never start** — Docker wasn't running when the runner image was built, or the `containers` entry was removed.
 - **Usage & cost says "not configured" or "unavailable"** — `CF_ANALYTICS_TOKEN` was skipped (add it with `--resume`) or is missing or lacks Account Analytics: Read, or a resource var (`D1_DATABASE_ID`, the `*_NAMESPACE_ID`s) is empty or wrong. Each line on the page gives the reason.
 - **No AI resolution or agent reviews** — the `ai` binding or the `MERGE_RESOLUTION` Workflow is missing, or (for reviews) the repository has no invited agents.

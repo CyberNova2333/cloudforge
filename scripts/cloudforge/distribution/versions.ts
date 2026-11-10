@@ -52,7 +52,7 @@ export function compareSemver(a: string, b: string): -1 | 0 | 1 {
  * deployed from a checkout) is looked up in the commits the package lists (`history`, its `history.txt`, written by
  * pack.mjs from `git rev-list`): the package's own commit is the same, one it contains is an upgrade. Anything else
  * is custom code: a newer build or commits that are not in a release, which the list alone cannot tell apart.
- * Offline: the fork's repository is on GitHub, whose API needs a token.
+ * Offline: use the packaged history without requiring repository API access.
  */
 export function compareRunning(
   running: string | null,

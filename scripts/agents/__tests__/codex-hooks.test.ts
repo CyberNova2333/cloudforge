@@ -210,7 +210,7 @@ describe('Codex 修改前钩子的完整入口', () => {
       denied(
         f.run('PreToolUse', patch(update('worker/worker-configuration.d.ts')))
       )
-    ).toContain('yarn cf-typegen');
+    ).toContain('pnpm cf-typegen');
   });
   it('允许同一补丁添加、修改、删除和移动普通文件，兼容空格与中文路径', () => {
     const f = fixture();
@@ -231,7 +231,7 @@ describe('Codex 修改前钩子的完整入口', () => {
   it.each([
     ['后续修改', update('worker/src/db/auth.schema.ts'), 'auth.schema.ts'],
     ['新增迁移', add('migrations/nested/0001.sql'), '0001.sql'],
-    ['删除锁文件', '*** Delete File: yarn.lock', 'yarn.lock'],
+    ['删除锁文件', '*** Delete File: pnpm-lock.yaml', 'pnpm-lock.yaml'],
     [
       '移动目的地',
       move('src/普通.ts', 'worker/src/db/auth.schema.ts'),
@@ -308,7 +308,7 @@ describe('Codex 修改前钩子的完整入口', () => {
     const f = fixture();
     const result = f.run(
       'PreToolUse',
-      patch('*** Add File: src/普通.ts\n+*** Update File: yarn.lock')
+      patch('*** Add File: src/普通.ts\n+*** Update File: pnpm-lock.yaml')
     );
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({});
@@ -504,30 +504,30 @@ describe('Codex 完成前钩子的完整入口', () => {
     expect(result.stderr).toContain('typecheck');
   });
 
-  it('通过共享 Yarn 入口执行检查时捕获命令输出，保持钩子响应为有效 JSON', () => {
+  it('通过共享 pnpm 入口执行检查时捕获命令输出，保持钩子响应为有效 JSON', () => {
     const f = fixture();
-    const bin = join(f.root, '.fixture/Yarn 目录');
+    const bin = join(f.root, '.fixture/pnpm 目录');
     const output = '仅供命令输出，不应出现在钩子 JSON 中';
     const script = `const fs = require('node:fs');
-fs.writeFileSync('yarn-called.json', JSON.stringify({cwd: process.cwd(), args: process.argv.slice(2)}));
+fs.writeFileSync('pnpm-called.json', JSON.stringify({cwd: process.cwd(), args: process.argv.slice(2)}));
 process.stdout.write(${JSON.stringify(output)});
 `;
     if (process.platform === 'win32') {
-      put(f.root, '.fixture/Yarn 目录/entry.cjs', script);
+      put(f.root, '.fixture/pnpm 目录/entry.cjs', script);
       put(
         f.root,
-        '.fixture/Yarn 目录/yarn.cmd',
+        '.fixture/pnpm 目录/pnpm.cmd',
         '@echo off\r\nnode "%~dp0\\entry.cjs" %*\r\n'
       );
     } else {
       const launcher = put(
         f.root,
-        '.fixture/Yarn 目录/yarn',
+        '.fixture/pnpm 目录/pnpm',
         '#!/usr/bin/env node\n' + script
       );
       chmodSync(launcher, 0o755);
     }
-    f.configure({ typecheck: 'yarn typecheck' });
+    f.configure({ typecheck: 'pnpm typecheck' });
     const result = f.run('Stop', '', {
       env: { PATH: [bin, dirname(process.execPath)].join(delimiter) },
     });
@@ -535,7 +535,7 @@ process.stdout.write(${JSON.stringify(output)});
     expect(JSON.parse(result.stdout)).toEqual({});
     expect(result.stdout + result.stderr).not.toContain(output);
     expect(
-      JSON.parse(readFileSync(join(f.root, 'yarn-called.json'), 'utf8'))
+      JSON.parse(readFileSync(join(f.root, 'pnpm-called.json'), 'utf8'))
     ).toEqual({
       cwd: f.root,
       args: ['typecheck'],

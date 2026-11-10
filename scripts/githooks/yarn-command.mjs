@@ -1,7 +1,7 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// Git 和编码代理钩子共用的 Yarn 入口；不通过 shell 拼接或执行参数。
+// Git 和编码代理钩子共用的 pnpm 入口；不通过 shell 拼接或执行参数。
 import { readFileSync, statSync } from 'node:fs';
-import { dirname, extname, resolve } from 'node:path';
+import { dirname, extname, isAbsolute, resolve } from 'node:path';
 
 function environmentValue(env, name, platform) {
   const key = Object.keys(env)
@@ -49,7 +49,7 @@ function commandError(message, code = 'EINVAL') {
 
 function nodeShimEntry(command) {
   const source = readFileSync(command, 'utf8');
-  // npm、Yarn 和 Corepack 的标准 Windows 启动器都把 %* 原样交给一个
+  // npm、pnpm 和 Corepack 的标准 Windows 启动器都把 %* 原样交给一个
   // 相对 %~dp0 / %dp0% 的 Node 入口。只读取这个入口，不执行批处理文本。
   const invocations = [
     ...source.matchAll(
@@ -59,7 +59,7 @@ function nodeShimEntry(command) {
   const targets = new Set(invocations.map((match) => match[1]));
   if (targets.size !== 1) {
     throw commandError(
-      `无法安全解析 Node 启动器：${command}。请使用标准 Yarn/Corepack 安装。`
+      `无法安全解析 Node 启动器：${command}。请使用标准 pnpm/Corepack 安装。`
     );
   }
   const relative = [...targets][0].replace(/^(?:%~dp0|%dp0%)[\\/]/i, '');
@@ -73,22 +73,22 @@ function nodeShimEntry(command) {
   return entry;
 }
 
-/** 仅在 PATH 中没有 Yarn 时选择 Corepack；已存在但损坏的 Yarn 必须失败。 */
-export function resolveYarnCommand({
+/** 仅在 PATH 中没有 pnpm 时选择 Corepack；已存在但损坏的 pnpm 必须失败。 */
+export function resolvePnpmCommand({
   cwd = process.cwd(),
   env = process.env,
   platform = process.platform,
 } = {}) {
   const options = { cwd, env, platform };
-  const yarn = findCommand('yarn', options);
-  const command = yarn ?? findCommand('corepack', options);
+  const pnpm = findCommand('pnpm', options);
+  const command = pnpm ?? findCommand('corepack', options);
   if (!command) {
     throw commandError(
-      'PATH 中未找到 Yarn 或 Corepack。请安装 Yarn，或安装包含 Corepack 的 Node.js 环境。',
+      'PATH 中未找到 pnpm 或 Corepack。请安装 pnpm，或安装包含 Corepack 的 Node.js 环境。',
       'ENOENT'
     );
   }
-  const prefix = yarn ? [] : ['yarn'];
+  const prefix = pnpm ? [] : ['pnpm'];
   if (platform !== 'win32') return { command, args: prefix };
 
   const extension = extname(command).toLowerCase();
@@ -104,5 +104,22 @@ export function resolveYarnCommand({
   if (['.js', '.cjs', '.mjs'].includes(extension)) {
     return { command: process.execPath, args: [command, ...prefix] };
   }
-  throw commandError(`不支持的 Yarn/Corepack 可执行文件：${command}`);
+  throw commandError(`不支持的 pnpm/Corepack 可执行文件：${command}`);
+}
+
+/** Reuse the current pnpm lifecycle entry without executing a command-shell shim. */
+export function resolvePnpmLifecycleCommand(options = {}) {
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const agent = environmentValue(env, 'npm_config_user_agent', platform) ?? '';
+  const entry = environmentValue(env, 'npm_execpath', platform);
+  if (!/^pnpm\//.test(agent) || !entry) return resolvePnpmCommand(options);
+  if (!isAbsolute(entry) || !isFile(entry))
+    throw commandError('pnpm 生命周期没有提供可用的入口。', 'ENOENT');
+  const extension = extname(entry).toLowerCase();
+  if (['.js', '.mjs', '.cjs'].includes(extension))
+    return { command: process.execPath, args: [entry] };
+  if (platform === 'win32' ? extension === '.exe' : extension === '')
+    return { command: entry, args: [] };
+  throw commandError('pnpm 生命周期入口必须是 JavaScript 或原生可执行文件。');
 }

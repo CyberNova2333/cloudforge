@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// `yarn dev`: Vite dev server under a memory watchdog. Sums the RSS of the process tree, logs
+// `pnpm dev`: Vite dev server under a memory watchdog. Sums the RSS of the process tree, logs
 // each whole GB, and stops past DEV_MEMORY_LIMIT_MB (default 5120; 0 disables).
 import { execFileSync, spawn } from 'node:child_process';
 
@@ -74,7 +74,7 @@ const watch =
             `${tag}   ${String(mb(p.kb)).padStart(6)} MB  ${p.pid}  ${p.cmd}`
           );
         console.error(
-          `${tag} Likely a memory leak. Restart with \`yarn dev\` (DEV_MEMORY_LIMIT_MB changes the limit).`
+          `${tag} Likely a memory leak. Restart with \`pnpm dev\` (DEV_MEMORY_LIMIT_MB changes the limit).`
         );
         stopTree('SIGTERM');
         setTimeout(() => stopTree('SIGKILL'), 5000).unref();

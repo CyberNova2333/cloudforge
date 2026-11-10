@@ -4,5 +4,5 @@
 
 @AGENTS.md
 
-所有项目规则以 [AGENTS.md](AGENTS.md) 为单一来源。本入口由 `yarn agents:sync` 生成；修改规则请编辑 AGENTS.md。
+所有项目规则以 [AGENTS.md](AGENTS.md) 为单一来源。本入口由 `pnpm agents:sync` 生成；修改规则请编辑 AGENTS.md。
 仓库问题和行为变更按 AGENTS.md 的 repo-docs 同步约定处理。

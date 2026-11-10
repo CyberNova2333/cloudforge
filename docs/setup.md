@@ -9,7 +9,7 @@ Deploy CloudForge to your own Cloudflare account with one command, `pnpm dlx @cy
 - A Cloudflare account on the **Workers Paid** plan (Artifacts is not available on Workers Free) with **R2** enabled.
 - **Artifacts** is in open beta and available on Workers Paid.
 - To send invitation emails, a domain onboarded to [Cloudflare Email Sending](https://dash.cloudflare.com/?to=/:account/email-service). Without one, invite links still work.
-- Node.js 22 or later. From a clone (forks), v22.18+ and yarn: the installer runs TypeScript directly.
+- Node.js 22 or later. From a clone (forks), v22.18+ and pnpm: the installer runs TypeScript directly.
 - Docker, running, when you deploy (`install` and `upgrade`): Wrangler builds the Actions runner image. Without it the command stops first with `Docker is not installed.` or `Docker is installed but not running.`
 - Cloudflare credentials: `pnpm dlx wrangler login`, or `CLOUDFLARE_API_TOKEN` (see [Token permissions](#token-permissions)).
 
@@ -22,14 +22,14 @@ pnpm dlx @cybernova2333/cloudforge install
 
 No clone is needed: the package carries a built release and its own pinned wrangler. If `npx` serves an old version right after a release, add `--prefer-online`. State is recorded under `~/.cloudforge/<name>/` (override the directory with `CLOUDFORGE_HOME`). Upgrades, adopting an installation made earlier, and `status` are in [Updating](updating.md).
 
-Running a fork, or prefer a clone? The same installer runs from a checkout, and every command below works as `yarn cloudforge <command>` (progress is then recorded in `.cloudforge/<id>.json` in the checkout):
+Running a fork, or prefer a clone? The same installer runs from a checkout, and every command below works as `pnpm cloudforge <command>` (progress is then recorded in `.cloudforge/<id>.json` in the checkout):
 
 ```bash
 git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
-yarn install
-yarn wrangler login
-yarn cloudforge install
+pnpm install --frozen-lockfile
+pnpm exec wrangler login
+pnpm cloudforge install
 ```
 
 The installer asks for an installation name, the Cloudflare account (when your login sees several), where to serve (a custom hostname on a zone in the account, or `<name>.<subdomain>.workers.dev`), and the invitation sender. Each answer can be a flag instead:
@@ -77,31 +77,31 @@ The optional analytics token the installer asks for is separate: **Account → A
 
 ## Manual setup
 
-`yarn cloudforge install` replaces this section; use it if you can't run the installer, or to see what it does. Its output is an ordinary `wrangler.jsonc`, so a hand-written one works the same (the installer will refuse to overwrite it).
+`pnpm cloudforge install` replaces this section; use it if you can't run the installer, or to see what it does. Its output is an ordinary `wrangler.jsonc`, so a hand-written one works the same (the installer will refuse to overwrite it).
 
 ### 1. Clone and install
 
 ```bash
 git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
-yarn install
+pnpm install --frozen-lockfile
 ```
 
 ### 2. Authenticate with Cloudflare
 
 ```bash
-yarn wrangler login
-yarn wrangler whoami   # note your account ID
+pnpm exec wrangler login
+pnpm exec wrangler whoami   # note your account ID
 ```
 
 ### 3. Create the D1 database and the R2 buckets
 
 ```bash
-yarn wrangler d1 create cloudforge-db
-yarn wrangler r2 bucket create cloudforge-lfs
-yarn wrangler r2 bucket create cloudforge-actions-logs
-yarn wrangler r2 bucket create cloudforge-actions-cache
-yarn wrangler r2 bucket lifecycle add cloudforge-actions-cache expire-7d --prefix actions-cache/ --expire-days 7 -y
+pnpm exec wrangler d1 create cloudforge-db
+pnpm exec wrangler r2 bucket create cloudforge-lfs
+pnpm exec wrangler r2 bucket create cloudforge-actions-logs
+pnpm exec wrangler r2 bucket create cloudforge-actions-cache
+pnpm exec wrangler r2 bucket lifecycle add cloudforge-actions-cache expire-7d --prefix actions-cache/ --expire-days 7 -y
 ```
 
 Copy the `database_id` it prints. `cloudforge-actions-logs` holds Actions step logs, and `cloudforge-actions-cache` holds the Actions cache (its lifecycle rule expires entries under `actions-cache/` after 7 days). You don't need to create anything in Artifacts: the namespace is created automatically with the first repository.
@@ -133,18 +133,18 @@ Leave the AI variables at their defaults unless you want different models. `AI_G
 ### 5. Migrate and deploy
 
 ```bash
-yarn db:migrate:prod
-yarn deploy
+pnpm db:migrate:prod
+pnpm run deploy
 ```
 
 ### 6. Set the secrets
 
 ```bash
-openssl rand -hex 32 | yarn wrangler secret put BETTER_AUTH_SECRET
-yarn wrangler secret put R2_ACCESS_KEY_ID       # paste the R2 token's Access Key ID
-yarn wrangler secret put R2_SECRET_ACCESS_KEY   # paste its Secret Access Key
+openssl rand -hex 32 | pnpm exec wrangler secret put BETTER_AUTH_SECRET
+pnpm exec wrangler secret put R2_ACCESS_KEY_ID       # paste the R2 token's Access Key ID
+pnpm exec wrangler secret put R2_SECRET_ACCESS_KEY   # paste its Secret Access Key
 CODE=$(openssl rand -hex 12 | tr a-f A-F); echo "Setup code: $CODE"   # keep it for step 7
-printf %s "$CODE" | sha256sum | cut -d' ' -f1 | yarn wrangler secret put SETUP_CODE_HASH
+printf %s "$CODE" | sha256sum | cut -d' ' -f1 | pnpm exec wrangler secret put SETUP_CODE_HASH
 ```
 
 Setting a secret rolls out a new version of the worker; sign-in fails until `BETTER_AUTH_SECRET` is set, and Git LFS answers "not configured" until both R2 secrets are set. The welcome page refuses to create the first admin until `SETUP_CODE_HASH` is set (only an instance served and configured on `localhost`, a loopback address, or a `.localhost`/`.local`/`.test` name is set up without a code), so nobody who finds the URL first can claim the instance.
@@ -152,7 +152,7 @@ Setting a secret rolls out a new version of the worker; sign-in fails until `BET
 Optionally, for **Site admin → Usage & cost**: create an account API token (**Manage Account → Account API Tokens → Create Token → Custom token**) with the single permission **Account → Account Analytics → Read**, then:
 
 ```bash
-yarn wrangler secret put CF_ANALYTICS_TOKEN     # paste the token
+pnpm exec wrangler secret put CF_ANALYTICS_TOKEN     # paste the token
 ```
 
 Without it, the page shows only what CloudForge records itself (Actions runner time, Workers AI calls, emails). With it, a daily cron (02:30 UTC) pulls this deployment's Cloudflare analytics, filtered to its own Worker, Durable Objects, Workflows, D1 database, R2 buckets, and Artifacts namespace. See [Configuration](configuration.md#usage--cost).
@@ -184,7 +184,7 @@ Commits link to a member's profile when their author email matches the member's 
 - A site admin can make a link for anyone: **Site admin → Members → Reset password**. It works once within 24 hours,
   is emailed to the member when email works, and is shown to the admin to hand over either way.
 - When nobody can sign in (the only site admin forgot theirs), set one straight in the database from your machine:
-  `pnpm dlx @cybernova2333/cloudforge reset-password <username>` (from a checkout: `yarn cloudforge reset-password …`;
+  `pnpm dlx @cybernova2333/cloudforge reset-password <username>` (from a checkout: `pnpm cloudforge reset-password …`;
   for an installation made without the CLI, add `--database <D1 database name>`). It asks for the new password
   in the terminal.
 
@@ -218,9 +218,9 @@ For an installation made with `pnpm dlx @cybernova2333/cloudforge install`, run 
 
 ```bash
 git pull
-yarn install
-yarn db:migrate:prod
-yarn deploy
+pnpm install --frozen-lockfile
+pnpm db:migrate:prod
+pnpm run deploy
 ```
 
 Run the migrations before the deploy: new code may read new tables. A deploy restarts any running Actions jobs (each restarts from the beginning, up to 3 attempts), so CI just takes longer; deploying when nothing is running avoids that.
@@ -229,13 +229,13 @@ Run the migrations before the deploy: new code may read new tables. A deploy res
 
 Start with **Site admin → Setup**: it shows what's misconfigured and how to fix it.
 
-- **`Access denied [code: 10004]` from Artifacts** — `account_id` points at a different account than the one you're logged into, the account isn't on Workers Paid, or your API token lacks Artifacts permissions (re-run `yarn wrangler login`).
+- **`Access denied [code: 10004]` from Artifacts** — `account_id` points at a different account than the one you're logged into, the account isn't on Workers Paid, or your API token lacks Artifacts permissions (re-run `pnpm exec wrangler login`).
 - **Invitation emails never arrive** — `FROM_EMAIL`'s domain isn't verified in Email Sending. The admin page always shows the invite link too, so you can share it directly in the meantime.
 - **`git push` returns 403** — you aren't the repository owner, a site admin, or a collaborator. The owner can add you under the repository's **Settings → Collaborators**.
 - **`git clone` keeps asking for a password** — use a personal access token, not your account password.
 - **Locked out of the only admin account** — see [Forgotten passwords](#forgotten-passwords).
 - **`git lfs push` says LFS isn't configured** — set `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` (step 6).
 - **LFS uploads fail with `403 SignatureDoesNotMatch` or `AccessDenied`** — the R2 token doesn't have Object Read & Write on the bucket named in `LFS_BUCKET_NAME`, or `R2_ACCOUNT_ID` is wrong.
-- **`wrangler deploy` says it "could not finish applying its Durable Object-managed Container application settings"** — the Worker deployed; run `yarn deploy` again to finish.
+- **`wrangler deploy` says it "could not finish applying its Durable Object-managed Container application settings"** — the Worker deployed; run `pnpm run deploy` again to finish.
 - **Actions jobs never start** — Docker wasn't running when you deployed, so the runner image wasn't built.
 - **No AI resolution or agent reviews** — the `ai` binding or the `MERGE_RESOLUTION` Workflow is missing, or (for reviews) the repository has no invited agents.

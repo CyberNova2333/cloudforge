@@ -13,11 +13,12 @@ database, works out totals, and serves a short JSON API.
 ## Running it
 
 ```sh
-yarn install
-yarn dev
+pnpm install
+pnpm dev
 ```
 
-Run the tests with `yarn test`. They also run on every push to `main`.
+Run the tests with `pnpm test`. They also run on every push to `main`.
+The initial demo has no lockfile; commit the generated `pnpm-lock.yaml` before switching its workflow to frozen installs.
 
 ## Money
 

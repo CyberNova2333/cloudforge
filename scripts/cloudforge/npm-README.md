@@ -34,7 +34,7 @@ deploys. It never downgrades.
 
 ## Adopt an existing installation
 
-From a checkout that ran `yarn cloudforge install`:
+From a checkout that ran `pnpm cloudforge install`:
 
 ```bash
 pnpm dlx @cybernova2333/cloudforge adopt --from path/to/checkout

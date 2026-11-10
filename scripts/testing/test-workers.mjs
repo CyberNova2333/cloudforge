@@ -1,11 +1,11 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Run Worker tests with their raw runtime diagnostics included in the exit status.
 import { spawn } from 'node:child_process';
-import { statSync } from 'node:fs';
-import { extname, isAbsolute, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
-import { resolveYarnCommand } from '../githooks/run-yarn.mjs';
+import { resolvePnpmLifecycleCommand } from '../githooks/run-yarn.mjs';
 
 // workerd can print these outside Vitest's reporter, even after its passing summary.
 // Match complete diagnostic prefixes, not arbitrary mentions in test names or logs.
@@ -123,27 +123,12 @@ export async function runCheckedCommand(
 
 export async function runWorkerTests(args, options = {}) {
   try {
-    const env = options.env ?? process.env;
-    let invocation;
-    // Yarn 1 injects a temporary yarn.cmd into PATH while running package scripts.
-    // Use the current Yarn's own JS entry rather than trying to parse that wrapper.
-    if (/^yarn\//.test(env.npm_config_user_agent ?? '') && env.npm_execpath) {
-      const entry = env.npm_execpath;
-      if (
-        !isAbsolute(entry) ||
-        !['.js', '.mjs', '.cjs'].includes(extname(entry)) ||
-        !statSync(entry).isFile()
-      ) {
-        throw new Error('Yarn 生命周期没有提供可用的 JavaScript 入口。');
-      }
-      invocation = { command: process.execPath, args: [entry] };
-    } else {
-      invocation = resolveYarnCommand(options);
-    }
+    const invocation = resolvePnpmLifecycleCommand(options);
     return await runCheckedCommand(
       invocation.command,
       [
         ...invocation.args,
+        'exec',
         'vitest',
         'run',
         '--config',

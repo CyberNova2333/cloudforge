@@ -8,7 +8,7 @@ export const NPM_REGISTRY =
 /** The version of a plain `vX.Y.Z` tag; anything else is a usage error. */
 export function checkTag(tag: string): string {
   const m = /^v(\d+\.\d+\.\d+)$/.exec(tag ?? '');
-  if (!m) throw new Error('Usage: yarn release:publish vX.Y.Z');
+  if (!m) throw new Error('Usage: pnpm release:publish vX.Y.Z');
   return m[1];
 }
 

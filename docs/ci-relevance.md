@@ -27,7 +27,7 @@ jobs:
     if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.run-stacking == 'true')
     runs-on: ubuntu-latest
     steps:
-      - run: yarn test stacking
+      - run: pnpm test stacking
 ```
 
 ## Inputs

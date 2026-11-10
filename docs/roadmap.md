@@ -90,4 +90,4 @@ CloudForge 是一个**单租户、自托管在 Cloudflare 上的 GitHub Enterpri
 
 ### 工程习惯（沿用）
 
-一个功能一个分支，先写中文设计文档；每个提交带相关测试；改行为时同步所属专题，涉及未来 Agent 的操作规范时更新 `AGENTS.md`，再用 `yarn agents:sync` 生成 `CLAUDE.md` 引用入口及技能副本。新测试文件登记到 `.github/workflows/ci.yml`；交付 bundle 保留从实际远端基线起的相关分支历史，并验证恢复结果。
+一个功能一个分支，先写中文设计文档；每个提交带相关测试；改行为时同步所属专题，涉及未来 Agent 的操作规范时更新 `AGENTS.md`，再用 `pnpm agents:sync` 生成 `CLAUDE.md` 引用入口及技能副本。新测试文件登记到 `.github/workflows/ci.yml`；交付 bundle 保留从实际远端基线起的相关分支历史，并验证恢复结果。

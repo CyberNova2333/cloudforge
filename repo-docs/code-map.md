@@ -94,7 +94,7 @@ Worker 按业务归属组织。各域的 `http/` 保存 HTTP 路由或协议适�
 
 ## 开发与安装脚本导航
 
-项目命令仍以[根 package.json](../package.json)的 Yarn scripts 为入口。工具脚本按职责归组，安装器的命令行入口仍为 `scripts/cloudforge/cli.ts`，发布包入口仍为 `scripts/cloudforge/pack.mjs`。
+项目命令仍以[根 package.json](../package.json)的 pnpm scripts 为入口。工具脚本按职责归组，安装器的命令行入口仍为 `scripts/cloudforge/cli.ts`，发布包入口仍为 `scripts/cloudforge/pack.mjs`。
 
 | 工具职责                      | 位置与入口                                                                                                                              |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -119,13 +119,13 @@ Worker 按业务归属组织。各域的 `http/` 保存 HTTP 路由或协议适�
 | 事件结构与固定文件 | [事件投影](../worker/src/actions/event-payload.ts) 构造有界 JSON；[容器执行入口](../worker/src/actions/job-runner.ts) 在每条命令前准备 `GITHUB_EVENT_PATH`，兼容旧请求                                                  | `actions-event-payload.test.ts`、`actions-github-compat.test.ts`                |
 | 文件摘要与动态名称 | [表达式](../worker/src/actions/expressions.ts) 声明步骤期查询；[执行器](../worker/src/actions/executor.ts) 调度摘要、复用顶层步骤结果并更新脱敏名称；[容器程序](../worker/src/actions/hash-files.ts) 匹配工作区普通文件 | `actions-github-compat.test.ts`、`scripts/actions/__tests__/hash-files.test.ts` |
 
-例如 checkout 后，可用 `hashFiles('**/yarn.lock')` 的结果构造带 `deps-` 前缀的缓存键；无匹配时摘要为空串。多文件摘要按路径排序，不应承诺与 GitHub 的目录枚举顺序完全相同；作业规划期不可读取容器文件。旧运行缺少的历史事实继续表示未知，完整 GitHub webhook 字段并未全部实现。
+例如 checkout 后，可用 `hashFiles('**/pnpm-lock.yaml')` 的结果构造带 `deps-` 前缀的缓存键；无匹配时摘要为空串。多文件摘要按路径排序，不应承诺与 GitHub 的目录枚举顺序完全相同；作业规划期不可读取容器文件。旧运行缺少的历史事实继续表示未知，完整 GitHub webhook 字段并未全部实现。
 
 ## Agent 规则同步工具
 
-[scripts/agents/sync-agents.mjs](../scripts/agents/sync-agents.mjs) 以 `AGENTS.md` 为唯一规则正文，生成导入它的 `CLAUDE.md`；技能仍从 `.claude/skills/` 复制到 `.agents/skills/`。`yarn agents:sync --check` 只报告差异，写入模式也不会覆盖规范源。回归见 [sync-agents.test.ts](../scripts/agents/__tests__/sync-agents.test.ts)，覆盖缺失和过时入口、CRLF、技能副本清理以及规范源不被改写。
+[scripts/agents/sync-agents.mjs](../scripts/agents/sync-agents.mjs) 以 `AGENTS.md` 为唯一规则正文，生成导入它的 `CLAUDE.md`；技能仍从 `.claude/skills/` 复制到 `.agents/skills/`。`pnpm agents:sync --check` 只报告差异，写入模式也不会覆盖规范源。回归见 [sync-agents.test.ts](../scripts/agents/__tests__/sync-agents.test.ts)，覆盖缺失和过时入口、CRLF、技能副本清理以及规范源不被改写。
 
-认证表的生成入口在[项目命令](../package.json)，`yarn auth:update` 使用本地锁定的 CLI，再补齐 fork notice 并格式化。工具依赖与业务依赖一起纳入锁文件和审计；生成命令不执行数据库迁移。版本与操作边界见[开发说明](../docs/development.md#ci)。
+认证表的生成入口在[项目命令](../package.json)，`pnpm auth:update` 使用本地锁定的 CLI，再补齐 fork notice 并格式化。工具依赖与业务依赖一起纳入锁文件和审计；生成命令不执行数据库迁移。版本与操作边界见[开发说明](../docs/development.md#ci)。
 
 ## 认证策略的修改路由
 
@@ -224,13 +224,13 @@ SSO 的两个额外修改入口：
 - `src/pages/`：划分为 `admin/`、`agents/`、`auth/`、`issues/`、`overview/`、`pulls/`、`repo/`、`settings/` 等领域子目录。
 - `src/components/`：划分为 `actions/`、`admin/`、`agents/`、`approvals/`、`auth/`、`code/`、`health/`、`issue/`、`notifications/`、`pull/`、`repo/`、[导航壳层与账户菜单](../src/components/shell/AccountMenu.tsx)、`ui/` 等领域子目录。
 - `src/lib/`：划分为 `actions/`、`admin/`、`agents/`、`api/`、`approvals/`、`auth/`、`i18n/`、`issues/`、`notifications/`、`pulls/`、`repo/`、`search/`、`theme/`、`ui/`、`utils/` 等工具库子目录。
-- 相关验证：`yarn typecheck`、`yarn test:workers src/lib/`（59 文件 815 项测试）及 Playwright 视觉基线（`e2e/visual-baseline.spec.ts`）。
+- 相关验证：`pnpm typecheck`、`pnpm test:workers src/lib/`（59 文件 815 项测试）及 Playwright 视觉基线（`e2e/visual-baseline.spec.ts`）。
 
 ## 独立文档站与指南维护入口
 
 [文档站配置](../docs-site/.vitepress/config.mts)与[依赖声明](../docs-site/package.json)完全隔离于根工作区，不污染核心业务运行时；正文由 `repo-docs/` 单点提供并通过 VitePress include 机制引入。[安全路径拦截](../docs-site/.vitepress/guide-links.mts)将仓库源文件引用转化为安全精确路径；全本地自托管离线字体位于 `docs-site/.vitepress/theme/fonts/`，配合 Shadow DOM 昼夜切换开关与 Anime.js 渐进动效引擎（均支持无 JS 与减少动效降级）。
 
-验证入口：`yarn --cwd docs-site docs:build` 与文档包结构校验；实际执行结果见[指南变更记录](change-log.md)。
+验证入口：`pnpm --dir docs-site docs:build` 与文档包结构校验；实际执行结果见[指南变更记录](change-log.md)。
 
 ## 覆盖范围
 
@@ -250,7 +250,7 @@ SSO 的两个额外修改入口：
 | 执行前准入与重启         | `worker/src/actions/job-runner.ts` 返回可序列化的拒绝结果，`worker/src/actions/executor.ts` 将其持久记为失败；未知容器中断仍按既有策略处理        | `actions-boundaries-security.test.ts`                                                                 |
 | 精确回退和发布恢复       | `worker/src/pulls/service.ts` 从 recorded landing intent 读取准确 base；`worker/src/releases/service.ts` 复核未记账落地及最终发布快照，不删除标签 | `security-landing.test.ts`                                                                            |
 | 撤销单条审查决定         | `worker/src/review/flags.ts` 在写点核对完整决定快照和仍开放的 PR，拒绝迟到请求清掉新决定                                                          | `undo-concurrency.test.ts`                                                                            |
-| 脚本和安装器的 Yarn 启动 | `scripts/githooks/yarn-command.mjs` 共享纯解析逻辑；`run-yarn.mjs` 保留钩子入口；`scripts/cloudforge/platform/runner.ts` 保留异步 stdin/stdout    | `scripts/cloudforge/__tests__/platform/runner.test.ts`、`scripts/githooks/__tests__/run-yarn.test.ts` |
+| 脚本和安装器的 pnpm 启动 | `scripts/githooks/yarn-command.mjs` 共享纯解析逻辑；`run-yarn.mjs` 保留钩子入口；`scripts/cloudforge/platform/runner.ts` 保留异步 stdin/stdout    | `scripts/cloudforge/__tests__/platform/runner.test.ts`、`scripts/githooks/__tests__/run-yarn.test.ts` |
 
 旧的多父落地若没有准确基点证据，会拒绝自动回退。读不到 Git 对象或历史范围不完整时，合并检查要求重试，
 不推断为“没有共享提交”。容器系统包与全局 npm 的依赖核验见[开发说明](../docs/development.md#process-and-runner-dependency-boundaries)。

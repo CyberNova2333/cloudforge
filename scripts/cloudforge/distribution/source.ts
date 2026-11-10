@@ -32,14 +32,14 @@ export type Source = {
   wrangler(args: string[], configDir: string): { cmd: string; args: string[] };
   /** How to run a wrangler command that reads no config (`auth token`): never passes `--config`. */
   wranglerBare(args: string[]): { cmd: string; args: string[] };
-  /** The deploy command (checkout: `yarn -s deploy`, which builds; package: wrangler deploy, no build). */
+  /** The deploy command (checkout: `pnpm run deploy`, which builds; package: wrangler deploy, no build). */
   deploy(
     configDir: string,
     secretsFile: string | null
   ): { cmd: string; args: string[] };
-  /** A printed command line: `yarn cloudforge <args>` or `pnpm dlx @cybernova2333/cloudforge@<version> <args>`. */
+  /** A printed command line: `pnpm cloudforge <args>` or `pnpm dlx @cybernova2333/cloudforge@<version> <args>`. */
   command(args: string): string;
-  /** A printed wrangler command line: `yarn wrangler <args>` or `pnpm dlx wrangler@<version> <args>`. */
+  /** A printed wrangler command line: `pnpm exec wrangler <args>` or `pnpm dlx wrangler@<version> <args>`. */
   wranglerCommand(args: string): string;
 };
 
@@ -71,21 +71,21 @@ export function checkoutSource(root: string): Source {
     commit: null,
     history: null,
     build: null,
-    wrangler: (args) => ({ cmd: 'yarn', args: ['-s', 'wrangler', ...args] }),
+    wrangler: (args) => ({ cmd: 'pnpm', args: ['exec', 'wrangler', ...args] }),
     wranglerBare: (args) => ({
-      cmd: 'yarn',
-      args: ['-s', 'wrangler', ...args],
+      cmd: 'pnpm',
+      args: ['exec', 'wrangler', ...args],
     }),
     deploy: (_configDir, secretsFile) => ({
-      cmd: 'yarn',
+      cmd: 'pnpm',
       args: [
-        '-s',
+        'run',
         'deploy',
         ...(secretsFile ? ['--secrets-file', secretsFile] : []),
       ],
     }),
-    command: (args) => `yarn cloudforge ${args}`,
-    wranglerCommand: (args) => `yarn wrangler ${args}`,
+    command: (args) => `pnpm cloudforge ${args}`,
+    wranglerCommand: (args) => `pnpm exec wrangler ${args}`,
   };
 }
 

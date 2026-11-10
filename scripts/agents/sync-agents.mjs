@@ -2,7 +2,7 @@
 // AGENTS.md is the canonical project policy, shared by all coding agents:
 //   CLAUDE.md        = a short entry point importing AGENTS.md
 //   .agents/skills/  = a byte-for-byte copy of .claude/skills/
-//   node scripts/agents/sync-agents.mjs           writes them (yarn agents:sync)
+//   node scripts/agents/sync-agents.mjs           writes them (pnpm agents:sync)
 //   node scripts/agents/sync-agents.mjs --check   lists what is stale and exits 1 (scripts/agents/__tests__/sync-agents.test.ts)
 // Edit AGENTS.md or .claude/skills/, never the generated files.
 import {
@@ -23,7 +23,7 @@ const CLAUDE_ENTRY = `<!-- Modified by CyberNova for the CloudForge fork (forked
 
 @AGENTS.md
 
-所有项目规则以 [AGENTS.md](AGENTS.md) 为单一来源。本入口由 \`yarn agents:sync\` 生成；修改规则请编辑 AGENTS.md。
+所有项目规则以 [AGENTS.md](AGENTS.md) 为单一来源。本入口由 \`pnpm agents:sync\` 生成；修改规则请编辑 AGENTS.md。
 仓库问题和行为变更按 AGENTS.md 的 repo-docs 同步约定处理。
 `;
 
@@ -104,7 +104,7 @@ if (isMain) {
     const stale = staleFiles(ROOT);
     if (stale.length) {
       console.error(
-        `Stale, run \`yarn agents:sync\`:\n${stale.map((s) => `  ${s}`).join('\n')}`
+        `Stale, run \`pnpm agents:sync\`:\n${stale.map((s) => `  ${s}`).join('\n')}`
       );
       process.exit(1);
     }

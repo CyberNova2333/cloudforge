@@ -46,29 +46,29 @@ See [reviewer agents, PR states, and automatic merging](docs/auto-merge.md) and 
 
 ## Start from source
 
-Running from source requires **Node.js 22.18 or later** and **Yarn**. Deployment also requires a Cloudflare account with access to the services used by the project, and Docker to build the Actions runner image. The installer checks required services and configuration. Email invitations require Email Sending; invitation links can also be used without email.
+Running from source requires **Node.js 22.18 or later** and **pnpm**. Deployment also requires a Cloudflare account with access to the services used by the project, and Docker to build the Actions runner image. The installer checks required services and configuration. Email invitations require Email Sending; invitation links can also be used without email.
 
 ```bash
 git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
-yarn install --frozen-lockfile
-yarn wrangler login
+pnpm install --frozen-lockfile
+pnpm exec wrangler login
 
 # Inspect the installation plan without applying it
-yarn cloudforge install --plan
+pnpm cloudforge install --plan
 
 # After reviewing the plan, create resources, migrate the database, and deploy
-yarn cloudforge install
+pnpm cloudforge install
 ```
 
 After installation, use the one-time setup code printed by the installer at `<BASE_URL>/setup` to create the first administrator. Then create repositories and invite members. To use AI review, create reviewer agents and invite them in each repository's settings.
 
 ```bash
 # Inspect the installation status
-yarn cloudforge status
+pnpm cloudforge status
 
 # Continue an interrupted installation
-yarn cloudforge install --resume
+pnpm cloudforge install --resume
 ```
 
 See [setup](docs/setup.md) for deployment details and [updating](docs/updating.md) for updates and adopting existing installations. Those guides also cover installation from a published package.
@@ -79,8 +79,8 @@ See [setup](docs/setup.md) for deployment details and [updating](docs/updating.m
 cp wrangler.jsonc.example wrangler.jsonc
 cp .dev.vars.example .dev.vars
 # Set account, development environment, and local secrets as described in docs/development.md
-yarn db:migrate:local
-yarn dev
+pnpm db:migrate:local
+pnpm dev
 ```
 
 The default address is `http://localhost:8080`, shared by the web app, API, and Git endpoint. Development uses local D1 storage; Artifacts calls reach the real Cloudflare service. See [local development](docs/development.md) for demo data and Git LFS configuration.
@@ -88,12 +88,12 @@ The default address is `http://localhost:8080`, shared by the web app, API, and 
 ### Checks and tests
 
 ```bash
-yarn format:check
-yarn typecheck
-yarn test
+pnpm format:check
+pnpm typecheck
+pnpm test
 ```
 
-`yarn test` runs the installer tests in Node.js, followed by Worker and pure frontend logic tests in workerd. The latter use a real local D1 database and an in-memory Artifacts test implementation. Test suite names, case names, and the default result summary are in Chinese; original assertions, third-party diagnostics, and stack traces are preserved.
+`pnpm test` runs the installer tests in Node.js, followed by Worker and pure frontend logic tests in workerd. The latter use a real local D1 database and an in-memory Artifacts test implementation. Test suite names, case names, and the default result summary are in Chinese; original assertions, third-party diagnostics, and stack traces are preserved.
 
 CI uses [.github/workflows/](.github/workflows/) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests.
 
@@ -178,10 +178,10 @@ The [Chinese living guide](repo-docs/README.md) follows one real workflow and st
 The documentation site uses VitePress, with dependencies completely isolated from the application in `docs-site/package.json`. Markdown is authored once in `repo-docs/` and included by the site; repository source links are rendered as exact file paths without packaging private sources or local assets. Bundled with self-hosted offline fonts (IBM Plex Sans, JetBrains Mono), Primer-aligned dark/light toggle, and progressive motion with `prefers-reduced-motion` and no-JS fallback.
 
 ```sh
-yarn --cwd docs-site install --frozen-lockfile
-yarn --cwd docs-site docs:dev --host 127.0.0.1
-yarn --cwd docs-site docs:build
-yarn --cwd docs-site docs:preview
+pnpm --dir docs-site install --frozen-lockfile
+pnpm --dir docs-site docs:dev --host 127.0.0.1
+pnpm --dir docs-site docs:build
+pnpm --dir docs-site docs:preview
 ```
 
 Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated verification build. Docs builds verify documentation presentation only, not application health or deployment.

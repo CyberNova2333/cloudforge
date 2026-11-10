@@ -38,7 +38,7 @@ const base = { tag: 'v1.2.3', repo: '/repo' };
 describe('checkTag：检查标签', () => {
   it('拒绝格式错误的标签', () => {
     for (const t of ['1.2.3', 'v1.2', 'v1.2.3-rc.1', 'main', ''])
-      expect(() => checkTag(t)).toThrow('Usage: yarn release:publish vX.Y.Z');
+      expect(() => checkTag(t)).toThrow('Usage: pnpm release:publish vX.Y.Z');
   });
   it('返回版本', () => expect(checkTag('v1.2.3')).toBe('1.2.3'));
 });

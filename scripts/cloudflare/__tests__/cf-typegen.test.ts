@@ -24,7 +24,7 @@ beforeEach(() => {
   writeFileSync(join(directory, 'wrangler.jsonc'), original);
   writeFileSync(join(directory, 'wrangler.jsonc.ci'), '{"ci":true}\n');
   writeFileSync(
-    join(directory, 'fake-yarn.cjs'),
+    join(directory, 'fake-pnpm.cjs'),
     `const fs = require('node:fs');
 fs.writeFileSync('trace.json', JSON.stringify(process.argv.slice(2)));
 const code = Number(process.env.TYPEGEN_TEST_EXIT || 0);
@@ -37,7 +37,7 @@ process.exit(code);`
 });
 afterEach(() => rmSync(directory, { recursive: true, force: true }));
 function run(extra: Record<string, string> = {}) {
-  // Windows environment keys are case-insensitive; remove Yarn's upper-case aliases before replacing values.
+  // Windows environment keys are case-insensitive; remove pnpm's upper-case aliases before replacing values.
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) =>
@@ -54,8 +54,8 @@ function run(extra: Record<string, string> = {}) {
     cwd: directory,
     env: {
       ...inherited,
-      npm_config_user_agent: 'yarn/1.22.22',
-      npm_execpath: join(directory, 'fake-yarn.cjs'),
+      npm_config_user_agent: 'pnpm/12.6.0',
+      npm_execpath: join(directory, 'fake-pnpm.cjs'),
       ...extra,
     },
     encoding: 'utf8',
@@ -72,12 +72,13 @@ function preserved() {
   );
 }
 describe('绑定类型生成的跨平台执行与本地配置保护', () => {
-  it('通过实际Yarn生命周期JS入口传递类型参数，不执行临时cmd文本', () => {
+  it('通过实际pnpm生命周期JS入口传递类型参数，不执行临时cmd文本', () => {
     const result = run();
     expect(result.status, result.stderr).toBe(0);
     expect(
       JSON.parse(readFileSync(join(directory, 'trace.json'), 'utf8'))
     ).toEqual([
+      'exec',
       'wrangler',
       'types',
       'worker/worker-configuration.d.ts',

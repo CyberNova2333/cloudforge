@@ -341,7 +341,7 @@ export async function main(argv: string[], deps: Deps): Promise<number> {
       if (values.from !== undefined) {
         if (deps.home === null) {
           deps.io.print(
-            'status --from reads a checkout from the installed package; in a checkout, run yarn cloudforge status.'
+            'status --from reads a checkout from the installed package; in a checkout, run pnpm cloudforge status.'
           );
           return 2;
         }

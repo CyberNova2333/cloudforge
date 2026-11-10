@@ -4,9 +4,9 @@
 // merged pull requests, six open ones, the reviewer crew, their findings and a week of test runs, so every page has
 // something to show. Development only: it refuses any host that is not local.
 //
-//   SEED_ADMIN=<username> SEED_PASSWORD=<password> yarn seed:demo [--url http://localhost:8080]
+//   SEED_ADMIN=<username> SEED_PASSWORD=<password> pnpm seed:demo [--url http://localhost:8080]
 //
-// Run it from the checkout `yarn dev` runs from: it writes some rows (reviews, backdated dates, test runs) straight into
+// Run it from the checkout `pnpm dev` runs from: it writes some rows (reviews, backdated dates, test runs) straight into
 // that checkout's local D1 with `wrangler d1 execute DB --local --env dev`, which the API has no way to write.
 // Running it again finds the demo and stops. `--reset` deletes the demo repository first and builds it again.
 
@@ -39,7 +39,7 @@ const FIXTURE = path.join(
 const TEAMMATE_PASSWORD =
   process.env.SEED_TEAMMATE_PASSWORD || 'demo-teammate-pass';
 
-const HELP = `Usage: yarn seed:demo [options]
+const HELP = `Usage: pnpm seed:demo [options]
 
   --url <url>         the dev server (default http://localhost:8080; must be local)
   --admin <username>  a site admin's username (or SEED_ADMIN)
@@ -48,7 +48,7 @@ const HELP = `Usage: yarn seed:demo [options]
   --reset             delete the demo repository first, then seed again
   --dry-run           build the git history in a temporary folder only: no server, no database
 
-Run it from the checkout that runs \`yarn dev\`. The teammate "cho" is created with the password in
+Run it from the checkout that runs \`pnpm dev\`. The teammate "cho" is created with the password in
 SEED_TEAMMATE_PASSWORD (default: see TEAMMATE_PASSWORD in scripts/seed-demo/seed-demo.mjs).`;
 
 function parseArgs(argv) {
@@ -105,7 +105,7 @@ async function main() {
       );
     if (!fs.existsSync(path.join(cwd, 'wrangler.jsonc')))
       throw new Error(
-        `No wrangler.jsonc in ${cwd}. Run this from the checkout that runs \`yarn dev\`: its local database is the one that gets seeded.`
+        `No wrangler.jsonc in ${cwd}. Run this from the checkout that runs \`pnpm dev\`: its local database is the one that gets seeded.`
       );
   }
 
@@ -183,7 +183,7 @@ async function main() {
       );
       if (!local || local.id !== (session?.user?.id ?? me.id))
         throw new Error(
-          `This checkout's local database is not the one served at ${url.origin}. Run the seed from the checkout that runs yarn dev.`
+          `This checkout's local database is not the one served at ${url.origin}. Run the seed from the checkout that runs pnpm dev.`
         );
       people = {
         admin: me,

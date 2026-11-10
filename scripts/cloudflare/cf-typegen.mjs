@@ -10,13 +10,10 @@ import {
   existsSync,
   readFileSync,
   renameSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { spawnSync } from 'node:child_process';
-import { extname, isAbsolute } from 'node:path';
-import { runYarn } from '../githooks/run-yarn.mjs';
+import { runPnpm } from '../githooks/run-yarn.mjs';
 
 const LOCAL = 'wrangler.jsonc';
 const CI = 'wrangler.jsonc.ci';
@@ -44,29 +41,14 @@ let exitCode = 0;
 try {
   copyFileSync(CI, LOCAL);
   const args = [
+    'exec',
     'wrangler',
     'types',
     OUTPUT,
     '--env-interface',
     'CloudflareBindings',
   ];
-  let result;
-  // Yarn 1's temporary lifecycle shim is not a standard Corepack launcher. Invoke its verified JS entry directly.
-  if (/^yarn\//.test(process.env.npm_config_user_agent ?? '')) {
-    const entry = process.env.npm_execpath;
-    if (
-      !entry ||
-      !isAbsolute(entry) ||
-      !['.js', '.mjs', '.cjs'].includes(extname(entry)) ||
-      !statSync(entry).isFile()
-    )
-      throw new Error('Yarn 生命周期没有提供可用的 JavaScript 入口。');
-    result = spawnSync(process.execPath, [entry, ...args], {
-      stdio: 'inherit',
-      shell: false,
-      windowsHide: true,
-    });
-  } else result = runYarn(args, { stdio: 'inherit' });
+  const result = runPnpm(args, { stdio: 'inherit', lifecycle: true });
   if (result.error) console.error(result.error.message);
   exitCode = result.status ?? 1;
   if (exitCode === 0) {

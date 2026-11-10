@@ -24,7 +24,7 @@ const okRunner = (
 ) =>
   fakeRunner({
     docker: () => ({ code: 0, stdout: '27.0\n', stderr: '' }),
-    yarn: () => ({ code: 0, stdout: emailOut, stderr: '' }),
+    pnpm: () => ({ code: 0, stdout: emailOut, stderr: '' }),
   });
 
 const input = {
@@ -174,8 +174,14 @@ describe('preflight：预检', () => {
   it('使用所选账户运行 wrangler', async () => {
     const runner = okRunner();
     await preflight(fakeCloudflare({ subdomain: 'me' }), runner, input);
-    const email = runner.calls.find((c) => c.cmd === 'yarn');
-    expect(email?.args).toEqual(['-s', 'wrangler', 'email', 'sending', 'list']);
+    const email = runner.calls.find((c) => c.cmd === 'pnpm');
+    expect(email?.args).toEqual([
+      'exec',
+      'wrangler',
+      'email',
+      'sending',
+      'list',
+    ]);
     expect(email?.opts?.env).toEqual({ CLOUDFLARE_ACCOUNT_ID: 'acc' });
   });
 
@@ -198,7 +204,7 @@ describe('preflight：预检', () => {
     expect(r.failures).toEqual([]);
     const email = runner.calls.find((c) => c.cmd === process.execPath);
     expect(email?.args.slice(1)).toEqual(['email', 'sending', 'list']);
-    expect(runner.calls.some((c) => c.cmd === 'yarn')).toBe(false);
+    expect(runner.calls.some((c) => c.cmd === 'pnpm')).toBe(false);
   });
 
   it('将发件人域名按完整条目匹配，而非子串匹配', async () => {
@@ -241,7 +247,7 @@ describe('preflight：预检', () => {
   it('邮件列表命令失败时报告 stderr', async () => {
     const runner = fakeRunner({
       docker: () => ({ code: 0, stdout: '', stderr: '' }),
-      yarn: () => ({ code: 1, stdout: '', stderr: 'boom\nmore' }),
+      pnpm: () => ({ code: 1, stdout: '', stderr: 'boom\nmore' }),
     });
     const r = await preflight(
       fakeCloudflare({ subdomain: 'me' }),
@@ -265,7 +271,7 @@ describe('preflight：预检', () => {
   });
 
   it('分别说明两种 Docker 失败', async () => {
-    const yarn = () => ({
+    const pnpm = () => ({
       code: 0,
       stdout: table([['example.com', 'mail.example.com', 'yes']]),
       stderr: '',
@@ -277,7 +283,7 @@ describe('preflight：预检', () => {
     const down = await run({
       'docker --version': () => ok,
       'docker info': () => ({ code: 1, stdout: '', stderr: 'nope' }),
-      yarn,
+      pnpm,
     });
     expect(down.failures.map((f) => f.check)).toEqual(['docker']);
     expect(down.failures[0]!.message).toMatch(
@@ -287,7 +293,7 @@ describe('preflight：预检', () => {
     const unreachable = await run({
       'docker --version': () => ok,
       'docker info': () => Promise.reject(new Error('boom')),
-      yarn,
+      pnpm,
     });
     expect(unreachable.failures[0]!.message).toMatch(/not running/);
 
@@ -295,7 +301,7 @@ describe('preflight：预检', () => {
       () => Promise.reject(new Error('spawn docker ENOENT')),
       () => ({ code: 127, stdout: '', stderr: '' }),
     ]) {
-      const r = await run({ docker, yarn });
+      const r = await run({ docker, pnpm });
       expect(r.failures.map((f) => f.check)).toEqual(['docker']);
       expect(r.failures[0]!.message).toMatch(/^Docker is not installed\./);
     }
@@ -307,7 +313,7 @@ describe('preflight：预检', () => {
     cf.failNext('listArtifactsNamespaces', new Error('weird'));
     const runner = fakeRunner({
       docker: () => ({ code: 1, stdout: '', stderr: '' }),
-      yarn: () => ({ code: 0, stdout: '', stderr: '' }),
+      pnpm: () => ({ code: 0, stdout: '', stderr: '' }),
     });
     const r = await preflight(cf, runner, input);
     expect(r.failures.map((f) => f.check).sort()).toEqual(

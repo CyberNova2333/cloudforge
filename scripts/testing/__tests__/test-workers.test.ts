@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { describe, expect, it } from 'vitest';
 import { Writable } from 'node:stream';
 import { spawnSync } from 'node:child_process';
@@ -44,11 +45,11 @@ async function run(source: string) {
 }
 
 describe('Worker 测试运行器的退出状态', () => {
-  it('在 Yarn 生命周期中复用当前入口，逐项传递参数且保留验证失败退出码', async () => {
+  it('在 pnpm 生命周期中复用当前入口，逐项传递参数且保留验证失败退出码', async () => {
     const base = resolve(tmpdir(), 'cloudforge-worker-test-');
     const dir = mkdtempSync(base);
     try {
-      const entry = join(dir, 'yarn.mjs');
+      const entry = join(dir, 'pnpm.mjs');
       writeFileSync(
         entry,
         `process.stdout.write(JSON.stringify(process.argv.slice(2))); process.stderr.write(${JSON.stringify(diagnostic)});`
@@ -63,7 +64,7 @@ describe('Worker 测试运行器的退出状态', () => {
       const result = await runWorkerTests(args, {
         env: {
           ...process.env,
-          npm_config_user_agent: 'yarn/1.22.22',
+          npm_config_user_agent: 'pnpm/12.6.0',
           npm_execpath: entry,
         },
         stdout: stdout.stream,
@@ -71,6 +72,7 @@ describe('Worker 测试运行器的退出状态', () => {
       });
       expect(result.code).toBe(1);
       expect(JSON.parse(stdout.text())).toEqual([
+        'exec',
         'vitest',
         'run',
         '--config',
