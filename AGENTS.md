@@ -8,17 +8,17 @@
 
 ## 常用命令
 
-只用 Yarn 执行项目命令；不以 npm/pnpm dlx 替换。运行环境与配置步骤见 [开发说明](docs/development.md)。
+项目命令使用 `package.json` 固定的 pnpm 12.6.0；安装依赖用 `pnpm install --frozen-lockfile`，本地工具用 `pnpm exec`，不以 dlx 替代锁定依赖。公开安装包仍使用文档中的 `pnpm dlx` 入口。运行环境与配置步骤见 [开发说明](docs/development.md)。
 
 | 任务 | 命令 |
 | --- | --- |
-| 开发 | `yarn dev`（同源应用/API/Git，开发环境会使用远端 Artifacts） |
-| 全量测试 | `yarn test` |
-| Git 主流程定向验证 | `yarn test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts` |
-| 类型检查 | `yarn typecheck` |
-| 格式检查 / 格式化 | `yarn format:check` / `yarn format`（全仓格式化前确认范围） |
-| 数据库 / 认证生成 | `yarn db:generate` / `yarn auth:update` |
-| 绑定类型生成 | `yarn cf-typegen`（从 CI 模板生成） |
+| 开发 | `pnpm dev`（同源应用/API/Git，开发环境会使用远端 Artifacts） |
+| 全量测试 | `pnpm test` |
+| Git 主流程定向验证 | `pnpm test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts` |
+| 类型检查 | `pnpm typecheck` |
+| 格式检查 / 格式化 | `pnpm format:check` / `pnpm format`（全仓格式化前确认范围） |
+| 数据库 / 认证生成 | `pnpm db:generate` / `pnpm auth:update` |
+| 绑定类型生成 | `pnpm cf-typegen`（从 CI 模板生成） |
 
 ## 修改前的规则路由
 
@@ -54,15 +54,15 @@
 ## 配置与生成文件
 
 - `wrangler.jsonc` 被忽略；从 example 填自己的账号/资源，不提交真实 ID 或凭据。Artifacts 没有本地模拟器；开发用远端开发命名空间，测试用无 remote binding 的配置及内存 Artifacts fake。
-- 新 binding/var 同步 `wrangler.jsonc.example` 的顶层及 env.dev、`wrangler.jsonc.ci`、需要时 `wrangler.test.jsonc` 和 `docs/configuration.md`，再 `yarn cf-typegen`。
-- `AGENTS.md` 是项目规则单一来源，`CLAUDE.md` 是引用入口；`yarn agents:sync` 只生成该入口和 `.agents/skills/` 副本。技能原文在 `.claude/skills/`，用 `yarn agents:sync --check` 检查同步状态。
+- 新 binding/var 同步 `wrangler.jsonc.example` 的顶层及 env.dev、`wrangler.jsonc.ci`、需要时 `wrangler.test.jsonc` 和 `docs/configuration.md`，再 `pnpm cf-typegen`。
+- `AGENTS.md` 是项目规则单一来源，`CLAUDE.md` 是引用入口；`pnpm agents:sync` 只生成该入口和 `.agents/skills/` 副本。技能原文在 `.claude/skills/`，用 `pnpm agents:sync --check` 检查同步状态。
 - 首次安装与 onboarding skill、`docs/setup.md` 和安装器 flags/messages 同步。安装、生产迁移、部署、推送均需人类明确授权；不作为收尾默认步骤。
 
 ## 数据库与验证要求
 
-- 不手写或追加迁移：改 Drizzle 声明后 `yarn db:generate`，审查新 SQL；recovery/access trigger 与 `_triggers.json`、一次性数据声明与 `_data.json` 由生成器管理。生成认证 schema 不手改；改 auth config 后 `yarn auth:update` 再生成迁移。
+- 不手写或追加迁移：改 Drizzle 声明后 `pnpm db:generate`，审查新 SQL；recovery/access trigger 与 `_triggers.json`、一次性数据声明与 `_data.json` 由生成器管理。生成认证 schema 不手改；改 auth config 后 `pnpm auth:update` 再生成迁移。
 - 新后端功能在 `worker/src/__tests__/` 写 Vitest；使用 workerd 真实 D1，不 mock env.DB，只注入 Artifacts fake。批量种数据避免逐行写超时。
-- 完成标准保留：`yarn test`、`yarn typecheck` 通过并运行格式化。文档专项验证不可伪装成业务验收；CI 归属需要同步新增测试文件。
+- 完成标准保留：`pnpm test`、`pnpm typecheck` 通过并运行格式化。文档专项验证不可伪装成业务验收；CI 归属需要同步新增测试文件。
 
 ## Git、许可与签名
 
@@ -70,7 +70,7 @@
 - 常规开发使用特性分支合入 main；共享工作区维护应保留当前分支与他人未提交修改；切分支、提交与推送须符合当前人类授权。
 - Conventional Commits：`type(scope): 中文描述`，允许 feat/fix/refactor/docs/test/chore/ci/perf/build；正文 `文档:`，`git commit -s`，末尾实际 Agent 的完整 `Co-authored-by: Name <email>`。保留项目现有钩子约束，不绕过。
 - 修改 upstream 文件保留/添加首行 fork notice；原文为 Modified by CyberNova for the CloudForge fork…Originally Apache-2.0。该要求同样适用于根文档与 Agent 文件。
-- 保留 Husky、lint-staged 与跨平台 run-yarn 的既有检查；补充安全护栏与它们串联，操作说明见 docs/development.md 和 SECURITY.md。
+- 保留 Husky、lint-staged 与跨平台 pnpm 启动器（兼容入口 `scripts/githooks/run-yarn.mjs`）的既有检查；补充安全护栏与它们串联，操作说明见 docs/development.md 和 SECURITY.md。
 
 ## 维护入口
 

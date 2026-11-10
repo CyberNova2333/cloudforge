@@ -31,9 +31,9 @@ The authentication generator update also declares a unique `(client_id, resource
 Before changing the legacy team/collaborator model, inspect one explicitly selected installation. From a checkout:
 
 ```bash
-yarn cloudforge access-preflight --name cloudforge
+pnpm cloudforge access-preflight --name cloudforge
 # For a manual deployment, select both the account and database:
-yarn cloudforge access-preflight --database <name-or-uuid> --account <id-or-name>
+pnpm cloudforge access-preflight --database <name-or-uuid> --account <id-or-name>
 ```
 
 This command verifies the actual account/database and recorded installation marker, discovers the schema using a bounded read, then selects a single bounded data snapshot that rechecks schema and ownership. It does not run Docker, write local state, migrate or deploy. It accepts no apply, `--yes` or `--expect-plan` flags. Exit 0 means only that this observation has no blocking findings; 1 means blocked or unreadable data, and 2 means invalid arguments. Report version 2 identifies `schemaVersion` as `legacy`, `compat-v1` or `runtime-bridge-v1`, with `accessGeneration` for the compatible schemas and a non-secret `runtime` observation for the bridge. The JSON always reports `rolePublishingAllowed: false`, `migrationApplied: false` and `compatibility.rollbackSafe: false`.
@@ -47,9 +47,9 @@ A successful preflight does not implement new roles or certify that every old Wo
 Before planning a runtime transition, observe unfinished D1 records for one explicitly selected installation:
 
 ```bash
-yarn cloudforge access-drain-status --name cloudforge
+pnpm cloudforge access-drain-status --name cloudforge
 # Manual deployments require both selectors:
-yarn cloudforge access-drain-status --database <name-or-uuid> --account <id-or-name>
+pnpm cloudforge access-drain-status --database <name-or-uuid> --account <id-or-name>
 ```
 
 This read-only command requires `runtime-bridge-v1` and minimum protocol 1. It verifies the real account/database and, for `--name`, the installation ownership marker. Its final SELECT rechecks the complete access compatibility snapshot, runtime guards and the exact column shapes of the six observed tables together. Partial or future schemas, unsupported state, ownership mismatch, invalid fields and overflow return a sanitized error. It does not run Docker or write installation files, and accepts no apply or confirmation flags.
@@ -246,7 +246,7 @@ Other writers must honor the installation lock: filesystem comparison and remova
 Failure to remove a private `.adopt-*.tmp` link retains it for inspection without undoing a successful publication
 or replacing the original operation error.
 
-From a checkout that ran `yarn cloudforge install`, which moves its record under `~/.cloudforge`:
+From a checkout that ran `pnpm cloudforge install`, which moves its record under `~/.cloudforge`:
 
 ```bash
 pnpm dlx @cybernova2333/cloudforge adopt --from path/to/checkout
@@ -293,7 +293,7 @@ pnpm dlx @cybernova2333/cloudforge reset-mfa octocat --name cloudforge --reason 
 Then repeat without `--plan` for a confirmation that defaults to no. For a manually deployed installation pass both
 `--account <id|name>` and `--database <name|uuid>` instead of `--name`. Non-interactive execution requires
 `--yes --expect-plan <digest>` from the reviewed preview. Apply the recovery migration before using this command;
-missing or altered triggers are refused. In a checkout use `yarn cloudforge` instead of the package command.
+missing or altered triggers are refused. In a checkout use `pnpm cloudforge` instead of the package command.
 
 Recovery removes the factor, recovery codes, browser sessions and second-factor challenges, and records the reason.
 It preserves the password, bans, roles, PATs, deploy tokens and existing MCP authorizations. Reasons appear in the audit
@@ -302,7 +302,7 @@ log: never include secrets. A lost response is checked by its recovery event ID 
 
 ## Forks and checkouts
 
-If you run a fork or prefer a clone, the original flow works: `git pull && yarn install && yarn db:migrate:prod && yarn deploy` from your checkout, or `yarn cloudforge install|status` there. Run the migrations before the deploy: new code may read new tables.
+If you run a fork or prefer a clone, the original flow works: `git pull && pnpm install && pnpm db:migrate:prod && pnpm run deploy` from your checkout, or `pnpm cloudforge install|status` there. Run the migrations before the deploy: new code may read new tables.
 
 ## Publishing a release (maintainers)
 
@@ -312,7 +312,7 @@ Releases come from the CloudForge instance that hosts the repository, and are pu
 2. From a clone with `origin` and `main` up to date, run:
 
    ```bash
-   yarn release:publish vX.Y.Z
+   pnpm release:publish vX.Y.Z
    ```
 
    It checks with git, not the GitHub REST API, that the tag is on `origin` and on `main`, and that the version is not already on npm. It then builds that exact commit in a fresh worktree, runs the tests, packs the package, and checks the packed package as CI's Package job does: a dry-run deploy of the config an install would generate, and `cloudforge --help` from the installed tarball. Any failure stops it before anything is asked. It then shows what it is about to publish and asks you to confirm. `npm publish` of that tarball follows, and npm asks for your 2FA code.

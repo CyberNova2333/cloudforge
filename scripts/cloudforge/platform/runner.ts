@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { spawn } from 'node:child_process';
-import { resolveYarnCommand } from '../../githooks/yarn-command.mjs';
+import { resolvePnpmLifecycleCommand } from '../../githooks/yarn-command.mjs';
 
 export interface RunResult {
   code: number;
@@ -24,8 +24,8 @@ export const processRunner: Runner = {
     return new Promise((resolve, reject) => {
       const env = opts.env ? { ...process.env, ...opts.env } : process.env;
       const invocation =
-        cmd === 'yarn'
-          ? resolveYarnCommand({ cwd: opts.cwd, env })
+        cmd === 'pnpm'
+          ? resolvePnpmLifecycleCommand({ cwd: opts.cwd, env })
           : { command: cmd, args: [] };
       const child = spawn(invocation.command, [...invocation.args, ...args], {
         shell: false,

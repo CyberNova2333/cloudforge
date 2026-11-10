@@ -16,7 +16,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 describe('共享项目规则入口与 .agents/skills/ 的同步', () => {
   it('仓库中的 Claude 入口与技能副本保持同步', () => {
-    // Stale? Run `yarn agents:sync` and commit what it writes.
+    // Stale? Run `pnpm agents:sync` and commit what it writes.
     expect(staleFiles(ROOT)).toEqual([]);
   });
 

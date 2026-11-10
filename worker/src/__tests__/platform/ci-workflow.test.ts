@@ -37,10 +37,10 @@ const testJobs = wf.jobs.filter((j) => j.key.startsWith('test-'));
 /** Each module has exactly one job, test-<module>. */
 const moduleOf = (j: JobDef) => modules.find((m) => j.key === `test-${m}`);
 
-/** The arguments of every `yarn test …` step in a job. */
+/** The arguments of every `pnpm test …` step in a job. */
 function filters(j: JobDef): string[] {
   return j.steps
-    .filter((s) => s.run?.trim().startsWith('yarn test'))
+    .filter((s) => s.run?.trim().startsWith('pnpm test'))
     .flatMap((s) => s.run!.trim().split(/\s+/).slice(2));
 }
 /** A filter is a file path, or a directory ending in `/` that covers everything under it. */
@@ -119,7 +119,7 @@ describe('CI 工作流（.github/workflows/ci.yml）', () => {
     const wrong = TEST_FILES.map((f) => ({ file: f, jobs: homes(f) })).filter(
       (x) => x.jobs.length !== 1
     );
-    // A new test file? Add it to the `yarn test` line of its module's job in ci.yml.
+    // A new test file? Add it to the `pnpm test` line of its module's job in ci.yml.
     expect(wrong).toEqual([]);
   });
 
@@ -133,7 +133,7 @@ describe('CI 工作流（.github/workflows/ci.yml）', () => {
   it('测试步骤将路径保留在同一 shell 命令中', () => {
     for (const j of [job('build'), ...testJobs]) {
       const steps = j.steps.filter((s) =>
-        s.run?.trim().startsWith('yarn test')
+        s.run?.trim().startsWith('pnpm test')
       );
       for (const s of steps) expect(s.run, j.key).not.toContain('\n');
     }

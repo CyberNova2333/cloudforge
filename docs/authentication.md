@@ -50,14 +50,14 @@ TOTP 秘密和恢复码只在当前页面内存中呈现，不写入 URL、浏�
 从源码检出目录操作已记录实例：
 
 ```bash
-yarn cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部恢复码遗失" --plan
-yarn cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部恢复码遗失"
+pnpm cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部恢复码遗失" --plan
+pnpm cloudforge reset-mfa octocat --name cloudforge --reason "验证器与全部恢复码遗失"
 ```
 
-手动部署的实例必须同时明确账户和数据库；不能自动选中唯一账户或唯一安装。包安装方式将 `yarn cloudforge` 替换为已安装版本的 `pnpm dlx @cybernova2333/cloudforge`。
+手动部署的实例必须同时明确账户和数据库；不能自动选中唯一账户或唯一安装。包安装方式将 `pnpm cloudforge` 替换为已安装版本的 `pnpm dlx @cybernova2333/cloudforge`。
 
 ```bash
-yarn cloudforge reset-mfa octocat --account ACCOUNT_ID --database DATABASE_ID --reason "验证器与全部恢复码遗失" --plan
+pnpm cloudforge reset-mfa octocat --account ACCOUNT_ID --database DATABASE_ID --reason "验证器与全部恢复码遗失" --plan
 ```
 
 预览展示账户、数据库名称与 UUID、安装标记、成员 ID、用户名/邮箱及撤销范围。终端确认默认拒绝；非交互执行必须提供 `--yes --expect-plan <预览摘要>`。目标身份、密码、因子秘密或安装标记在预览后变化会使执行失败，需要重新预览确认。恢复原因写入审计，因此不得填写密码、验证码或其他秘密。

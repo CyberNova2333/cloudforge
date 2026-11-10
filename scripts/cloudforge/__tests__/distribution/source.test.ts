@@ -11,24 +11,24 @@ const tmp = () => realpathSync(mkdtempSync(join(tmpdir(), 'source-')));
 
 describe('checkoutSource：源码来源', () => {
   const s = checkoutSource('/r');
-  it('通过 Yarn 运行 wrangler', () => {
+  it('通过 pnpm 运行 wrangler', () => {
     expect(s.wrangler(['secret', 'list'], '/r')).toEqual({
-      cmd: 'yarn',
-      args: ['-s', 'wrangler', 'secret', 'list'],
+      cmd: 'pnpm',
+      args: ['exec', 'wrangler', 'secret', 'list'],
     });
-    expect(s.wranglerCommand('d1 list')).toBe('yarn wrangler d1 list');
+    expect(s.wranglerCommand('d1 list')).toBe('pnpm exec wrangler d1 list');
     expect(s.wranglerBare(['auth', 'token'])).toEqual({
-      cmd: 'yarn',
-      args: ['-s', 'wrangler', 'auth', 'token'],
+      cmd: 'pnpm',
+      args: ['exec', 'wrangler', 'auth', 'token'],
     });
   });
   it('部署', () => {
     expect(s.deploy('/r', null)).toEqual({
-      cmd: 'yarn',
-      args: ['-s', 'deploy'],
+      cmd: 'pnpm',
+      args: ['run', 'deploy'],
     });
     expect(s.deploy('/r', '/tmp/s.json').args).toEqual([
-      '-s',
+      'run',
       'deploy',
       '--secrets-file',
       '/tmp/s.json',
@@ -36,7 +36,7 @@ describe('checkoutSource：源码来源', () => {
   });
   it('命令及为空的软件包字段', () => {
     expect(s.command('install --resume --name acme')).toBe(
-      'yarn cloudforge install --resume --name acme'
+      'pnpm cloudforge install --resume --name acme'
     );
     expect(s.commit).toBeNull();
     expect(s.build).toBeNull();

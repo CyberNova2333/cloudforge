@@ -1,7 +1,7 @@
 /**
  * Background work a test left behind: what the app handed to `ctx.waitUntil` in every env the test made (makeEnv
  * registers each), drained after each test by worker/test/setup.ts. Work still running when its worker shuts down
- * fails in vitest's module loader (GitHub: EnvironmentTeardownError from a late LiveHub ping after the last test).
+ * fails in vitest's module loader (EnvironmentTeardownError from a late LiveHub ping after the last test).
  */
 const open = new Set<Promise<unknown>[]>();
 

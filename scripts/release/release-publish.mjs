@@ -1,6 +1,6 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Publishes a CloudForge release to npm from this machine:
-//   yarn release:publish vX.Y.Z
+//   pnpm release:publish vX.Y.Z
 // Builds from a throwaway worktree of the tag, never the working copy. The tag must be on origin's main. Before asking, it
 // runs CI's Package job on the packed build (dry-run deploy of a generated config, `cloudforge --help` from the installed
 // tarball), then publishes that tarball. npm asks for the 2FA code itself.
@@ -24,12 +24,22 @@ import {
   preflight,
   worktreeAddArgs,
 } from '../cloudforge/distribution/release-publish.ts';
+import { runPnpm } from '../githooks/run-yarn.mjs';
 import { processRunner } from '../cloudforge/platform/runner.ts';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function step(cmd, args, cwd) {
-  const r = spawnSync(cmd, args, { cwd, stdio: 'inherit' });
+  const r =
+    cmd === 'pnpm'
+      ? runPnpm(args, { cwd, stdio: 'inherit', lifecycle: true })
+      : spawnSync(cmd, args, {
+          cwd,
+          stdio: 'inherit',
+          shell: false,
+          windowsHide: true,
+        });
+  if (r.error) throw r.error;
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed`);
 }
 
@@ -66,10 +76,16 @@ async function main() {
     execFileSync('git', worktreeAddArgs(REPO, tmp, commit), {
       stdio: 'inherit',
     });
-    step('yarn', ['install', '--frozen-lockfile'], tmp);
+    step('pnpm', ['install', '--frozen-lockfile'], tmp);
     step(
-      'yarn',
-      ['vitest', 'run', '--config', 'scripts/cloudforge/vitest.config.ts'],
+      'pnpm',
+      [
+        'exec',
+        'vitest',
+        'run',
+        '--config',
+        'scripts/cloudforge/vitest.config.ts',
+      ],
       tmp
     );
     const out = join(tmp, 'build', 'npm');

@@ -133,6 +133,6 @@ SSO 会话的私有 `oidcBindingId`、`oidcBindingRevision`、`oidcConfiguration
 | 密钥轮换       | `session-secret-cache.test.ts`：旧 secret 预热后，新 secret 的 REST 与 SDK 一致拒绝，连续访问不能延长旧签名 | 当前定向 1 项通过；没有证据表明线上曾被利用                          |
 | 请求隔离       | 上一绑定阶段独立 Miniflare 9 次真实 HTTP 验证完成数据缓存及重定向拒绝                                       | 本轮没有把它冒称为重新运行的 SSO 端到端测试；测试日期/网络不等同生产 |
 | 界面           | 实际 HTTPS 浏览器 19 项、前端纯逻辑 37 项通过，含 Host-cookie、Web Locks、确认和未知结果不重发              | 浏览器 API/IdP 为 fixture；子集复验不重复计数，不等同真实 IdP 全链路 |
-| 完整验收与上线 | 最终整合日志核验 `yarn test`、`yarn typecheck`、生成器、格式和构建                                          | 定向结果和生成器中途输出不等于全套通过；生产迁移/部署另行授权        |
+| 完整验收与上线 | 最终整合日志核验 `pnpm test`、`pnpm typecheck`、生成器、格式和构建                                          | 定向结果和生成器中途输出不等于全套通过；生产迁移/部署另行授权        |
 
 源码入口为 `worker/src/oidc/`、绑定路由 `worker/src/oidc/http/oidc-router.ts`、声明触发器 `worker/src/db/oidc-sign-in-triggers.ts`、账户/管理组件及登录完成页 `src/pages/OIDCSignIn.tsx`；责任路由见 [代码地图](../repo-docs/code-map.md#oidc-绑定与-sso-的修改路由)。定向通过不能替代完整检查，也不表示已推送或线上已启用。

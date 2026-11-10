@@ -46,29 +46,29 @@ CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Gi
 
 ## 从源码开始
 
-源码运行需要 **Node.js 22.18 或更新版本**和 **Yarn**。部署还需要可用的 Cloudflare 账户、项目所用服务的权限，以及用于构建 Actions 运行器镜像的 Docker。安装器会检查所需服务和配置；发送邀请邮件需要配置 Email Sending，也可选择只使用邀请链接。
+源码运行需要 **Node.js 22.18 或更新版本**和 **pnpm**。部署还需要可用的 Cloudflare 账户、项目所用服务的权限，以及用于构建 Actions 运行器镜像的 Docker。安装器会检查所需服务和配置；发送邀请邮件需要配置 Email Sending，也可选择只使用邀请链接。
 
 ```bash
 git clone https://github.com/CyberNova2333/cloudforge.git
 cd cloudforge
-yarn install --frozen-lockfile
-yarn wrangler login
+pnpm install --frozen-lockfile
+pnpm exec wrangler login
 
 # 先查看安装计划；此命令不应用计划
-yarn cloudforge install --plan
+pnpm cloudforge install --plan
 
 # 确认计划后执行安装，会创建资源、迁移数据库并部署
-yarn cloudforge install
+pnpm cloudforge install
 ```
 
 安装结束后，使用安装器输出的一次性初始化码打开 `<BASE_URL>/setup` 并创建首位管理员。随后创建仓库、邀请成员；需要 AI 审查时，先创建审查代理，再在仓库设置中邀请它们。
 
 ```bash
 # 查看安装状态
-yarn cloudforge status
+pnpm cloudforge status
 
 # 继续中断的安装
-yarn cloudforge install --resume
+pnpm cloudforge install --resume
 ```
 
 完整部署步骤见 [安装指南](docs/setup.md)；更新和接管已有安装见 [更新指南](docs/updating.md)。这两份文档也介绍发布包的安装方式。
@@ -79,8 +79,8 @@ yarn cloudforge install --resume
 cp wrangler.jsonc.example wrangler.jsonc
 cp .dev.vars.example .dev.vars
 # 按 docs/development.md 填写账户、开发环境和本地密钥
-yarn db:migrate:local
-yarn dev
+pnpm db:migrate:local
+pnpm dev
 ```
 
 默认地址为 `http://localhost:8080`，网页、API 与 Git 端点共用此地址。本地开发中的 D1 使用本地存储；Artifacts 访问真实 Cloudflare 服务。示例数据和 Git LFS 配置见 [本地开发指南](docs/development.md)。
@@ -88,12 +88,12 @@ yarn dev
 ### 检查与测试
 
 ```bash
-yarn format:check
-yarn typecheck
-yarn test
+pnpm format:check
+pnpm typecheck
+pnpm test
 ```
 
-`yarn test` 先运行 Node.js 环境中的安装器测试，再运行 workerd 环境中的 Worker 和前端纯逻辑测试；后者使用真实本地 D1 与内存 Artifacts 测试实现。测试分组、用例名称和默认结果摘要使用中文，原始断言、第三方诊断与堆栈保留原文。
+`pnpm test` 先运行 Node.js 环境中的安装器测试，再运行 workerd 环境中的 Worker 和前端纯逻辑测试；后者使用真实本地 D1 与内存 Artifacts 测试实现。测试分组、用例名称和默认结果摘要使用中文，原始断言、第三方诊断与堆栈保留原文。
 
 持续集成使用 [.github/workflows/](.github/workflows/) 中的配置，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。
 
@@ -178,10 +178,10 @@ CloudForge 与 GitHub 无隶属关系，也未获得其背书；“GitHub”是 
 独立文档站基于 VitePress，其依赖与业务项目完全分离（`docs-site/package.json`）。正文单一维护于 `repo-docs/` 并由站点直接 include 引入；网页中的源码链接显示为安全精确路径，源码与本机私有资产不打包进静态产物。内置全离线自托管字体（IBM Plex Sans、JetBrains Mono）、Primer 功能色昼夜切换与渐进式动效降级支持。
 
 ```sh
-yarn --cwd docs-site install --frozen-lockfile
-yarn --cwd docs-site docs:dev --host 127.0.0.1
-yarn --cwd docs-site docs:build
-yarn --cwd docs-site docs:preview
+pnpm --dir docs-site install --frozen-lockfile
+pnpm --dir docs-site docs:dev --host 127.0.0.1
+pnpm --dir docs-site docs:build
+pnpm --dir docs-site docs:preview
 ```
 
 默认输出至 `docs-site/.vitepress/dist/`；独立验证可追加 `-- --outDir <仓库外绝对目录>`。文档构建只验证技术说明页面呈现，不代表业务可用或已部署。

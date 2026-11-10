@@ -11,7 +11,7 @@ export interface PreflightInput {
   workersDev: boolean;
   fromEmail: string | null;
   workerName: string;
-  /** Runs wrangler: the checkout's (yarn) or the package's own. */
+  /** Runs wrangler: the checkout's (pnpm) or the package's own. */
   source: Source;
 }
 

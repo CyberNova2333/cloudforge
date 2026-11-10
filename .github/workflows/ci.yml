@@ -1,6 +1,6 @@
 # Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 # Verification only — this workflow never deploys. Humans deploy.
-# Formatting is checked in format.yml. On GitHub, .github/workflows/ci.yml runs the same checks in one pipeline.
+# Formatting is checked in format.yml.
 #
 # build installs, builds, and typechecks once, and caches node_modules and dist/ by commit for the
 # test jobs. On CloudForge, gate asks cloudforge/relevance@v1 (docs/ci-relevance.md) which modules a
@@ -12,7 +12,7 @@
 # label means nothing on GitHub, which gets ubuntu-latest).
 #
 # Every test file belongs to exactly one module. Adding a test file? Add it to its module's
-# `yarn test` line below; worker/src/__tests__/platform/ci-workflow.test.ts (run by build) fails otherwise.
+# `pnpm test` line below; worker/src/__tests__/platform/ci-workflow.test.ts (run by build) fails otherwise.
 name: CI
 
 on:
@@ -38,6 +38,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       # Saved after the job succeeds (a Post step), for this commit's test jobs.
       - name: Cache the build for this commit
@@ -49,7 +50,7 @@ jobs:
           key: build-${{ github.sha }}
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # wrangler.jsonc is gitignored (per-deployer IDs); CI builds from placeholders.
       - name: Stage wrangler.jsonc from CI config
@@ -61,19 +62,19 @@ jobs:
 
       # vitest-pool-workers needs assets.directory (dist/client) to exist; the build produces it.
       - name: Build
-        run: yarn build
+        run: pnpm build
 
       - name: Typecheck
-        run: yarn typecheck
+        run: pnpm typecheck
 
       # The list is built from this install and this build, so a dependency bump that ships a new
       # package shows up here instead of in a release.
       - name: Check third-party notices are current
-        run: yarn notices:check
+        run: pnpm notices:check
 
       # Here, not in a module: the gate must never skip the check that every test file runs somewhere.
       - name: Check every test file is in a module
-        run: yarn test worker/src/__tests__/platform/ci-workflow.test.ts
+        run: pnpm test worker/src/__tests__/platform/ci-workflow.test.ts
 
   gate:
     name: Relevance
@@ -131,10 +132,10 @@ jobs:
         run: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
       - name: Install and build (cache miss)
         if: steps.build-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile && yarn build
+        run: pnpm install --frozen-lockfile && pnpm build
       - name: Test
         run: >-
-          yarn test
+          pnpm test
           worker/src/__tests__/stack/stacking-discovery.test.ts
           worker/src/__tests__/stack/stacking-landing.test.ts
           worker/src/__tests__/stack/stack-tree.test.ts
@@ -168,10 +169,10 @@ jobs:
         run: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
       - name: Install and build (cache miss)
         if: steps.build-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile && yarn build
+        run: pnpm install --frozen-lockfile && pnpm build
       - name: Test
         run: >-
-          yarn test
+          pnpm test
           worker/src/__tests__/review/review.test.ts
           worker/src/__tests__/review/review-gate.test.ts
           worker/src/__tests__/review/review-carry.test.ts
@@ -244,10 +245,10 @@ jobs:
         run: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
       - name: Install and build (cache miss)
         if: steps.build-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile && yarn build
+        run: pnpm install --frozen-lockfile && pnpm build
       - name: Test
         run: >-
-          yarn test
+          pnpm test
           worker/src/__tests__/actions/actions.test.ts
           worker/src/__tests__/actions/actions-syntax.test.ts
           worker/src/__tests__/actions/actions-github-compat.test.ts
@@ -300,10 +301,10 @@ jobs:
         run: cp wrangler.jsonc.ci wrangler.jsonc && cp .dev.vars.example .dev.vars
       - name: Install and build (cache miss)
         if: steps.build-cache.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile && yarn build
+        run: pnpm install --frozen-lockfile && pnpm build
       - name: Test
         run: >-
-          yarn test
+          pnpm test
           worker/src/__tests__/repos/repos-pulls.test.ts
           worker/src/__tests__/repos/settings-write.test.ts
           worker/src/__tests__/auth/auth-boundaries.test.ts
@@ -428,10 +429,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build the package
-        run: yarn pack:npm
+        run: pnpm pack:npm
       - name: Pack the tarball
         run: |
           mkdir -p "$RUNNER_TEMP/pkg"
@@ -441,7 +443,7 @@ jobs:
         run: node scripts/cloudforge/distribution/smoke-config.ts build/npm "$RUNNER_TEMP/smoke"
       # No Docker here: --containers-rollout=none makes wrangler skip building the runner image.
       - name: The shipped build deploys with the generated config (dry run)
-        run: yarn -s wrangler deploy --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/o" --config "$RUNNER_TEMP/smoke/wrangler.jsonc"
+        run: pnpm exec wrangler deploy --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/o" --config "$RUNNER_TEMP/smoke/wrangler.jsonc"
       # The package's Node floor (engines: >=22.0.0). CloudForge runners use the image's Node.js
       # whatever node-version asks for, so the floor is checked on GitHub only.
       - name: Use Node.js 22.0.0 (GitHub only)

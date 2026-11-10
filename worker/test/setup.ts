@@ -46,7 +46,7 @@ afterEach(() => drainBackground());
 
 // Tests never reach the internet: a fetch to any host but this machine (GitHub for an action's action.yml,
 // Cloudflare's APIs) fails at once, as an unreachable host would. A real attempt can hang on its TLS handshake on a
-// CI runner and fail after its test file, while the worker shuts down (GitHub: EnvironmentTeardownError). A test
+// CI runner and fail after its test file, while the worker shuts down (EnvironmentTeardownError). A test
 // that needs a response stubs fetch itself (vi.spyOn), over this. Wrapped once per worker: this file runs per file.
 const OFFLINE = Symbol.for('cloudforge.test.offline');
 const g = globalThis as typeof globalThis & { [OFFLINE]?: true };

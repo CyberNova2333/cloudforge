@@ -208,7 +208,7 @@ export function generateWranglerConfig(
 
 /**
  * The text that drift detection hashes: the generated config without its `env` block. A plain
- * `wrangler deploy` (yarn deploy) deploys only the top level, so editing `env.dev` is not drift.
+ * `wrangler deploy` (pnpm run deploy) deploys only the top level, so editing `env.dev` is not drift.
  */
 export function deployedPart(text: string): string {
   return applyEdits(

@@ -138,12 +138,12 @@ function harness(
       if (args[1] === 'secret') return opts.secretList ?? notFound;
       throw new Error(`意外的 wrangler 调用：${args.join(' ')}`);
     },
-    yarn: (args) => {
+    pnpm: (args) => {
       if (args[1] === 'deploy') return deployed(args);
       if (args[1] === 'wrangler' && args[2] === 'secret')
         return opts.secretList ?? notFound;
       if (args[1] === 'wrangler' && args[2] === 'd1') return ok();
-      throw new Error(`意外的 Yarn 调用：${args.join(' ')}`);
+      throw new Error(`意外的 pnpm 调用：${args.join(' ')}`);
     },
   });
   const out: string[] = [];
@@ -321,7 +321,7 @@ describe('install：安装', () => {
     const digest = /Plan ([0-9a-f]{12})/.exec(text)?.[1];
     expect(digest).toBeDefined();
     expect(h.out.at(-1)).toBe(
-      `yarn cloudforge install --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan ${digest} --yes`
+      `pnpm cloudforge install --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan ${digest} --yes`
     );
     expect(existsSync(dir)).toBe(false);
     expect(existsSync(join(cwd, 'wrangler.jsonc'))).toBe(false);
@@ -514,7 +514,7 @@ describe('install：安装', () => {
     ).toBe(0);
     expect(h.out.at(-1)).toMatch(
       new RegExp(
-        `^yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan [0-9a-f]{12} --yes$`
+        `^pnpm cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --expect-plan [0-9a-f]{12} --yes$`
       )
     );
   });
@@ -526,7 +526,7 @@ describe('install：安装', () => {
       await main(['install', '--plan', '--resume', '--name', 'acme'], h.deps)
     ).toBe(0);
     expect(h.out.at(-1)).toBe(
-      `yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --yes`
+      `pnpm cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --yes`
     );
   });
 
@@ -605,7 +605,7 @@ describe('install：安装', () => {
       )
     ).toBe(0);
     expect(h.out.at(-1)).toBe(
-      `yarn cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --new-setup-code --yes`
+      `pnpm cloudforge install --resume --name acme --account ${ACCOUNT} --workers-dev --no-email --new-setup-code --yes`
     );
   });
 
@@ -740,14 +740,14 @@ describe('resolveToken：解析令牌', () => {
   it('使用 wrangler 输出中最后一行符合令牌格式的内容，并去除颜色代码', async () => {
     const tok = 'AbC_def-123.456789012345';
     const r = fakeRunner({
-      yarn: () => ({
+      pnpm: () => ({
         code: 0,
         stdout: `\u001b[33m▲ [WARNING] a newer wrangler is out\u001b[0m\n\u001b[1m${tok}\u001b[22m\n\n`,
         stderr: '',
       }),
     });
     expect(await resolveToken({}, r, source)).toBe(tok);
-    expect(r.calls[0]!.args).toEqual(['-s', 'wrangler', 'auth', 'token']);
+    expect(r.calls[0]!.args).toEqual(['exec', 'wrangler', 'auth', 'token']);
   });
   it('软件包模式运行自带 wrangler 的 auth token，且不传 --config', async () => {
     const pkgSource = packageSource(
@@ -782,23 +782,23 @@ describe('resolveToken：解析令牌', () => {
   });
   it('没有符合令牌格式的行时提示运行 wrangler login', async () => {
     const r = fakeRunner({
-      yarn: () => ({
+      pnpm: () => ({
         code: 0,
         stdout: 'You are not logged in.\nshort\n',
         stderr: '',
       }),
     });
     await expect(resolveToken({}, r, source)).rejects.toThrow(
-      'Run yarn wrangler login first.'
+      'Run pnpm exec wrangler login first.'
     );
   });
 
   it('未登录时提示运行 wrangler login', async () => {
     const r = fakeRunner({
-      yarn: () => ({ code: 1, stdout: '', stderr: 'Not logged in' }),
+      pnpm: () => ({ code: 1, stdout: '', stderr: 'Not logged in' }),
     });
     await expect(resolveToken({}, r, source)).rejects.toThrow(
-      'Run yarn wrangler login first.'
+      'Run pnpm exec wrangler login first.'
     );
   });
 });
@@ -815,7 +815,7 @@ describe('applyCommand：生成应用命令', () => {
       },
     };
     expect(applyCommand(s, false, 'abc', false, source)).toBe(
-      `yarn cloudforge install --name acme --account ${ACCOUNT} --workers-dev --from-email 'o'\\''brien+git@example.com' --expect-plan abc --yes`
+      `pnpm cloudforge install --name acme --account ${ACCOUNT} --workers-dev --from-email 'o'\\''brien+git@example.com' --expect-plan abc --yes`
     );
   });
 });
@@ -1127,7 +1127,7 @@ describe('upgrade：升级', () => {
     expect(await main(['upgrade', '--plan'], p.deps)).toBe(0);
     const cmd = p.out.at(-1)!;
     const h = upgradeHarness();
-    expect(await main(cmd.split(' ').slice(2), h.deps)).toBe(0);
+    expect(await main(cmd.split(' ').slice(3), h.deps)).toBe(0);
     expect(h.text()).not.toContain('The plan changed');
     expect(h.text()).toContain('Upgraded acme to 1.3.0');
     const s = readState(idir(), ID)!;
@@ -1420,7 +1420,7 @@ describe('adopt --worker：接管 Worker', () => {
     expect(existsSync(home())).toBe(false);
 
     const apply = pkgHarness();
-    expect(await main(command.split(' ').slice(2), apply.deps)).toBe(0);
+    expect(await main(command.split(' ').slice(3), apply.deps)).toBe(0);
     const s = listStates(join(home(), 'acme'))[0]!;
     expect(s.resources.every((r) => r.ownership === 'adopted')).toBe(true);
     expect(s.adoptedAt).toBe('2026-10-17T00:00:00.000Z');

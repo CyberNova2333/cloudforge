@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// Step helpers for apply.ts: local files, wrangler/yarn invocations, the R2 key check and verify.
+// Step helpers for apply.ts: local files, wrangler/pnpm invocations, the R2 key check and verify.
 // Nothing here puts a secret into argv, a log line, the state file or an error message.
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -282,7 +282,7 @@ export async function deploy(
   secrets: Record<string, string>
 ): Promise<void> {
   const what =
-    ctx.source.kind === 'checkout' ? 'yarn deploy' : 'wrangler deploy';
+    ctx.source.kind === 'checkout' ? 'pnpm run deploy' : 'wrangler deploy';
   if (Object.keys(secrets).length === 0) {
     await mustRun(ctx, what, ctx.source.deploy(ctx.configDir, null));
     return;

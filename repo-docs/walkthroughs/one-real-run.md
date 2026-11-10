@@ -56,7 +56,7 @@
 ## 检查这条解释
 
 ```sh
-yarn test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
+pnpm test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
 ```
 
 上述定向命令只验证 Git 主流程；全项目要求仍以根 AGENTS 和 docs/development.md 为准。各轮实际验证记录见[指南变更记录](../change-log.md)；本地测试不表示真实推送或生产迁移已执行。

@@ -27,11 +27,11 @@
 以下命令在仓库根运行；启动命令会占用开发端口，构建命令可能写业务产物，请先阅读根规则。
 
 ```sh
-yarn install
-yarn dev
+pnpm install --frozen-lockfile
+pnpm dev
 # 以下为维护者验证命令，本轮未运行
-yarn test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
-yarn typecheck
+pnpm test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__/git/push-protection.test.ts worker/src/__tests__/git/push-events.test.ts
+pnpm typecheck
 ```
 
 ## 独立文档站与本地运行
@@ -53,19 +53,19 @@ yarn typecheck
 
 ```sh
 # 1. 安装文档站专属依赖（首次运行或依赖更新后）
-yarn --cwd docs-site install --frozen-lockfile
+pnpm --dir docs-site install --frozen-lockfile
 
 # 2. 启动本地开发预览服务器（带热重载，默认 http://127.0.0.1:5173）
-yarn --cwd docs-site docs:dev --host 127.0.0.1
+pnpm --dir docs-site docs:dev --host 127.0.0.1
 
 # 3. 生产静态构建（产物输出至 docs-site/.vitepress/dist/）
-yarn --cwd docs-site docs:build
+pnpm --dir docs-site docs:build
 
 # 4. 隔离目录构建（输出至仓库外部绝对路径，用于零污染验证）
-yarn --cwd docs-site docs:build -- --outDir <仓库外绝对目录>
+pnpm --dir docs-site docs:build -- --outDir <仓库外绝对目录>
 
 # 5. 本地预览已构建的生产静态站点
-yarn --cwd docs-site docs:preview
+pnpm --dir docs-site docs:preview
 ```
 
 文档构建只验证说明页面，不证明业务可用或已部署。

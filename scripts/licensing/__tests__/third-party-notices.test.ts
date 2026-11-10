@@ -1,6 +1,14 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 // @ts-expect-error: plain JavaScript module, no types
@@ -16,7 +24,7 @@ const write = (file: string, body: unknown) => {
   );
 };
 
-/** A package in node_modules, as yarn would have installed it. */
+/** A plain package fixture; the virtual-store case below creates real pnpm-style links. */
 const install = (
   name: string,
   license: string | undefined,
@@ -77,6 +85,30 @@ beforeEach(() => {
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe('第三方许可清单', () => {
+  it('真实 CLI 在 Windows/POSIX 都执行检查并传播过期清单失败码', () => {
+    const check = () =>
+      spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL('../third-party-notices.mjs', import.meta.url)),
+          '--check',
+        ],
+        {
+          cwd: root,
+          encoding: 'utf8',
+          windowsHide: true,
+          shell: false,
+        }
+      );
+    const stale = check();
+    expect(stale.status, stale.stderr).toBe(1);
+    expect(stale.stderr).toContain('与安装树不一致');
+    write('THIRD_PARTY_NOTICES.md', run().content);
+    const current = check();
+    expect(current.status, current.stderr).toBe(0);
+    expect(current.stdout).toContain('已是最新');
+  });
+
   it('只从 dependencies 出发，跳过 devDependencies', () => {
     write('package.json', {
       name: 'app',
@@ -88,6 +120,47 @@ describe('第三方许可清单', () => {
     expect(result.packages).toBe(1);
     expect(result.content).toContain('`a`');
     expect(result.content).not.toContain('`vite`');
+  });
+
+  it('沿 pnpm 实际链接查找传递依赖，避免误取根目录的另一版本', () => {
+    rmSync(join(root, 'node_modules/a'), { recursive: true });
+    const a = 'node_modules/.pnpm/a@1.0.0/node_modules/a';
+    const b = 'node_modules/.pnpm/b@2.0.0/node_modules/b';
+    const leaf = 'node_modules/.pnpm/leaf@3.0.0/node_modules/leaf';
+    write(`${a}/package.json`, {
+      name: 'a',
+      version: '1.0.0',
+      license: 'MIT',
+      dependencies: { b: '2.0.0' },
+    });
+    write(`${b}/package.json`, {
+      name: 'b',
+      version: '2.0.0',
+      license: 'MIT',
+      dependencies: { leaf: '3.0.0' },
+    });
+    write(`${leaf}/package.json`, {
+      name: 'leaf',
+      version: '3.0.0',
+      license: 'MIT',
+    });
+    const link = (target: string, path: string) =>
+      symlinkSync(
+        join(root, target),
+        join(root, path),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+    link(a, 'node_modules/a');
+    link(b, 'node_modules/.pnpm/a@1.0.0/node_modules/b');
+    link(leaf, 'node_modules/.pnpm/b@2.0.0/node_modules/leaf');
+    install('b', 'MIT');
+    banner(['a@1.0.0', 'b@2.0.0', 'leaf@3.0.0']);
+    const result = run();
+    expect(result.failures).toEqual([]);
+    expect(result.packages).toBe(3);
+    expect(result.content).toMatch(/`b`\s*\|\s*2\.0\.0\s*\|/);
+    expect(result.content).toMatch(/`leaf`\s*\|\s*3\.0\.0\s*\|/);
+    expect(result.content).not.toMatch(/`b`\s*\|\s*1\.0\.0\s*\|/);
   });
 
   it('未安装的可选依赖（平台包）不算缺失', () => {

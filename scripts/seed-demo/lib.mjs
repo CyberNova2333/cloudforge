@@ -1,5 +1,7 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 // Helpers for seed-demo.mjs: the local-only guard, time, the API client, git, and local D1.
 
+import { resolvePnpmLifecycleCommand } from '../githooks/yarn-command.mjs';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -360,10 +362,20 @@ export class D1 {
   }
 }
 
-/** The wrangler to run: `--wrangler`, else this checkout's own binary, else `yarn wrangler`. */
+/** The wrangler to run: --wrangler, the checkout's Node entry, or pnpm exec wrangler. */
 export function findWrangler(cwd, given) {
   if (given) return { command: given, args: [] };
-  const local = path.join(cwd, 'node_modules', '.bin', 'wrangler');
-  if (fs.existsSync(local)) return { command: local, args: [] };
-  return { command: 'yarn', args: ['wrangler'] };
+  const local = path.join(
+    cwd,
+    'node_modules',
+    'wrangler',
+    'bin',
+    'wrangler.js'
+  );
+  if (fs.existsSync(local)) return { command: process.execPath, args: [local] };
+  const invocation = resolvePnpmLifecycleCommand({ cwd });
+  return {
+    command: invocation.command,
+    args: [...invocation.args, 'exec', 'wrangler'],
+  };
 }

@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
@@ -13,7 +14,11 @@ import { delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 // @ts-expect-error: plain JavaScript module, no types
-import { resolveYarnCommand, runYarn } from '../run-yarn.mjs';
+import {
+  resolvePnpmCommand,
+  resolvePnpmLifecycleCommand,
+  runPnpm,
+} from '../run-yarn.mjs';
 
 const helper = fileURLToPath(new URL('../run-yarn.mjs', import.meta.url));
 const roots: string[] = [];
@@ -33,7 +38,7 @@ const literalArgs = [
 ];
 
 function directory() {
-  const root = mkdtempSync(join(tmpdir(), 'cloudforge-yarn & 中文-'));
+  const root = mkdtempSync(join(tmpdir(), 'cloudforge-pnpm & 中文-'));
   roots.push(root);
   return root;
 }
@@ -41,9 +46,9 @@ function directory() {
 afterEach(() => {
   for (const root of roots.splice(0)) {
     if (
-      !resolve(root).startsWith(resolve(tmpdir(), 'cloudforge-yarn & 中文-'))
+      !resolve(root).startsWith(resolve(tmpdir(), 'cloudforge-pnpm & 中文-'))
     ) {
-      throw new Error('Yarn 测试临时目录超出预期范围');
+      throw new Error('pnpm 测试临时目录超出预期范围');
     }
     rmSync(root, { recursive: true, force: true });
   }
@@ -66,7 +71,7 @@ function environment(paths: string[], extra: NodeJS.ProcessEnv = {}) {
 
 function fakeCommand(
   root: string,
-  name: 'yarn' | 'corepack',
+  name: 'pnpm' | 'corepack',
   { platform = process.platform, modern = false } = {}
 ) {
   const relative = `node_modules/${name}/bin/${name}.mjs`;
@@ -105,20 +110,20 @@ else process.exitCode = Number(process.env.TEST_EXIT || 0);
 }
 
 function invoke(root: string, env: NodeJS.ProcessEnv, args = literalArgs) {
-  return runYarn(args, { cwd: root, env, stdio: 'pipe', encoding: 'utf8' });
+  return runPnpm(args, { cwd: root, env, stdio: 'pipe', encoding: 'utf8' });
 }
 
-describe('Git 与编码代理钩子的 Yarn 启动器', () => {
-  it('优先使用已有 Yarn，即使 Corepack 更早出现在 PATH 中', () => {
+describe('Git 与编码代理钩子的 pnpm 启动器', () => {
+  it('优先使用已有 pnpm，即使 Corepack 更早出现在 PATH 中', () => {
     const root = directory();
     const corepackDir = join(root, 'Corepack 目录');
-    const yarnDir = join(root, 'Yarn 目录');
+    const pnpmDir = join(root, 'pnpm 目录');
     fakeCommand(corepackDir, 'corepack');
-    fakeCommand(yarnDir, 'yarn');
+    fakeCommand(pnpmDir, 'pnpm');
     const marker = join(root, '运行记录');
     const result = invoke(
       root,
-      environment([corepackDir, yarnDir], {
+      environment([corepackDir, pnpmDir], {
         CALL_MARKER: marker,
         TEST_TOKEN: '保留环境变量',
       })
@@ -126,17 +131,17 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
-      name: 'yarn',
+      name: 'pnpm',
       args: literalArgs,
       cwd: root,
       token: '保留环境变量',
     });
     expect(result.stderr).toBe('测试标准错误');
-    expect(existsSync(`${marker}-yarn`)).toBe(true);
+    expect(existsSync(`${marker}-pnpm`)).toBe(true);
     expect(existsSync(`${marker}-corepack`)).toBe(false);
   });
 
-  it('缺少 Yarn 时使用 Corepack，保留空格、中文和 shell 特殊字符参数', () => {
+  it('缺少 pnpm 时使用 Corepack，保留空格、中文和 shell 特殊字符参数', () => {
     const root = directory();
     fakeCommand(root, 'corepack');
     const result = invoke(root, environment([root]));
@@ -144,21 +149,21 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       name: 'corepack',
-      args: ['yarn', ...literalArgs],
+      args: ['pnpm', ...literalArgs],
       cwd: root,
     });
   });
 
-  it('Yarn 非零退出时原样传播状态，且不尝试 Corepack', () => {
+  it('pnpm 非零退出时原样传播状态，且不尝试 Corepack', () => {
     const root = directory();
-    fakeCommand(root, 'yarn');
+    fakeCommand(root, 'pnpm');
     fakeCommand(root, 'corepack');
     const marker = join(root, '运行记录');
     const env = environment([root], { CALL_MARKER: marker, TEST_EXIT: '23' });
     const result = invoke(root, env);
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(23);
-    expect(JSON.parse(result.stdout).name).toBe('yarn');
+    expect(JSON.parse(result.stdout).name).toBe('pnpm');
     expect(existsSync(`${marker}-corepack`)).toBe(false);
 
     const cli = spawnSync(process.execPath, [helper, ...literalArgs], {
@@ -187,7 +192,7 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
     const result = invoke(root, env);
     expect(result.status).toBeNull();
     expect(result.error.code).toBe('ENOENT');
-    expect(result.error.message).toContain('未找到 Yarn 或 Corepack');
+    expect(result.error.message).toContain('未找到 pnpm 或 Corepack');
     const cli = spawnSync(process.execPath, [helper, 'lint-staged'], {
       cwd: root,
       env,
@@ -195,15 +200,15 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
       shell: false,
     });
     expect(cli.status).toBe(127);
-    expect(cli.stderr).toContain('Yarn 启动失败');
+    expect(cli.stderr).toContain('pnpm 启动失败');
   });
 
   it('子进程超时返回错误，且不尝试 Corepack', () => {
     const root = directory();
-    fakeCommand(root, 'yarn');
+    fakeCommand(root, 'pnpm');
     fakeCommand(root, 'corepack');
     const marker = join(root, '运行记录');
-    const result = runYarn([], {
+    const result = runPnpm([], {
       cwd: root,
       env: environment([root], { CALL_MARKER: marker, TEST_HANG: '1' }),
       stdio: 'pipe',
@@ -215,10 +220,10 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
   });
 
   it.skipIf(process.platform === 'win32')(
-    'POSIX 上 Yarn 不可执行时保留 EACCES，且不尝试 Corepack',
+    'POSIX 上 pnpm 不可执行时保留 EACCES，且不尝试 Corepack',
     () => {
       const root = directory();
-      const { command } = fakeCommand(root, 'yarn');
+      const { command } = fakeCommand(root, 'pnpm');
       fakeCommand(root, 'corepack');
       chmodSync(command, 0o600);
       const marker = join(root, '运行记录');
@@ -229,10 +234,10 @@ describe('Git 与编码代理钩子的 Yarn 启动器', () => {
   );
 
   it.skipIf(process.platform === 'win32')(
-    'POSIX 上保留 Yarn 终止信号，CLI 同样以该信号结束',
+    'POSIX 上保留 pnpm 终止信号，CLI 同样以该信号结束',
     () => {
       const root = directory();
-      fakeCommand(root, 'yarn');
+      fakeCommand(root, 'pnpm');
       const env = environment([root], { TEST_SIGNAL: 'SIGTERM' });
       const result = invoke(root, env);
       expect(result.status).toBeNull();
@@ -254,12 +259,12 @@ describe('Windows 标准 Node 启动器解析', () => {
     '读取 npm/Corepack 包装格式，现代格式为 %s',
     (modern) => {
       const root = directory();
-      const { entry } = fakeCommand(root, 'yarn', {
+      const { entry } = fakeCommand(root, 'pnpm', {
         platform: 'win32',
         modern,
       });
       expect(
-        resolveYarnCommand({
+        resolvePnpmCommand({
           cwd: root,
           env: { Path: `"${root}"`, PATHEXT: '.CMD' },
           platform: 'win32',
@@ -268,12 +273,12 @@ describe('Windows 标准 Node 启动器解析', () => {
     }
   );
 
-  it('已存在但不可识别的 Yarn 包装器不会回退 Corepack', () => {
+  it('已存在但不可识别的 pnpm 包装器不会回退 Corepack', () => {
     const root = directory();
     fakeCommand(root, 'corepack', { platform: 'win32' });
-    writeFileSync(join(root, 'yarn.cmd'), '@exit /b 19\r\n');
+    writeFileSync(join(root, 'pnpm.cmd'), '@exit /b 19\r\n');
     expect(() =>
-      resolveYarnCommand({
+      resolvePnpmCommand({
         cwd: root,
         env: { PATH: root, PATHEXT: '.CMD' },
         platform: 'win32',
@@ -281,12 +286,12 @@ describe('Windows 标准 Node 启动器解析', () => {
     ).toThrow('无法安全解析 Node 启动器');
   });
 
-  it('已存在但入口损坏的 Yarn 不会回退 Corepack', () => {
+  it('已存在但入口损坏的 pnpm 不会回退 Corepack', () => {
     const root = directory();
     fakeCommand(root, 'corepack', { platform: 'win32' });
-    writeFileSync(join(root, 'yarn.cmd'), 'node "%~dp0\\missing.mjs" %*\r\n');
+    writeFileSync(join(root, 'pnpm.cmd'), 'node "%~dp0\\missing.mjs" %*\r\n');
     expect(() =>
-      resolveYarnCommand({
+      resolvePnpmCommand({
         cwd: root,
         env: { PATH: root, PATHEXT: '.CMD' },
         platform: 'win32',
@@ -296,11 +301,11 @@ describe('Windows 标准 Node 启动器解析', () => {
 
   it('原生可执行文件按 PATHEXT 优先级直接运行', () => {
     const root = directory();
-    fakeCommand(root, 'yarn', { platform: 'win32' });
-    const executable = join(root, 'yarn.exe');
+    fakeCommand(root, 'pnpm', { platform: 'win32' });
+    const executable = join(root, 'pnpm.exe');
     writeFileSync(executable, '原生文件占位');
     expect(
-      resolveYarnCommand({
+      resolvePnpmCommand({
         cwd: root,
         env: { PATH: root, PATHEXT: '.EXE;.CMD' },
         platform: 'win32',
@@ -310,7 +315,50 @@ describe('Windows 标准 Node 启动器解析', () => {
 });
 
 it('invalid arguments preserve the explicit EINVAL diagnostic', () => {
-  const result = runYarn([42]);
+  const result = runPnpm([42]);
   expect(result.error?.code).toBe('EINVAL');
-  expect(result.error?.message).toContain('Yarn 参数必须是字符串数组');
+  expect(result.error?.message).toContain('pnpm 参数必须是字符串数组');
+});
+
+describe('pnpm 生命周期入口', () => {
+  it('支持原生可执行文件并原样传递特殊字符参数', () => {
+    const root = directory();
+    const result = runPnpm(
+      [
+        '-e',
+        'process.stdout.write(JSON.stringify(process.argv.slice(1)))',
+        '--',
+        ...literalArgs,
+      ],
+      {
+        cwd: root,
+        env: {
+          ...environment([]),
+          npm_config_user_agent: 'pnpm/12.6.0',
+          npm_execpath: process.execPath,
+        },
+        lifecycle: true,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      }
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual(literalArgs);
+  });
+
+  it('拒绝生命周期批处理文本，不回退至另一个入口', () => {
+    const root = directory();
+    const { command } = fakeCommand(root, 'pnpm', { platform: 'win32' });
+    expect(() =>
+      resolvePnpmLifecycleCommand({
+        cwd: root,
+        platform: 'win32',
+        env: {
+          PATH: root,
+          npm_config_user_agent: 'pnpm/12.6.0',
+          npm_execpath: command,
+        },
+      })
+    ).toThrow('JavaScript 或原生可执行文件');
+  });
 });
