@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 """提交与推送的离线安全检查；只读取 Git 对象，不读取未暂存文件。"""
 from __future__ import annotations
 
 import argparse
 from collections import OrderedDict
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -44,12 +46,14 @@ def config(name: str) -> str:
     return git('config', '--get', name, check=False).decode('utf-8', 'replace').strip()
 
 
-def message_problems(raw: str) -> list[str]:
+def message_problems(raw: str, *, historical_style: bool = False) -> list[str]:
     lines = raw.lstrip('\ufeff').splitlines()
     lines = [line for line in lines if not line.startswith('#')]
     subject = next((line.strip() for line in lines if line.strip()), '')
     errors = []
-    if not subject:
+    if historical_style:
+        pass  # Only style is grandfathered; credential patterns below always run.
+    elif not subject:
         errors.append('提交标题为空')
     elif not subject.startswith(AUTO):
         if not SUBJECT.fullmatch(subject):
@@ -192,7 +196,17 @@ def staged(exceptions: dict) -> list[str]:
     return errors
 
 
-def pushed(lines: bytes, exceptions: dict, remote_name: str = '') -> list[str]:
+def pushed(lines: bytes, exceptions: dict, remote_name: str = '', remote_url: str = '') -> list[str]:
+    validator_path = Path(__file__).resolve().parents[1] / 'scripts/githooks/history_metadata_proof.py'
+    spec = importlib.util.spec_from_file_location('history_metadata_proof', validator_path)
+    validator = importlib.util.module_from_spec(spec)
+    bytecode = sys.dont_write_bytecode
+    try:
+        sys.dont_write_bytecode = True
+        spec.loader.exec_module(validator)
+    finally:
+        sys.dont_write_bytecode = bytecode
+    historical = validator.exemptions(lines, remote_name, remote_url)
     commits = set()
     for line in lines.splitlines():
         fields = line.split()
@@ -228,7 +242,7 @@ def pushed(lines: bytes, exceptions: dict, remote_name: str = '') -> list[str]:
             if raw_commit is None:
                 raise ValueError('待推送提交对象缺失')
             header, _, body = raw_commit.partition(b'\n\n')
-            errors.extend(commit[:12] + ': ' + error for error in message_problems(body.decode('utf-8', 'replace')))
+            errors.extend(commit[:12] + ': ' + error for error in message_problems(body.decode('utf-8', 'replace'), historical_style=commit in historical))
             parents = [line[7:].decode('ascii') for line in header.splitlines() if line.startswith(b'parent ')]
             args = ['diff-tree', '--root', '--no-commit-id', '-r', '--raw', '--no-renames', '--diff-filter=ACMRT', '-z']
             args += [parents[0], commit] if parents else [commit]
@@ -343,7 +357,7 @@ def main() -> int:
             raise ValueError('commit-msg 缺少提交信息文件')
         errors = message_problems(Path(args.arguments[0]).read_text(encoding='utf-8-sig'))
     else:
-        errors = pushed(sys.stdin.buffer.read(), exceptions, args.arguments[0] if args.arguments else '')
+        errors = pushed(sys.stdin.buffer.read(64 * 1024 + 1), exceptions, args.arguments[0] if args.arguments else '', args.arguments[1] if len(args.arguments) > 1 else '')
     if errors:
         print('安全检查未通过（仅显示规则与位置，不输出凭证值）：', file=sys.stderr)
         for error in errors[:50]:

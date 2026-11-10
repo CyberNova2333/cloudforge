@@ -1,3 +1,4 @@
+# Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import subprocess
 import sys
 import tempfile
@@ -31,7 +32,7 @@ class MirrorPrePushTest(unittest.TestCase):
 
     def push(self, remote):
         return subprocess.run(
-            [sys.executable, str(self.guard), 'pre-push', remote],
+            [sys.executable, '-B', '-X', 'utf8', str(self.guard), 'pre-push', remote],
             cwd=self.repo,
             input=f"refs/heads/main {self.fork} refs/heads/main {'0' * 40}\n",
             text=True,

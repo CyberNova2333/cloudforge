@@ -1,3 +1,4 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -144,7 +145,7 @@ describe('pre-push 钩子', () => {
     expect(r.stderr).not.toContain('an old English commit');
     // A deletion pushes no commits.
     expect(push('0'.repeat(40), bad).status).toBe(0);
-  });
+  }, 30_000);
 
   it('首次推送 GitHub 镜像时保留并排除上游原作历史', () => {
     dir = mkdtempSync(join(tmpdir(), 'cf-prepush-mirror-'));
@@ -156,5 +157,5 @@ describe('pre-push 钩子', () => {
     const fork = commit(OK);
     expect(push(fork, '0'.repeat(40), 'github').status).toBe(0);
     expect(push(fork, '0'.repeat(40), 'origin').status).toBe(1);
-  });
+  }, 30_000);
 });

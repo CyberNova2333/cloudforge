@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: github-pages
-      url: ${ steps.deployment.outputs.page_url }
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: 部署到 GitHub Pages
         id: deployment
