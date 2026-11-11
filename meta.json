@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/CyberNova2333/cybernova-homepage/main/public/schemas/repo-meta.v1.json",
+  "schemaVersion": 1,
+  "slug": "cloudforge",
+  "name": "CloudForge",
+  "title": {
+    "zh": "CloudForge · 基于 Cloudflare 的自托管 Git 与代码审查服务",
+    "en": "CloudForge · Self-Hosted Git & Code Review on Cloudflare"
+  },
+  "visibility": "public",
+  "status": "active",
+  "category": "cloud-edge",
+  "featured": true,
+  "order": 1,
+  "repository": "https://github.com/CyberNova2333/cloudforge",
+  "homepage": "https://cloudforge.cbnv.me",
+  "docsUrl": "https://cloudforge.cbnv.me/docs/",
+  "architectureUrl": "https://cloudforge.cbnv.me/diagrams/cloudforge-architecture.html",
+  "license": "GPL-3.0-or-later",
+  "primaryLanguage": "TypeScript",
+  "techStack": [
+    "Cloudflare Workers",
+    "D1",
+    "Durable Objects",
+    "Containers",
+    "React",
+    "TypeScript",
+    "MCP"
+  ],
+  "tags": [
+    "git-hosting",
+    "code-review",
+    "stacked-prs",
+    "ci-cd",
+    "cloudflare-workers",
+    "mcp"
+  ],
+  "summary": {
+    "zh": "跑在自己 Cloudflare 账户里的单租户 Git 托管服务，包含 Git HTTPS/LFS 仓库、堆叠 PR、容器 CI 和 AI 辅助代码审查功能。",
+    "en": "Single-tenant Git hosting service running on Cloudflare Workers, D1, Artifacts, and Containers, supporting Git HTTPS/LFS, stacked PRs, container CI, and AI-assisted code review."
+  },
+  "highlights": {
+    "zh": [
+      "使用 Cloudflare Workers + D1 + Artifacts 实现 Git HTTPS 与 Git LFS 仓库读写，无需单独购买常驻服务器",
+      "支持按安全、数据、性能等维度运行 AI 代码审查，并可在收件箱里人工确认或驳回审查建议",
+      "内置堆叠 PR（Stacked PRs）依赖展示、Cloudflare Containers 工作流执行与 OAuth MCP 接口"
+    ],
+    "en": [
+      "Git HTTPS and Git LFS hosting backed by Cloudflare Workers, D1, and Artifacts",
+      "Role-based AI code review with a human review inbox for accepting or dismissing findings",
+      "Stacked PR dependency tracking, Cloudflare Containers workflow runner, and OAuth MCP endpoint"
+    ]
+  },
+  "quickStart": [
+    "pnpm install --frozen-lockfile",
+    "pnpm dev",
+    "pnpm test"
+  ],
+  "roadmap": {
+    "stage": "日常维护",
+    "stageEn": "Maintained",
+    "milestone": {
+      "zh": "已完成代码审查流、容器 CI、OAuth MCP 与中英文档站，后续按日常使用需求修补。",
+      "en": "Review workflow, container CI, OAuth MCP, and bilingual docs are in place; maintained as needed."
+    }
+  },
+  "updatedAt": "2026-11-11"
+}
