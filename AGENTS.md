@@ -86,3 +86,10 @@ Choose `none`, `answer-only`, `foreground patch`, or `background sync`. Patch th
 Update the walkthrough for input/output or boundary changes and the code map for responsibility changes. Record meaningful guide changes and actual verification in `repo-docs/change-log.md` with `Synced through <sha>`; do not imply unrun tests passed.
 
 文档站基于 VitePress 默认主题扩展本地字体、昼夜切换与渐进动效（无 JS 时内容照常可见），构建输出独立于业务界面。
+
+## 项目简介与主页元数据 (meta.json)
+
+- **项目名称**：CloudForge · 基于 Cloudflare 的自托管 Git 与代码审查服务
+- **项目简介**：跑在自己 Cloudflare 账户里的单租户 Git 托管服务，包含 Git HTTPS/LFS 仓库、堆叠 PR、容器 CI 和 AI 辅助代码审查功能。
+- **公开状态**：已公开 (public) · 分类：`cloud-edge` · 主语言：`TypeScript`
+- **元数据说明**：仓库根目录的 [`meta.json`](meta.json) 供个人主页（[`cybernova-homepage`](https://github.com/CyberNova2333/cybernova-homepage)）读取项目简介、功能说明、技术栈和常用命令。修改项目主要功能、技术栈或文档站链接时请同步更新 `meta.json`。
