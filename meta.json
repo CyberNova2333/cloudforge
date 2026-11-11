@@ -51,11 +51,7 @@
       "Stacked PR dependency tracking, Cloudflare Containers workflow runner, and OAuth MCP endpoint"
     ]
   },
-  "quickStart": [
-    "pnpm install --frozen-lockfile",
-    "pnpm dev",
-    "pnpm test"
-  ],
+  "quickStart": ["pnpm install --frozen-lockfile", "pnpm dev", "pnpm test"],
   "roadmap": {
     "stage": "日常维护",
     "stageEn": "Maintained",
