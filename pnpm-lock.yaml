@@ -198,10 +198,10 @@ importers:
         version: 5.3.0
       '@hono/swagger-ui':
         specifier: ^0.6
-        version: 0.6.1(hono@4.13.12)
+        version: 0.6.1(hono@4.13.16)
       '@hono/zod-openapi':
         specifier: ^1.3
-        version: 1.6.3(hono@4.13.12)(zod@4.6.7)
+        version: 1.6.3(hono@4.13.16)(zod@4.6.7)
       '@primer/css':
         specifier: ^21
         version: 21.5.1(@primer/primitives@10.7.0)
@@ -245,8 +245,8 @@ importers:
         specifier: ^11.12.0
         version: 11.12.0
       hono:
-        specifier: ^4.12
-        version: 4.13.12
+        specifier: ^4.13
+        version: 4.13.16
       jose:
         specifier: 6.2.12
         version: 6.2.12
@@ -3679,8 +3679,8 @@ packages:
     resolution: {integrity: sha512-nbfWpyRMcMrPMmDwJB+dhX/eiaPKtc2RB+0QZskqJ3WjRA/FDS0e9hZrx8EC/lbEv8gXy98FcDbNa/dspAaJMg==}
     engines: {node: '>=12.0.0'}
 
-  hono@4.13.12:
-    resolution: {integrity: sha512-6E2QDAc9Ick9Sq77ZrGS/dk2WUYni91aufTw6LJKpV7w8kW5/GxVUc650FOADOmlwg3K+f7Pun6XlV+pYmW6gw==}
+  hono@4.13.16:
+    resolution: {integrity: sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==}
     engines: {node: '>=16.9.0'}
 
   http-errors@2.0.1:
@@ -5328,8 +5328,8 @@ snapshots:
   '@babel/template@8.0.0':
     dependencies:
       '@babel/code-frame': 8.0.6
-      '@babel/parser': 8.0.6
-      '@babel/types': 8.0.6
+      '@babel/parser': 8.1.0
+      '@babel/types': 8.1.0
 
   '@babel/traverse@7.29.12(supports-color@10.2.2)':
     dependencies:
@@ -5989,25 +5989,25 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@2.1.6(hono@4.13.12)':
+  '@hono/node-server@2.1.6(hono@4.13.16)':
     dependencies:
-      hono: 4.13.12
+      hono: 4.13.16
 
-  '@hono/swagger-ui@0.6.1(hono@4.13.12)':
+  '@hono/swagger-ui@0.6.1(hono@4.13.16)':
     dependencies:
-      hono: 4.13.12
+      hono: 4.13.16
 
-  '@hono/zod-openapi@1.6.3(hono@4.13.12)(zod@4.6.7)':
+  '@hono/zod-openapi@1.6.3(hono@4.13.16)(zod@4.6.7)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
-      '@hono/zod-validator': 0.9.1(hono@4.13.12)(zod@4.6.7)
-      hono: 4.13.12
+      '@hono/zod-validator': 0.9.1(hono@4.13.16)(zod@4.6.7)
+      hono: 4.13.16
       openapi3-ts: 4.6.1
       zod: 4.6.7
 
-  '@hono/zod-validator@0.9.1(hono@4.13.12)(zod@4.6.7)':
+  '@hono/zod-validator@0.9.1(hono@4.13.16)(zod@4.6.7)':
     dependencies:
-      hono: 4.13.12
+      hono: 4.13.16
       zod: 4.6.7
 
   '@iconify/types@2.0.0': {}
@@ -6279,7 +6279,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.6(hono@4.13.12)
+      '@hono/node-server': 2.1.6(hono@4.13.16)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -6289,7 +6289,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0(supports-color@10.2.2)
       express-rate-limit: 8.7.3(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
-      hono: 4.13.12
+      hono: 4.13.16
       jose: 6.2.12
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -7804,7 +7804,7 @@ snapshots:
 
   highlight.js@11.12.0: {}
 
-  hono@4.13.12: {}
+  hono@4.13.16: {}
 
   http-errors@2.0.1:
     dependencies:
