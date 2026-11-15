@@ -2,7 +2,7 @@
 
 # 多团队与五级仓库权限设计
 
-状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema及首个过渡运行时已加入**。初始设计以 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 为基线；兼容schema及共享团队/协作者最终授权检查已陆续实现，不创建团队成员表、不执行生产迁移，也不把下述新接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文承接[路线图](roadmap.md)第 5 项，保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
+状态：**多团队与五级角色模型仍为设计；阶段 A 兼容层、只读预检及阶段 B 受限兼容schema及首个过渡运行时已加入**。初始设计以 `4f3c39099810b81cf24dd1d13f144f9dce3c7a0f` 为基线；兼容schema及共享团队/协作者最终授权检查已陆续实现，不创建团队成员表、不执行生产迁移，也不把下述新接口当作已发布能力。当前内部兼容层见[权限现状](permissions.md)：命名能力仍映射旧 read/write/admin，SQL 可见性未改，没有开放 triage/maintain 授予或新团队接口。本文保留[认证](authentication.md)、[部署令牌](deploy-tokens.md)及[自动合并](auto-merge.md)的独立约束。
 
 ## 先看一次授权变化
 

@@ -215,7 +215,7 @@ Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；流水线配置已对�
 - **Primer 风格昼夜切换**：采用 Shadow DOM 封装的自定义元素 `<theme-toggle>`（`docs-site/.vitepress/theme/toggle.ts`），与 `DESIGN.md` 中定义的 GitHub Primer 功能色与表面层级无缝契合。
 - **渐进式动效与无障碍降级**：基于本地 Anime.js（`docs-site/.vitepress/theme/motion.ts`）实现细腻的页面过渡动效。在禁用 JavaScript 的环境下，全站内容与排版保持完整可读；当系统开启 `prefers-reduced-motion` 偏好时自动关闭动效。
 
-验证：`python C:/Users/cyber/.gemini/skills/repo-docs/scripts/validate_repo_docs.py --lite --repo-root . repo-docs`（0 错误、0 警告）；`yarn --cwd docs-site docs:build` 静态构建通过（耗时约 1.5s）；`yarn format:check` 格式检查通过。
+验证：`python3 ~/.gemini/skills/repo-docs/scripts/validate_repo_docs.py --lite --repo-root . repo-docs`（0 错误、0 警告）；`pnpm --dir docs-site docs:build` 静态构建通过（耗时约 1.5s）；`pnpm format:check` 格式检查通过。
 
 Synced through 3f80136ca507ae60eb00acf3bb72f796fa4970c1；文档站使用说明与指南变更记录已补齐。
 
@@ -354,4 +354,13 @@ foreground patch：两层推送钩子共用元数据证明验证器，精确绑�
 
 验证：临时 Ed25519 密钥的 11 项 Python 回归通过，包含篡改签名、引用、摘要、范围与真实本地推送；证明列出的信息和文件仍被凭证扫描拦截。通过现有脚本测试配置接入 `pnpm test`；业务全量验收另行记录。
 
-Synced through 0982f0371daf5878590e223f1bf913a50dde77ec（本次实现基线；上述变更仍属本地工作树，未启用真实证明或发布远端）。
+## 2026-11-15：Tier A 文档重置与 Standard 工程指南升级
+
+按「一类事实只保留一处权威来源」原则完成仓库文档体系重置：
+
+1. 重写根目录 `README.md` 与 `README.en.md`（严格六段式结构：定位、核心能力与架构流图、默认 Quick Start 与部署索引表、选型 FAQ、阅读路径导航表、Apache-2.0 与 GitOrange 上游致谢）。
+2. 重组 `docs-site/` 为中文为主、中英双语的四阶段递进结构（起步与部署、契约与扩展、架构与内核原理、版本变更与迁移）及落地页按身份/目标快速入口，保留 `public/CNAME`、`public/diagrams/cloudforge-architecture.html`、`.vitepress/theme/` 与 `.vitepress/guide-links.mts` 并通过 `@include` 复用 `repo-docs/` 页面。
+3. 迁移并删除无源码或 CI 引用的 `docs/README.md`、`docs/i18n.md`、`docs/roadmap.md`，保留其余 15 份受代码、脚本或设计文档引用的 `docs/*.md` 并校准 `docs/team-access-design.md` 与 `docs/development.md` 中的过期链接及说明。
+4. 将 `repo-docs/` 从 Lite 模式升级为 Standard 模式：新增 `glossary.md` 与 4 篇核心子系统拆解页（`modules/`），并更新 `README.md`、`walkthroughs/one-real-run.md`、`references/source-evidence.md` 与 `references/quality-review.md`。
+
+Synced through 5c5a6893a6c6532329f9243adeb32a05cfa1dd7d（当前工作区文档重置与校验基线；未执行推送）。

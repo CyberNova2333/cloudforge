@@ -2,39 +2,45 @@
 layout: home
 
 hero:
-  name: Cloudforge Orchestration
-  text: Modern Edge Infrastructure
-  tagline: Cloudforge is a lightweight workflow orchestration and D1 distributed state coordination engine designed for multi-edge Serverless environments.
+  name: CloudForge
+  text: Self-Hosted Git & AI Review on Cloudflare
+  tagline: 'Single-tenant code platform in your own Cloudflare account: Worker API & SPA, Artifacts Git, R2 LFS, Container Actions, Stacked PRs, and OAuth 2.1 MCP.'
   actions:
     - theme: brand
-      text: Get Started
+      text: Deploy & Configure
       link: /en/docs/
     - theme: alt
-      text: Interactive Architecture
+      text: Architecture Diagram
       link: /en/docs/architecture
     - theme: alt
-      text: GitHub Repo
+      text: GitHub
       link: https://github.com/CyberNova2333/cloudforge
 
 features:
-  - title: Fast & Effortless Onboarding
-    details: Clear, accessible documentation structure enabling environment setup and launch in minutes.
-  - title: Rigorous Security Guardrails
-    details: Zero-credential leak prevention, strictly isolated sandboxes, and granular whitelist permission control.
-  - title: Modern Interactive Visuals
-    details: Dual dark/light theme support with embedded Archify interactive architecture diagrams.
+  - title: Edge Git with Artifacts & R2 LFS
+    details: Git objects live in Cloudflare Artifacts while large binaries upload directly to R2 via 15-minute presigned URLs after Worker permission checks.
+  - title: AI Reviewers, Stacking & Auto-Merge
+    details: 'Single-pass and sandboxed AgentReviewer (engine: pi) reviews feed a unified reviewVerdict gate, DAG PR stacking without pushing user branches, and CAS fast-forward landing.'
+  - title: Container Actions & OAuth 2.1 MCP
+    details: GitHub-compatible YAML workflows run in Cloudflare Containers alongside a stateless Streamable HTTP /mcp server with explicit moderator approval controls.
 ---
 
-::: warning AI Translation Notice
-This site and documentation have been translated by an AI language model. In case of any discrepancies or ambiguities, please refer to the [original Chinese documentation](/) as the authoritative source.
-:::
+## Quick Jump by Role & Goal
+
+| Role / Goal                           | Start Here                                                                                                  | What You Get                                                                               |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Evaluate fit & deploy an instance     | [Overview & Boundaries](/en/docs/) · [Deployment Modes](/en/docs/deployment)                                | Single-tenant limits, Cloudflare API token scopes, and installer CLI / manual setup        |
+| Configure bindings & troubleshoot     | [Configuration Matrix](/en/docs/configuration) · [FAQ](/en/docs/faq)                                        | All Wrangler bindings, cron schedules, secrets, and `reset-mfa` / 503 diagnostics          |
+| Integrate MCP, Webhooks, CI or Agents | [API, MCP & Webhooks](/en/docs/apis-and-mcp) · [Flows & AGENT.md](/en/docs/interactions-and-extensibility)  | 31+3 MCP tools, HMAC webhooks, commit statuses, `AGENT.md` authoring, and UI i18n          |
+| Trace source internals & contribute   | [Architecture](/en/docs/architecture) · [Walkthrough](/en/docs/walkthrough) · [Code Map](/en/docs/code-map) | Subsystems, end-to-end push flow, D1 schema map, and `workerd` testing rules               |
+| Upgrade D1 schema & inspect ADRs      | [Migrations & ADRs](/en/docs/changelog-and-migrations)                                                      | `0000`–`0066` migrations, `access-preflight` / `access-drain-status`, and design decisions |
 
 ## Architecture Overview
 
 <div class="archify-diagram-card" style="margin: 1.5rem 0; border: 1px solid var(--vp-c-border); border-radius: 12px; overflow: hidden; background: var(--vp-c-bg-soft); box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
   <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; background: var(--vp-c-bg-elv); border-bottom: 1px solid var(--vp-c-border); font-size: 13px;">
     <span style="font-weight: 600; color: var(--vp-c-text-1); display: flex; align-items: center; gap: 8px;">
-      <span style="font-size: 16px;">📐</span> Cloud Function Orchestration & Edge Deployment Architecture (Interactive Diagram powered by Archify; pan / zoom / inspect supported)
+      <span style="font-size: 16px;">📐</span> CloudForge Edge & Control-Plane Architecture (Interactive Archify diagram: pan, zoom, inspect)
     </span>
     <a href="/diagrams/cloudforge-architecture.html" target="_blank" rel="noreferrer" style="font-size: 12px; color: var(--vp-c-brand-1); text-decoration: none; font-weight: 500;">
       Open Fullscreen ↗
@@ -43,12 +49,12 @@ This site and documentation have been translated by an AI language model. In cas
   <iframe src="/diagrams/cloudforge-architecture.html" width="100%" height="520px" frameborder="0" style="display: block; border: none;" allowfullscreen loading="lazy"></iframe>
 </div>
 
-## Quick Start Demo
+## Fastest Runnable Path
 
 ```bash
-# 1. Install project dependencies
-pnpm install
+# Provision or upgrade CloudForge in your own Cloudflare account
+pnpm dlx @cybernova2333/cloudforge install
 
-# 2. Run local development and test workflow
-pnpm test
+# Or run the full local development stack at http://localhost:8080
+pnpm install --frozen-lockfile && pnpm dev
 ```
