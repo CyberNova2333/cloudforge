@@ -61,6 +61,6 @@ pnpm test:workers worker/src/__tests__/git/git-http.test.ts worker/src/__tests__
 
 上述定向命令只验证 Git 主流程；全项目要求仍以根 AGENTS 和 docs/development.md 为准。各轮实际验证记录见[指南变更记录](../change-log.md)；本地测试不表示真实推送或生产迁移已执行。
 
-理解这条交接后，用[代码地图定位下一次修改](../code-map.md)；需要反查依据时查看[源码调查与边界证据](../references/source-evidence.md)。
+理解这条交接后，可以继续看[Git 与对象存储边界](../modules/git-and-storage.md)、用[代码地图定位下一次修改](../code-map.md)，或查阅[术语表](../glossary.md)与[源码调查与边界证据](../references/source-evidence.md)。
 
 证据状态：除特别标注外，本页基于当前源码已确认。

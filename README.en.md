@@ -1,189 +1,81 @@
 <!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
+# CloudForge
+
 [简体中文](README.md) | **English**
 
-<p align="center">
-  <img src="public/cloudforge-logo.svg" alt="CloudForge" width="360" />
-</p>
+[![CI](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml/badge.svg)](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-cloudforge.cbnv.me-0969da)](https://cloudforge.cbnv.me/en/docs/)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
-  <a href="LICENSE"><img alt="License: AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
-  <a href="https://workers.cloudflare.com/"><img alt="Runs on Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
-</p>
+CloudForge is a **single-tenant, self-hosted Git and AI code review platform running inside your own Cloudflare account** (forked from [choyiny/gitorange](https://github.com/choyiny/gitorange)), serving a React 18 SPA, Git HTTPS/LFS, Container Actions, DAG PR stacking, AI review, and OAuth 2.1 MCP from a single Worker for small teams or personal private hosting—not multi-tenant SaaS.
 
-<h1 align="center">CloudForge</h1>
+## Core Capabilities & Data Flow
 
-CloudForge is a code host deployed in your own Cloudflare account, bringing Git repositories, pull requests (PRs), CI, and AI review into one application. It supports teams of people and coding agents: agents submit code and address checks and review feedback, while people use the review inbox to decide questions that need human judgment.
-
-> **Fork notice:** This is an independent fork of [choyiny/gitorange](https://github.com/choyiny/gitorange), based on `b3d5b08` on 2026-10-22 (see [.fork-base](.fork-base)). It is not affiliated with or endorsed by the upstream author.
->
-> Original portions © 2026 GitOrange contributors, under [Apache-2.0](LICENSES/Apache-2.0.txt). Modifications © 2026 CyberNova; the combined work is distributed under [AGPL-3.0-only](LICENSE). "GitOrange" and its logo remain the upstream project's marks and are not used here as product marks.
-
-## Features
-
-- **Code hosting:** Git over HTTPS, personal access tokens, Git LFS, branches and tags, file browsing, diffs, PR comments, and releases. Personal repositories support private, internal, and public visibility. Team repositories are visible to instance members; public repositories allow anonymous reads.
-- **AI reviewers:** Presets cover security, data, performance, features, reliability, privacy, and shipping. Each agent maintains `AGENT.md` and `knowledge/` in its own repository and reviews repositories that invite it.
-- **Human decisions:** Findings can be assigned to members with push access. Users can authorize AI to handle some findings per agent; human-confirmation findings from guarded agents, such as Security and Data, require individual reasons and cannot be delegated to AI.
-- **Agent learning:** After a PR closes, dismissed change requests and teaching notes can become learning tasks that update an agent's instructions and knowledge files.
-- **PR coordination:** Dependencies, conflicts, and interactions appear in lists, boards, and a relationship graph. The merge queue can be paused, and PR states explain whether an agent, a person, or another task needs to act next.
-- **CI and run history:** CloudForge Actions executes supported GitHub Actions workflows in Cloudflare Containers, with logs, caches, artifacts, variables, and encrypted secrets. AI runs also record steps, model calls, and usage.
-- **MCP access:** Coding agents authorize through OAuth at `/mcp` to read work, create PRs, inspect checks, and perform permitted operations. Tools are named `cloudforge_*`; the earlier `gitorange_*` names still work (they are not listed), so existing clients keep working.
-- **Interface and administration:** Chinese and English UI, themes, live updates, global search, repository health, a review inbox, invitation-based registration, audit logs, and instance settings.
-
-## How a PR moves through CloudForge
-
-1. A person or coding agent pushes a branch and opens a PR through the web interface or MCP.
-2. Matching Actions workflows run checks. Workflows using `cloudforge/relevance@v1` can select test modules according to their configuration.
-3. Configured reviewer triggers start reviews, while the host analyzes relationships with other changes. Review modes include a single model call and `engine: pi` with read-only tools.
-4. The PR page shows failed checks, change requests, findings requiring human judgment, and reasons for waiting.
-5. A PR can merge after satisfying checks, review, dependencies, and pause rules. Inviting reviewer agents enables automatic merging, which can be disabled per PR; repositories without agents use human review and merging.
-6. Merging uses rebase followed by fast-forward, with compare-and-swap (CAS) on the target ref to detect concurrent changes. Branch deletion follows repository settings; default, protected, and still-used branches are retained.
-
-Rebasing preserves commit authors and messages but usually changes commit SHAs. After a server-side rebase, clients must fetch and reconcile their local history before pushing again. Review inputs, file counts, model context, and run time have limits, so AI review cannot be assumed to cover arbitrarily large PRs completely. Background work uses durable steps, state checks, and recovery to handle retries; external operations should still account for possible repeated execution.
-
-See [reviewer agents, PR states, and automatic merging](docs/auto-merge.md) and [architecture](docs/architecture.md) for the detailed rules.
-
-## Start from source
-
-Running from source requires **Node.js 22.18 or later** and **pnpm**. Deployment also requires a Cloudflare account with access to the services used by the project, and Docker to build the Actions runner image. The installer checks required services and configuration. Email invitations require Email Sending; invitation links can also be used without email.
-
-```bash
-git clone https://github.com/CyberNova2333/cloudforge.git
-cd cloudforge
-pnpm install --frozen-lockfile
-pnpm exec wrangler login
-
-# Inspect the installation plan without applying it
-pnpm cloudforge install --plan
-
-# After reviewing the plan, create resources, migrate the database, and deploy
-pnpm cloudforge install
-```
-
-After installation, use the one-time setup code printed by the installer at `<BASE_URL>/setup` to create the first administrator. Then create repositories and invite members. To use AI review, create reviewer agents and invite them in each repository's settings.
-
-```bash
-# Inspect the installation status
-pnpm cloudforge status
-
-# Continue an interrupted installation
-pnpm cloudforge install --resume
-```
-
-See [setup](docs/setup.md) for deployment details and [updating](docs/updating.md) for updates and adopting existing installations. Those guides also cover installation from a published package.
-
-### Local development
-
-```bash
-cp wrangler.jsonc.example wrangler.jsonc
-cp .dev.vars.example .dev.vars
-# Set account, development environment, and local secrets as described in docs/development.md
-pnpm db:migrate:local
-pnpm dev
-```
-
-The default address is `http://localhost:8080`, shared by the web app, API, and Git endpoint. Development uses local D1 storage; Artifacts calls reach the real Cloudflare service. See [local development](docs/development.md) for demo data and Git LFS configuration.
-
-### Checks and tests
-
-```bash
-pnpm format:check
-pnpm typecheck
-pnpm test
-```
-
-`pnpm test` runs the installer tests in Node.js, followed by Worker and pure frontend logic tests in workerd. The latter use a real local D1 database and an in-memory Artifacts test implementation. Test suite names, case names, and the default result summary are in Chinese; original assertions, third-party diagnostics, and stack traces are preserved.
-
-CI uses [.github/workflows/](.github/workflows/) to install dependencies, stage validation configuration, check formatting and types, build, and run all tests.
-
-## Actions compatibility
-
-CloudForge reads `.github/workflows/` and implements a subset of GitHub Actions syntax. Check the features your workflow uses before migrating it. Current support includes:
-
-- `push` and `pull_request` events with branch, tag, and path filters.
-- Linux container `run` steps with `bash`, `sh`, `python`, and `node` scripts and working-directory settings.
-- `actions/checkout`, `actions/setup-node`, `actions/cache`, artifact uploads and downloads, and JavaScript and composite actions from GitHub or the local repository.
-- `needs`, conditional expressions, matrix expansion, environment variables, step and job outputs, `GITHUB_ENV`, `GITHUB_OUTPUT`, and `GITHUB_PATH`.
-- Repository and instance variables and encrypted secrets, log masking, job concurrency limits, and queuing.
-
-`ubuntu-latest` maps to a CloudForge Linux container size, not the complete GitHub-hosted runner image. `setup-node` uses the Node.js version in the runner image. Windows and macOS runners and GitHub-specific platform capabilities cannot be assumed to behave as they do on GitHub. See [skipping irrelevant tests](docs/ci-relevance.md) for relevance-check configuration.
-
-## Architecture and costs
+- **Edge Git & R2 LFS**: Git objects and refs reside in Cloudflare Artifacts while large binaries stream directly via 15-minute presigned R2 URLs; the Worker enforces token permissions, branch protection, and `push_events` outbox recovery.
+- **AI Reviewers, Stacking & Auto-Merge**: Repo-backed reviewer agents (`AGENT.md`, supporting single-pass and sandboxed `AgentReviewer` `engine: pi`) feed a single `reviewVerdict` gate, non-destructive `MERGE_RESOLUTION` PR stacking, and CAS fast-forward merges.
+- **Container Actions & Commit Statuses**: Runs GitHub-compatible YAML workflows on Cloudflare Containers (`standard-1`–`standard-4`) with instance/repo concurrency queues and `cloudforge/relevance@v1` test pruning, unified with external commit statuses.
+- **Collaboration & Integrations**: Includes issues sharing `#N` numbering (`Fixes #N` default-branch auto-close), inbox & email notifications, AES-GCM signed Webhooks with backoff retries, and single-repo `cfd_` HTTPS deploy tokens.
+- **OAuth 2.1 `/mcp` & Policy Governance**: Exposes stateless Streamable HTTP `/mcp` (31 standard tools + 3 opt-in moderator approval tools) alongside mandatory MFA policies, explicit OIDC linking/SSO, and audit logs.
 
 ```mermaid
 flowchart LR
-  browser["Browser<br/>web app"]
-  gitc["git client<br/>clone · push"]
-  agent["Coding agent<br/>MCP client"]
+  Clients["Browser SPA / Git CLI / OAuth MCP"]
+  Worker["Cloudflare Worker<br/>(Hono API + Git/LFS + Auth)"]
+  D1["D1 SQLite<br/>(State, ACL, Outbox)"]
+  Storage["Artifacts & R2<br/>(Git Packs, LFS, Logs)"]
+  Orchestration["Workflows & Containers<br/>(ActionsRun, MergeResolution)"]
+  AI["Workers AI / Gateway<br/>(Summary, Pass/Pi, Resolver)"]
 
-  subgraph cf["Your Cloudflare account"]
-    worker["CloudForge Worker<br/>web · API · Git · MCP"]
-    d1[("D1<br/>users · tokens · PRs · reviews")]
-    artifacts[("Artifacts<br/>one git repo per repository")]
-    r2[("R2<br/>LFS · logs · cache · artifacts")]
-    email["Email Sending<br/>invitations and verification"]
-    workflows["Workflows<br/>Actions · reviews · rebases · stacking"]
-    dos["Durable Objects<br/>job queue · live updates"]
-    containers["Containers<br/>one Linux container per job"]
-    ai["Workers AI<br/>reviews and conflict resolution"]
-  end
-
-  browser -- web · API --> worker
-  agent -- MCP · OAuth --> worker
-  gitc -- Git · token --> worker
-  gitc -. LFS pre-signed URLs .-> r2
-  worker -- SQL --> d1
-  worker -- read · push --> artifacts
-  worker -- sign · verify --> r2
-  worker -- send --> email
-  worker -- start runs --> workflows
-  worker -- live pings --> dos
-  workflows -- model calls --> ai
-  workflows -- queue · run jobs --> dos
-  dos -- start --> containers
-  containers -- step logs --> r2
+  Clients --> Worker
+  Worker --> D1
+  Worker --> Storage
+  Worker --> Orchestration
+  Orchestration --> AI
 ```
 
-| Component                                    | Purpose                                                                                       |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Cloudflare Workers                           | Same-origin web app, API, Git HTTPS, and MCP services                                         |
-| Artifacts                                    | Git objects and refs, with one storage repository per CloudForge repository                   |
-| D1                                           | Users, repository metadata, PRs, reviews, settings, and audit events                          |
-| R2                                           | Git LFS, Actions logs, caches, and artifacts                                                  |
-| Workflows, Durable Objects, Containers       | Durable orchestration, live connections, AI tasks, and CI execution                           |
-| Workers AI, AI Gateway, Agents SDK, Computer | Model calls, usage records, and agent sandboxes; models are configurable in instance settings |
-| Email Sending, Cron, Analytics API           | Email, scheduled cleanup and recovery, and usage reporting                                    |
+## Quick Start
 
-Costs depend on enabled services, plans, and actual usage, rather than a fixed monthly total. Consult the official pricing when deploying: [Workers](https://developers.cloudflare.com/workers/platform/pricing/), [Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/), [Containers](https://developers.cloudflare.com/containers/pricing/), [Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/), and [R2](https://developers.cloudflare.com/r2/pricing/). The application's usage and cost page provides estimates; Cloudflare's bill is authoritative.
+Deploy directly to your own Cloudflare account using the zero-clone installer CLI (requires Node.js `>=22.18`, pnpm `12.6.0`, and a scoped Cloudflare API Token or `wrangler login`):
 
-## Documentation and contributing
+```bash
+# Fresh production install: verifies scopes, creates D1/R2/Artifacts, runs 67 migrations, deploys
+pnpm dlx @cybernova2333/cloudforge install
 
-[Setup](docs/setup.md) · [Updating](docs/updating.md) · [Configuration](docs/configuration.md) · [Architecture](docs/architecture.md) · [Local development](docs/development.md) · [Review and automatic merging](docs/auto-merge.md) · [CI relevance checks](docs/ci-relevance.md)
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [SECURITY.md](SECURITY.md) for security reporting. The repository includes [CLAUDE.md](CLAUDE.md) and helper skills and hooks under `.claude/` for compatible development tools.
-
-## License and notices
-
-This fork is distributed under the [GNU GPL v3.0 or later](LICENSE). Original upstream portions remain under the [Apache License 2.0](LICENSES/Apache-2.0.txt), with their license and copyright notices unchanged. Third-party packages and fonts retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-Files modified from upstream carry a first-line `Modified by CyberNova for the CloudForge fork` notice. Exceptions that cannot carry that comment or are generated include `package.json`, `migrations/meta/_journal.json`, `worker/worker-configuration.d.ts`, and the images `public/logo.png`, `public/favicon.png`, and `public/apple-touch-icon.png`.
-
-CloudForge is not affiliated with or endorsed by GitHub. "GitHub" is a trademark of GitHub, Inc. Please replace the name and logo when distributing a derivative as a separate branded product, to avoid confusion.
-
-## Documentation site
-
-The [Chinese living guide](repo-docs/README.md) follows one real workflow and states what it leaves uncovered. Start from [one real run](repo-docs/walkthroughs/one-real-run.md), [code map](repo-docs/code-map.md), and [source evidence](repo-docs/references/source-evidence.md).
-
-The documentation site uses VitePress, with dependencies completely isolated from the application in `docs-site/package.json`. Markdown is authored once in `repo-docs/` and included by the site; repository source links are rendered as exact file paths without packaging private sources or local assets. Bundled with self-hosted offline fonts (IBM Plex Sans, JetBrains Mono), Primer-aligned dark/light toggle, and progressive motion with `prefers-reduced-motion` and no-JS fallback.
-
-```sh
-pnpm --dir docs-site install --frozen-lockfile
-pnpm --dir docs-site docs:dev --host 127.0.0.1
-pnpm --dir docs-site docs:build
-pnpm --dir docs-site docs:preview
+# Cloned repo: local full-stack development (Vite + workerd at http://localhost:8080)
+pnpm install --frozen-lockfile
+cp wrangler.jsonc.example wrangler.jsonc && cp .dev.vars.example .dev.vars
+pnpm db:migrate:local && pnpm dev
 ```
 
-Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated verification build. Docs builds verify documentation presentation only, not application health or deployment.
+Open your deployed URL to initialize the first site admin at `/setup`. Additional modes and recovery tools:
 
-Administrators can preview and require MFA for human members. See the [authentication policy](docs/authentication.md#管理员认证策略) for restricted sessions, OAuth revocation and offline recovery boundaries.
+| Workflow / Mode                | Command or Guide                                                  | Notes                                                                                                             |
+| ------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Clone-based install or upgrade | `pnpm cloudforge install` / `upgrade` / `status`                  | See [Deployment Guide](https://cloudforge.cbnv.me/en/docs/deployment) and [docs/updating.md](docs/updating.md)    |
+| Adopt an existing deployment   | `pnpm dlx @cybernova2333/cloudforge adopt`                        | Bring a manually deployed Worker/D1 under CLI upgrades; see [docs/updating.md](docs/updating.md)                  |
+| Manual `wrangler.jsonc` deploy | `pnpm build && pnpm exec wrangler deploy`                         | See [Bindings & Vars Matrix](https://cloudforge.cbnv.me/en/docs/configuration) and [docs/setup.md](docs/setup.md) |
+| Seed local demo repositories   | `pnpm seed:demo`                                                  | Populates sample PR stacks, findings, and runs; see [docs/development.md](docs/development.md)                    |
+| Offline password or MFA reset  | `pnpm dlx @cybernova2333/cloudforge reset-password` / `reset-mfa` | Audited offline recovery without disabling instance MFA policy; see [FAQ](https://cloudforge.cbnv.me/en/docs/faq) |
+
+## Pre-Adoption FAQ
+
+- **Is Git over SSH supported?** No. Cloudflare Workers cannot listen on port 22; Git and LFS run strictly over HTTPS with Personal Access Tokens (PATs) or repo-scoped `cfd_` deploy tokens.
+- **Can CloudForge host public multi-tenant registrations?** No. Each deployment serves one instance/organization with public signup disabled by default and at most one shared team namespace.
+- **What are the Artifacts and D1 hard limits?** Newly created Artifacts repositories cap at 1 GB using Git protocol v1 (store large assets in R2 via Git LFS), and D1 SQLite enforces single-thread writes with max 100 bound parameters per query.
+- **What happens if `AGENT_REVIEWER` is unbound or AI review is undesired?** `engine: pi` gracefully falls back to single-pass when `AGENT_REVIEWER` is absent, and any repository can opt out of inviting reviewer agents.
+- **Are multi-team memberships and 5-tier repo roles live today?** No. Only internal Stage A mapping, read-only `access-preflight`, and the `access_runtime_state` protocol guard (`rolePublishingAllowed: false`) are active today.
+
+## Reading Paths
+
+| Goal                                         | Documentation Site (`docs-site/`)                                                                                                                                           | Engineering & Reference Docs                                                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deploy, configure bindings & troubleshoot    | [Overview & Setup](https://cloudforge.cbnv.me/en/docs/) · [Configuration](https://cloudforge.cbnv.me/en/docs/configuration) · [FAQ](https://cloudforge.cbnv.me/en/docs/faq) | [Setup Guide](docs/setup.md) · [Configuration Reference](docs/configuration.md)                                                             |
+| Permissions, REST/MCP, Webhooks & tokens     | [Security & Boundaries](https://cloudforge.cbnv.me/en/docs/contracts-and-boundaries) · [API & MCP](https://cloudforge.cbnv.me/en/docs/apis-and-mcp)                         | [Webhooks](docs/webhooks.md) · [Deploy Tokens](docs/deploy-tokens.md) · [OIDC](docs/oidc.md)                                                |
+| Author `AGENT.md`, CI relevance & UI i18n    | [Flows & Extensibility](https://cloudforge.cbnv.me/en/docs/interactions-and-extensibility)                                                                                  | [Auto-Merge](docs/auto-merge.md) · [CI Relevance](docs/ci-relevance.md) · [Issues](docs/issues.md) · [Notifications](docs/notifications.md) |
+| Understand storage, review & Actions code    | [Architecture](https://cloudforge.cbnv.me/en/docs/architecture) · [Walkthrough](https://cloudforge.cbnv.me/en/docs/walkthrough)                                             | [Chinese Living Guide](repo-docs/README.md) · [One Real Run](repo-docs/walkthroughs/one-real-run.md) · [Code Map](repo-docs/code-map.md)    |
+| Upgrade D1 schema, inspect ADRs & contribute | [Migrations & ADRs](https://cloudforge.cbnv.me/en/docs/changelog-and-migrations) · [Code Map](https://cloudforge.cbnv.me/en/docs/code-map)                                  | [Updating](docs/updating.md) · [Development](docs/development.md) · [Contributing](CONTRIBUTING.md)                                         |
+
+## License & Attribution
+
+Licensed under [AGPL-3.0-only](LICENSE), forked on 2026-10-22 from [choyiny/gitorange](https://github.com/choyiny/gitorange) (`b3d5b08`, originally [Apache-2.0](LICENSES/Apache-2.0.txt)). CloudForge is an independent project and is not affiliated with or endorsed by GitHub, Inc.

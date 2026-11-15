@@ -137,7 +137,7 @@ API docs are served at `/api/swagger-ui` while running, to signed-in members (be
 
 ## Documentation site
 
-The Chinese living guide in `repo-docs/` is rendered as an independent static site inside `docs-site/` using VitePress. Its dependencies (`vitepress`, `vue`) are completely decoupled in `docs-site/package.json` and do not touch the root lockfile or Worker runtime dependencies.
+The bilingual documentation site lives in `docs-site/` (VitePress) and publishes the four-stage operator/API/architecture/migration documentation alongside `repo-docs/` engineering guides. Its dependencies (`vitepress`, `vue`) are completely decoupled in `docs-site/package.json` and do not touch the root lockfile or Worker runtime dependencies.
 
 ```bash
 pnpm --dir docs-site install --frozen-lockfile
@@ -146,8 +146,8 @@ pnpm --dir docs-site docs:build
 pnpm --dir docs-site docs:preview
 ```
 
-- **Single source of truth**: Documentation content is authored exclusively in `repo-docs/`. Pages in `docs-site/` import Markdown directly via VitePress include syntax (such as `&lt;!--@include: ../repo-docs/README.md--&gt;`).
-- **Safe source path mapping**: `docs-site/.vitepress/guide-links.mts` rewrites links outside the documentation root into exact source paths, preventing local file leaks or broken links in production.
+- **Engineering guide reuse**: Architecture walkthroughs and module deep-dives live in `repo-docs/` and can be included directly by `docs-site/` pages via VitePress include syntax (such as `&lt;!--@include: ../../repo-docs/walkthroughs/one-real-run.md--&gt;`).
+- **Safe source path mapping**: `docs-site/.vitepress/guide-links.mts` rewrites links outside the documentation root into exact repository source references, preventing broken links in the built static site.
 - **Offline & self-hosted**: IBM Plex Sans and JetBrains Mono fonts are bundled in `docs-site/.vitepress/theme/fonts/` with zero third-party CDN or Google Fonts calls.
 - **Theme toggle & progressive motion**: Custom Shadow DOM element in `toggle.ts` matches Primer light/dark tokens; motion engine in `motion.ts` uses Anime.js and honors `prefers-reduced-motion` and no-JS fallback.
 - **Isolated build verification**: Append `-- --outDir <external-directory>` to build outside the repository to verify zero repository pollution. Builds verify documentation presentation only, not application health or deployment.

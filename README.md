@@ -1,189 +1,81 @@
 <!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
+# CloudForge
+
 **简体中文** | [English](README.en.md)
 
-<p align="center">
-  <img src="public/cloudforge-logo.svg" alt="CloudForge" width="360" />
-</p>
+[![CI](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml/badge.svg)](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-cloudforge.cbnv.me-0969da)](https://cloudforge.cbnv.me/docs/)
+[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/CyberNova2333/cloudforge/actions"><img alt="CI" src="https://img.shields.io/badge/CI-GitHub%20Actions-2563eb" /></a>
-  <a href="LICENSE"><img alt="许可证：AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" /></a>
-  <a href="https://workers.cloudflare.com/"><img alt="运行于 Cloudflare Workers" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white" /></a>
-</p>
+CloudForge 是一个**部署在你自己 Cloudflare 账户内的单租户自托管 Git 与 AI 代码审查平台**（基于 [choyiny/gitorange](https://github.com/choyiny/gitorange) 分叉演进），在一个 Worker 同源提供 React 网页、Git HTTPS/LFS、容器 Actions、PR 堆叠、AI 审查与 OAuth 2.1 MCP，面向中小团队及个人私有托管，不适用于多租户公开 SaaS。
 
-<h1 align="center">CloudForge</h1>
+## 核心能力与数据流
 
-CloudForge 是部署在自己 Cloudflare 账户中的代码托管平台，将 Git 仓库、合并请求（PR）、持续集成和 AI 审查放在同一个应用中。它面向人与编程代理共同开发的团队：代理提交代码、处理检查和审查意见，人通过审查收件箱决定需要人工判断的问题。
-
-> **分支声明**：本项目是 [choyiny/gitorange](https://github.com/choyiny/gitorange) 的独立分支，基于 2026-10-22 的 `b3d5b08`（见 [.fork-base](.fork-base)），与上游作者无隶属关系，也未获得其背书。
->
-> 原始部分 © 2026 GitOrange contributors，采用 [Apache-2.0](LICENSES/Apache-2.0.txt)；修改部分 © 2026 CyberNova，组合后的作品采用 [AGPL-3.0-only](LICENSE)。“GitOrange”及其标志属于上游项目，不作为本项目的产品标识。
-
-## 主要功能
-
-- **代码托管**：Git HTTPS、个人访问令牌、Git LFS、分支和标签、文件浏览、差异比较、PR 评论与版本发布。个人仓库支持私有、内部和公开可见性；团队仓库对实例成员可见，公开仓库允许匿名读取。
-- **AI 审查团队**：提供安全、数据、性能、功能、可靠性、隐私和发布等预设审查代理。每个代理在自己的仓库中维护 `AGENT.md` 和 `knowledge/`，按仓库邀请后参与审查。
-- **人工决策**：审查意见可以分派给有推送权限的成员。用户可按代理授权 AI 代为处理部分意见；安全、数据等受保护代理的人工确认项需要逐项填写理由，不允许 AI 代批。
-- **代理学习**：PR 关闭后，系统可将被驳回的修改要求和人工教学备注整理为学习任务，更新代理的审查说明与知识文件。
-- **PR 协调**：分析 PR 之间的依赖、冲突和相互影响，展示列表、看板与关系图；合并队列支持暂停，PR 状态说明下一步由代理处理、人工审查还是继续等待。
-- **CI 与运行记录**：CloudForge Actions 在 Cloudflare Containers 中执行受支持的 GitHub Actions 工作流，提供日志、缓存、构建产物、变量与加密密钥。AI 任务也有步骤、模型调用和用量记录。
-- **MCP 接入**：编程代理通过 OAuth 授权访问 `/mcp`，读取任务、创建 PR、查看检查和执行权限允许的操作。工具名为 `cloudforge_*`；早期的 `gitorange_*` 名称仍可调用（不在工具列表中显示），已有客户端无需修改。
-- **使用与管理**：中英文界面、主题切换、实时更新、全局搜索、仓库健康概览、审查收件箱、邀请注册、自愿启用的 TOTP 双因素认证与一次性恢复码（[认证说明](docs/authentication.md)）、密码找回（登录页邮件链接、管理员生成的重置链接、无人能登录时用安装器命令 `reset-password`）、审计日志及实例设置。
-
-## PR 如何流转
-
-1. 成员或编程代理推送分支，通过网页或 MCP 创建 PR。
-2. 匹配的 Actions 工作流运行检查；使用 `cloudforge/relevance@v1` 的工作流可按配置选择需要运行的测试模块。
-3. 系统根据配置和代理触发规则发起审查，并分析 PR 与其他变更的关系。审查模式支持单次模型调用或使用只读工具的 `engine: pi`。
-4. PR 页面展示失败检查、修改要求、需要人工确认的意见和等待原因。
-5. 满足检查、审查、依赖及暂停规则后，PR 可以合并。邀请了审查代理的仓库启用自动合并，也可针对单个 PR 关闭；未邀请代理时由人审查和合并。
-6. 合并采用变基后快进，并通过目标引用的比较并交换（CAS）检测并发变更。合并后是否删除分支由仓库设置决定，默认分支、受保护分支和仍被使用的分支会保留。
-
-变基会保留提交作者和提交说明，但通常会改变提交 SHA。服务端变基后，客户端需要先获取远端分支并同步本地历史，再继续推送。审查输入、文件数量、模型上下文和运行时间均有上限，不能据此保证任意规模 PR 都能得到完整的 AI 审查。后台任务通过持久化步骤、状态校验与恢复机制处理重试，外部操作仍应按可能重复执行来设计。
-
-详细规则见 [审查代理、PR 状态与自动合并](docs/auto-merge.md) 和 [架构说明](docs/architecture.md)。
-
-## 从源码开始
-
-源码运行需要 **Node.js 22.18 或更新版本**和 **pnpm**。部署还需要可用的 Cloudflare 账户、项目所用服务的权限，以及用于构建 Actions 运行器镜像的 Docker。安装器会检查所需服务和配置；发送邀请邮件需要配置 Email Sending，也可选择只使用邀请链接。
-
-```bash
-git clone https://github.com/CyberNova2333/cloudforge.git
-cd cloudforge
-pnpm install --frozen-lockfile
-pnpm exec wrangler login
-
-# 先查看安装计划；此命令不应用计划
-pnpm cloudforge install --plan
-
-# 确认计划后执行安装，会创建资源、迁移数据库并部署
-pnpm cloudforge install
-```
-
-安装结束后，使用安装器输出的一次性初始化码打开 `<BASE_URL>/setup` 并创建首位管理员。随后创建仓库、邀请成员；需要 AI 审查时，先创建审查代理，再在仓库设置中邀请它们。
-
-```bash
-# 查看安装状态
-pnpm cloudforge status
-
-# 继续中断的安装
-pnpm cloudforge install --resume
-```
-
-完整部署步骤见 [安装指南](docs/setup.md)；更新和接管已有安装见 [更新指南](docs/updating.md)。这两份文档也介绍发布包的安装方式。
-
-### 本地开发
-
-```bash
-cp wrangler.jsonc.example wrangler.jsonc
-cp .dev.vars.example .dev.vars
-# 按 docs/development.md 填写账户、开发环境和本地密钥
-pnpm db:migrate:local
-pnpm dev
-```
-
-默认地址为 `http://localhost:8080`，网页、API 与 Git 端点共用此地址。本地开发中的 D1 使用本地存储；Artifacts 访问真实 Cloudflare 服务。示例数据和 Git LFS 配置见 [本地开发指南](docs/development.md)。
-
-### 检查与测试
-
-```bash
-pnpm format:check
-pnpm typecheck
-pnpm test
-```
-
-`pnpm test` 先运行 Node.js 环境中的安装器测试，再运行 workerd 环境中的 Worker 和前端纯逻辑测试；后者使用真实本地 D1 与内存 Artifacts 测试实现。测试分组、用例名称和默认结果摘要使用中文，原始断言、第三方诊断与堆栈保留原文。
-
-持续集成使用 [.github/workflows/](.github/workflows/) 中的配置，依次执行依赖安装、验证配置准备、格式检查、类型检查、构建和全部测试。
-
-## Actions 兼容范围
-
-CloudForge 读取 `.github/workflows/`，实现其中一部分 GitHub Actions 语法；迁移工作流时应核对实际使用的功能。当前实现包括：
-
-- `push` 和 `pull_request` 事件，以及分支、标签、路径筛选。
-- Linux 容器中的 `run` 步骤，`bash`、`sh`、`python`、`node` 脚本及工作目录设置。
-- `actions/checkout`、`actions/setup-node`、`actions/cache`、产物上传与下载；来自 GitHub 或仓库本地的 JavaScript 与组合动作。
-- `needs`、条件表达式、矩阵展开、环境变量、步骤与任务输出，以及 `GITHUB_ENV`、`GITHUB_OUTPUT` 和 `GITHUB_PATH`。
-- 仓库级与实例级变量和加密密钥、日志脱敏、任务并发限制与排队。
-
-`ubuntu-latest` 映射到 CloudForge 的 Linux 容器规格，不代表 GitHub 托管运行器的完整镜像；`setup-node` 使用运行器镜像中的 Node.js。Windows、macOS 运行器及 GitHub 平台专有能力不能直接按 GitHub 的行为假定。相关性检查的配置见 [跳过无关测试](docs/ci-relevance.md)。
-
-## 架构与费用
+- **边缘 Git 与 R2 LFS**：仓库对象与引用托管在 Cloudflare Artifacts，大二进制经 15 分钟预签名 R2 URL 直传；Worker 统一守卫令牌、分支保护与 `push_events` 断点恢复。
+- **AI 审查、PR 堆叠与自动落地**：邀请自带 `AGENT.md` 的审查 Agent（支持单轮 Pass 与隔离 `AgentReviewer` 深度工具审查 `engine: pi`），自动计算 `MERGE_RESOLUTION` 无重推 PR 堆叠，并经唯一 `reviewVerdict` 门禁变基快进合并。
+- **容器 Actions 与外部状态门禁**：在 Cloudflare Containers（`standard-1`–`standard-4`）按实例/仓库并发限额运行 GitHub 兼容工作流（含 `cloudforge/relevance@v1` 相关性跳测），与外部 CI 上报的提交状态共同决定能否合并。
+- **日常协作与出站集成**：内置与 PR 共用编号的议题（支持 `Fixes #N` 落地自动关闭）、站内与邮件通知、AES-GCM 密封密钥与退避重试的 Webhooks、以及限定单仓库的 `cfd_` HTTPS 部署令牌。
+- **OAuth 2.1 `/mcp` 与强制 MFA 治理**：面向编码代理的无状态 Streamable HTTP `/mcp`（31 个标准工具 + 需显式授权的 3 个 moderator 审批工具），并支持管理员强制 MFA、OIDC 单点绑定与完整审计日志。
 
 ```mermaid
 flowchart LR
-  browser["浏览器<br/>网页界面"]
-  gitc["git 客户端<br/>clone · push"]
-  agent["编程代理<br/>MCP 客户端"]
+  Clients["Browser SPA / Git CLI / OAuth MCP"]
+  Worker["Cloudflare Worker<br/>(Hono API + Git/LFS + Auth)"]
+  D1["D1 SQLite<br/>(State, ACL, Outbox)"]
+  Storage["Artifacts & R2<br/>(Git Packs, LFS, Logs)"]
+  Orchestration["Workflows & Containers<br/>(ActionsRun, MergeResolution)"]
+  AI["Workers AI / Gateway<br/>(Summary, Pass/Pi, Resolver)"]
 
-  subgraph cf["你的 Cloudflare 账户"]
-    worker["CloudForge Worker<br/>网页 · API · Git · MCP"]
-    d1[("D1<br/>用户 · 令牌 · PR · 审查")]
-    artifacts[("Artifacts<br/>每个仓库一个 Git 仓库")]
-    r2[("R2<br/>LFS · 日志 · 缓存 · 产物")]
-    email["Email Sending<br/>邀请与验证邮件"]
-    workflows["Workflows<br/>Actions · 审查 · 变基 · 堆叠"]
-    dos["Durable Objects<br/>作业队列 · 实时推送"]
-    containers["Containers<br/>每个作业一个 Linux 容器"]
-    ai["Workers AI<br/>审查与冲突解决"]
-  end
-
-  browser -- 网页 · API --> worker
-  agent -- MCP · OAuth --> worker
-  gitc -- Git · 令牌 --> worker
-  gitc -. LFS 预签名 URL .-> r2
-  worker -- SQL --> d1
-  worker -- 读取 · 推送 --> artifacts
-  worker -- 签名 · 校验 --> r2
-  worker -- 发送 --> email
-  worker -- 启动运行 --> workflows
-  worker -- 实时推送 --> dos
-  workflows -- 调用模型 --> ai
-  workflows -- 排队 · 运行作业 --> dos
-  dos -- 启动 --> containers
-  containers -- 步骤日志 --> r2
+  Clients --> Worker
+  Worker --> D1
+  Worker --> Storage
+  Worker --> Orchestration
+  Orchestration --> AI
 ```
 
-| 组件                                         | 用途                                                 |
-| -------------------------------------------- | ---------------------------------------------------- |
-| Cloudflare Workers                           | 同源网页、API、Git HTTPS 和 MCP 服务                 |
-| Artifacts                                    | Git 对象与引用，每个 CloudForge 仓库对应一个存储仓库 |
-| D1                                           | 用户、仓库元数据、PR、审查、设置与审计事件           |
-| R2                                           | Git LFS、Actions 日志、缓存和构建产物                |
-| Workflows、Durable Objects、Containers       | 持久化任务编排、实时连接、AI 任务与 CI 执行          |
-| Workers AI、AI Gateway、Agents SDK、Computer | 模型调用、用量记录及代理沙箱；模型可在实例设置中调整 |
-| Email Sending、Cron、Analytics API           | 邮件、定期清理与恢复、用量统计                       |
+## 快速开始
 
-费用取决于启用的服务、套餐和实际用量，不是固定月费。请按部署时的官方价格核算：[Workers](https://developers.cloudflare.com/workers/platform/pricing/)、[Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/)、[Containers](https://developers.cloudflare.com/containers/pricing/)、[Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/) 和 [R2](https://developers.cloudflare.com/r2/pricing/)。应用中的用量和费用页面提供估算，实际账单以 Cloudflare 为准。
+使用零克隆官方安装 CLI 将 CloudForge 部署到你自己的 Cloudflare 账户（需 Node.js `>=22.18`、pnpm `12.6.0` 及具备对应资源权限的 Cloudflare API Token 或 `wrangler login`）：
 
-## 文档与贡献
+```bash
+# 全新安装：自动检核权限、创建 D1 / R2 / Artifacts、执行 67 份迁移并部署 Worker
+pnpm dlx @cybernova2333/cloudforge install
 
-[安装](docs/setup.md) · [更新](docs/updating.md) · [配置](docs/configuration.md) · [架构](docs/architecture.md) · [本地开发](docs/development.md) · [审查与自动合并](docs/auto-merge.md) · [CI 相关性检查](docs/ci-relevance.md)
-
-贡献说明见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全问题报告方式见 [SECURITY.md](SECURITY.md)。仓库包含 [CLAUDE.md](CLAUDE.md) 及 `.claude/` 中的辅助技能和钩子，供相应开发工具使用。
-
-## 许可证与声明
-
-本分支采用 [GNU GPL v3.0 或更新版本](LICENSE) 发布。上游原始部分继续适用 [Apache License 2.0](LICENSES/Apache-2.0.txt)，其许可证和版权声明保持不变；第三方包和字体适用各自许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-相对上游修改的文件保留首行 `Modified by CyberNova for the CloudForge fork` 声明。不能承载此注释或由工具生成的例外包括 `package.json`、`migrations/meta/_journal.json`、`worker/worker-configuration.d.ts`，以及 `public/logo.png`、`public/favicon.png` 和 `public/apple-touch-icon.png`。
-
-CloudForge 与 GitHub 无隶属关系，也未获得其背书；“GitHub”是 GitHub, Inc. 的商标。以独立品牌发布衍生产品时，请更换名称和标志，避免混淆。
-
-## 源码阅读与文档站
-
-从[中文阅读路径](repo-docs/README.md)进入[一次真实主流程](repo-docs/walkthroughs/one-real-run.md)，再查[代码地图](repo-docs/code-map.md)与[源码证据](repo-docs/references/source-evidence.md)。指南明确限定覆盖范围，不把未运行的测试写成通过。
-
-独立文档站基于 VitePress，其依赖与业务项目完全分离（`docs-site/package.json`）。正文单一维护于 `repo-docs/` 并由站点直接 include 引入；网页中的源码链接显示为安全精确路径，源码与本机私有资产不打包进静态产物。内置全离线自托管字体（IBM Plex Sans、JetBrains Mono）、Primer 功能色昼夜切换与渐进式动效降级支持。
-
-```sh
-pnpm --dir docs-site install --frozen-lockfile
-pnpm --dir docs-site docs:dev --host 127.0.0.1
-pnpm --dir docs-site docs:build
-pnpm --dir docs-site docs:preview
+# 克隆源码场景：本地全栈开发（Vite + workerd，默认 http://localhost:8080）
+pnpm install --frozen-lockfile
+cp wrangler.jsonc.example wrangler.jsonc && cp .dev.vars.example .dev.vars
+pnpm db:migrate:local && pnpm dev
 ```
 
-默认输出至 `docs-site/.vitepress/dist/`；独立验证可追加 `-- --outDir <仓库外绝对目录>`。文档构建只验证技术说明页面呈现，不代表业务可用或已部署。
+部署完成后访问实例首页即自动进入 `/setup` 创建首个站点管理员；其他运行、升级与接管方式见下表：
 
-管理员可预览并启用全员 MFA，受限会话、OAuth 撤销与离线恢复边界见 [认证说明](docs/authentication.md#管理员认证策略)。
+| 使用场景                   | 入口命令或文档                                                    | 说明                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 从克隆仓库安装或升级       | `pnpm cloudforge install` / `upgrade` / `status`                  | 详见 [部署与运维指南](https://cloudforge.cbnv.me/docs/deployment) 与 [docs/updating.md](docs/updating.md) |
+| 接管已有手工实例           | `pnpm dlx @cybernova2333/cloudforge adopt`                        | 把已有 Worker/D1 纳入安装器升级管理，见 [docs/updating.md](docs/updating.md)                              |
+| 手工 `wrangler.jsonc` 部署 | `pnpm build && pnpm exec wrangler deploy`                         | 绑定、Secrets、Cron 与 API Token 权限见 [配置矩阵](https://cloudforge.cbnv.me/docs/configuration)         |
+| 灌入本地演示仓库数据       | `pnpm seed:demo`                                                  | 向本地开发实例写入示例团队、PR 堆叠与审查状态，见 [docs/development.md](docs/development.md)              |
+| 离线账户或 MFA 恢复        | `pnpm dlx @cybernova2333/cloudforge reset-password` / `reset-mfa` | 不削弱实例策略的带审计离线恢复，详见 [排错与恢复 FAQ](https://cloudforge.cbnv.me/docs/faq)                |
+
+## 选型前常见问题
+
+- **支持 SSH 拉取或推送吗？** 不支持。Cloudflare Workers 无法监听 22 端口，所有 Git 与 LFS 操作均通过 HTTPS 配合个人访问令牌（PAT）或单仓库 `cfd_` 部署令牌完成。
+- **能否把它当成多租户公开代码托管平台？** 不能。CloudForge 为“一实例一组织”单租户设计，所有实例成员共用站点与至多一个全局共享团队命名空间，公共自助注册默认关闭。
+- **Artifacts 与 D1 有哪些硬边界？** 新建 Artifacts 仓库上限 1 GB 且推送仅支持 Git 协议 v1（大文件需走内置 Git LFS 直传 R2）；D1 为单线程 SQLite 且每条 SQL 最多 100 个绑定参数。
+- **如果没有配置 `AGENT_REVIEWER` 或不想让 AI 代审会怎样？** 缺少 `AGENT_REVIEWER` 时 `engine: pi` 自动优雅退回单轮 Pass；任何仓库也可完全不邀请审查 Agent，或保持 `review.allow_self_approval` 与 `Let Claude decide` 关闭。
+- **未来多团队与五级角色模型现在能直接开启吗？** 不能。目前仅落地阶段 A 兼容映射、只读预检 `access-preflight` 与协议守卫 `access_runtime_state`（`rolePublishingAllowed: false`），完整多团队授予仍待后续版本开放。
+
+## 文档导览
+
+| 阅读目标                            | 官方文档站（`docs-site/`）                                                                                                                              | 仓库源码指南与底层规范                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 初次评估、上线部署与排错            | [起步与部署](https://cloudforge.cbnv.me/docs/) · [配置矩阵](https://cloudforge.cbnv.me/docs/configuration) · [FAQ](https://cloudforge.cbnv.me/docs/faq) | [安装向导说明](docs/setup.md) · [配置与环境变量参考](docs/configuration.md)                                                          |
+| 访问权限、API、MCP 与出站集成       | [权限与安全边界](https://cloudforge.cbnv.me/docs/contracts-and-boundaries) · [API 与 MCP](https://cloudforge.cbnv.me/docs/apis-and-mcp)                 | [Webhook 规范](docs/webhooks.md) · [部署令牌](docs/deploy-tokens.md) · [OIDC](docs/oidc.md)                                          |
+| 定制审查 Agent、`relevance` 与 i18n | [跨模块协同与扩展](https://cloudforge.cbnv.me/docs/interactions-and-extensibility)                                                                      | [自动合并与堆叠](docs/auto-merge.md) · [相关性筛选](docs/ci-relevance.md) · [议题](docs/issues.md) · [通知](docs/notifications.md)   |
+| 深入存储、审查、Actions 与认证源码  | [系统架构与拓扑](https://cloudforge.cbnv.me/docs/architecture) · [主流程拆解](https://cloudforge.cbnv.me/docs/walkthrough)                              | [工程指南总入口](repo-docs/README.md) · [一次真实主流程](repo-docs/walkthroughs/one-real-run.md) · [代码地图](repo-docs/code-map.md) |
+| 版本升级、D1 迁移、ADR 与贡献测试   | [迁移历史与 ADR](https://cloudforge.cbnv.me/docs/changelog-and-migrations) · [源码地图](https://cloudforge.cbnv.me/docs/code-map)                       | [升级边界](docs/updating.md) · [开发与测试](docs/development.md) · [贡献指南](CONTRIBUTING.md)                                       |
+
+## 许可证与致谢
+
+本项目整体以 [AGPL-3.0-only](LICENSE) 发布，衍生自 [choyiny/gitorange](https://github.com/choyiny/gitorange)（2026-10-22 分叉于提交 `b3d5b08`，原项目采用 [Apache-2.0](LICENSES/Apache-2.0.txt) 许可）。CloudForge 与 GitHub, Inc. 无任何关联、赞助或官方背书关系。

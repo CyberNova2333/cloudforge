@@ -1,23 +1,44 @@
-// VitePress 官方文档配置 (Coolify 架构风格 + 中英双语支持)
 import { defineConfig } from 'vitepress';
+import { guideLinks } from './guide-links.mts';
+
+const guidePageRoutes: Record<string, string> = {
+  'README.md': 'docs/walkthrough',
+  'walkthroughs/one-real-run.md': 'docs/walkthrough',
+  'code-map.md': 'docs/code-map',
+  'glossary.md': 'docs/glossary',
+  'modules/git-and-storage.md': 'docs/modules/git-and-storage',
+  'modules/reviews-stacking-and-merge.md':
+    'docs/modules/reviews-stacking-and-merge',
+  'modules/actions-containers-and-webhooks.md':
+    'docs/modules/actions-containers-and-webhooks',
+  'modules/auth-oidc-and-access.md': 'docs/modules/auth-oidc-and-access',
+  'references/source-evidence.md': 'docs/code-map#源码证据与验证入口',
+  'references/quality-review.md': 'docs/code-map#源码证据与验证入口',
+  'change-log.md': 'docs/changelog-and-migrations',
+};
 
 export default defineConfig({
   cleanUrls: true,
+  markdown: {
+    config(md) {
+      md.use(guideLinks(guidePageRoutes));
+    },
+  },
   locales: {
     root: {
       label: '简体中文',
       lang: 'zh-CN',
-      title: 'Cloudforge 官方文档',
+      title: 'CloudForge 官方文档',
       description:
-        'Cloudforge 是专为多边缘 Serverless 计算环境打造的轻量级函数工作流编排与 D1 分布式状态协同引擎。',
+        '自托管在 Cloudflare Workers、D1、Artifacts、R2 与 Containers 上的单租户 Git 协作与 AI 代码审查平台。',
       themeConfig: {
-        siteTitle: 'Cloudforge 云函数编排',
+        siteTitle: 'CloudForge',
         nav: [
-          { text: '官网首页', link: '/' },
-          { text: '快速入门', link: '/docs/' },
-          { text: '系统架构', link: '/docs/architecture' },
-          { text: '配置指南', link: '/docs/configuration' },
-          { text: '常见问题', link: '/docs/faq' },
+          { text: '首页', link: '/' },
+          { text: '起步与部署', link: '/docs/' },
+          { text: '契约与扩展', link: '/docs/contracts-and-boundaries' },
+          { text: '架构与内核', link: '/docs/architecture' },
+          { text: '变更与迁移', link: '/docs/changelog-and-migrations' },
           {
             text: 'GitHub',
             link: 'https://github.com/CyberNova2333/cloudforge',
@@ -25,20 +46,64 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: '快速入门',
-            items: [{ text: '项目概览与上手', link: '/docs/' }],
+            text: '1. 起步与部署',
+            items: [
+              { text: '项目概览与边界', link: '/docs/' },
+              { text: '多模式部署与运维', link: '/docs/deployment' },
+              { text: '绑定、变量与实例设置', link: '/docs/configuration' },
+              { text: '部署与运行排错 FAQ', link: '/docs/faq' },
+            ],
           },
           {
-            text: '系统架构',
-            items: [{ text: '架构设计与全景图', link: '/docs/architecture' }],
+            text: '2. 契约与扩展',
+            items: [
+              {
+                text: '权限模型与安全边界',
+                link: '/docs/contracts-and-boundaries',
+              },
+              {
+                text: 'API、MCP、Webhooks 与 Actions',
+                link: '/docs/apis-and-mcp',
+              },
+              {
+                text: '跨模块协同、Agent 编写与国际化',
+                link: '/docs/interactions-and-extensibility',
+              },
+            ],
           },
           {
-            text: '配置与实践',
-            items: [{ text: '配置与使用指南', link: '/docs/configuration' }],
+            text: '3. 架构与内核原理',
+            items: [
+              { text: '系统架构与交互拓扑', link: '/docs/architecture' },
+              { text: '一次真实推送主流程', link: '/docs/walkthrough' },
+              {
+                text: 'Git、Artifacts 与 LFS 存储',
+                link: '/docs/modules/git-and-storage',
+              },
+              {
+                text: 'AI 审查、堆叠与自动落地',
+                link: '/docs/modules/reviews-stacking-and-merge',
+              },
+              {
+                text: 'Actions 容器、状态与 Webhooks',
+                link: '/docs/modules/actions-containers-and-webhooks',
+              },
+              {
+                text: '认证、OIDC 与访问兼容内核',
+                link: '/docs/modules/auth-oidc-and-access',
+              },
+              { text: '源码地图与贡献流程', link: '/docs/code-map' },
+              { text: '术语表', link: '/docs/glossary' },
+            ],
           },
           {
-            text: '运维与支持',
-            items: [{ text: '常见问题与排错', link: '/docs/faq' }],
+            text: '4. 版本变更与迁移',
+            items: [
+              {
+                text: '数据库迁移、升级门禁与 ADR',
+                link: '/docs/changelog-and-migrations',
+              },
+            ],
           },
         ],
         outline: { level: [2, 3], label: '本页目录' },
@@ -49,17 +114,17 @@ export default defineConfig({
       label: 'English',
       lang: 'en-US',
       link: '/en/',
-      title: 'Cloudforge Documentation',
+      title: 'CloudForge Documentation',
       description:
-        'Cloudforge is a lightweight workflow orchestration and D1 distributed state coordination engine designed for multi-edge Serverless environments.',
+        'Single-tenant Git hosting, container CI, stacked PRs, and AI code review running on your own Cloudflare account.',
       themeConfig: {
-        siteTitle: 'Cloudforge Orchestration',
+        siteTitle: 'CloudForge',
         nav: [
           { text: 'Home', link: '/en/' },
-          { text: 'Quick Start', link: '/en/docs/' },
+          { text: 'Deploy', link: '/en/docs/' },
+          { text: 'Contracts', link: '/en/docs/contracts-and-boundaries' },
           { text: 'Architecture', link: '/en/docs/architecture' },
-          { text: 'Configuration', link: '/en/docs/configuration' },
-          { text: 'FAQ', link: '/en/docs/faq' },
+          { text: 'Migrations', link: '/en/docs/changelog-and-migrations' },
           {
             text: 'GitHub',
             link: 'https://github.com/CyberNova2333/cloudforge',
@@ -67,28 +132,77 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: 'Quick Start',
-            items: [{ text: 'Overview & Getting Started', link: '/en/docs/' }],
-          },
-          {
-            text: 'Architecture',
+            text: '1. Getting Started & Deployment',
             items: [
-              { text: 'Architecture Design', link: '/en/docs/architecture' },
+              { text: 'Overview & Scope Boundaries', link: '/en/docs/' },
+              {
+                text: 'Deployment Modes & Operations',
+                link: '/en/docs/deployment',
+              },
+              {
+                text: 'Bindings, Vars & Instance Settings',
+                link: '/en/docs/configuration',
+              },
+              { text: 'Troubleshooting FAQ', link: '/en/docs/faq' },
             ],
           },
           {
-            text: 'Configuration & Practice',
+            text: '2. Contracts & Extensibility',
             items: [
-              { text: 'Configuration Guide', link: '/en/docs/configuration' },
+              {
+                text: 'Access Model & Security Boundaries',
+                link: '/en/docs/contracts-and-boundaries',
+              },
+              {
+                text: 'REST, MCP, Webhooks & Actions',
+                link: '/en/docs/apis-and-mcp',
+              },
+              {
+                text: 'Flows, AGENT.md & UI i18n',
+                link: '/en/docs/interactions-and-extensibility',
+              },
             ],
           },
           {
-            text: 'Operations & Support',
-            items: [{ text: 'FAQ & Diagnostics', link: '/en/docs/faq' }],
+            text: '3. Architecture & Internals',
+            items: [
+              {
+                text: 'System Architecture & Diagram',
+                link: '/en/docs/architecture',
+              },
+              { text: 'End-to-End Walkthrough', link: '/en/docs/walkthrough' },
+              {
+                text: 'Git, Artifacts & R2 LFS',
+                link: '/en/docs/modules/git-and-storage',
+              },
+              {
+                text: 'Reviews, Stacking & Auto-Merge',
+                link: '/en/docs/modules/reviews-stacking-and-merge',
+              },
+              {
+                text: 'Actions Containers & Webhooks',
+                link: '/en/docs/modules/actions-containers-and-webhooks',
+              },
+              {
+                text: 'Auth, OIDC & Access Runtime',
+                link: '/en/docs/modules/auth-oidc-and-access',
+              },
+              { text: 'Code Map & Contributing', link: '/en/docs/code-map' },
+              { text: 'Glossary', link: '/en/docs/glossary' },
+            ],
+          },
+          {
+            text: '4. Releases & Migrations',
+            items: [
+              {
+                text: 'Migrations, Upgrade Gates & ADRs',
+                link: '/en/docs/changelog-and-migrations',
+              },
+            ],
           },
         ],
         outline: { level: [2, 3], label: 'On this page' },
-        docFooter: { prev: 'Previous page', next: 'Next page' },
+        docFooter: { prev: 'Previous', next: 'Next' },
       },
     },
   },
