@@ -56,7 +56,7 @@
     "@primer/primitives": "^10",
     "@tanstack/react-query": "^5",
     "agent-robot-avatar": "0.5.2",
-    "agents": "0.26.0",
+    "agents": "0.28.1",
     "animejs": "4.5.0",
     "aws4fetch": "^1.0.20",
     "better-auth": "^1.6",
