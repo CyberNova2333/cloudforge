@@ -37,10 +37,12 @@ export default defineConfig({
           { text: '首页', link: '/' },
           { text: '起步与部署', link: '/docs/' },
           { text: '契约与扩展', link: '/docs/contracts-and-boundaries' },
-          { text: '架构与内核', link: '/docs/architecture' },
-          { text: '变更与迁移', link: '/docs/changelog-and-migrations' },
+          { text: 'API 与组件', link: '/api-reference/' },
+          { text: '架构与变更', link: '/docs/architecture' },
+        ],
+        socialLinks: [
           {
-            text: 'GitHub',
+            icon: 'github',
             link: 'https://github.com/CyberNova2333/cloudforge',
           },
         ],
@@ -64,6 +66,10 @@ export default defineConfig({
               {
                 text: 'API、MCP、Webhooks 与 Actions',
                 link: '/docs/apis-and-mcp',
+              },
+              {
+                text: 'API 与组件参考',
+                link: '/api-reference/',
               },
               {
                 text: '跨模块协同、Agent 编写与国际化',
@@ -123,10 +129,12 @@ export default defineConfig({
           { text: 'Home', link: '/en/' },
           { text: 'Deploy', link: '/en/docs/' },
           { text: 'Contracts', link: '/en/docs/contracts-and-boundaries' },
+          { text: 'API & MCP', link: '/en/api-reference/' },
           { text: 'Architecture', link: '/en/docs/architecture' },
-          { text: 'Migrations', link: '/en/docs/changelog-and-migrations' },
+        ],
+        socialLinks: [
           {
-            text: 'GitHub',
+            icon: 'github',
             link: 'https://github.com/CyberNova2333/cloudforge',
           },
         ],
@@ -156,6 +164,10 @@ export default defineConfig({
               {
                 text: 'REST, MCP, Webhooks & Actions',
                 link: '/en/docs/apis-and-mcp',
+              },
+              {
+                text: 'API & Component Reference',
+                link: '/en/api-reference/',
               },
               {
                 text: 'Flows, AGENT.md & UI i18n',

@@ -19,6 +19,8 @@ CloudForge 是一个**部署在你自己 Cloudflare 账户内的单租户自托�
 | **D1 并发与参数**  | SQLite 单线程写入，单条 SQL 绑定参数上限 **100 个**        | 批量通知、标签、清理与恢复任务均按分片批处理实现                                                                                                                      |
 | **功能非目标清单** | 当前版本明确不包含以下能力                                 | 议题里程碑/模板、跨仓库引用 `owner/repo#N`、Webhook 按分支过滤、多 OIDC 提供商并存、外部通行密钥（Passkey）、SSH 部署密钥、公开跨仓库 Fork/PR、仓库转移与一键导出备份 |
 
+> **交互式接口参考**：需逐项核对 OpenAPI `/api/*`、Git LFS Batch API、`31+3` 个 OAuth 2.1 MCP 工具与 `@cybernova2333/cloudforge` 安装器 CLI？可直接使用交互式 [API 与组件参考](/api-reference/)。
+
 ::: tip 下一步去哪里
 准备向 Cloudflare 部署实例？继续阅读 [多模式部署与运维](/docs/deployment) 与 [绑定、变量与实例设置](/docs/configuration)。
 :::
