@@ -1,4 +1,4 @@
-# Stage 3: System Architecture & Interactive Topology
+# System Architecture & Interactive Topology
 
 CloudForge separates edge request routing, SQL state, Git pack storage, and container execution across six complementary Cloudflare planes without running persistent VMs.
 

@@ -1,4 +1,4 @@
-# Stage 4: D1 Migrations, Upgrade Gates & Key ADRs
+# D1 Migrations, Upgrade Gates & Key ADRs
 
 ## 1. D1 Migration Progression (`migrations/0000`–`0066`)
 

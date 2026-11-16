@@ -1,4 +1,4 @@
-# Stage 1: Overview & Scope Boundaries
+# Overview & Scope Boundaries
 
 CloudForge is a **single-tenant, self-hosted Git and code review platform deployed inside your own Cloudflare account**, forked from [choyiny/gitorange](https://github.com/choyiny/gitorange) (forked 2026-10-22; upstream Apache-2.0, derivative licensed under AGPL-3.0-only).
 
