@@ -10,11 +10,11 @@ hero:
       text: 起步与部署
       link: /docs/
     - theme: alt
+      text: API 与组件参考
+      link: /api-reference/
+    - theme: alt
       text: 交互式架构全景
       link: /docs/architecture
-    - theme: alt
-      text: GitHub 仓库
-      link: https://github.com/CyberNova2333/cloudforge
 
 features:
   - title: Edge Git 与 R2 LFS 存储分离
@@ -24,6 +24,22 @@ features:
   - title: 容器 Actions 与 OAuth 2.1 MCP
     details: 在 Cloudflare Containers 上按需运行 GitHub 兼容工作流，同时向外部编码代理暴露带权限隔离与 moderator 审计的 /mcp 接口。
 ---
+
+## 能力定位与明确边界
+
+::: info 能做到什么程度（已实现能力）
+
+- **单 Worker 同源托管 + R2 LFS + 容器 CI**：React 18 SPA、OpenAPI `/api/*`、Git Smart HTTP（Artifacts 托管对象）、15 分钟预签名 R2 LFS、Containers 工作流（含 `cloudforge/relevance@v1`）与 20 条/仓 AES-GCM Webhooks 全部部署在你自己的 Cloudflare 账户内。
+- **AI 审查、无破坏堆叠与 OAuth 2.1 MCP**：支持单轮 Pass 与沙箱 `AgentReviewer`（`engine: pi`）、`MERGE_RESOLUTION` 依赖图堆叠和 CAS 变基快进；`POST /mcp` 暴露 `31` 个标准工具及需显式解锁的 `3` 个 Moderator 工具。
+- **安全与运维 CLI**：私有仓库全入口 `404` 掩码、高风险更改强制本地 MFA + SQL 代次 CAS；支持零克隆 `pnpm dlx @cybernova2333/cloudforge install/adopt/reset-mfa`。
+  :::
+
+::: warning 明确不能做什么（非目标与硬限制）
+
+- **单租户定位、不支持 SSH 与 LFS Locking**：默认关闭公开注册且最多一个共享团队空间，多团队与五级角色当前冻结（`rolePublishingAllowed: false`）；Workers 不监听 `22` 端口（无 Git SSH），LFS 锁定接口返回空/`501`。
+- **Artifacts 与 D1 平台硬预算**：新建 Artifacts 仓库上限 `1 GB` 且仅支持 Git v1；D1 每条 SQL 至多 `100` 绑定参数，`/api/*` 与 `/mcp` 请求体上限 `1 MB`。
+- **明确不实现的清单**：不支持 Issue 里程碑/模板、跨仓引用 `owner/repo#N`、Webhook 按分支过滤、多 OIDC 提供商并存、外部 Passkey、SSH 部署密钥、公开跨仓 Fork 与一键导出实例包。
+  :::
 
 ## 架构全景图
 

@@ -18,6 +18,14 @@ CloudForge 是一个**部署在你自己 Cloudflare 账户内的单租户自托�
 - **日常协作与出站集成**：内置与 PR 共用编号的议题（支持 `Fixes #N` 落地自动关闭）、站内与邮件通知、AES-GCM 密封密钥与退避重试的 Webhooks、以及限定单仓库的 `cfd_` HTTPS 部署令牌。
 - **OAuth 2.1 `/mcp` 与强制 MFA 治理**：面向编码代理的无状态 Streamable HTTP `/mcp`（31 个标准工具 + 需显式授权的 3 个 moderator 审批工具），并支持管理员强制 MFA、OIDC 单点绑定与完整审计日志。
 
+## 能做到什么程度与明确不能做什么
+
+| 维度            | 能做到什么程度（已实现能力）                                                                                     | 明确不能做什么（非目标与硬限制）                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 仓库与传输      | Artifacts 托管 Git Smart HTTP（带分支保护与 `push_events` 恢复）；15 分钟 R2 预签名 Git LFS 直传                 | **不支持 SSH**（Workers 不能监听 `22` 端口）；LFS Locking 返回空/`501`；新建 Artifacts 仓限 `1 GB` 且仅 Git v1                       |
+| 审查、堆叠与 CI | 单轮 Pass + 沙箱 `AgentReviewer`（`engine: pi`）、无破坏 `MERGE_RESOLUTION` PR 堆叠、`Containers` Actions 工作流 | 多团队成员关系与五级角色保持关闭（`rolePublishingAllowed: false`）；不提供公开多租户 SaaS 自助注册                                   |
+| MCP 与扩展范围  | OAuth 2.1 JWT `POST /mcp` 暴露 `31+3` 工具，出站 AES-GCM Webhooks（≤20/仓）+ SSRF 内网封堵                       | `/api/*` 与 `/mcp` 限 `1 MB`、D1 限 `100` 绑定参数；不含议题模板/里程碑、跨仓 `#N`、Passkey、分支 Webhook 过滤、公开 Fork 与一键导出 |
+
 ```mermaid
 flowchart LR
   Clients["Browser SPA / Git CLI / OAuth MCP"]
@@ -68,13 +76,13 @@ pnpm db:migrate:local && pnpm dev
 
 ## 文档导览
 
-| 阅读目标                            | 官方文档站（`docs-site/`）                                                                                                                              | 仓库源码指南与底层规范                                                                                                               |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| 初次评估、上线部署与排错            | [起步与部署](https://cloudforge.cbnv.me/docs/) · [配置矩阵](https://cloudforge.cbnv.me/docs/configuration) · [FAQ](https://cloudforge.cbnv.me/docs/faq) | [安装向导说明](docs/setup.md) · [配置与环境变量参考](docs/configuration.md)                                                          |
-| 访问权限、API、MCP 与出站集成       | [权限与安全边界](https://cloudforge.cbnv.me/docs/contracts-and-boundaries) · [API 与 MCP](https://cloudforge.cbnv.me/docs/apis-and-mcp)                 | [Webhook 规范](docs/webhooks.md) · [部署令牌](docs/deploy-tokens.md) · [OIDC](docs/oidc.md)                                          |
-| 定制审查 Agent、`relevance` 与 i18n | [跨模块协同与扩展](https://cloudforge.cbnv.me/docs/interactions-and-extensibility)                                                                      | [自动合并与堆叠](docs/auto-merge.md) · [相关性筛选](docs/ci-relevance.md) · [议题](docs/issues.md) · [通知](docs/notifications.md)   |
-| 深入存储、审查、Actions 与认证源码  | [系统架构与拓扑](https://cloudforge.cbnv.me/docs/architecture) · [主流程拆解](https://cloudforge.cbnv.me/docs/walkthrough)                              | [工程指南总入口](repo-docs/README.md) · [一次真实主流程](repo-docs/walkthroughs/one-real-run.md) · [代码地图](repo-docs/code-map.md) |
-| 版本升级、D1 迁移、ADR 与贡献测试   | [迁移历史与 ADR](https://cloudforge.cbnv.me/docs/changelog-and-migrations) · [源码地图](https://cloudforge.cbnv.me/docs/code-map)                       | [升级边界](docs/updating.md) · [开发与测试](docs/development.md) · [贡献指南](CONTRIBUTING.md)                                       |
+| 阅读目标                            | 官方文档站（`docs-site/`）                                                                                                                                                                   | 仓库源码指南与底层规范                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 初次评估、上线部署与排错            | [起步与部署](https://cloudforge.cbnv.me/docs/) · [配置矩阵](https://cloudforge.cbnv.me/docs/configuration) · [FAQ](https://cloudforge.cbnv.me/docs/faq)                                      | [安装向导说明](docs/setup.md) · [配置与环境变量参考](docs/configuration.md)                                                          |
+| 访问权限、API、MCP 与出站集成       | [权限与安全边界](https://cloudforge.cbnv.me/docs/contracts-and-boundaries) · [API 与 MCP](https://cloudforge.cbnv.me/docs/apis-and-mcp) · [API 与组件参考](docs-site/api-reference/index.md) | [Webhook 规范](docs/webhooks.md) · [部署令牌](docs/deploy-tokens.md) · [OIDC](docs/oidc.md)                                          |
+| 定制审查 Agent、`relevance` 与 i18n | [跨模块协同与扩展](https://cloudforge.cbnv.me/docs/interactions-and-extensibility)                                                                                                           | [自动合并与堆叠](docs/auto-merge.md) · [相关性筛选](docs/ci-relevance.md) · [议题](docs/issues.md) · [通知](docs/notifications.md)   |
+| 深入存储、审查、Actions 与认证源码  | [系统架构与拓扑](https://cloudforge.cbnv.me/docs/architecture) · [主流程拆解](https://cloudforge.cbnv.me/docs/walkthrough)                                                                   | [工程指南总入口](repo-docs/README.md) · [一次真实主流程](repo-docs/walkthroughs/one-real-run.md) · [代码地图](repo-docs/code-map.md) |
+| 版本升级、D1 迁移、ADR 与贡献测试   | [迁移历史与 ADR](https://cloudforge.cbnv.me/docs/changelog-and-migrations) · [源码地图](https://cloudforge.cbnv.me/docs/code-map)                                                            | [升级边界](docs/updating.md) · [开发与测试](docs/development.md) · [贡献指南](CONTRIBUTING.md)                                       |
 
 ## 许可证与致谢
 

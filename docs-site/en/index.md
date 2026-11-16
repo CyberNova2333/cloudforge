@@ -10,11 +10,11 @@ hero:
       text: Deploy & Configure
       link: /en/docs/
     - theme: alt
+      text: API & MCP
+      link: /en/api-reference/
+    - theme: alt
       text: Architecture Diagram
       link: /en/docs/architecture
-    - theme: alt
-      text: GitHub
-      link: https://github.com/CyberNova2333/cloudforge
 
 features:
   - title: Edge Git with Artifacts & R2 LFS
@@ -24,6 +24,22 @@ features:
   - title: Container Actions & OAuth 2.1 MCP
     details: GitHub-compatible YAML workflows run in Cloudflare Containers alongside a stateless Streamable HTTP /mcp server with explicit moderator approval controls.
 ---
+
+## Capabilities & Explicit Limits
+
+::: info What CloudForge Delivers
+
+- **Single-Account Self-Hosted Git & CI**: One Worker serves React 18 SPA, OpenAPI `/api/*`, Artifacts-backed Git Smart HTTP, 15-min presigned R2 LFS, Cloudflare Containers workflows (including `cloudforge/relevance@v1`), and AES-GCM signed Webhooks.
+- **AI Review, DAG Stacking & OAuth 2.1 `/mcp`**: Supports single-pass and sandboxed `AgentReviewer` (`engine: pi`), non-destructive PR stacking, CAS fast-forward merges, and `31` standard + `3` opt-in moderator MCP tools.
+- **Security & Zero-Clone CLI**: Consistent `404` private-repo masking, recent local MFA + generation CAS, plus `@cybernova2333/cloudforge` `install`/`adopt`/`reset-mfa` management CLI.
+  :::
+
+::: warning Explicit Non-Goals & Hard Boundaries
+
+- **Single-Tenant, No SSH, No LFS Locks**: Serves one organization (5-tier roles stay gated `rolePublishingAllowed: false`); Git runs strictly over HTTPS (no port 22 SSH), and LFS lock routes return `501`.
+- **Cloudflare Platform Ceilings**: New Artifacts repos cap at `1 GB` (Git v1 only); D1 queries cap at `100` bound params; `/api/*` and `/mcp` cap payloads at `1 MB`.
+- **Explicitly Out of Scope**: Excludes issue milestones/templates, cross-repo `owner/repo#N` refs, branch-filtered webhooks, multiple concurrent OIDC providers, Passkeys, SSH deploy keys, cross-repo public forks, and bundle export.
+  :::
 
 ## Architecture Overview
 

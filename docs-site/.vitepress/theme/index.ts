@@ -2,6 +2,7 @@
 import DefaultTheme from 'vitepress/theme';
 import type { Theme } from 'vitepress';
 import Layout from './Layout.vue';
+import ApiExplorer from './components/ApiExplorer.vue';
 import {
   checkAndApplyLanguageRedirect,
   setupLanguageSwitcherListener,
@@ -11,7 +12,8 @@ import './style.css';
 const theme: Theme = {
   extends: DefaultTheme,
   Layout,
-  enhanceApp({ router, siteData }) {
+  enhanceApp({ app, router, siteData }) {
+    app.component('ApiExplorer', ApiExplorer);
     if (typeof window === 'undefined') return;
     setupLanguageSwitcherListener();
     checkAndApplyLanguageRedirect(siteData.value?.base || '/');

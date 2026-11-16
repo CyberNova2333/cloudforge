@@ -19,6 +19,8 @@ Instead of running VMs or external database clusters, one Cloudflare Worker serv
 | **D1 Bounds**          | Single-threaded SQLite; max **100 bound parameters** per SQL statement | High-volume writes batch via `json_each` / chunking and background recovery                                                                                                                                |
 | **Explicit Non-Goals** | Out of scope in the current release                                    | Issue milestones/templates, cross-repo `owner/repo#N`, per-branch Webhook filters, multiple concurrent OIDC providers, Passkeys, SSH deploy keys, public cross-repo forks, and full instance bundle export |
 
+> **Interactive Reference**: Browse every OpenAPI route, Git LFS rule, `31+3` OAuth 2.1 MCP tools, and CLI subcommands in the [API & Component Reference](/en/api-reference/).
+
 ::: tip Next Steps
 Proceed to [Deployment Modes & Operations](/en/docs/deployment) and [Bindings, Vars & Instance Settings](/en/docs/configuration).
 :::
