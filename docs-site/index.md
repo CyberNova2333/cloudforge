@@ -25,16 +25,6 @@ features:
     details: 在 Cloudflare Containers 上按需运行 GitHub 兼容工作流，同时向外部编码代理暴露带权限隔离与 moderator 审计的 /mcp 接口。
 ---
 
-## 按身份 / 目标快速入口
-
-| 你的身份与目标                              | 推荐起点                                                                                                       | 获得什么                                                                          |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| 初次评估与云端自部署                        | [项目概览与边界](/docs/) · [多模式部署与运维](/docs/deployment)                                                | 明确单租户定位、平台上限，并通过 CLI 安装器或手工 `wrangler.jsonc` 完成部署       |
-| 运维配置、绑定与故障排查                    | [绑定、变量与实例设置](/docs/configuration) · [排错 FAQ](/docs/faq)                                            | 对照全部 Workers 绑定、Cron、密钥以及 `reset-mfa` / 503 排错路径                  |
-| 集成 MCP、Webhook、Actions 或编写审查 Agent | [API、MCP、Webhooks 与 Actions](/docs/apis-and-mcp) · [跨模块协同与扩展](/docs/interactions-and-extensibility) | 获取 `/mcp` 工具契约、签名校验、提交状态门禁与 `AGENT.md` 规范                    |
-| 深入源码实现与提 PR 贡献                    | [系统架构](/docs/architecture) · [一次真实主流程](/docs/walkthrough) · [源码地图](/docs/code-map)              | 按领域模块追踪 D1 Schema、Workflow/DO 调度与 `workerd` 测试方法                   |
-| 版本升级、D1 迁移与权限过渡观察             | [数据库迁移、升级门禁与 ADR](/docs/changelog-and-migrations)                                                   | 掌握 `0000`–`0066` 迁移序列、`access-preflight` 与 `access-drain-status` 检查规则 |
-
 ## 架构全景图
 
 <div class="archify-diagram-card" style="margin: 1.5rem 0; border: 1px solid var(--vp-c-border); border-radius: 12px; overflow: hidden; background: var(--vp-c-bg-soft); box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
@@ -58,3 +48,13 @@ pnpm dlx @cybernova2333/cloudforge install
 # 或克隆源码并在本地启动全栈开发服务（默认 http://localhost:8080）
 pnpm install --frozen-lockfile && pnpm dev
 ```
+
+## 文档分层导航
+
+::: tip 按照读者需求快速跳转
+
+- **初次评估与云端自部署**：阅读 [项目概览与边界](/docs/) 与 [多模式部署与运维](/docs/deployment)，明确单租户定位、平台上限，并通过 CLI 安装器或手工 `wrangler.jsonc` 完成部署；
+- **运维配置、绑定与故障排查**：查阅 [绑定、变量与实例设置](/docs/configuration) 与 [排错 FAQ](/docs/faq)，对照全部 Workers 绑定、Cron、密钥以及 `reset-mfa` / 503 排错路径；
+- **集成 MCP、Webhook、Actions 或编写审查 Agent**：查阅 [API、MCP、Webhooks 与 Actions](/docs/apis-and-mcp) 与 [跨模块协同与扩展](/docs/interactions-and-extensibility)，获取 `/mcp` 工具契约与 `AGENT.md` 规范；
+- **深入源码实现与版本迁移**：查阅 [系统架构](/docs/architecture)、[一次真实主流程](/docs/walkthrough)、[源码地图](/docs/code-map) 与 [数据库迁移、升级门禁与 ADR](/docs/changelog-and-migrations)。
+  :::

@@ -25,16 +25,6 @@ features:
     details: GitHub-compatible YAML workflows run in Cloudflare Containers alongside a stateless Streamable HTTP /mcp server with explicit moderator approval controls.
 ---
 
-## Quick Jump by Role & Goal
-
-| Role / Goal                           | Start Here                                                                                                  | What You Get                                                                               |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Evaluate fit & deploy an instance     | [Overview & Boundaries](/en/docs/) · [Deployment Modes](/en/docs/deployment)                                | Single-tenant limits, Cloudflare API token scopes, and installer CLI / manual setup        |
-| Configure bindings & troubleshoot     | [Configuration Matrix](/en/docs/configuration) · [FAQ](/en/docs/faq)                                        | All Wrangler bindings, cron schedules, secrets, and `reset-mfa` / 503 diagnostics          |
-| Integrate MCP, Webhooks, CI or Agents | [API, MCP & Webhooks](/en/docs/apis-and-mcp) · [Flows & AGENT.md](/en/docs/interactions-and-extensibility)  | 31+3 MCP tools, HMAC webhooks, commit statuses, `AGENT.md` authoring, and UI i18n          |
-| Trace source internals & contribute   | [Architecture](/en/docs/architecture) · [Walkthrough](/en/docs/walkthrough) · [Code Map](/en/docs/code-map) | Subsystems, end-to-end push flow, D1 schema map, and `workerd` testing rules               |
-| Upgrade D1 schema & inspect ADRs      | [Migrations & ADRs](/en/docs/changelog-and-migrations)                                                      | `0000`–`0066` migrations, `access-preflight` / `access-drain-status`, and design decisions |
-
 ## Architecture Overview
 
 <div class="archify-diagram-card" style="margin: 1.5rem 0; border: 1px solid var(--vp-c-border); border-radius: 12px; overflow: hidden; background: var(--vp-c-bg-soft); box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
@@ -58,3 +48,13 @@ pnpm dlx @cybernova2333/cloudforge install
 # Or run the full local development stack at http://localhost:8080
 pnpm install --frozen-lockfile && pnpm dev
 ```
+
+## Documentation Guide
+
+::: tip Quick Navigation by Role & Goal
+
+- **Evaluate fit & deploy an instance**: Start with [Overview & Boundaries](/en/docs/) and [Deployment Modes](/en/docs/deployment) for single-tenant limits, Cloudflare API token scopes, and installer CLI / manual setup;
+- **Configure bindings & troubleshoot**: See [Configuration Matrix](/en/docs/configuration) and [FAQ](/en/docs/faq) for Wrangler bindings, cron schedules, secrets, and `reset-mfa` / 503 diagnostics;
+- **Integrate MCP, Webhooks, CI or Agents**: Read [API, MCP & Webhooks](/en/docs/apis-and-mcp) and [Flows & AGENT.md](/en/docs/interactions-and-extensibility) for 31+3 MCP tools, HMAC webhooks, and `AGENT.md` authoring;
+- **Trace source internals & upgrade D1 schema**: Explore [Architecture](/en/docs/architecture), [Walkthrough](/en/docs/walkthrough), [Code Map](/en/docs/code-map), and [Migrations & ADRs](/en/docs/changelog-and-migrations).
+  :::

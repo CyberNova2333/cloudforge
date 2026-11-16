@@ -46,7 +46,7 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: '1. 起步与部署',
+            text: '起步与部署',
             items: [
               { text: '项目概览与边界', link: '/docs/' },
               { text: '多模式部署与运维', link: '/docs/deployment' },
@@ -55,7 +55,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '2. 契约与扩展',
+            text: '契约与扩展',
             items: [
               {
                 text: '权限模型与安全边界',
@@ -72,7 +72,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '3. 架构与内核原理',
+            text: '架构与内核原理',
             items: [
               { text: '系统架构与交互拓扑', link: '/docs/architecture' },
               { text: '一次真实推送主流程', link: '/docs/walkthrough' },
@@ -97,7 +97,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '4. 版本变更与迁移',
+            text: '版本变更与迁移',
             items: [
               {
                 text: '数据库迁移、升级门禁与 ADR',
@@ -132,7 +132,7 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: '1. Getting Started & Deployment',
+            text: 'Getting Started & Deployment',
             items: [
               { text: 'Overview & Scope Boundaries', link: '/en/docs/' },
               {
@@ -147,7 +147,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '2. Contracts & Extensibility',
+            text: 'Contracts & Extensibility',
             items: [
               {
                 text: 'Access Model & Security Boundaries',
@@ -164,7 +164,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '3. Architecture & Internals',
+            text: 'Architecture & Internals',
             items: [
               {
                 text: 'System Architecture & Diagram',
@@ -192,7 +192,7 @@ export default defineConfig({
             ],
           },
           {
-            text: '4. Releases & Migrations',
+            text: 'Releases & Migrations',
             items: [
               {
                 text: 'Migrations, Upgrade Gates & ADRs',

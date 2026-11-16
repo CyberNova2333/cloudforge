@@ -1,4 +1,4 @@
-# Stage 2: Access Model, Auth Isolation & Security Boundaries
+# Access Model, Auth Isolation & Security Boundaries
 
 ## 1. Repository Visibility & Permissions
 
