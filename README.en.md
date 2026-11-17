@@ -13,7 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> | <strong>English</strong> · <a href="https://cloudforge.cbnv.me/en/docs/">Docs Site</a> · <a href="#quick-start">Quick Start</a> · <a href="#reading-paths">Reading Paths</a>
+  <a href="README.md">简体中文</a> | <strong>English</strong>
+</p>
+
+<p align="center">
+  <a href="https://cloudforge.cbnv.me/en/docs/">Docs Site</a> · <a href="#quick-start">Quick Start</a> · <a href="#reading-paths">Reading Paths</a>
 </p>
 
 CloudForge is a **single-tenant, self-hosted Git and AI code review platform running inside your own Cloudflare account** (forked from [choyiny/gitorange](https://github.com/choyiny/gitorange)), serving a React 18 SPA, Git HTTPS/LFS, Container Actions, DAG PR stacking, AI review, and OAuth 2.1 MCP from a single Worker for small teams or personal private hosting—not multi-tenant SaaS.

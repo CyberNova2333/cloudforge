@@ -13,7 +13,11 @@
 </p>
 
 <p align="center">
-  <strong>简体中文</strong> | <a href="README.en.md">English</a> · <a href="https://cloudforge.cbnv.me/docs/">在线文档站</a> · <a href="#快速开始">快速开始</a> · <a href="#文档导览">文档导览</a>
+  <strong>简体中文</strong> | <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://cloudforge.cbnv.me/docs/">在线文档站</a> · <a href="#快速开始">快速开始</a> · <a href="#文档导览">文档导览</a>
 </p>
 
 CloudForge 是一个**部署在你自己 Cloudflare 账户内的单租户自托管 Git 与 AI 代码审查平台**（基于 [choyiny/gitorange](https://github.com/choyiny/gitorange) 分叉演进），在一个 Worker 同源提供 React 网页、Git HTTPS/LFS、容器 Actions、PR 堆叠、AI 审查与 OAuth 2.1 MCP，面向中小团队及个人私有托管，不适用于多租户公开 SaaS。
