@@ -1,12 +1,20 @@
 <!-- Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt). -->
 
-# CloudForge
+<p align="center">
+  <img src="public/cloudforge-logo.svg" alt="CloudForge" width="360" />
+</p>
 
-**简体中文** | [English](README.en.md)
+<h1 align="center">CloudForge</h1>
 
-[![CI](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml/badge.svg)](https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-cloudforge.cbnv.me-0969da)](https://cloudforge.cbnv.me/docs/)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml"><img src="https://github.com/CyberNova2333/cloudforge/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://cloudforge.cbnv.me/docs/"><img src="https://img.shields.io/badge/docs-cloudforge.cbnv.me-0969da" alt="Docs" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg" alt="License: AGPL-3.0-only" /></a>
+</p>
+
+<p align="center">
+  <strong>简体中文</strong> | <a href="README.en.md">English</a> · <a href="https://cloudforge.cbnv.me/docs/">在线文档站</a> · <a href="#快速开始">快速开始</a> · <a href="#文档导览">文档导览</a>
+</p>
 
 CloudForge 是一个**部署在你自己 Cloudflare 账户内的单租户自托管 Git 与 AI 代码审查平台**（基于 [choyiny/gitorange](https://github.com/choyiny/gitorange) 分叉演进），在一个 Worker 同源提供 React 网页、Git HTTPS/LFS、容器 Actions、PR 堆叠、AI 审查与 OAuth 2.1 MCP，面向中小团队及个人私有托管，不适用于多租户公开 SaaS。
 
