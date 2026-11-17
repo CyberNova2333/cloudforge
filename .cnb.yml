@@ -1,0 +1,49 @@
+.check-code: &check-code
+  name: 构建、类型、格式与脚本测试
+  script: |
+    set -eu
+    corepack enable
+    pnpm install --frozen-lockfile
+    cp wrangler.jsonc.ci wrangler.jsonc
+    cp .dev.vars.example .dev.vars
+    pnpm format:check
+    pnpm build
+    pnpm typecheck
+    pnpm notices:check
+    pnpm exec vitest run --config scripts/cloudforge/vitest.config.ts
+    rm -f wrangler.jsonc .dev.vars
+
+.build-docs: &build-docs
+  name: 构建并核对文档站
+  script: |
+    set -eu
+    corepack enable
+    pnpm --dir docs-site install --frozen-lockfile
+    pnpm --dir docs-site run docs:build
+    test -f docs-site/.vitepress/dist/index.html
+
+main:
+  push:
+    - name: 持续集成与构建检查
+      docker:
+        image: node:22-bookworm
+      lock:
+        key: checks_main
+        wait: true
+        cancel-in-wait: true
+      stages:
+        - *check-code
+        - *build-docs
+
+$:
+  web_trigger_check:
+    - name: 手动构建检查（不发布）
+      docker:
+        image: node:22-bookworm
+      lock:
+        key: checks_manual
+        wait: true
+        cancel-in-wait: true
+      stages:
+        - *check-code
+        - *build-docs
