@@ -60,5 +60,10 @@
       "en": "Review workflow, container CI, OAuth MCP, and bilingual docs are in place; maintained as needed."
     }
   },
+  "additionalTermsConsent": {
+    "CyberNova": true,
+    "Cho Yin Yong": false,
+    "Mahmoud H.": false
+  },
   "updatedAt": "2026-11-11"
 }
