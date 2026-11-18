@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 // Declarative SQL source: `yarn db:generate` writes changes into a new generated migration.
 // One INSERT is atomic even when the transport offers no multi-statement transaction guarantee.
 export const RECOVERY_TRIGGER_NAME = 'cloudforge_mfa_recovery_v1';

@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 // A push's follow-ups, made durable. The git endpoint records the ref updates a push made (`push_events`) before it
 // answers, then runs these follow-ups in the background: Cloudflare stops that 30 s after the response, so an event
 // left unfinished runs again, from the next push to its repository or from the daily retention. Every follow-up may

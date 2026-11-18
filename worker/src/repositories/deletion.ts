@@ -1,5 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
-// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 // Deleting a repository. Its D1 row goes in one batch with a `repository_deletions` row; its storage (the Artifacts
 // repo, LFS bytes in R2, Actions logs, caches and artifacts) is then removed step by step, each step recorded once
 // done, so a step that fails is run again by the daily retention instead of leaving the bytes behind for good.

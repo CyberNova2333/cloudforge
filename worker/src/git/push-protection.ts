@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 // Branch protection for pushes through the git endpoint (git-http.ts). The default branch and the repository's
 // protected branches (`repositories.protected_branches`) move only through CloudForge itself (landPull, its rebases,
 // which push to Artifacts directly) or a repository admin's fast-forward: nobody deletes or rewrites them, and a
