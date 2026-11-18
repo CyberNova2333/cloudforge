@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 // The events webhooks receive (docs/webhooks.md), as GitHub-style JSON: `repository`, `sender`, and per event its
 // object (`pull_request`, `issue`, `comment`, `release`, push fields). Each emit reads the repository's hooks first and
 // builds nothing when none takes the event. Never throws.

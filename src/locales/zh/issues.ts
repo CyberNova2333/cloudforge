@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Issues and labels: the list, an issue's page, the labels page. (label 标记, so it never reads as a git tag 标签.) */
 export const issues: Record<string, string> = {
   Issues: '议题',

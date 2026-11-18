@@ -31,3 +31,5 @@ pnpm format:check
    - 提交正文必须包含 `文档:` 交代和 `Co-authored-by:` trailer（校验规则见 `scripts/githooks/rules.mjs`）；
    - `pre-commit` 与 `pre-push` 运行 `tools/repo_maintenance_guard.py` 扫描凭证与敏感路径，并用 `lint-staged` 检查文件格式；
    - 基于上游 `choyiny/gitorange`（Apache-2.0）改编或新增的源文件按 `CONTRIBUTING.md` 与 `AGENTS.md` 保留或声明相应许可证头部。
+
+- 一方源码及改编部分依据 `LICENSE`（AGPL-3.0-only）与根目录 `ADDITIONAL_TERMS.zh-CN.md`（英文参考 `ADDITIONAL_TERMS.en.md`）授权，独立品牌与字体/前端资产清单见 `ASSET_LICENSES.md`。

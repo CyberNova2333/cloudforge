@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 // The issues a pull request names in its title and description (docs/issues.md): `Fixes #12` closes #12 when the pull
 // request lands on the default branch; any other `#12` only mentions it. Recorded in `issue_links` whenever the title
 // or description is written, so landing and the pages read the table, never the text.

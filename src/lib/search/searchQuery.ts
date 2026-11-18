@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 import { queryOptions } from '@tanstack/react-query';
 import { SEARCH_STALE_MS } from './searchKeys';
 import { api, qk, type SearchResults } from '../api/uiApi';

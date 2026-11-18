@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Committing a learned edit to the agent's repository: the message, and compare-and-swap with one retry. */
 import { AGENT_PATH } from '../agents/config';
 import type { Signature } from '../git/objects';

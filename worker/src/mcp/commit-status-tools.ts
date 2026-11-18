@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 import { can } from '../repositories/permissions';
 // External CI status reporting over MCP, with the same permissions and validation as the REST API.
 import { commitStatusStates, type CommitStatus } from '../db/app.schema';

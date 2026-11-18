@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * The one-time setup code. `yarn cloudforge install` sets `SETUP_CODE_HASH` (the hash of a code it
  * prints) as a secret; while it is set, the first admin can only be created with the code. Without it,

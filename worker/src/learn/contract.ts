@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * What the learn mode of the AgentReviewer Durable Object (review/agent-reviewer.ts) and the learn Workflow
  * (learn/run.ts) share: names, the request, the API, the tool guard, and the prompts. No Cloudflare imports: the

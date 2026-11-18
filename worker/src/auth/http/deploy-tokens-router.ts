@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { and, desc, eq } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';

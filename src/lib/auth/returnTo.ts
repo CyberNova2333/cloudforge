@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Only an internal path can be used after sign-in, including after URL normalization. */
 export function safeReturnTo(value: string | null): string {
   if (

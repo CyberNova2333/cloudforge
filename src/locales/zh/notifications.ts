@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Notifications: the bell, the inbox, subscribing, watching a repository, Settings → Notifications. */
 export const notifications: Record<string, string> = {
   Notifications: '通知',

@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * Themes: eight compatible preset IDs sharing the Enterprise palette, each shown in System, Light or Dark appearance. The preference is per
  * browser (localStorage). `index.html` applies it before the first paint with an inline script that mirrors

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Chinese for the approvals area (Approvals, findings, Home): see index.ts for the terms. */
 export const approvals: Record<string, string> = {
   // src/lib/approvalsInbox.ts

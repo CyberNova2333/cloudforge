@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Chinese for the admin area (site admin, personal settings): see index.ts for the terms. */
 export const admin: Record<string, string> = {
   'Use a token for git over HTTPS, Git LFS, or the commit status API (Authorization: Bearer). A read-only token can read but cannot push or report statuses.':

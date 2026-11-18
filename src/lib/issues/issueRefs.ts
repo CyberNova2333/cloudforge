@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * `#12` in Markdown written in a repository (issues, pull requests, comments) as a link to issue or pull request 12.
  * They share numbers, so every link goes to `issues/<n>`, which forwards to the pull request when it is one. A `#12`

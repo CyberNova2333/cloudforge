@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 // Commit statuses (docs/webhooks.md): checks a CI server reports on a commit. Per commit and context the latest row
 // counts; they hold pull requests up like Actions runs do (review/checks.ts `statusVerdict`).
 import { and, desc, eq, sql } from 'drizzle-orm';

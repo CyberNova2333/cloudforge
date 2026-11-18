@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 import { drizzle } from 'drizzle-orm/d1';
 import { recordAudit } from '../audit/service';
 import { POLICY_REQUIRE_MFA_SQL, POLICY_VERSION_SQL } from '../auth/policy';

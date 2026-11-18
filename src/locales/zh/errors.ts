@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * Chinese for messages the server sends (API errors shown in the UI), by their exact English text, and
  * `zhPatterns` for messages with names or numbers in them ($1, $2… are the pattern's groups).

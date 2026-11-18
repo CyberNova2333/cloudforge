@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 // Protected pushes keep incoming objects reachable here until their ancestry has been checked.
 // External pushes cannot write refs/pull/. A failed cleanup leaves no user-visible branch changed.
 import { asc, eq, gt } from 'drizzle-orm';

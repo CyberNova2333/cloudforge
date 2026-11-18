@@ -1,4 +1,5 @@
 // Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /**
  * The review Workflow's side of an engine: pi review: start the AgentReviewer inside the agent's `review:<handle>`
  * step, then wait for its event (or 2 minutes) and check it, until it answers, fails, runs out of time or budget,

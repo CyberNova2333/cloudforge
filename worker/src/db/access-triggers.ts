@@ -1,4 +1,5 @@
 // CloudForge fork addition (2026-10-31). SPDX-License-Identifier: AGPL-3.0-only.
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 // These guards keep the legacy model safe while new role/team APIs are still unavailable.
 const MAX = 9007199254740991;
 const present = `SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM access_control_state WHERE id = 1) THEN RAISE(ABORT, 'CloudForge access state missing') END;`;

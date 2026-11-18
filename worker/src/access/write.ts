@@ -1,4 +1,5 @@
 // CloudForge fork addition (2026-11-01). SPDX-License-Identifier: AGPL-3.0-only.
+// This file is part of CloudForge and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 import { sql, type SQL } from 'drizzle-orm';
 import type { DrizzleDB } from '../db/middleware';
 import { oidcSessionSourceSql } from '../auth/assurance';

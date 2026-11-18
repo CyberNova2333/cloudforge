@@ -1,3 +1,5 @@
+// Modified by CyberNova for the CloudForge fork (forked 2026-10-22). Originally Apache-2.0 (see LICENSES/Apache-2.0.txt).
+// Modifications by CyberNova are licensed under AGPL-3.0-only with Additional Terms (see ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 /** Pure helpers for the code browser: paths, line selection in a file, front matter. */
 
 /** The lines a `#L12` or `#L12-L20` fragment selects (1-based, `start <= end`). */
