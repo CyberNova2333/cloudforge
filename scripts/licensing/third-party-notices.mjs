@@ -61,11 +61,12 @@ const cwd = process.cwd();
 const BROADER = /^(A?GPL-|SSPL-|BUSL-|CC-BY-NC|Commons-Clause)/i;
 const WEAK = /^(MPL-|EPL-|LGPL-)/i;
 // These optional native codecs are only loaded by just-bash's tar command, which the app's
-// file-only Workspaces do not expose. Decisions are recorded in the exceptions file. Stop at
+// file-only Workspaces do not expose, and `elkjs` (EPL-2.0) is stripped at Vite build time by
+// `stripMermaidElk()` in `vite.config.ts`. Decisions are recorded in the exceptions file. Stop at
 // this edge rather than pruning resolved directories: another production dependency may need
-// the same hoisted package. Native-only descendants then never enter the distributed graph,
-// regardless of whether the optional codec (or any of its descendants) installed here.
-const RUNTIME_ONLY = new Set(['node-liblzma', '@mongodb-js/zstd']);
+// the same hoisted package. Excluded descendants then never enter the distributed graph, and if
+// any excluded package ever leaks into client banners, `bannedPackages()` rejects the build.
+const RUNTIME_ONLY = new Set(['node-liblzma', '@mongodb-js/zstd', 'elkjs']);
 
 /** Node resolution for `name` from `from`: nearest node_modules wins. */
 function resolvePackage(name, from) {
@@ -281,6 +282,15 @@ export function main({
   const reasons = new Map((exceptions.reasons ?? []).map((r) => [r.name, r]));
 
   const clientBanned = bannedPackages(join(root, CLIENT_ASSET_DIR));
+  const hasStripped = [...reasons.values()].some((e) => e.stripped === true);
+  if (
+    hasStripped &&
+    (!existsSync(join(root, CLIENT_ASSET_DIR)) || clientBanned.size === 0)
+  ) {
+    fail(
+      `缺少客户端构建产物目录或许可头（${CLIENT_ASSET_DIR}）：无法验证已剔除依赖未泄漏回客户端产物，请先构建（本地无 wrangler.jsonc 时可临时 cp wrangler.jsonc.ci wrangler.jsonc && pnpm build）`
+    );
+  }
   for (const [name, versions] of clientBanned) {
     for (const version of versions) {
       if (!distributed.has(`${name}@${version}`)) {
@@ -373,7 +383,8 @@ export function main({
     '',
     `The build ships ${distributed.size} packages: everything reachable from \`dependencies\` in`,
     '`package.json`, plus optional dependencies that installed, excluding the recorded runtime-only',
-    'native codecs and packages reachable only through them. Each keeps its own license, and',
+    'native codecs, build-stripped diagram engines (`elkjs`, replaced at Vite build time), and',
+    'packages reachable only through them. Each keeps its own license, and',
     "`build/license-banners.ts` prepends each bundled package's license and copyright to the client",
     'file it ends up in. Development tooling (`devDependencies`) is not distributed.',
     '',

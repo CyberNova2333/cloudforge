@@ -53,6 +53,9 @@ export function npmManifest({ version, commit, wranglerVersion }) {
       'README.md',
       'LICENSE',
       'LICENSES',
+      'LICENSE-ADDITIONAL_TERMS-zh-CN.md',
+      'LICENSE-ADDITIONAL_TERMS-en.md',
+      'THIRD_PARTY_NOTICES.md',
     ],
   };
 }
@@ -223,6 +226,13 @@ export async function pack(argv) {
   // AGPL-3.0-only (LICENSE) over the Apache-2.0 upstream work (LICENSES/Apache-2.0.txt): both ship.
   cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
   cpSync(join(ROOT, 'LICENSES'), join(out, 'LICENSES'), { recursive: true });
+  for (const noticeFile of [
+    'LICENSE-ADDITIONAL_TERMS-zh-CN.md',
+    'LICENSE-ADDITIONAL_TERMS-en.md',
+    'THIRD_PARTY_NOTICES.md',
+  ]) {
+    cpSync(join(ROOT, noticeFile), join(out, noticeFile));
+  }
   cpSync(
     join(ROOT, 'scripts', 'cloudforge', 'npm-README.md'),
     join(out, 'README.md')

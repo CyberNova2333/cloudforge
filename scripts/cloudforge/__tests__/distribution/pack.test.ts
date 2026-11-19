@@ -37,6 +37,9 @@ describe('npmManifest：软件包清单', () => {
         'README.md',
         'LICENSE',
         'LICENSES',
+        'LICENSE-ADDITIONAL_TERMS-zh-CN.md',
+        'LICENSE-ADDITIONAL_TERMS-en.md',
+        'THIRD_PARTY_NOTICES.md',
       ],
     });
   });

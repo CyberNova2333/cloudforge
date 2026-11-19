@@ -262,6 +262,46 @@ describe('第三方许可清单', () => {
     );
   });
 
+  it('构建期剔除的 elkjs 不计入分发依赖，若泄漏回客户端产物则报错', () => {
+    install('a', 'MIT', { dependencies: { elkjs: '1.0.0' } });
+    install('elkjs', 'EPL-2.0');
+    exceptions([
+      {
+        name: 'elkjs',
+        does: 'ELK layout',
+        placement: 'none',
+        paths: false,
+        stripped: true,
+        reason: 'stripped at build time',
+      },
+    ]);
+    const stripped = run();
+    expect(stripped.failures).toEqual([]);
+    expect(stripped.packages).toBe(1);
+    expect(stripped.content).toContain('## Copyleft components\n\nNone.');
+    banner(['a@1.0.0', 'elkjs@1.0.0']);
+    expect(run().failures.join('\n')).toContain('elkjs@1.0.0 不在依赖树内');
+  });
+
+  it('存在构建期剔除的例外时，缺少客户端构建产物目录会报错', () => {
+    install('a', 'MIT', { dependencies: { elkjs: '1.0.0' } });
+    install('elkjs', 'EPL-2.0');
+    exceptions([
+      {
+        name: 'elkjs',
+        does: 'ELK layout',
+        placement: 'none',
+        paths: false,
+        stripped: true,
+        reason: 'stripped at build time',
+      },
+    ]);
+    rmSync(join(root, 'dist'), { recursive: true, force: true });
+    expect(run().failures.join('\n')).toContain(
+      '缺少客户端构建产物目录或许可头'
+    );
+  });
+
   it('未安装的必需依赖报错', () => {
     install('a', 'MIT', { dependencies: { missing: '1.0.0' } });
     expect(run().failures.join('\n')).toContain('missing');

@@ -61,9 +61,7 @@
     }
   },
   "additionalTermsConsent": {
-    "CyberNova": true,
-    "Cho Yin Yong": false,
-    "Mahmoud H.": false
+    "CyberNova": true
   },
   "updatedAt": "2026-11-11"
 }

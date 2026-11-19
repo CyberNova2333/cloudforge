@@ -8,9 +8,10 @@ CloudForge is distributed under AGPL-3.0-only (`LICENSE`). It is a fork of GitOr
 original portions remain under the Apache License 2.0 (`LICENSES/Apache-2.0.txt`, unchanged,
 "Copyright 2026 GitOrange contributors").
 
-The build ships 345 packages: everything reachable from `dependencies` in
+The build ships 344 packages: everything reachable from `dependencies` in
 `package.json`, plus optional dependencies that installed, excluding the recorded runtime-only
-native codecs and packages reachable only through them. Each keeps its own license, and
+native codecs, build-stripped diagram engines (`elkjs`, replaced at Vite build time), and
+packages reachable only through them. Each keeps its own license, and
 `build/license-banners.ts` prepends each bundled package's license and copyright to the client
 file it ends up in. Development tooling (`devDependencies`) is not distributed.
 
@@ -20,15 +21,7 @@ Worker-side package is covered by this file rather than by a banner.
 
 ## Copyleft components
 
-These are the only components under a copyleft license other than this project's own. Every
-other package is MIT, Apache-2.0, ISC, BSD, OFL, Unlicense, 0BSD or MIT-0, or may be taken on
-that side of an `OR`.
-
-| Package       | License   | What it does                                                  | Ship   |
-| ------------- | --------- | ------------------------------------------------------------- | ------ |
-| `elkjs@0.9.3` | `EPL-2.0` | The ELK layout engine mermaid uses for `layout: elk` diagrams | client |
-
-- **`elkjs`** — Kept, not dropped. EPL-2.0 is file-level copyleft: unmodified (source at github.com/kieler/elkjs) as a binary inside an AGPL-3.0-only work, it asks only that the source stay available, which a public build already satisfies. It rides in mermaid's diagram chunk and nothing in this app reaches it: `src/lib/ui/mermaid.ts` initializes mermaid with `layout: 'dagre'`, and `mermaidText()` in `src/lib/pulls/pullGraph.ts` encodes `#`, `%` and `<` out of every title, branch and label, so repository content, model output and PR titles cannot open a `%%{init}%%` directive or a `flowchart-elk` diagram. Dropping it would cost `flowchart-elk` rendering for 1.4 MB nobody downloads by default.
+None.
 
 ## Fonts
 
@@ -52,7 +45,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | `(MPL-2.0 OR Apache-2.0)` | 1        |
 | `0BSD`                    | 1        |
 | `BSD-2-Clause`            | 1        |
-| `EPL-2.0`                 | 1        |
 | `MIT-0`                   | 1        |
 
 ### MIT
@@ -442,12 +434,6 @@ Shipped as WOFF2 files with the OFL text and copyright line alongside them at
 | Package              | Version | Artifact | Source                               |
 | -------------------- | ------- | -------- | ------------------------------------ |
 | `@mixmark-io/domino` | 2.2.0   | worker   | https://github.com/mixmark-io/domino |
-
-### EPL-2.0
-
-| Package | Version | Artifact | Source                          |
-| ------- | ------- | -------- | ------------------------------- |
-| `elkjs` | 0.9.3   | client   | https://github.com/kieler/elkjs |
 
 ### MIT-0
 
