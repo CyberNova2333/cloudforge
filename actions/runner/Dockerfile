@@ -4,7 +4,7 @@
 # for checkout and the build tools most projects expect. Keep it lean: every MB here is paid
 # once per host on the first job's cold start.
 # Pinned by digest (the tag alone can be moved under every deploy); Dependabot proposes new digests.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385 AS git-lfs-build
+FROM --platform=$BUILDPLATFORM golang:1.27.4-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d AS git-lfs-build
 ARG TARGETARCH
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
 WORKDIR /src
